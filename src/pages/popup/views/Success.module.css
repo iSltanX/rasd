@@ -1,0 +1,89 @@
+.state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-6);
+  text-align: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--rasd-control-xl);
+  block-size: var(--rasd-control-xl);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-status-success-surface);
+  color: var(--rasd-status-success-fg);
+  margin-block-end: var(--rasd-space-4);
+}
+
+.title {
+  font-family: var(--rasd-font-family-display);
+  font-size: var(--rasd-font-size-xl);
+  font-weight: 800;
+  color: var(--rasd-text-primary);
+  margin: 0;
+}
+
+.sub {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-tertiary);
+  direction: ltr;
+  unicode-bidi: isolate;
+  margin: 0 0 var(--rasd-space-12);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-4);
+  margin-block-end: var(--rasd-space-16);
+}
+.action {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rasd-space-4);
+  background: transparent;
+  border: none;
+  padding: var(--rasd-space-6) var(--rasd-space-10);
+  border-radius: var(--rasd-radius-sm);
+  color: var(--rasd-text-secondary);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  cursor: pointer;
+}
+.action:hover {
+  background: var(--rasd-surface-hover);
+}
+.action:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+
+.open {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  background: var(--rasd-action-primary-rest);
+  color: var(--rasd-text-on-brand);
+  border: none;
+  padding-block: var(--rasd-space-10);
+  padding-inline: var(--rasd-space-20);
+  border-radius: var(--rasd-radius-md);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+.open:hover {
+  background: var(--rasd-action-primary-hover);
+}
+.open:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}

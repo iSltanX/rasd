@@ -40,7 +40,12 @@ export default defineConfig(({ mode }) => ({
         settings: PAGE_PATHS.settings,
         onboarding: PAGE_PATHS.onboarding,
         offscreen: PAGE_PATHS.offscreen,
-        ...(mode === 'production' ? {} : { gallery: 'src/pages/gallery/index.html' }),
+        ...(mode === 'production'
+          ? {}
+          : {
+              gallery: 'src/pages/gallery/index.html',
+              'popup-preview': 'src/pages/popup-preview/index.html',
+            }),
       },
       output: {
         chunkFileNames: 'assets/[name]-[hash].js',

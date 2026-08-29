@@ -1,0 +1,86 @@
+.state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--rasd-space-4);
+  padding-block: var(--rasd-space-16);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--rasd-control-xl);
+  block-size: var(--rasd-control-xl);
+  border-radius: var(--rasd-radius-full);
+  margin-block-end: var(--rasd-space-8);
+}
+.toneDanger {
+  background: var(--rasd-status-danger-surface);
+  color: var(--rasd-status-danger-fg);
+}
+.toneWarning {
+  background: var(--rasd-status-warning-surface);
+  color: var(--rasd-status-warning-fg);
+}
+.toneBrand {
+  background: var(--rasd-surface-brand-subtle);
+  color: var(--rasd-icon-brand);
+}
+.toneNeutral {
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-icon-secondary);
+}
+
+.title {
+  font-family: var(--rasd-font-family-display);
+  font-size: var(--rasd-font-size-xl);
+  font-weight: 800;
+  color: var(--rasd-text-primary);
+  margin: 0;
+}
+
+.desc {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  line-height: var(--rasd-leading-body);
+  color: var(--rasd-text-tertiary);
+  max-inline-size: 26rem;
+  margin: 0 0 var(--rasd-space-4);
+}
+
+.primary {
+  inline-size: 100%;
+  max-inline-size: 18rem;
+}
+
+.secondary {
+  background: transparent;
+  border: none;
+  padding: var(--rasd-space-4);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-tertiary);
+  cursor: pointer;
+}
+.secondary:hover {
+  color: var(--rasd-text-secondary);
+}
+.secondary:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+  border-radius: var(--rasd-radius-xs);
+}
+
+.hintRow {
+  margin: var(--rasd-space-8) 0 0;
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-disabled);
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+}

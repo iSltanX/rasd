@@ -9,7 +9,8 @@
  * أخيرًا، حتى لا يُطلَق معالج على مضيف أُزيل.
  */
 
-import { type Mode } from '@/shared/modes'
+import { onMessage, send } from '@/shared/messaging'
+import { isMode, type Mode } from '@/shared/modes'
 import { errWith, ok, type RasdError, type Result } from '@/shared/result'
 
 import { readSpace, watchDpr, type CoordSpace } from './coords'
@@ -88,6 +89,27 @@ export async function startOverlay(
     },
   })
 
+  /**
+   * كل تغيّر وضع يُبلَّغ إلى الـservice worker — النافذة (المرحلة 7) تقرأه
+   * عبر `session/get` لتعرض حالتها الحيّة (`capturing` · `inspect-active` ·
+   * `colors`) بلا انتظار محرّك لم يُبنَ بعد. لا ينتظر الردّ ولا يرمي عند
+   * الفشل: تقرير مفقود يعني نافذة تعرض الحالة الافتراضية، لا عطل في الطبقة.
+   */
+  const reportMode = (mode: Mode) => void send('mode/report', { mode })
+  const unsubscribeReport = modes.subscribe((mode) => reportMode(mode))
+  reportMode(modes.mode.value)
+
+  /**
+   * أمر خارجي (نافذة · اختصار · قائمة سياق) يبدّل الوضع مباشرة — لا يمرّ
+   * من `installShortcuts`، لأنه لا يحمل حدث لوحة مفاتيح يحرسه `capture`.
+   * يُسجَّل هنا لا في مستوى الوحدة: الاستجابة له بلا جلسة قائمة سلوك خاطئ
+   * لا مجرّد فرصة ضائعة.
+   */
+  const unregisterModeSet = onMessage('mode/set', ({ mode }) => {
+    if (isMode(mode)) modes.set(mode)
+    return { ok: true }
+  })
+
   const removeShortcuts = installShortcuts({
     doc,
     // `Esc` يُبتلع فقط حين يكون له معنى عندنا — وإلا فهو مفتاح الصفحة.
@@ -113,9 +135,14 @@ export async function startOverlay(
     // الترتيب معكوس ترتيب التركيب: المستمعات ومراقب البقاء أوّلًا، وإلا
     // رأى المراقبُ المضيفَ يختفي فأعاد إلحاقه في اللحظة نفسها.
     removeShortcuts()
+    unregisterModeSet()
     stopDpr()
     persistence.stop()
     sync.stop()
+    unsubscribeReport()
+    // النافذة تعتمد على وضع مبلَّغ يعكس الواقع — تفكيك بلا تقرير idle أخير
+    // يترك مؤشِّرًا حيًّا كاذبًا لجلسة انتهت فعلًا.
+    reportMode('idle')
     modes.dispose()
     host.teardown()
   }

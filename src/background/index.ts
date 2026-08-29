@@ -1,6 +1,8 @@
 import { IS_DEV, PRODUCT_NAME, VERSION, isIncognitoContext } from '@/shared/env'
 import { checkInjectable } from '@/shared/restricted'
 
+import { activateTool, COMMAND_TOOL } from './commands'
+import { registerContextMenus } from './context-menus'
 import { registerLifecycle } from './lifecycle'
 
 /**
@@ -16,6 +18,7 @@ const log = (message: string) => {
 }
 
 registerLifecycle()
+registerContextMenus()
 
 chrome.runtime.onInstalled.addListener((details) => {
   log(`onInstalled: ${details.reason} — v${VERSION}${isIncognitoContext() ? ' (خاص)' : ''}`)
@@ -28,8 +31,8 @@ chrome.runtime.onStartup.addListener(() => {
 /**
  * البوّابة الوحيدة للحقن.
  *
- * كل مسار يريد تشغيل شيء داخل صفحة يمرّ من هنا. الحقن الفعلي
- * (`chrome.scripting.executeScript`) يُضاف في المرحلة 6.
+ * كل مسار يريد تشغيل شيء داخل صفحة يمرّ من هنا. الحقن الفعلي في
+ * `commands.ts#activateTool` — المرحلة 6.
  */
 export function canOperateOnTab(tab: chrome.tabs.Tab): boolean {
   const check = checkInjectable(tab.url)
@@ -41,7 +44,9 @@ export function canOperateOnTab(tab: chrome.tabs.Tab): boolean {
 }
 
 chrome.commands.onCommand.addListener((command, tab) => {
-  if (!tab) return
-  if (!canOperateOnTab(tab)) return
+  if (!tab?.id) return
+  const tool = COMMAND_TOOL[command]
+  if (!tool) return
   log(`أمر: ${command} على التبويب ${String(tab.id)}`)
+  void activateTool(tab.id, tool)
 })

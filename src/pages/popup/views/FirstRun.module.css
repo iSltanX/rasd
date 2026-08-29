@@ -1,0 +1,89 @@
+.state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--rasd-space-4);
+  padding-block: var(--rasd-space-8);
+}
+
+.mark {
+  color: var(--rasd-text-brand);
+  margin-block-end: var(--rasd-space-8);
+}
+
+.title {
+  font-family: var(--rasd-font-family-display);
+  font-size: var(--rasd-font-size-xl);
+  font-weight: 800;
+  color: var(--rasd-text-primary);
+  margin: 0;
+}
+
+.tagline {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  color: var(--rasd-text-tertiary);
+  margin: 0;
+}
+
+.desc {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  line-height: var(--rasd-leading-body);
+  color: var(--rasd-text-tertiary);
+  max-inline-size: 26rem;
+  margin: var(--rasd-space-4) 0 var(--rasd-space-12);
+}
+
+.tour {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  inline-size: 100%;
+  max-inline-size: 18rem;
+  justify-content: center;
+  background: var(--rasd-action-primary-rest);
+  color: var(--rasd-text-on-brand);
+  border: none;
+  padding-block: var(--rasd-space-10);
+  border-radius: var(--rasd-radius-md);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+.tour:hover {
+  background: var(--rasd-action-primary-hover);
+}
+.tour:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+
+.skip {
+  background: transparent;
+  border: none;
+  padding: var(--rasd-space-6);
+  color: var(--rasd-text-tertiary);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  cursor: pointer;
+}
+.skip:hover {
+  color: var(--rasd-text-secondary);
+}
+.skip:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+  border-radius: var(--rasd-radius-xs);
+}
+
+.hint {
+  margin: var(--rasd-space-8) 0 0;
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-disabled);
+}

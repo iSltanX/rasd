@@ -1,0 +1,173 @@
+/*
+ * هيكل النافذة — 360×520 كما في `13 — Extension Popup`، وهو القانون الذي
+ * يحسم تناقض الخطة (§6 رقم 1): بعض صفحات Figma الأخرى تكتب 493px خطأً.
+ * المقاسان الوحيدان الحرفيان في كل مصدر رصد؛ لا توكن مسافة يعطي 360 أو 520
+ * بالضبط، والنافذة سطح فيزيائي واحد لا يتكرّر قياسه.
+ */
+.shell {
+  inline-size: 360px; /* rasd-allow-literal: مقاس نافذة Chrome الفعلي — انظر التعليق أعلاه */
+  block-size: 520px; /* rasd-allow-literal: مقاس نافذة Chrome الفعلي — انظر التعليق أعلاه */
+  display: flex;
+  flex-direction: column;
+  background: var(--rasd-surface-default);
+  overflow: hidden;
+}
+
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-8);
+  padding-block: var(--rasd-space-12);
+  padding-inline: var(--rasd-space-16) var(--rasd-space-10);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  min-inline-size: 0;
+}
+.brandNames {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--rasd-space-2);
+  min-inline-size: 0;
+}
+.brandRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rasd-space-6);
+}
+.brandName {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  font-weight: 600;
+  color: var(--rasd-text-primary);
+  margin: 0;
+}
+.brandStatus {
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-tertiary);
+  max-inline-size: 15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brandMark {
+  color: var(--rasd-text-brand);
+  flex: none;
+}
+
+.body {
+  /* Figma: حشوة وفجوة 14 — لا توكن مسافة يطابقها، فأقرب قيمة من السلّم. */
+  flex: 1;
+  min-block-size: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-12) var(--rasd-space-16);
+}
+
+.footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: var(--rasd-space-10);
+  padding-inline: var(--rasd-space-16);
+  background: var(--rasd-surface-sunken);
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+.version {
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-disabled);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.footerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--rasd-text-secondary);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+.footerLink:hover {
+  color: var(--rasd-text-primary);
+}
+.footerLink:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+  border-radius: var(--rasd-radius-xs);
+}
+
+/* ── مجموعة (الالتقاط · الفحص · الأخيرة) ─────────────────────────── */
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+}
+.groupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.groupLabel {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  font-weight: 700;
+  color: var(--rasd-text-tertiary);
+}
+.groupShortcut {
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-disabled);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.groupLink {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  font-weight: 600;
+  color: var(--rasd-text-brand);
+  cursor: pointer;
+}
+.groupLink:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+  border-radius: var(--rasd-radius-xs);
+}
+
+.captureGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--rasd-space-8);
+}
+
+.inspectRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--rasd-space-8);
+}
+
+.recentRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--rasd-space-8);
+}

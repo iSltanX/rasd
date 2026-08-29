@@ -1,0 +1,46 @@
+.state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-8);
+  text-align: center;
+}
+
+.title {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-lg);
+  font-weight: 700;
+  color: var(--rasd-tool-colors-fg);
+  margin: 0;
+}
+
+.sub {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  color: var(--rasd-text-tertiary);
+  margin: 0 0 var(--rasd-space-8);
+  max-inline-size: 22rem;
+}
+
+.exit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  background: transparent;
+  border: none;
+  padding: var(--rasd-space-6) var(--rasd-space-10);
+  border-radius: var(--rasd-radius-sm);
+  color: var(--rasd-text-secondary);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  cursor: pointer;
+}
+.exit:hover {
+  background: var(--rasd-surface-hover);
+}
+.exit:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}

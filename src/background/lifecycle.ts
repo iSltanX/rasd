@@ -10,6 +10,7 @@
  * فالمهمة التي علقت لأن SW أُنهي تبقى «جارية» للأبد. المنبّه ينجو ويوقظ SW.
  */
 
+import { activateTool } from '@/background/commands'
 import { isIncognitoContext, VERSION } from '@/shared/env'
 import { CHANNELS, onMessage, openPortCount, serveChannel } from '@/shared/messaging'
 import { PAGE_PATHS } from '@/shared/page-paths'
@@ -18,7 +19,7 @@ import { getSettings, patchSettings, resetSettings } from '@/shared/settings'
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
 import { closeOffscreen, ensureOffscreen } from '@/shared/storage/offscreen'
 import { quotaState } from '@/shared/storage/quota'
-import { getSession, patchSession } from '@/shared/storage/session'
+import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
 /** اسم منبّه الحارس. */
 const WATCHDOG_ALARM = 'rasd:watchdog'
@@ -87,6 +88,15 @@ function registerRequestHandlers() {
     const result = await patchSession(patch)
     if (!result.ok) throw new Error(result.error.message)
     return result.value as unknown as Record<string, unknown>
+  })
+
+  onMessage('tool/activate', async ({ tool, tabId }) => activateTool(tabId, tool))
+
+  onMessage('mode/report', async ({ mode }, { tabId }) => {
+    // بلا تبويب مُرسِل لا معنى للتقرير — لا يُرمى، يُهمَل بصمت. هذا يقع فقط
+    // لو استُدعي `send()` بدل `sendToTab()` من سياق ليس تبويبًا.
+    if (tabId !== undefined) await setTabMode(tabId, mode)
+    return { ok: true }
   })
 
   onMessage('page/open', async ({ page, active }) => {

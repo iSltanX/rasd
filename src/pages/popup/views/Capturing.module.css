@@ -1,0 +1,64 @@
+.state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-12);
+  text-align: center;
+}
+
+.title {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-lg);
+  font-weight: 700;
+  color: var(--rasd-text-primary);
+  margin: 0;
+}
+
+.sub {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  color: var(--rasd-text-tertiary);
+  margin: 0;
+}
+
+.progress {
+  inline-size: 100%;
+  max-inline-size: 22rem;
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+}
+.progress > * {
+  flex: 1;
+}
+.percent {
+  flex: none;
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-brand);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  background: transparent;
+  border: none;
+  padding: var(--rasd-space-6) var(--rasd-space-10);
+  border-radius: var(--rasd-radius-sm);
+  color: var(--rasd-text-secondary);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  cursor: pointer;
+}
+.cancel:hover {
+  background: var(--rasd-surface-hover);
+}
+.cancel:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}

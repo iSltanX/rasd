@@ -10,6 +10,10 @@
 
 import type { PageName } from '../page-paths'
 import type { RestrictionReason } from '../restricted'
+import type { ActiveMode } from '../storage/session'
+
+/** أدوات القائمة الرئيسية: أوضاع الطبقة الستّة القابلة للتفعيل، زائد نوعا الالتقاط الفوري. */
+export type ToolName = Exclude<ActiveMode, 'idle'> | 'viewport' | 'full-page'
 
 // ─────────────────────────────────────────────────────────────────
 // الطلبات — رسالة واحدة، ردّ واحد
@@ -25,6 +29,28 @@ export interface RequestMap {
   'settings/reset': void
   'session/get': void
   'session/patch': { patch: Record<string, unknown> }
+  /**
+   * مدير الأوضاع داخل الصفحة يبثّ تغيّر وضعه — النافذة تقرؤه عبر `session/get`
+   * لتعرض حالتها الحيّة (`capturing` · `inspect-active` · `colors`) بلا
+   * انتظار نتيجة أداة لم تُبنَ بعد. لا تحمل `tabId`: صفحة العميل لا تعرف
+   * تبويبها، والمُرسِل يوفّره في `MessageContext` عبر `sender.tab.id`.
+   */
+  'mode/report': { mode: ActiveMode }
+  /**
+   * أمر مباشر من النافذة أو قائمة السياق: بدّل وضع الطبقة داخل هذه الصفحة.
+   * المستقبِل هو `content/index.ts` — يُسجَّل بينما الجلسة قائمة، ويُلغى في
+   * التفكيك، فرسالة تصل بعد الإغلاق تلقى «لا مستقبِل» لا سلوكًا صامتًا خاطئًا.
+   */
+  'mode/set': { mode: ActiveMode }
+  /**
+   * أداة من النافذة أو الاختصار أو قائمة السياق: تحقن الطبقة إن غابت، ثم
+   * تبدّل الوضع المقابل. `viewport` و`full-page` ليستا وضعًا بعد — محرّك
+   * الالتقاط في المرحلتين 8 و10 — فتنجحان بالحقن وحده الآن.
+   *
+   * `tabId` صريح لا مُستنتَج: النافذة صفحة إضافة، لا محتوى تبويب، فرسالتها
+   * لا تحمل `sender.tab` إطلاقًا.
+   */
+  'tool/activate': { tool: ToolName; tabId: number }
   'page/open': { page: PageName; active?: boolean }
   'offscreen/ensure': void
   'offscreen/close': void
@@ -52,6 +78,10 @@ export interface ResponseMap {
   'settings/reset': Record<string, unknown>
   'session/get': Record<string, unknown>
   'session/patch': Record<string, unknown>
+  'mode/report': { ok: true }
+  'mode/set': { ok: true }
+  'tool/activate':
+    { started: true; mode: ActiveMode | null } | { started: false; reason: RestrictionReason }
   'page/open': { tabId: number }
   'offscreen/ensure': { created: boolean }
   'offscreen/close': { closed: boolean }

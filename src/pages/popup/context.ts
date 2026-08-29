@@ -1,0 +1,82 @@
+/**
+ * تحميل بيانات النافذة — منطق بلا JSX، منفصل عن `Popup.tsx` عمدًا حتى يُختبر
+ * بمحاكاة `chrome.*` (`@webext-core/fake-browser`) بلا تركيب أي مكوّن.
+ *
+ * القرار الوحيد غير البديهي هنا: `checkInjectable(url)` يُستدعى محليًّا لا عبر
+ * رسالة `tab/can-operate` — النافذة تملك عنوان التبويب أصلًا من
+ * `chrome.tabs.query`، فرحلة رسالة إضافية إلى الـservice worker لإعادة نفس
+ * الفحص الخالص لا تضيف شيئًا، فقط زمن انتظار قبل فتح النافذة (المعيار: أقل
+ * من 100ms).
+ */
+
+import { send } from '@/shared/messaging'
+import { checkInjectable } from '@/shared/restricted'
+import { blobs, captures } from '@/shared/storage/repository'
+
+import type { PopupContext } from '@/shared/popup-state'
+import type { CaptureRecord } from '@/shared/storage/schema'
+import type { ActiveMode, SessionState } from '@/shared/storage/session'
+
+export interface RecentEntry {
+  readonly record: CaptureRecord
+  readonly thumbUrl: string | null
+}
+
+/** يجلب أحدث لقطتين مع صورهما المصغَّرة — الأحدث أولًا. */
+export async function loadRecent(): Promise<RecentEntry[]> {
+  const list = await captures.byIndex('createdAt')
+  if (!list.ok) return []
+  const latest = list.value
+    .filter((r) => r.trashedAt === null)
+    .slice(-2)
+    .reverse()
+
+  return Promise.all(
+    latest.map(async (record) => {
+      const blob = await blobs.get(record.id)
+      const thumbUrl = blob.ok ? URL.createObjectURL(blob.value.blob) : null
+      return { record, thumbUrl }
+    }),
+  )
+}
+
+/**
+ * يبني `PopupContext` كاملًا لتبويب واحد.
+ *
+ * `online` وحدها لا تصل من هنا رغم كونها جزءًا من `PopupContext` — القيمة
+ * الابتدائية تُقرأ من `navigator.onLine` في `Popup.tsx` نفسها، والمُستدعي
+ * يدمجها لاحقًا مع حدثَي `online`/`offline` الحيَّين؛ إعادة قراءتها هنا فقط
+ * تُثبّت قيمة قد تفوتها حالة React قبل أول عرض.
+ */
+export async function loadPopupContext(
+  tabId: number,
+  url: string | undefined,
+): Promise<Omit<PopupContext, 'online'>> {
+  const check = checkInjectable(url)
+  const restriction = check.injectable ? { injectable: true as const } : check
+
+  // متوازيتان لا متتاليتان: لا تعتمد إحداهما على نتيجة الأخرى، وكل رحلة
+  // رسالة إضافية قبل أول عرض تُحتسَب على ميزانية الـ100ms.
+  const [sessionReply, settingsReply] = await Promise.all([
+    send('session/get', undefined),
+    send('settings/get', undefined),
+  ])
+
+  const session = (sessionReply.ok ? sessionReply.value : {}) as Partial<SessionState>
+  const liveMode: ActiveMode | null = session.modes?.[tabId] ?? null
+  const job = session.job && session.job.tabId === tabId ? session.job : null
+
+  const onboardingCompleted =
+    settingsReply.ok &&
+    typeof settingsReply.value === 'object' &&
+    (settingsReply.value as { onboarding?: { completed?: boolean } }).onboarding?.completed
+
+  return {
+    restriction,
+    firstRun: restriction.injectable && !onboardingCompleted,
+    // لا ميزة في هذه المرحلة تشترط صلاحية مضيف — انظر `Permission.tsx`.
+    permissionNeeded: null,
+    job,
+    liveMode,
+  }
+}
