@@ -35,6 +35,16 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
+
+  /*
+   * خاملة للمؤشِّر ما لم تُفعَّل أداة.
+   *
+   * `setInteractive` يضع `pointer-events: auto` على **المضيف** — وهذا وحده
+   * لا يكفي: المضيف في DOM الصفحة، والمستمعات على الطبقة داخل جذر الظلّ.
+   * حدثٌ يستقرّ على المضيف لا ينزل إلى شجرة ظلّه، فلا يصل المستمع أبدًا.
+   * قيس تجريبيًا في Chrome: بـ`none` على الطبقة يُطلَق مستمع المضيف وحده.
+   * لذلك تُفتَح الطبقة نفسها للمؤشِّر مع المضيف، بالسمة نفسها.
+   */
   pointer-events: none;
 
   font-family: var(--rasd-font-family-text), system-ui, sans-serif;
@@ -52,11 +62,43 @@
 }
 
 /* كل بدائيّة تُوضع بـtranslate من متغيّرَي الموضع. */
+.rasd-ov-layer[data-rasd-interactive='true'] {
+  pointer-events: auto;
+}
+
+/*
+ * كل ما يُوضَع فوق الطبقة **زينة لا سطح التقاط**.
+ *
+ * `pointer-events` موروثة: حين تفتح الطبقة نفسها للمؤشِّر يرث كل أبنائها
+ * `auto`، فيصير هدف الحدث هو البطاقة أو الإبراز لا الطبقة — ويسقط شرط
+ * «الحدث وقع على الخلفية» الذي تعتمده كل الأدوات. الإخماد هنا يعيد الهدف
+ * إلى الطبقة، وما يحتاج التقاطًا فعليًا (المقابض، الأزرار) يعلن `auto`
+ * لنفسه: ابنٌ `auto` داخل أبٍ `none` قابل للإصابة بالمواصفة.
+ */
 .rasd-ov-place {
   position: absolute;
   inset-block-start: 0;
   inset-inline-start: 0;
   translate: var(--rasd-ov-x, 0) var(--rasd-ov-y, 0);
+  pointer-events: none;
+}
+
+/*
+ * مرساة الركن — للبدائيّات التي تُعلَّق بركن عنصر لا توضع عند نقطة.
+ *
+ * النسبة المئوية داخل `translate` تُحلّ على **مقاس العنصر نفسه**، فتصير
+ * «أزح نفسك بعرضك كاملًا». هذا يسمح بتعليق بطاقة عرضها غير معروف مسبقًا
+ * (HUG) على الركن الأيمن لمستطيل معلوم — وهو ما يفعله
+ * `capture / element-hover` ببطاقة العنصر.
+ */
+.rasd-ov-place[data-anchor='top-right'] {
+  translate: calc(var(--rasd-ov-x, 0) - 100%) var(--rasd-ov-y, 0);
+}
+.rasd-ov-place[data-anchor='bottom-right'] {
+  translate: calc(var(--rasd-ov-x, 0) - 100%) calc(var(--rasd-ov-y, 0) - 100%);
+}
+.rasd-ov-place[data-anchor='bottom-left'] {
+  translate: var(--rasd-ov-x, 0) calc(var(--rasd-ov-y, 0) - 100%);
 }
 
 /* شارة القيمة — الشكل المشترك بين Marquee وDimension وBox Model وCrosshair. */
@@ -649,6 +691,83 @@
  */
 .rasd-ov-layer[data-rasd-hidden='true'] {
   visibility: hidden;
+}
+
+/* ── إبراز العنصر المحوَّم عليه ───────────────────────────────────── */
+
+/*
+ * **بلا تعتيم، خلافًا لتحديد المنطقة.**
+ *
+ * `capture / element-hover` في Figma لا يحوي أي طبقة تعتيم: الصفحة تبقى
+ * مرئية كاملةً. والسبب وظيفي لا جمالي — المستخدم يمرّر المؤشِّر بحثًا عن
+ * العنصر الصحيح، فتعتيمُ ما حوله يخفي عنه ما يقارن به. أمّا تحديد المنطقة
+ * فقرار اتُّخذ، والتعتيم يؤكّده.
+ *
+ * السماكة 2px هنا مقابل 1.5px في المنطقة — كذلك من الملفّ: الإبراز يتحرّك
+ * مع كل حركة مؤشِّر، فيحتاج حضورًا أوضح من مستطيل ساكن.
+ */
+.rasd-ov-elhl {
+  inline-size: var(--rasd-ov-w);
+  block-size: var(--rasd-ov-h);
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-overlay-marquee-fill);
+  border: var(--rasd-stroke-thick) solid var(--rasd-tool-capture-fg);
+
+  /*
+   * الحدّ **داخل** المستطيل لا خارجه — كما ينصّ الملفّ (stroke INSIDE).
+   *
+   * `all: initial` على الطبقة يُعيد `box-sizing` إلى `content-box`، فيزيد
+   * الحدّ 2px على كل جانب: إبرازٌ 204×64 فوق عنصر 200×60. قيس في Chrome
+   * حقيقي فظهر الفرق على كل هدف.
+   */
+  box-sizing: border-box;
+}
+
+/* ── شريط الإجراءات السريعة ──────────────────────────────────────── */
+
+/*
+ * يظهر عند ركن الإبراز. `pointer-events: auto` لأنه السطح الوحيد في هذا
+ * الوضع الذي يُنقَر فعلًا — وبقيّة الطبقة تبتلع الأحداث لتستهدف لا لتُنقَر.
+ */
+.rasd-ov-quick {
+  direction: rtl;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-2);
+  padding: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-overlay-glass);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  box-shadow: var(--rasd-elevation-3);
+  backdrop-filter: blur(16px) saturate(140%); /* rasd-allow-literal: نصف قطر الطمس أثر بصري لا قيمة من سلّم المسافات */
+  pointer-events: auto;
+}
+
+.rasd-ov-quick-btn {
+  inline-size: var(--rasd-space-32);
+  block-size: var(--rasd-space-32);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: var(--rasd-stroke-thin) solid transparent;
+  border-radius: var(--rasd-radius-sm);
+  background: transparent;
+  color: var(--rasd-icon-secondary);
+  cursor: pointer;
+}
+
+.rasd-ov-quick-btn:hover {
+  background: var(--rasd-surface-raised);
+}
+
+/* الإجراء الأساسي (التقاط العنصر) بلون الأداة — كما في الملفّ. */
+.rasd-ov-quick-btn[data-primary='true'] {
+  color: var(--rasd-tool-capture-fg);
+}
+.rasd-ov-quick-btn[data-primary='true']:hover {
+  background: var(--rasd-surface-brand-subtle);
+  border-color: var(--rasd-tool-capture-border);
 }
 
 /* ── تقليل الحركة ────────────────────────────────────────────────── */

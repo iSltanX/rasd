@@ -8,7 +8,8 @@
  * للعرض في معرض ثابت بلا تشغيل أي منها داخل صفحة.
  */
 export { Marquee, type MarqueeProps } from './Marquee'
-export { NodeLabel, type NodeLabelProps } from './NodeLabel'
+export { NodeLabel, type NodeLabelProps, type NodeLabelAnchor } from './NodeLabel'
+export { ElementHover, type ElementHoverProps, type QuickAction } from './ElementHover'
 export { Dimension, type DimensionProps } from './Dimension'
 export { DimensionVertical, type DimensionVerticalProps } from './DimensionVertical'
 export { BoxModel, type BoxModelProps, type Edges } from './BoxModel'

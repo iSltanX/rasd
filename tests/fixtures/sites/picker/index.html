@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DOM picker — targeting fixture</title>
+    <style>
+      body {
+        margin: 0;
+        font: 14px/1.5 system-ui;
+        background: #fafafa;
+      }
+      .box {
+        position: absolute;
+        background: #cbd5e0;
+      }
+
+      /* هدف عادي داخل حاوية حقيقية — مرجع القياس والمشي في الشجرة معًا.
+         الحاوية لازمة: جسمٌ كل أبنائه مطلقو الموضع ارتفاعه صفر، فلا أب
+         قابلًا للاستهداف فوق الهدف. */
+      #walk-box {
+        position: absolute;
+        left: 40px;
+        top: 40px;
+        width: 300px;
+        height: 120px;
+        background: #e2e8f0;
+      }
+      #plain {
+        position: relative;
+        width: 200px;
+        height: 60px;
+      }
+
+      /* تحويلات: الحدود يجب أن تعكسها */
+      #scaled {
+        left: 40px;
+        top: 140px;
+        width: 100px;
+        height: 50px;
+        transform: scale(2);
+        transform-origin: 0 0;
+        background: #9ae6b4;
+      }
+      #rotated {
+        left: 340px;
+        top: 140px;
+        width: 100px;
+        height: 50px;
+        transform: rotate(45deg);
+        background: #faf089;
+      }
+
+      /* قصّ: اختبار الإصابة يحترمه، والحدود لا تعكسه — الفجوة المُعلَنة */
+      #clipped {
+        left: 40px;
+        top: 300px;
+        width: 200px;
+        height: 100px;
+        clip-path: inset(0 0 0 100px);
+        background: #fbb6ce;
+      }
+
+      /* غلاف بلا صندوق — المشي في الشجرة يجب أن يتخطّاه */
+      #contents-wrap {
+        display: contents;
+      }
+      #deep-child {
+        position: absolute;
+        left: 340px;
+        top: 300px;
+        width: 150px;
+        height: 50px;
+        background: #b794f4;
+      }
+
+      #host-open {
+        position: absolute;
+        left: 40px;
+        top: 430px;
+        width: 200px;
+        height: 60px;
+        display: block;
+      }
+      #frame {
+        position: absolute;
+        left: 340px;
+        top: 430px;
+        width: 300px;
+        height: 200px;
+        border: 10px solid #444;
+        padding: 0;
+      }
+
+      #stress {
+        position: absolute;
+        left: 700px;
+        top: 40px;
+        width: 300px;
+      }
+      #stress i {
+        display: inline-block;
+        width: 4px;
+        height: 4px;
+        background: #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <section id="walk-box"><div class="box" id="plain">plain</div></section>
+    <div class="box" id="scaled">scaled ×2</div>
+    <div class="box" id="rotated">rotated 45°</div>
+    <div class="box" id="clipped">clipped</div>
+
+    <div id="contents-wrap"><div class="box" id="deep-child">deep child</div></div>
+
+    <div id="host-open"></div>
+    <iframe id="frame" src="/picker/frame.html"></iframe>
+
+    <div id="stress"></div>
+
+    <script>
+      // ظلّ مفتوح بمستويين — اختراق متعشّش
+      const outer = document.getElementById('host-open').attachShadow({ mode: 'open' })
+      outer.innerHTML =
+        '<style>:host{display:block}#mid{width:100%;height:100%;background:#90cdf4}</style>' +
+        '<div id="mid"></div>'
+      const mid = outer.getElementById('mid')
+      const inner = mid.attachShadow({ mode: 'open' })
+      inner.innerHTML =
+        '<style>#leaf{position:absolute;left:20px;top:15px;width:120px;height:30px;' +
+        'background:#3182ce;color:#fff}</style><div id="leaf">shadow leaf</div>'
+
+      // ضغط: ~5000 عقدة لقياس الإطار
+      const stress = document.getElementById('stress')
+      const frag = document.createDocumentFragment()
+      for (let i = 0; i < 5000; i++) frag.appendChild(document.createElement('i'))
+      stress.appendChild(frag)
+      document.title = 'picker fixture — ' + document.querySelectorAll('*').length + ' nodes'
+    </script>
+  </body>
+</html>

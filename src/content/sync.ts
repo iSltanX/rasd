@@ -11,7 +11,13 @@
  * بخلاف `wheel` و`touchmove`.)
  */
 
-export type SyncReason = 'scroll' | 'resize' | 'dpr' | 'manual'
+export type SyncReason =
+  | 'scroll'
+  | 'resize'
+  | 'dpr'
+  | 'manual'
+  /** حركة مؤشِّر — تُبطِل الاستهداف بلا قياس في المستمع نفسه. */
+  | 'pointer'
 
 export interface SyncOptions {
   /** يُستدعى مرّة واحدة لكل إطار، وفيه وحده يجوز قياس التخطيط. */

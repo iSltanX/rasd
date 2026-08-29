@@ -458,6 +458,24 @@ describe('المضيف — التركيب والتفكيك', () => {
     vi.restoreAllMocks()
   })
 
+  it('setInteractive يفتح المضيف **والطبقة** معًا', async () => {
+    const r = await mountHost()
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const { hostEl, layer } = r.value
+
+    // المضيف وحده لا يكفي: المستمعات على الطبقة داخل جذر الظلّ، وحدثٌ
+    // يستقرّ على المضيف لا ينزل إلى شجرة ظلّه فلا يصلها أبدًا. قيس في
+    // Chrome: بـ`pointer-events:none` على الطبقة يُطلَق مستمع المضيف وحده.
+    r.value.setInteractive(true)
+    expect(hostEl.style.pointerEvents).toBe('auto')
+    expect(layer.getAttribute('data-rasd-interactive')).toBe('true')
+
+    r.value.setInteractive(false)
+    expect(hostEl.style.pointerEvents).toBe('none')
+    expect(layer.hasAttribute('data-rasd-interactive')).toBe(false)
+  })
+
   it('يركّب جذر ظلّ مغلق ولا يترك اسمًا يمكن استهدافه', async () => {
     const r = await mountHost()
     expect(r.ok).toBe(true)

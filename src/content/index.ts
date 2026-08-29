@@ -26,6 +26,7 @@ import { startPersistence, type Persistence } from './persistence'
 import { installShortcuts, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
+import { createElementHover, type ElementHoverTool } from './tools/element-hover'
 
 import type { AreaSelectTool } from './tools/area-select'
 
@@ -80,13 +81,19 @@ export async function startOverlay(
 
   const sync = startSync({
     doc,
-    onFrame: () => {
+    onFrame: (reasons) => {
       // كل قراءة تخطيط تحدث هنا وحدها، مرّة لكل إطار — لا داخل معالج تمرير.
       space = readSpace(win)
       spaceSignal.value = space
+      // أداة العنصر تُعلَّق على هذه الحلقة لا على حلقة ثانية: الحلقة الثانية
+      // تأخذ لقطة إحداثيات مستقلّة عن هذه فتتناقضان داخل الإطار الواحد.
+      elementTool?.frame(reasons)
       options.onFrame?.(space)
     },
   })
+
+  // تُسنَد بعد إنشاء الأداة: الحلقة تبدأ قبلها، والأداة تحتاج `host`.
+  let elementTool: ElementHoverTool | null = null
 
   const stopDpr = watchDpr(() => sync.invalidate('dpr'), win)
 
@@ -177,9 +184,34 @@ export async function startOverlay(
     },
   })
 
+  /**
+   * أداة كشف العناصر.
+   *
+   * `skip` هو مضيفنا: يتصدّر كل اختبار إصابة ما دام الدرع مرفوعًا،
+   * ويُستبعَد بالهُويّة لا بالموضع.
+   */
+  const element = createElementHover({
+    doc,
+    skip: host.hostEl,
+    onCommit: (rect) => runCaptureNow(rect),
+    onCancel: () => modes.escape(),
+    onBusy: (busy) => {
+      modes.busy.value = busy
+    },
+    onInvalidate: () => sync.invalidate('pointer'),
+    onCopySelector: (selector) => {
+      void navigator.clipboard?.writeText(selector).catch(() => {
+        console.warn('[رصد] تعذّر نسخ المحدِّد إلى الحافظة.')
+      })
+    },
+  })
+
+  elementTool = element
+
   const app = mountOverlayApp(host.layer, {
     mode: modes.mode,
     area,
+    element,
     space: spaceSignal,
     delaySeconds: delaySignal,
     pendingViewport,
@@ -187,15 +219,22 @@ export async function startOverlay(
   })
 
   /**
-   * الطبقة تبتلع المؤشِّر في وضع «منطقة» وحده.
+   * الأوضاع التي تبتلع فيها الطبقة المؤشِّر.
    *
-   * في غيره تبقى خاملة كما بنتها المرحلة 6، فلا تمنع تمرير الصفحة ولا نقرها.
+   * في غيرها تبقى خاملة كما بنتها المرحلة 6، فلا تمنع تمرير الصفحة ولا نقرها.
+   *
+   * **وضع العنصر يحتاج الدرع لا يستغني عنه.** بدونه تملك الصفحة النقرة،
+   * فالنقر على رابط يغادرها قبل أن نلتقط؛ وأنماط `:hover` الخاصّة بها تشتغل
+   * تحت المؤشِّر فتُغيّر العنصر الذي يفحصه المستخدم قبل التقاطه.
    */
+  const INTERACTIVE_MODES = new Set<Mode>(['area', 'element'])
+
   const unsubscribeInteractive = modes.subscribe((mode) => {
-    host.setInteractive(mode === 'area')
+    host.setInteractive(INTERACTIVE_MODES.has(mode))
     if (mode !== 'area') area.reset()
+    if (mode !== 'element') element.reset()
   })
-  host.setInteractive(modes.mode.value === 'area')
+  host.setInteractive(INTERACTIVE_MODES.has(modes.mode.value))
 
   /**
    * الخلفية تطلب الإخفاء قبل أن تلتقط.
@@ -287,6 +326,7 @@ export async function startOverlay(
     persistence,
     space: () => space,
     area,
+    element,
     lastCapture: () => lastCapture,
     teardown,
   })

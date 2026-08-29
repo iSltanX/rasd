@@ -17,9 +17,11 @@ import { useEffect } from 'preact/hooks'
 import { describeRatio, HANDLES, handlePoint } from '@/modules/capture/selection'
 import { viewportRect, viewportRectToDevice, type CoordSpace } from '@/shared/geometry'
 import { send } from '@/shared/messaging'
+import { ElementHover, type QuickAction } from '@/ui/overlay'
 import { AreaSelect, Countdown, type HandleSpot } from '@/ui/overlay/AreaSelect'
 
 import type { AreaSelectTool } from './tools/area-select'
+import type { ElementHoverTool } from './tools/element-hover'
 import type { Mode } from '@/shared/modes'
 import type { Signal } from '@preact/signals'
 import type { JSX } from 'preact'
@@ -32,9 +34,17 @@ const AREA_HINTS = [
   { label: 'ثبّت النسبة', key: '⇧' },
 ] as const
 
+/** إجراءات المرحلة 9 — ما تسنده محرّكات موجودة فعلًا لا أكثر. */
+const ELEMENT_HINTS: readonly { label: string; key: string }[] = [
+  { label: 'خروج', key: 'esc' },
+  { label: 'التقط', key: 'انقر' },
+  { label: 'تنقّل في DOM', key: '↑↓' },
+]
+
 export interface OverlayAppProps {
   mode: Signal<Mode>
   area: AreaSelectTool
+  element: ElementHoverTool
   /** لقطة الإحداثيات الحيّة — تُقرأ عند كل إطار مزامنة. */
   space: Signal<CoordSpace>
   /** ثوانٍ التأجيل من الإعدادات؛ صفر يعني التقاطًا فوريًا. */
@@ -51,7 +61,7 @@ function AreaLayer({
   delaySeconds,
   pendingViewport,
   onCapture,
-}: Omit<OverlayAppProps, 'mode'>) {
+}: Omit<OverlayAppProps, 'mode' | 'element'>) {
   const countdown = useSignal<number | null>(null)
 
   const rect = area.state.rect.value
@@ -163,9 +173,74 @@ function AreaLayer({
   )
 }
 
+/**
+ * `capture / element-hover` — الإبراز والبطاقة والإجراءات.
+ *
+ * **إجراءان لا أربعة.** يعرض الملفّ أربع رقاقات: قياس (`dimension-h`)،
+ * وشيفرة (`code`)، ونسخ، والتقاط. والقياس محرّكه المرحلة 12 والشيفرة
+ * المرحلة 11 — فعرضهما الآن وعدٌ بما لا يقع خلفه شيء. تُحذَف حتى يوجد
+ * محرّكها، ولا تُعرَض معطَّلة: السابقة مقرّرة منذ المرحلة 7.
+ */
+function ElementLayer({
+  element,
+  space,
+}: {
+  element: ElementHoverTool
+  space: Signal<CoordSpace>
+}) {
+  const rect = element.state.rect.value
+  const info = element.state.info.value
+  const s = space.value
+  const bounds = viewportRect(0, 0, s.layoutWidth, s.layoutHeight)
+
+  /**
+   * `↑`/`↓` — المشي في شجرة DOM.
+   *
+   * `capture: true` كي نرى المفتاح قبل مستمعي الصفحة، كما في `shortcuts.ts`.
+   * و`preventDefault` يمنع تمرير الصفحة بالسهم — وهو ما يجعل المشي في شجرة
+   * طويلة ممكنًا أصلًا.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const dir = event.key === 'ArrowUp' ? 'up' : event.key === 'ArrowDown' ? 'down' : null
+      if (!dir) return
+      if (element.walk(dir)) event.preventDefault()
+    }
+    window.addEventListener('keydown', onKey, { capture: true })
+    return () => window.removeEventListener('keydown', onKey, { capture: true })
+  }, [element])
+
+  const actions: QuickAction[] = info
+    ? [
+        { id: 'copy', icon: 'copy', label: 'انسخ المحدِّد', onPick: () => element.copySelector() },
+        {
+          id: 'capture',
+          icon: 'capture-element',
+          label: 'التقط العنصر',
+          primary: true,
+          onPick: () => element.commit(),
+        },
+      ]
+    : []
+
+  return (
+    <ElementHover
+      rect={rect}
+      bounds={bounds}
+      tag={info?.tag ?? ''}
+      selector={info?.label ?? ''}
+      {...(info ? { padding: info.edges.padding, margin: info.edges.margin } : {})}
+      actions={actions}
+      hints={ELEMENT_HINTS}
+    />
+  )
+}
+
 function OverlayApp(props: OverlayAppProps): JSX.Element | null {
   // القراءة داخل المكوّن هي ما يشترك في الإشارة — لا `subscribe` يدوي.
-  if (props.mode.value !== 'area') return null
+  const mode = props.mode.value
+  if (mode === 'element') return <ElementLayer element={props.element} space={props.space} />
+  if (mode !== 'area') return null
   return (
     <AreaLayer
       area={props.area}
@@ -189,12 +264,34 @@ export interface MountedApp {
  * وهذا بالضبط المطلوب أثناء التحديد.
  */
 export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): MountedApp {
-  const onMove = (e: PointerEvent) => props.area.handlers.onPointerMove(e)
-  const onUp = (e: PointerEvent) => props.area.handlers.onPointerUp(e)
+  /**
+   * الحدث الذي وقع على **خلفية** الطبقة لا على زينتها.
+   *
+   * كل ما يُوضَع فوق الطبقة يعلن `pointer-events: none`، فيبقى هدف الحدث هو
+   * الطبقة نفسها ما لم يقع على سطح التقاط صريح (مقبض، زرّ). وهذا الشرط هو
+   * ما يميّز «المؤشِّر فوق الصفحة» من «المؤشِّر فوق واجهتنا».
+   */
+  const onBackground = (e: PointerEvent) => e.target === layer
+
+  const onMove = (e: PointerEvent) => {
+    if (props.mode.value === 'element') {
+      if (onBackground(e)) props.element.onPointerMove(e)
+      return
+    }
+    props.area.handlers.onPointerMove(e)
+  }
+  const onUp = (e: PointerEvent) => {
+    if (props.mode.value === 'element') return
+    props.area.handlers.onPointerUp(e)
+  }
   const onDown = (e: PointerEvent) => {
+    if (props.mode.value === 'element') {
+      if (onBackground(e)) props.element.onPointerDown(e)
+      return
+    }
     // نقرة على خلفية الطبقة (لا على مقبض ولا على جسم التحديد) تبدأ سحبًا
     // جديدًا. المقابض توقف الانتشار بنفسها.
-    if (e.target === layer) props.area.handlers.onPointerDown(e)
+    if (onBackground(e)) props.area.handlers.onPointerDown(e)
   }
 
   layer.addEventListener('pointerdown', onDown)

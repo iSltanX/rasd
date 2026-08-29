@@ -4,6 +4,9 @@ import { at, type Point } from './geometry'
 
 import type { JSX } from 'preact'
 
+/** أي ركن من البطاقة يقع عند `origin`. */
+export type NodeLabelAnchor = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
 export interface NodeLabelProps {
   /** ركن الشارة، بإحداثيات النافذة. */
   origin: Point
@@ -13,6 +16,14 @@ export interface NodeLabelProps {
   selector: string
   width: number
   height: number
+  /**
+   * أي ركن من البطاقة يُثبَّت عند `origin`.
+   *
+   * أُضيف في المرحلة 9، أوّل مستهلك لهذه البدائيّة: الملفّ يعلّق البطاقة
+   * بالركن **الأيمن العلوي** لإبراز العنصر، وعرضها HUG لا يُعرَف مسبقًا —
+   * فلا يمكن حساب نقطة يسارها في المستدعي.
+   */
+  anchor?: NodeLabelAnchor
 }
 
 /**
@@ -22,9 +33,16 @@ export interface NodeLabelProps {
  * كتل الكود في عقد الاتجاه — لا خلط عربي داخلها يستدعي عزلًا لكل مقطع.
  * ترتيب العناصر هو ترتيب Figma البصري نفسه: المقاس، فاصل، المحدِّد، الوسم.
  */
-export function NodeLabel({ origin, tag, selector, width, height }: NodeLabelProps): JSX.Element {
+export function NodeLabel({
+  origin,
+  tag,
+  selector,
+  width,
+  height,
+  anchor = 'top-left',
+}: NodeLabelProps): JSX.Element {
   return (
-    <div class="rasd-ov-place" style={at(origin)} data-rasd-ov="node-label">
+    <div class="rasd-ov-place" style={at(origin)} data-rasd-ov="node-label" data-anchor={anchor}>
       <span class="rasd-ov-node-label">
         <span class="rasd-ov-node-size">
           {formatDimensions(Math.round(width), Math.round(height))}

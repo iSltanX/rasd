@@ -293,6 +293,10 @@ export async function mountHost(doc: Document = document): Promise<Result<Overla
 
   const setInteractive = (on: boolean) => {
     hostEl.style.setProperty('pointer-events', on ? 'auto' : 'none', 'important')
+    // المضيف وحده لا يكفي: المستمعات على الطبقة داخل جذر الظلّ، وحدثٌ
+    // يستقرّ على المضيف لا ينزل إليها. يُفتَح الاثنان معًا أو لا يصل شيء.
+    if (on) layer.setAttribute('data-rasd-interactive', 'true')
+    else layer.removeAttribute('data-rasd-interactive')
   }
 
   const show = () => {
