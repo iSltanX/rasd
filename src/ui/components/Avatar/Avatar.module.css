@@ -1,0 +1,47 @@
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--rasd-radius-full);
+  font-weight: 700;
+  color: var(--rasd-text-on-brand);
+  flex: none;
+  user-select: none;
+}
+
+.size-xs {
+  inline-size: var(--rasd-space-16);
+  block-size: var(--rasd-space-16);
+  font-size: var(--rasd-font-size-2xs);
+}
+.size-s {
+  inline-size: var(--rasd-space-24);
+  block-size: var(--rasd-space-24);
+  font-size: var(--rasd-font-size-xs);
+}
+.size-m {
+  inline-size: var(--rasd-control-md);
+  block-size: var(--rasd-control-md);
+  font-size: var(--rasd-font-size-sm);
+}
+.size-l {
+  inline-size: var(--rasd-control-xl);
+  block-size: var(--rasd-control-xl);
+  font-size: var(--rasd-font-size-md);
+}
+
+.hue-capture {
+  background: var(--rasd-tool-capture-solid);
+}
+.hue-annotate {
+  background: var(--rasd-tool-annotate-solid);
+}
+.hue-inspect {
+  background: var(--rasd-tool-inspect-solid);
+}
+.hue-measure {
+  background: var(--rasd-tool-measure-solid);
+}
+.hue-compare {
+  background: var(--rasd-tool-compare-solid);
+}

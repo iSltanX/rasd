@@ -1,0 +1,72 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  cursor: pointer;
+  /* هدف المؤشِّر ≥32×32 حتى مع صندوق بصري أصغر — الحشوة تمتصّ الفرق. */
+  padding-block: var(--rasd-space-6);
+  min-block-size: var(--rasd-control-sm);
+}
+.wrap.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* rasd-allow-literal: تقنية إخفاء بصري قياسية 1×1px — ليست قيمة تصميم من السلّم، ثابتة أينما استُخدمت. */
+.native {
+  position: absolute;
+  inline-size: 1px; /* rasd-allow-literal */
+  block-size: 1px; /* rasd-allow-literal */
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.track {
+  --knob: calc(var(--rasd-control-xs) - var(--rasd-space-4));
+  position: relative;
+  inline-size: calc(var(--knob) * 2 + var(--rasd-space-6));
+  block-size: calc(var(--knob) + var(--rasd-space-4));
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-border-strong);
+  flex: none;
+  transition: background-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard);
+}
+.wrap:hover .track,
+.forceHover .track {
+  background: var(--rasd-icon-tertiary);
+}
+.native:focus-visible ~ .track,
+.forceFocus .track {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+.track.on {
+  background: var(--rasd-action-primary-rest);
+}
+
+.knob {
+  position: absolute;
+  inset-block: var(--rasd-space-2);
+  /* التشغيل يقف عند اليسار — inset-inline-start يعبر تلقائيًا في RTL. */
+  inset-inline-start: var(--rasd-space-2);
+  inline-size: var(--knob);
+  block-size: var(--knob);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-text-on-brand);
+  transition: inset-inline-start var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard);
+}
+.track.on .knob {
+  inset-inline-start: calc(100% - var(--knob) - var(--rasd-space-2));
+}
+
+.label {
+  font-size: var(--rasd-font-size-base);
+  color: var(--rasd-text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track,
+  .knob {
+    transition: none;
+  }
+}

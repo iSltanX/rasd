@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>مجلة الطيف — عيّنة عربية RTL</title>
+    <style>
+      :root {
+        --ink: #14181d;
+        --muted: #5a6672;
+        --line: #dfe4e9;
+        --accent: #b8442e;
+        --paper: #fbf9f6;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        line-height: 1.9;
+      }
+      header {
+        border-block-end: 2px solid var(--ink);
+        padding: 24px 32px;
+        display: flex;
+        align-items: baseline;
+        gap: 24px;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -0.5px;
+      }
+      nav {
+        margin-inline-start: auto;
+        display: flex;
+        gap: 20px;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      main {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 40px 32px 80px;
+      }
+      .lede {
+        font-size: 21px;
+        color: var(--muted);
+        border-inline-start: 3px solid var(--accent);
+        padding-inline-start: 18px;
+        margin-block: 28px;
+      }
+      article h2 {
+        font-size: 22px;
+        margin-block: 36px 12px;
+      }
+      p {
+        margin-block: 0 18px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-block: 32px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+        background: #fff;
+      }
+      .card h3 {
+        margin: 0 0 6px;
+        font-size: 16px;
+      }
+      .card p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      figure {
+        margin: 32px 0;
+      }
+      .ph {
+        block-size: 240px;
+        background: linear-gradient(135deg, #e8ddd4, #d6c8ba);
+        border-radius: 10px;
+      }
+      figcaption {
+        font-size: 13px;
+        color: var(--muted);
+        margin-block-start: 8px;
+      }
+      footer {
+        border-block-start: 1px solid var(--line);
+        padding: 24px 32px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>مجلة الطيف</h1>
+      <nav><a href="#">الرئيسية</a><a href="#">تحقيقات</a><a href="#">أرشيف</a></nav>
+    </header>
+
+    <main>
+      <article>
+        <h2 id="title">حين تصير المدينة أرشيفًا لنفسها</h2>
+        <p class="lede">
+          ثلاثة أحياء تعيد ترتيب ذاكرتها العمرانية، وتسأل: ما الذي يستحق أن يبقى واقفًا؟
+        </p>
+
+        <p>
+          في الطابق الأرضي من مبنى قديم بحي المرقب، تجلس أمينة الأرشيف بين صناديق لم تُفتح منذ
+          عقدين. تقول إن أصعب ما في العمل ليس الترتيب، بل القرار: أي ورقة تُحفظ وأيها تُترك.
+        </p>
+
+        <div class="grid">
+          <div class="card">
+            <h3>الحي الأول</h3>
+            <p>ثمانية مبانٍ مسجّلة، ثلاثة منها ما تزال مأهولة.</p>
+          </div>
+          <div class="card">
+            <h3>الحي الثاني</h3>
+            <p>سوق مغطّى أُعيد بناؤه مرتين، وبقيت أعمدته الأصلية.</p>
+          </div>
+          <div class="card">
+            <h3>الحي الثالث</h3>
+            <p>لا سجلّ مكتوبًا — الذاكرة هنا شفوية بالكامل.</p>
+          </div>
+        </div>
+
+        <figure>
+          <div class="ph"></div>
+          <figcaption>واجهة السوق المغطّى قبل الترميم الأخير.</figcaption>
+        </figure>
+
+        <h2>ما الذي يُقاس؟</h2>
+        <p>المسألة ليست عدد المباني، بل كثافة الاستعمال: كم شخصًا يمرّ يوميًا، وكم منهم يتوقّف.</p>
+        <p>
+          تعيد اللجنة القياس كل ربع سنة، وتنشر النتائج بلا تعليق — لأن التعليق، كما تقول، يأتي
+          لاحقًا من السكّان أنفسهم.
+        </p>
+      </article>
+    </main>
+
+    <footer>© مجلة الطيف — عيّنة اختبار محلّية لا تُصدر أي طلب شبكة.</footer>
+  </body>
+</html>

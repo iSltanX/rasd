@@ -1,0 +1,1 @@
+export const pagesThing = 'pages'

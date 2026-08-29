@@ -1,0 +1,60 @@
+.spinner {
+  display: inline-flex;
+  flex: none;
+}
+.size-s {
+  inline-size: var(--rasd-icon-sm);
+  block-size: var(--rasd-icon-sm);
+}
+.size-m {
+  inline-size: var(--rasd-icon-md);
+  block-size: var(--rasd-icon-md);
+}
+.size-l {
+  inline-size: var(--rasd-icon-lg);
+  block-size: var(--rasd-icon-lg);
+}
+
+.svg {
+  inline-size: 100%;
+  block-size: 100%;
+  animation: rasd-spin var(--rasd-motion-duration-slower) linear infinite;
+}
+@keyframes rasd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.track {
+  fill: none;
+}
+.arc {
+  fill: none;
+  stroke-dasharray: 42 100;
+}
+
+.tone-brand .track {
+  stroke: var(--rasd-tool-capture-surface);
+}
+.tone-brand .arc {
+  stroke: var(--rasd-action-primary-rest);
+}
+.tone-neutral .track {
+  stroke: var(--rasd-border-subtle);
+}
+.tone-neutral .arc {
+  stroke: var(--rasd-icon-secondary);
+}
+.tone-inverse .track {
+  stroke: color-mix(in oklab, var(--rasd-text-on-brand) 25%, transparent);
+}
+.tone-inverse .arc {
+  stroke: var(--rasd-text-on-brand);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .svg {
+    animation-duration: 1.2s;
+  }
+}

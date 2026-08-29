@@ -1,0 +1,141 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-6);
+  border: var(--rasd-stroke-thin) solid transparent;
+  border-radius: var(--rasd-radius-md);
+  font-family: var(--rasd-font-family-text);
+  cursor: pointer;
+  position: relative;
+  transition:
+    background-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard),
+    border-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard),
+    color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard);
+  user-select: none;
+}
+.button:focus-visible,
+.forceFocus {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* المقاسات — أصغرها 28px يجلس داخل صف 32px، يفي بحدّ الهدف الأدنى. */
+.size-s {
+  block-size: var(--rasd-control-sm);
+  padding-inline: var(--rasd-space-12);
+}
+.size-m {
+  block-size: var(--rasd-control-md);
+  padding-inline: var(--rasd-space-16);
+}
+.size-l {
+  block-size: var(--rasd-control-lg);
+  padding-inline: var(--rasd-space-20);
+}
+.size-s .label {
+  font: inherit;
+}
+
+.content {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+}
+/*
+ * `opacity: 0` لا `visibility: hidden` — الأخيرة تُسقط النص من شجرة
+ * إتاحة الوصول، فيصبح الزر بلا اسم مُعلَن أثناء التحميل رغم `aria-busy`.
+ * الشفافية تُخفي بصريًا وتُبقي المساحة والإعلان معًا.
+ */
+.contentHidden {
+  opacity: 0;
+}
+.spinnerSlot {
+  position: absolute;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+}
+[dir='rtl'] .spinnerSlot {
+  translate: 50% 0;
+}
+
+.label {
+  white-space: nowrap;
+}
+.size-s .label {
+  font-size: var(--rasd-font-size-base);
+  font-weight: 600;
+}
+.size-m .label,
+.size-l .label {
+  font-size: var(--rasd-font-size-md);
+  font-weight: 600;
+}
+
+/* الأنماط — دلالية بالكامل */
+.variant-primary {
+  background: var(--rasd-action-primary-rest);
+  color: var(--rasd-text-on-brand);
+}
+.variant-primary:hover,
+.forceHover.variant-primary {
+  background: var(--rasd-action-primary-hover);
+}
+.variant-primary:active,
+.forcePressed.variant-primary {
+  background: var(--rasd-action-primary-pressed);
+}
+.variant-primary:disabled {
+  background: var(--rasd-action-primary-disabled);
+  color: var(--rasd-text-disabled);
+}
+
+.variant-secondary {
+  background: var(--rasd-action-secondary-rest);
+  color: var(--rasd-text-primary);
+  border-color: var(--rasd-border-default);
+}
+.variant-secondary:hover,
+.forceHover.variant-secondary {
+  background: var(--rasd-action-secondary-hover);
+}
+.variant-secondary:active,
+.forcePressed.variant-secondary {
+  background: var(--rasd-action-secondary-pressed);
+}
+
+.variant-ghost {
+  background: transparent;
+  color: var(--rasd-text-primary);
+}
+.variant-ghost:hover,
+.forceHover.variant-ghost {
+  background: var(--rasd-surface-hover);
+}
+.variant-ghost:active,
+.forcePressed.variant-ghost {
+  background: var(--rasd-surface-pressed);
+}
+
+.variant-danger {
+  background: var(--rasd-action-danger-rest);
+  color: var(--rasd-text-on-brand);
+}
+.variant-danger:hover,
+.forceHover.variant-danger {
+  background: var(--rasd-action-danger-hover);
+}
+.variant-danger:active,
+.forcePressed.variant-danger {
+  background: var(--rasd-action-danger-pressed);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+}

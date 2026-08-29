@@ -1,0 +1,476 @@
+/*
+ * أنماط الطبقة داخل الصفحة — تُتبنّى في Shadow Root المغلق.
+ *
+ * لا وحدات CSS Modules هنا عمدًا: حدّ الظلّ يعطي عزل الأسماء كاملًا أصلًا،
+ * فالتجزئة تضيف طبقة بلا فائدة وتفرض استيرادًا مزدوجًا لكل ملف (الأسماء
+ * مرّة، والنصّ مرّة لتبنّيه). ورقة واحدة بأسماء `rasd-ov-*` أوضح وأخفّ.
+ *
+ * فضاء الإحداثيات فيزيائي (زاوية النافذة)، لذلك طبقة الهندسة `direction: ltr`
+ * ويأتي التموضع من `translate` — محايد تجاه الاتجاه ولا يُعيد التخطيط.
+ * النصّ العربي داخل الطبقة يستعيد `rtl` صراحةً في `.rasd-ov-ar`.
+ */
+
+/* ── الجذر ───────────────────────────────────────────────────────── */
+
+:host {
+  /*
+   * الحماية الفعلية من الصفحة المضيفة تُكتب سطريًا بـ`!important` في
+   * `content/host.ts`: قواعد المستند تتفوّق على `:host` بالمواصفة، فلا
+   * يصحّ الاعتماد على هذه الكتلة وحدها.
+   */
+  display: block;
+  contain: layout style;
+}
+
+.rasd-ov-layer {
+  /*
+   * `all: initial` يقطع كل وراثة من الصفحة. ولا يشمل `direction` ولا
+   * `unicode-bidi` بالمواصفة — لذلك يُصرَّح بهما بعده لا قبله. والمتغيّرات
+   * المخصّصة لا يمسّها `all`، فالتوكنز تنجو.
+   */
+  all: initial;
+  direction: ltr;
+  unicode-bidi: isolate;
+
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+
+  font-family: var(--rasd-font-family-text), system-ui, sans-serif;
+  font-size: var(--rasd-font-size-base);
+  color: var(--rasd-text-primary);
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* جزيرة نصّ عربي داخل طبقة هندسية LTR. */
+.rasd-ov-ar {
+  direction: rtl;
+  unicode-bidi: isolate;
+  font-family: var(--rasd-font-family-text), system-ui, sans-serif;
+}
+
+/* كل بدائيّة تُوضع بـtranslate من متغيّرَي الموضع. */
+.rasd-ov-place {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  translate: var(--rasd-ov-x, 0) var(--rasd-ov-y, 0);
+}
+
+/* شارة القيمة — الشكل المشترك بين Marquee وDimension وBox Model وCrosshair. */
+.rasd-ov-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+  padding-block: var(--rasd-space-4);
+  padding-inline: var(--rasd-space-8);
+  border-radius: var(--rasd-radius-sm);
+  font-family: var(--rasd-font-family-mono), ui-monospace, monospace;
+  font-size: var(--rasd-font-size-xs);
+  font-weight: 600;
+  line-height: var(--rasd-leading-label);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Marquee — تحديد المنطقة ─────────────────────────────────────── */
+
+.rasd-ov-marquee {
+  inline-size: var(--rasd-ov-w);
+  block-size: var(--rasd-ov-h);
+}
+
+.rasd-ov-marquee-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-overlay-marquee-fill);
+  border: var(--rasd-stroke-medium) solid var(--rasd-tool-capture-fg);
+}
+
+/*
+ * أربع زوايا، كل واحدة عنصر واحد بذراعين عبر `::before` و`::after` —
+ * بدل ثمانية عناصر. الذراع 16px طولًا وسمكها `stroke-heavy`.
+ */
+.rasd-ov-corner {
+  position: absolute;
+  inline-size: var(--rasd-space-16);
+  block-size: var(--rasd-space-16);
+}
+.rasd-ov-corner::before,
+.rasd-ov-corner::after {
+  content: '';
+  position: absolute;
+  background: var(--rasd-tool-capture-fg);
+}
+.rasd-ov-corner::before {
+  inline-size: var(--rasd-space-16);
+  block-size: var(--rasd-stroke-heavy);
+}
+.rasd-ov-corner::after {
+  inline-size: var(--rasd-stroke-heavy);
+  block-size: var(--rasd-space-16);
+}
+
+.rasd-ov-corner-tl {
+  inset-block-start: 0;
+  inset-inline-start: 0;
+}
+.rasd-ov-corner-tl::before,
+.rasd-ov-corner-tl::after {
+  inset-block-start: 0;
+  inset-inline-start: 0;
+}
+
+.rasd-ov-corner-tr {
+  inset-block-start: 0;
+  inset-inline-end: 0;
+}
+.rasd-ov-corner-tr::before,
+.rasd-ov-corner-tr::after {
+  inset-block-start: 0;
+  inset-inline-end: 0;
+}
+
+.rasd-ov-corner-bl {
+  inset-block-end: 0;
+  inset-inline-start: 0;
+}
+.rasd-ov-corner-bl::before,
+.rasd-ov-corner-bl::after {
+  inset-block-end: 0;
+  inset-inline-start: 0;
+}
+
+.rasd-ov-corner-br {
+  inset-block-end: 0;
+  inset-inline-end: 0;
+}
+.rasd-ov-corner-br::before,
+.rasd-ov-corner-br::after {
+  inset-block-end: 0;
+  inset-inline-end: 0;
+}
+
+.rasd-ov-marquee-badge {
+  position: absolute;
+  inset-block-start: calc(100% + var(--rasd-space-8));
+  inset-inline-start: 0;
+  background: var(--rasd-tool-capture-solid);
+  color: var(--rasd-text-inverse);
+}
+/* حين يقترب التحديد من حافة النافذة السفلى، تنقلب الشارة إلى الداخل. */
+.rasd-ov-marquee-badge[data-flip='true'] {
+  inset-block-start: auto;
+  inset-block-end: calc(100% + var(--rasd-space-8));
+}
+
+/* ── Node Label — اسم العنصر ومقاسه ──────────────────────────────── */
+
+.rasd-ov-node-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  padding-block: var(--rasd-space-4);
+  padding-inline: var(--rasd-space-8);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-surface-overlay);
+  border: var(--rasd-stroke-thin) solid var(--rasd-tool-inspect-border);
+  box-shadow: var(--rasd-elevation-3);
+  font-family: var(--rasd-font-family-mono), ui-monospace, monospace;
+  font-size: var(--rasd-font-size-xs);
+  line-height: var(--rasd-leading-label);
+  white-space: nowrap;
+}
+
+.rasd-ov-node-size {
+  color: var(--rasd-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.rasd-ov-node-divider {
+  inline-size: var(--rasd-stroke-thin);
+  block-size: var(--rasd-space-12);
+  background: var(--rasd-border-default);
+  flex: none;
+}
+
+.rasd-ov-node-selector {
+  color: var(--rasd-text-primary);
+  font-weight: 600;
+  max-inline-size: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rasd-ov-node-tag {
+  padding-block: var(--rasd-space-2);
+  padding-inline: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-tool-inspect-surface);
+  color: var(--rasd-tool-inspect-fg);
+  font-size: var(--rasd-font-size-2xs);
+}
+
+/* ── Dimension — مسطرة القياس ────────────────────────────────────── */
+
+.rasd-ov-dim {
+  inline-size: var(--rasd-ov-w);
+  block-size: var(--rasd-space-28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rasd-ov-dim::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  block-size: var(--rasd-stroke-medium);
+  background: var(--rasd-tool-measure-fg);
+}
+.rasd-ov-dim-cap {
+  position: absolute;
+  inline-size: var(--rasd-stroke-medium);
+  block-size: var(--rasd-space-16);
+  background: var(--rasd-tool-measure-fg);
+}
+.rasd-ov-dim-cap-a {
+  inset-inline-start: 0;
+}
+.rasd-ov-dim-cap-b {
+  inset-inline-end: 0;
+}
+.rasd-ov-dim-value {
+  position: relative;
+  background: var(--rasd-tool-measure-solid);
+  color: var(--rasd-text-inverse);
+}
+
+/* ── Dimension · Vertical ────────────────────────────────────────── */
+
+/*
+ * مكوّن مستقلّ لا نسخة مُدارة من الأفقي: تدوير الأفقي يقلب شارة القيمة
+ * فتصير غير مقروءة. الشارة تبقى أفقية دائمًا — الملاحظة منصوصة في وصف
+ * المكوّن في Figma.
+ */
+.rasd-ov-dimv {
+  inline-size: var(--rasd-space-28);
+  block-size: var(--rasd-ov-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rasd-ov-dimv::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 50%;
+  inline-size: var(--rasd-stroke-medium);
+  background: var(--rasd-tool-measure-fg);
+}
+.rasd-ov-dimv-cap {
+  position: absolute;
+  inline-size: var(--rasd-space-16);
+  block-size: var(--rasd-stroke-medium);
+  background: var(--rasd-tool-measure-fg);
+}
+.rasd-ov-dimv-cap-a {
+  inset-block-start: 0;
+}
+.rasd-ov-dimv-cap-b {
+  inset-block-end: 0;
+}
+.rasd-ov-dimv-value {
+  position: absolute;
+  inset-inline-end: calc(100% + var(--rasd-space-8));
+  background: var(--rasd-tool-measure-solid);
+  color: var(--rasd-text-inverse);
+}
+
+/* ── Box Model — الصناديق الأربعة ────────────────────────────────── */
+
+.rasd-ov-box {
+  inline-size: var(--rasd-ov-w);
+  block-size: var(--rasd-ov-h);
+}
+.rasd-ov-box-ring {
+  position: absolute;
+  border-radius: var(--rasd-radius-xs);
+}
+.rasd-ov-box-margin {
+  inset: 0;
+  background: var(--rasd-overlay-margin-wash);
+}
+.rasd-ov-box-border {
+  background: var(--rasd-overlay-inspect-wash);
+}
+.rasd-ov-box-padding {
+  background: var(--rasd-overlay-padding-wash);
+}
+.rasd-ov-box-content {
+  background: var(--rasd-overlay-marquee-fill);
+  border: var(--rasd-stroke-medium) solid var(--rasd-tool-inspect-fg);
+}
+.rasd-ov-box-label {
+  position: absolute;
+  inset-block-start: var(--rasd-space-6);
+  inset-inline-end: var(--rasd-space-6);
+  background: var(--rasd-surface-overlay);
+  border: var(--rasd-stroke-thin) solid var(--rasd-tool-inspect-border);
+  color: var(--rasd-tool-inspect-fg);
+}
+
+/* ── Toolbar — شريط الأدوات العائم ───────────────────────────────── */
+
+/*
+ * الشريط الوحيد الذي يستقبل المؤشِّر في الطبقة. الاتجاه هنا `rtl` لأن
+ * ترتيبه دلالي لا هندسي: الأداة النشطة عند البداية (يمين)، والإغلاق عند
+ * النهاية (يسار) — وهو ما يعطي ترتيب Figma البصري نفسه في واجهة عربية.
+ */
+.rasd-ov-toolbar {
+  direction: rtl;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-2);
+  block-size: var(--rasd-control-xl);
+  padding-inline: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-xl);
+  background: var(--rasd-overlay-glass);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  box-shadow: var(--rasd-elevation-4);
+  backdrop-filter: blur(18px) saturate(140%); /* rasd-allow-literal: نصف قطر الطمس أثر بصري لا قيمة من سلّم المسافات */
+  pointer-events: auto;
+}
+
+.rasd-ov-tool {
+  /* قاعدة التداخل: نصف القطر الداخلي = الخارجي − الحشوة. */
+  --rasd-ov-tool-size: calc(var(--rasd-control-xl) - 2 * var(--rasd-space-6));
+  inline-size: var(--rasd-ov-tool-size);
+  block-size: var(--rasd-ov-tool-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--rasd-stroke-thin) solid transparent;
+  border-radius: calc(var(--rasd-radius-xl) - var(--rasd-space-6));
+  background: transparent;
+  color: var(--rasd-icon-secondary);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard),
+    color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard);
+}
+.rasd-ov-tool:hover {
+  background: var(--rasd-surface-hover);
+  color: var(--rasd-icon-primary);
+}
+.rasd-ov-tool:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+.rasd-ov-tool[aria-pressed='true'] {
+  background: var(--rasd-surface-brand-subtle);
+  border-color: var(--rasd-tool-capture-border);
+  color: var(--rasd-tool-capture-fg);
+}
+.rasd-ov-tool-close {
+  color: var(--rasd-icon-tertiary);
+}
+.rasd-ov-toolbar-divider {
+  inline-size: var(--rasd-stroke-thin);
+  block-size: var(--rasd-space-20);
+  background: var(--rasd-border-default);
+  flex: none;
+}
+
+/* ── Crosshair — التقاط اللون ────────────────────────────────────── */
+
+.rasd-ov-cross-h,
+.rasd-ov-cross-v {
+  position: absolute;
+  background: var(--rasd-tool-capture-fg);
+}
+.rasd-ov-cross-h {
+  inset-inline: 0;
+  block-size: var(--rasd-stroke-thin);
+  inset-block-start: 0;
+  translate: 0 var(--rasd-ov-y, 0);
+}
+.rasd-ov-cross-v {
+  inset-block: 0;
+  inline-size: var(--rasd-stroke-thin);
+  inset-inline-start: 0;
+  translate: var(--rasd-ov-x, 0) 0;
+}
+
+/* مرساة بلا مقاس عند نقطة المؤشِّر — العدسة والشارة تتمركزان عليها. */
+.rasd-ov-cross-anchor {
+  inline-size: 0;
+  block-size: 0;
+}
+
+.rasd-ov-loupe {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  translate: -50% -50%;
+  inline-size: var(--rasd-space-56);
+  block-size: var(--rasd-space-56);
+  border-radius: var(--rasd-radius-full);
+  /*
+   * حلقة سوداء ثابتة لا لون من السمة: العدسة تعرض لونًا **مأخوذًا من
+   * الصفحة** قد يساوي أي توكن لدينا، فالحلقة يجب أن تفصله عمّا خلفه أيًّا
+   * كان. هذا هو سبب تركها غير مربوطة بمتغيّر في Figma أيضًا.
+   */
+  border: var(--rasd-stroke-thick) solid #000; /* rasd-allow-literal */
+  box-shadow: var(--rasd-elevation-2);
+  /* اللون نفسه يأتي سطريًا من العيّنة وقت التشغيل. */
+  background: var(--rasd-ov-sample, transparent);
+}
+
+.rasd-ov-hex {
+  position: absolute;
+  /* نصف قطر العدسة + فجوة — يُشتقّ من مقاسها فلا ينحرف عنه. */
+  inset-block-start: calc(var(--rasd-space-56) / 2 + var(--rasd-space-12));
+  inset-inline-start: 0;
+  translate: -50% 0;
+  background: var(--rasd-surface-overlay);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  color: var(--rasd-text-primary);
+}
+
+/* ── علامة الإطار خارج النطاق ────────────────────────────────────── */
+
+/*
+ * إطار من أصل آخر لا يمكن الوصول إلى داخله. البديل عن الفشل الصامت هو
+ * وسم مساحته صراحةً — المستخدم يرى **لماذا** لا تعمل الأداة هناك.
+ */
+.rasd-ov-frame-blocked {
+  inline-size: var(--rasd-ov-w);
+  block-size: var(--rasd-ov-h);
+  border: var(--rasd-stroke-medium) dashed var(--rasd-border-strong);
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-surface-disabled);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rasd-ov-frame-blocked-note {
+  padding-block: var(--rasd-space-4);
+  padding-inline: var(--rasd-space-8);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-surface-overlay);
+  color: var(--rasd-text-secondary);
+  font-size: var(--rasd-font-size-sm);
+}
+
+/* ── تقليل الحركة ────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .rasd-ov-tool {
+    transition: none;
+  }
+}

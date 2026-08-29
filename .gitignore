@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+dist-zip/
+*.zip
+
+# generated
+coverage/
+.vite/
+stats.html
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# editors & OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# test artifacts
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+.playwright-mcp/

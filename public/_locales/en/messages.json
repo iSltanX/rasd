@@ -1,0 +1,34 @@
+{
+  "extName": {
+    "message": "Rasd",
+    "description": "Extension name as shown in the browser and the store."
+  },
+  "extShortName": {
+    "message": "Rasd",
+    "description": "Short name shown under the extension icon."
+  },
+  "extDescription": {
+    "message": "Visual inspection for the browser: capture pages and elements, measure spacing, extract colours, and compare implementation against a reference.",
+    "description": "Extension description in the store and the extensions page."
+  },
+  "actionTitle": {
+    "message": "Rasd — visual inspection",
+    "description": "Toolbar icon tooltip."
+  },
+  "cmdCaptureArea": {
+    "message": "Capture a selected area",
+    "description": "Area capture shortcut description."
+  },
+  "cmdCaptureElement": {
+    "message": "Capture an element",
+    "description": "Element capture shortcut description."
+  },
+  "cmdCaptureViewport": {
+    "message": "Capture the visible area",
+    "description": "Viewport capture shortcut description."
+  },
+  "cmdCaptureFullPage": {
+    "message": "Capture the full page",
+    "description": "Full page capture shortcut description."
+  }
+}

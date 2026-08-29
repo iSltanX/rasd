@@ -1,0 +1,34 @@
+{
+  "extName": {
+    "message": "رصد",
+    "description": "اسم الإضافة كما يظهر في المتصفح والمتجر."
+  },
+  "extShortName": {
+    "message": "رصد",
+    "description": "الاسم المختصر تحت أيقونة الإضافة."
+  },
+  "extDescription": {
+    "message": "أداة فحص بصري للمتصفح: التقاط الصفحات والعناصر، قياس المسافات، استخراج الألوان، ومقارنة التنفيذ بالمرجع.",
+    "description": "وصف الإضافة في المتجر وصفحة الإضافات."
+  },
+  "actionTitle": {
+    "message": "رصد — الفحص البصري",
+    "description": "تلميح أيقونة شريط الأدوات."
+  },
+  "cmdCaptureArea": {
+    "message": "تصوير منطقة محدَّدة",
+    "description": "وصف اختصار تصوير المنطقة."
+  },
+  "cmdCaptureElement": {
+    "message": "تصوير عنصر",
+    "description": "وصف اختصار تصوير العنصر."
+  },
+  "cmdCaptureViewport": {
+    "message": "تصوير الجزء الظاهر",
+    "description": "وصف اختصار تصوير الجزء الظاهر."
+  },
+  "cmdCaptureFullPage": {
+    "message": "تصوير الصفحة كاملة",
+    "description": "وصف اختصار تصوير الصفحة كاملة."
+  }
+}

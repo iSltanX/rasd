@@ -1,0 +1,76 @@
+/* أساس صفحات الإضافة. كل قيمة من التوكنز — لا قيمة حرفية واحدة. */
+
+/*
+ * `box-sizing: border-box` عالميًا — بلا هذا، `padding` يُضاف فوق العرض
+ * المحسوب بدل أن يُقتطع منه، فيفيض أي عنصر يجمع `padding` مع عرض مُقيَّد
+ * (كحاوية الصفحة نفسها) خارج نافذة العرض. أُلحقت أصول الخط والصورة أيضًا
+ * حتى لا تتقلّص حاويتها.
+ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+video {
+  max-inline-size: 100%;
+}
+
+.rasd-page {
+  margin: 0;
+  background: var(--rasd-surface-canvas);
+  color: var(--rasd-text-primary);
+  font-family: var(--rasd-font-family-text), system-ui, sans-serif;
+  font-size: var(--rasd-font-size-base);
+  line-height: var(--rasd-leading-ui);
+  -webkit-font-smoothing: antialiased;
+  accent-color: var(--rasd-action-primary-rest);
+}
+
+.rasd-page :focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+  border-radius: var(--rasd-radius-xs);
+}
+
+.rasd-color-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+}
+
+.rasd-color-chip {
+  inline-size: var(--rasd-icon-xs);
+  block-size: var(--rasd-icon-xs);
+  border-radius: var(--rasd-radius-xs);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  flex: none;
+}
+
+.rasd-keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--rasd-control-xs);
+  padding-inline: var(--rasd-space-6);
+  padding-block: var(--rasd-space-2);
+  border-radius: var(--rasd-radius-sm);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-text-secondary);
+}
+
+/* عناصر مخفيّة بصريًا لكنها متاحة لقارئ الشاشة — نمط قياسي. */
+.rasd-sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

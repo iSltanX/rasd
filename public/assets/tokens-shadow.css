@@ -1,0 +1,653 @@
+/* مولَّد من ملف Figma عبر `pnpm tokens:sync` — لا يُحرَّر يدويًا.
+   نسخة Shadow Root: الجذر هنا `:host` لا `:root`.
+   المصدر: src/tokens/figma-snapshot.json */
+
+/* ── 1 · Primitives — قيم خام لا تُشار إليها من مكوّن ── */
+:host {
+  --rasd-color-ink-50: #f4f7f9;
+  --rasd-color-ink-100: #e8eef1;
+  --rasd-color-ink-200: #d3dce2;
+  --rasd-color-ink-300: #b8c7cf;
+  --rasd-color-ink-400: #9baeb9;
+  --rasd-color-ink-500: #7f94a0;
+  --rasd-color-ink-600: #687c87;
+  --rasd-color-ink-700: #52636d;
+  --rasd-color-ink-800: #3c4a52;
+  --rasd-color-ink-900: #283237;
+  --rasd-color-ink-950: #192024;
+  --rasd-color-ink-975: #0e1416;
+  --rasd-color-ink-1000: #070b0d;
+  --rasd-color-signal-50: #dffff8;
+  --rasd-color-signal-100: #b0fff0;
+  --rasd-color-signal-200: #00fde1;
+  --rasd-color-signal-300: #00e3c9;
+  --rasd-color-signal-400: #00c6af;
+  --rasd-color-signal-500: #00a895;
+  --rasd-color-signal-600: #008c7c;
+  --rasd-color-signal-700: #007063;
+  --rasd-color-signal-800: #00544a;
+  --rasd-color-signal-900: #003932;
+  --rasd-color-signal-950: #002620;
+  --rasd-color-ember-50: #fff5eb;
+  --rasd-color-ember-100: #ffe9d2;
+  --rasd-color-ember-200: #ffd1a1;
+  --rasd-color-ember-300: #ffb257;
+  --rasd-color-ember-400: #ed9400;
+  --rasd-color-ember-500: #c97d00;
+  --rasd-color-ember-600: #a96800;
+  --rasd-color-ember-700: #885300;
+  --rasd-color-ember-800: #663d00;
+  --rasd-color-ember-900: #472800;
+  --rasd-color-ember-950: #301900;
+  --rasd-color-measure-50: #fff3f8;
+  --rasd-color-measure-100: #ffe5ef;
+  --rasd-color-measure-200: #ffc9df;
+  --rasd-color-measure-300: #ffa4cc;
+  --rasd-color-measure-400: #ff72b7;
+  --rasd-color-measure-500: #fe00a2;
+  --rasd-color-measure-600: #d60087;
+  --rasd-color-measure-700: #ad006c;
+  --rasd-color-measure-800: #830051;
+  --rasd-color-measure-900: #5c0037;
+  --rasd-color-measure-950: #3f0024;
+  --rasd-color-inspect-50: #f8f5ff;
+  --rasd-color-inspect-100: #f0e9ff;
+  --rasd-color-inspect-200: #e1d2ff;
+  --rasd-color-inspect-300: #ceb5ff;
+  --rasd-color-inspect-400: #bb91ff;
+  --rasd-color-inspect-500: #a867ff;
+  --rasd-color-inspect-600: #972dff;
+  --rasd-color-inspect-700: #7d00da;
+  --rasd-color-inspect-800: #5e00a6;
+  --rasd-color-inspect-900: #400075;
+  --rasd-color-inspect-950: #2b0052;
+  --rasd-color-success-50: #e5ffe9;
+  --rasd-color-success-100: #c1ffcc;
+  --rasd-color-success-200: #62fe90;
+  --rasd-color-success-300: #00ea6e;
+  --rasd-color-success-400: #00cd5f;
+  --rasd-color-success-500: #00ae4f;
+  --rasd-color-success-600: #009141;
+  --rasd-color-success-700: #007533;
+  --rasd-color-success-800: #005724;
+  --rasd-color-success-900: #003c16;
+  --rasd-color-success-950: #00280c;
+  --rasd-color-warning-50: #fff6e6;
+  --rasd-color-warning-100: #ffeac7;
+  --rasd-color-warning-200: #ffd48a;
+  --rasd-color-warning-300: #fdb500;
+  --rasd-color-warning-400: #dd9e00;
+  --rasd-color-warning-500: #bc8600;
+  --rasd-color-warning-600: #9d6f00;
+  --rasd-color-warning-700: #7e5900;
+  --rasd-color-warning-800: #5f4200;
+  --rasd-color-warning-900: #412c00;
+  --rasd-color-warning-950: #2c1c00;
+  --rasd-color-danger-50: #fff4f2;
+  --rasd-color-danger-100: #ffe6e3;
+  --rasd-color-danger-200: #ffcdc6;
+  --rasd-color-danger-300: #ffaba1;
+  --rasd-color-danger-400: #ff7f73;
+  --rasd-color-danger-500: #ff3b38;
+  --rasd-color-danger-600: #e30018;
+  --rasd-color-danger-700: #b70011;
+  --rasd-color-danger-800: #8b000a;
+  --rasd-color-danger-900: #620004;
+  --rasd-color-danger-950: #440001;
+  --rasd-color-info-50: #f1f8ff;
+  --rasd-color-info-100: #e0efff;
+  --rasd-color-info-200: #c1deff;
+  --rasd-color-info-300: #98c8ff;
+  --rasd-color-info-400: #65afff;
+  --rasd-color-info-500: #1592ff;
+  --rasd-color-info-600: #0079da;
+  --rasd-color-info-700: #0061b0;
+  --rasd-color-info-800: #004886;
+  --rasd-color-info-900: #00305e;
+  --rasd-color-info-950: #001f41;
+  --rasd-color-base-white: #ffffff;
+  --rasd-color-base-black: #000000;
+  --rasd-space-0: 0;
+  --rasd-space-2: 2px;
+  --rasd-space-4: 4px;
+  --rasd-space-6: 6px;
+  --rasd-space-8: 8px;
+  --rasd-space-10: 10px;
+  --rasd-space-12: 12px;
+  --rasd-space-16: 16px;
+  --rasd-space-20: 20px;
+  --rasd-space-24: 24px;
+  --rasd-space-28: 28px;
+  --rasd-space-32: 32px;
+  --rasd-space-40: 40px;
+  --rasd-space-48: 48px;
+  --rasd-space-56: 56px;
+  --rasd-space-64: 64px;
+  --rasd-space-80: 80px;
+  --rasd-space-96: 96px;
+  --rasd-space-120: 120px;
+  --rasd-space-160: 160px;
+  --rasd-radius-none: 0;
+  --rasd-radius-xs: 4px;
+  --rasd-radius-sm: 6px;
+  --rasd-radius-md: 8px;
+  --rasd-radius-lg: 12px;
+  --rasd-radius-xl: 16px;
+  --rasd-radius-2xl: 20px;
+  --rasd-radius-3xl: 28px;
+  --rasd-radius-full: 999px;
+  --rasd-icon-xs: 12px;
+  --rasd-icon-sm: 16px;
+  --rasd-icon-md: 20px;
+  --rasd-icon-lg: 24px;
+  --rasd-icon-xl: 32px;
+  --rasd-icon-2xl: 40px;
+  --rasd-control-xs: 24px;
+  --rasd-control-sm: 28px;
+  --rasd-control-md: 32px;
+  --rasd-control-lg: 40px;
+  --rasd-control-xl: 48px;
+  --rasd-stroke-hairline: 0.5px;
+  --rasd-stroke-thin: 1px;
+  --rasd-stroke-medium: 1.5px;
+  --rasd-stroke-thick: 2px;
+  --rasd-stroke-heavy: 3px;
+  --rasd-font-size-2xs: 10px;
+  --rasd-font-size-xs: 11px;
+  --rasd-font-size-sm: 12px;
+  --rasd-font-size-base: 13px;
+  --rasd-font-size-md: 14px;
+  --rasd-font-size-lg: 16px;
+  --rasd-font-size-xl: 18px;
+  --rasd-font-size-2xl: 20px;
+  --rasd-font-size-3xl: 24px;
+  --rasd-font-size-4xl: 28px;
+  --rasd-font-size-5xl: 34px;
+  --rasd-font-size-6xl: 40px;
+  --rasd-font-size-7xl: 48px;
+  --rasd-font-size-8xl: 60px;
+  --rasd-font-size-9xl: 76px;
+  --rasd-font-size-10xl: 96px;
+  --rasd-font-leading-tight: 1.1;
+  --rasd-font-leading-snug: 1.25;
+  --rasd-font-leading-normal: 1.45;
+  --rasd-font-leading-relaxed: 1.6;
+  --rasd-font-leading-loose: 1.75;
+  --rasd-motion-duration-instant: 80ms;
+  --rasd-motion-duration-fast: 140ms;
+  --rasd-motion-duration-normal: 200ms;
+  --rasd-motion-duration-slow: 320ms;
+  --rasd-motion-duration-slower: 480ms;
+  --rasd-motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --rasd-motion-ease-entrance: cubic-bezier(0, 0, 0, 1);
+  --rasd-motion-ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  --rasd-motion-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --rasd-font-family-display: Almarai;
+  --rasd-font-family-text: Cairo;
+  --rasd-font-family-mono: Geist Mono;
+}
+
+/* ── 2 · Semantic — الطبقة الوحيدة التي يُشير إليها المكوّن ── */
+/* الداكن هو الافتراضي: رصد يعمل فوق صفحات لا يملكها، والداكن أهدأ عليها. */
+:host {
+  --rasd-surface-canvas: var(--rasd-color-ink-1000);
+  --rasd-surface-default: var(--rasd-color-ink-975);
+  --rasd-surface-raised: var(--rasd-color-ink-950);
+  --rasd-surface-overlay: var(--rasd-color-ink-900);
+  --rasd-surface-sunken: var(--rasd-color-ink-1000);
+  --rasd-surface-hover: var(--rasd-color-ink-950);
+  --rasd-surface-pressed: var(--rasd-color-ink-900);
+  --rasd-surface-selected: var(--rasd-color-signal-950);
+  --rasd-surface-disabled: var(--rasd-color-ink-950);
+  --rasd-surface-inverse: var(--rasd-color-ink-50);
+  --rasd-surface-brand: var(--rasd-color-signal-300);
+  --rasd-surface-brand-subtle: var(--rasd-color-signal-950);
+  --rasd-text-primary: var(--rasd-color-ink-50);
+  --rasd-text-secondary: var(--rasd-color-ink-300);
+  --rasd-text-tertiary: var(--rasd-color-ink-500);
+  --rasd-text-disabled: var(--rasd-color-ink-700);
+  --rasd-text-inverse: var(--rasd-color-ink-1000);
+  --rasd-text-brand: var(--rasd-color-signal-300);
+  --rasd-text-on-brand: var(--rasd-color-ink-1000);
+  --rasd-text-link: var(--rasd-color-signal-300);
+  --rasd-text-code: var(--rasd-color-signal-200);
+  --rasd-border-subtle: var(--rasd-color-ink-950);
+  --rasd-border-default: var(--rasd-color-ink-900);
+  --rasd-border-strong: var(--rasd-color-ink-800);
+  --rasd-border-brand: var(--rasd-color-signal-600);
+  --rasd-border-focus: var(--rasd-color-signal-300);
+  --rasd-border-inverse: var(--rasd-color-ink-50);
+  --rasd-icon-primary: var(--rasd-color-ink-50);
+  --rasd-icon-secondary: var(--rasd-color-ink-300);
+  --rasd-icon-tertiary: var(--rasd-color-ink-500);
+  --rasd-icon-disabled: var(--rasd-color-ink-700);
+  --rasd-icon-brand: var(--rasd-color-signal-300);
+  --rasd-icon-on-brand: var(--rasd-color-ink-1000);
+  --rasd-action-primary-rest: var(--rasd-color-signal-300);
+  --rasd-action-primary-hover: var(--rasd-color-signal-200);
+  --rasd-action-primary-pressed: var(--rasd-color-signal-400);
+  --rasd-action-primary-disabled: var(--rasd-color-ink-900);
+  --rasd-action-secondary-rest: var(--rasd-color-ink-950);
+  --rasd-action-secondary-hover: var(--rasd-color-ink-900);
+  --rasd-action-secondary-pressed: var(--rasd-color-ink-800);
+  --rasd-action-danger-rest: var(--rasd-color-danger-400);
+  --rasd-action-danger-hover: var(--rasd-color-danger-300);
+  --rasd-action-danger-pressed: var(--rasd-color-danger-500);
+  --rasd-status-success-fg: var(--rasd-color-success-300);
+  --rasd-status-success-surface: var(--rasd-color-success-950);
+  --rasd-status-success-border: var(--rasd-color-success-800);
+  --rasd-status-success-solid: var(--rasd-color-success-400);
+  --rasd-status-warning-fg: var(--rasd-color-warning-300);
+  --rasd-status-warning-surface: var(--rasd-color-warning-950);
+  --rasd-status-warning-border: var(--rasd-color-warning-800);
+  --rasd-status-warning-solid: var(--rasd-color-warning-400);
+  --rasd-status-danger-fg: var(--rasd-color-danger-300);
+  --rasd-status-danger-surface: var(--rasd-color-danger-950);
+  --rasd-status-danger-border: var(--rasd-color-danger-800);
+  --rasd-status-danger-solid: var(--rasd-color-danger-400);
+  --rasd-status-info-fg: var(--rasd-color-info-300);
+  --rasd-status-info-surface: var(--rasd-color-info-950);
+  --rasd-status-info-border: var(--rasd-color-info-800);
+  --rasd-status-info-solid: var(--rasd-color-info-400);
+  --rasd-tool-capture-fg: var(--rasd-color-signal-300);
+  --rasd-tool-capture-surface: var(--rasd-color-signal-950);
+  --rasd-tool-capture-border: var(--rasd-color-signal-700);
+  --rasd-tool-capture-solid: var(--rasd-color-signal-400);
+  --rasd-tool-annotate-fg: var(--rasd-color-ember-300);
+  --rasd-tool-annotate-surface: var(--rasd-color-ember-950);
+  --rasd-tool-annotate-border: var(--rasd-color-ember-700);
+  --rasd-tool-annotate-solid: var(--rasd-color-ember-400);
+  --rasd-tool-inspect-fg: var(--rasd-color-inspect-300);
+  --rasd-tool-inspect-surface: var(--rasd-color-inspect-950);
+  --rasd-tool-inspect-border: var(--rasd-color-inspect-700);
+  --rasd-tool-inspect-solid: var(--rasd-color-inspect-400);
+  --rasd-tool-measure-fg: var(--rasd-color-measure-300);
+  --rasd-tool-measure-surface: var(--rasd-color-measure-950);
+  --rasd-tool-measure-border: var(--rasd-color-measure-700);
+  --rasd-tool-measure-solid: var(--rasd-color-measure-400);
+  --rasd-tool-compare-fg: var(--rasd-color-info-300);
+  --rasd-tool-compare-surface: var(--rasd-color-info-950);
+  --rasd-tool-compare-border: var(--rasd-color-info-700);
+  --rasd-tool-compare-solid: var(--rasd-color-info-400);
+  --rasd-tool-colors-fg: var(--rasd-color-ember-300);
+  --rasd-tool-colors-surface: var(--rasd-color-ember-950);
+  --rasd-tool-colors-border: var(--rasd-color-ember-700);
+  --rasd-tool-colors-solid: var(--rasd-color-ember-400);
+  --rasd-tool-diff-added: var(--rasd-color-success-300);
+  --rasd-tool-diff-removed: var(--rasd-color-danger-300);
+  --rasd-tool-diff-added-wash: #00ea6e2e;
+  --rasd-tool-diff-removed-wash: #ffaba12e;
+  --rasd-overlay-scrim: #070b0d9e;
+  --rasd-overlay-scrim-soft: #070b0d59;
+  --rasd-overlay-glass: #0e1416c7;
+  --rasd-overlay-mask: #070b0d8c;
+  --rasd-overlay-grid: #00e3c91a;
+  --rasd-overlay-marquee-fill: #00e3c91a;
+  --rasd-overlay-highlight: #00e3c929;
+  --rasd-overlay-measure-wash: #fe00a229;
+  --rasd-overlay-inspect-wash: #a867ff29;
+  --rasd-overlay-padding-wash: #00ea6e33;
+  --rasd-overlay-margin-wash: #ffb25733;
+  --rasd-overlay-hairline: #ffffff14;
+  --rasd-focus-ring: #00e3c98c;
+  --rasd-focus-ring-offset: #070b0d;
+}
+
+/* الفاتح: تفضيل النظام، ما لم يفرض المستخدم الداكن صراحةً. */
+@media (prefers-color-scheme: light) {
+  :host(:not([data-theme='dark'])) {
+    --rasd-surface-canvas: var(--rasd-color-ink-50);
+    --rasd-surface-default: var(--rasd-color-base-white);
+    --rasd-surface-raised: var(--rasd-color-base-white);
+    --rasd-surface-overlay: var(--rasd-color-base-white);
+    --rasd-surface-sunken: var(--rasd-color-ink-100);
+    --rasd-surface-hover: var(--rasd-color-ink-100);
+    --rasd-surface-pressed: var(--rasd-color-ink-200);
+    --rasd-surface-selected: var(--rasd-color-signal-50);
+    --rasd-surface-disabled: var(--rasd-color-ink-100);
+    --rasd-surface-inverse: var(--rasd-color-ink-1000);
+    --rasd-surface-brand: var(--rasd-color-signal-700);
+    --rasd-surface-brand-subtle: var(--rasd-color-signal-50);
+    --rasd-text-primary: var(--rasd-color-ink-950);
+    --rasd-text-secondary: var(--rasd-color-ink-700);
+    --rasd-text-tertiary: var(--rasd-color-ink-600);
+    --rasd-text-disabled: var(--rasd-color-ink-400);
+    --rasd-text-inverse: var(--rasd-color-ink-50);
+    --rasd-text-brand: var(--rasd-color-signal-700);
+    --rasd-text-on-brand: var(--rasd-color-base-white);
+    --rasd-text-link: var(--rasd-color-signal-700);
+    --rasd-text-code: var(--rasd-color-signal-700);
+    --rasd-border-subtle: var(--rasd-color-ink-100);
+    --rasd-border-default: var(--rasd-color-ink-200);
+    --rasd-border-strong: var(--rasd-color-ink-300);
+    --rasd-border-brand: var(--rasd-color-signal-500);
+    --rasd-border-focus: var(--rasd-color-signal-600);
+    --rasd-border-inverse: var(--rasd-color-ink-1000);
+    --rasd-icon-primary: var(--rasd-color-ink-950);
+    --rasd-icon-secondary: var(--rasd-color-ink-700);
+    --rasd-icon-tertiary: var(--rasd-color-ink-600);
+    --rasd-icon-disabled: var(--rasd-color-ink-400);
+    --rasd-icon-brand: var(--rasd-color-signal-700);
+    --rasd-icon-on-brand: var(--rasd-color-base-white);
+    --rasd-action-primary-rest: var(--rasd-color-signal-700);
+    --rasd-action-primary-hover: var(--rasd-color-signal-800);
+    --rasd-action-primary-pressed: var(--rasd-color-signal-900);
+    --rasd-action-primary-disabled: var(--rasd-color-ink-200);
+    --rasd-action-secondary-rest: var(--rasd-color-ink-100);
+    --rasd-action-secondary-hover: var(--rasd-color-ink-200);
+    --rasd-action-secondary-pressed: var(--rasd-color-ink-300);
+    --rasd-action-danger-rest: var(--rasd-color-danger-600);
+    --rasd-action-danger-hover: var(--rasd-color-danger-700);
+    --rasd-action-danger-pressed: var(--rasd-color-danger-800);
+    --rasd-status-success-fg: var(--rasd-color-success-700);
+    --rasd-status-success-surface: var(--rasd-color-success-50);
+    --rasd-status-success-border: var(--rasd-color-success-200);
+    --rasd-status-success-solid: var(--rasd-color-success-600);
+    --rasd-status-warning-fg: var(--rasd-color-warning-700);
+    --rasd-status-warning-surface: var(--rasd-color-warning-50);
+    --rasd-status-warning-border: var(--rasd-color-warning-200);
+    --rasd-status-warning-solid: var(--rasd-color-warning-600);
+    --rasd-status-danger-fg: var(--rasd-color-danger-700);
+    --rasd-status-danger-surface: var(--rasd-color-danger-50);
+    --rasd-status-danger-border: var(--rasd-color-danger-200);
+    --rasd-status-danger-solid: var(--rasd-color-danger-600);
+    --rasd-status-info-fg: var(--rasd-color-info-700);
+    --rasd-status-info-surface: var(--rasd-color-info-50);
+    --rasd-status-info-border: var(--rasd-color-info-200);
+    --rasd-status-info-solid: var(--rasd-color-info-600);
+    --rasd-tool-capture-fg: var(--rasd-color-signal-700);
+    --rasd-tool-capture-surface: var(--rasd-color-signal-50);
+    --rasd-tool-capture-border: var(--rasd-color-signal-300);
+    --rasd-tool-capture-solid: var(--rasd-color-signal-500);
+    --rasd-tool-annotate-fg: var(--rasd-color-ember-700);
+    --rasd-tool-annotate-surface: var(--rasd-color-ember-50);
+    --rasd-tool-annotate-border: var(--rasd-color-ember-300);
+    --rasd-tool-annotate-solid: var(--rasd-color-ember-500);
+    --rasd-tool-inspect-fg: var(--rasd-color-inspect-700);
+    --rasd-tool-inspect-surface: var(--rasd-color-inspect-50);
+    --rasd-tool-inspect-border: var(--rasd-color-inspect-300);
+    --rasd-tool-inspect-solid: var(--rasd-color-inspect-500);
+    --rasd-tool-measure-fg: var(--rasd-color-measure-700);
+    --rasd-tool-measure-surface: var(--rasd-color-measure-50);
+    --rasd-tool-measure-border: var(--rasd-color-measure-300);
+    --rasd-tool-measure-solid: var(--rasd-color-measure-500);
+    --rasd-tool-compare-fg: var(--rasd-color-info-700);
+    --rasd-tool-compare-surface: var(--rasd-color-info-50);
+    --rasd-tool-compare-border: var(--rasd-color-info-300);
+    --rasd-tool-compare-solid: var(--rasd-color-info-500);
+    --rasd-tool-colors-fg: var(--rasd-color-ember-700);
+    --rasd-tool-colors-surface: var(--rasd-color-ember-50);
+    --rasd-tool-colors-border: var(--rasd-color-ember-300);
+    --rasd-tool-colors-solid: var(--rasd-color-ember-500);
+    --rasd-tool-diff-added: var(--rasd-color-success-600);
+    --rasd-tool-diff-removed: var(--rasd-color-danger-600);
+    --rasd-tool-diff-added-wash: #00914124;
+    --rasd-tool-diff-removed-wash: #e3001824;
+    --rasd-overlay-scrim: #070b0d7a;
+    --rasd-overlay-scrim-soft: #070b0d3d;
+    --rasd-overlay-glass: #ffffffd1;
+    --rasd-overlay-mask: #070b0d66;
+    --rasd-overlay-grid: #0070631f;
+    --rasd-overlay-marquee-fill: #00e3c924;
+    --rasd-overlay-highlight: #00e3c933;
+    --rasd-overlay-measure-wash: #fe00a229;
+    --rasd-overlay-inspect-wash: #a867ff29;
+    --rasd-overlay-padding-wash: #00ea6e38;
+    --rasd-overlay-margin-wash: #ffb25738;
+    --rasd-overlay-hairline: #070b0d14;
+    --rasd-focus-ring: #008c7c8c;
+    --rasd-focus-ring-offset: #ffffff;
+  }
+}
+
+/* الفاتح: اختيار صريح من المستخدم — يتفوّق على تفضيل النظام. */
+:host([data-theme='light']) {
+  --rasd-surface-canvas: var(--rasd-color-ink-50);
+  --rasd-surface-default: var(--rasd-color-base-white);
+  --rasd-surface-raised: var(--rasd-color-base-white);
+  --rasd-surface-overlay: var(--rasd-color-base-white);
+  --rasd-surface-sunken: var(--rasd-color-ink-100);
+  --rasd-surface-hover: var(--rasd-color-ink-100);
+  --rasd-surface-pressed: var(--rasd-color-ink-200);
+  --rasd-surface-selected: var(--rasd-color-signal-50);
+  --rasd-surface-disabled: var(--rasd-color-ink-100);
+  --rasd-surface-inverse: var(--rasd-color-ink-1000);
+  --rasd-surface-brand: var(--rasd-color-signal-700);
+  --rasd-surface-brand-subtle: var(--rasd-color-signal-50);
+  --rasd-text-primary: var(--rasd-color-ink-950);
+  --rasd-text-secondary: var(--rasd-color-ink-700);
+  --rasd-text-tertiary: var(--rasd-color-ink-600);
+  --rasd-text-disabled: var(--rasd-color-ink-400);
+  --rasd-text-inverse: var(--rasd-color-ink-50);
+  --rasd-text-brand: var(--rasd-color-signal-700);
+  --rasd-text-on-brand: var(--rasd-color-base-white);
+  --rasd-text-link: var(--rasd-color-signal-700);
+  --rasd-text-code: var(--rasd-color-signal-700);
+  --rasd-border-subtle: var(--rasd-color-ink-100);
+  --rasd-border-default: var(--rasd-color-ink-200);
+  --rasd-border-strong: var(--rasd-color-ink-300);
+  --rasd-border-brand: var(--rasd-color-signal-500);
+  --rasd-border-focus: var(--rasd-color-signal-600);
+  --rasd-border-inverse: var(--rasd-color-ink-1000);
+  --rasd-icon-primary: var(--rasd-color-ink-950);
+  --rasd-icon-secondary: var(--rasd-color-ink-700);
+  --rasd-icon-tertiary: var(--rasd-color-ink-600);
+  --rasd-icon-disabled: var(--rasd-color-ink-400);
+  --rasd-icon-brand: var(--rasd-color-signal-700);
+  --rasd-icon-on-brand: var(--rasd-color-base-white);
+  --rasd-action-primary-rest: var(--rasd-color-signal-700);
+  --rasd-action-primary-hover: var(--rasd-color-signal-800);
+  --rasd-action-primary-pressed: var(--rasd-color-signal-900);
+  --rasd-action-primary-disabled: var(--rasd-color-ink-200);
+  --rasd-action-secondary-rest: var(--rasd-color-ink-100);
+  --rasd-action-secondary-hover: var(--rasd-color-ink-200);
+  --rasd-action-secondary-pressed: var(--rasd-color-ink-300);
+  --rasd-action-danger-rest: var(--rasd-color-danger-600);
+  --rasd-action-danger-hover: var(--rasd-color-danger-700);
+  --rasd-action-danger-pressed: var(--rasd-color-danger-800);
+  --rasd-status-success-fg: var(--rasd-color-success-700);
+  --rasd-status-success-surface: var(--rasd-color-success-50);
+  --rasd-status-success-border: var(--rasd-color-success-200);
+  --rasd-status-success-solid: var(--rasd-color-success-600);
+  --rasd-status-warning-fg: var(--rasd-color-warning-700);
+  --rasd-status-warning-surface: var(--rasd-color-warning-50);
+  --rasd-status-warning-border: var(--rasd-color-warning-200);
+  --rasd-status-warning-solid: var(--rasd-color-warning-600);
+  --rasd-status-danger-fg: var(--rasd-color-danger-700);
+  --rasd-status-danger-surface: var(--rasd-color-danger-50);
+  --rasd-status-danger-border: var(--rasd-color-danger-200);
+  --rasd-status-danger-solid: var(--rasd-color-danger-600);
+  --rasd-status-info-fg: var(--rasd-color-info-700);
+  --rasd-status-info-surface: var(--rasd-color-info-50);
+  --rasd-status-info-border: var(--rasd-color-info-200);
+  --rasd-status-info-solid: var(--rasd-color-info-600);
+  --rasd-tool-capture-fg: var(--rasd-color-signal-700);
+  --rasd-tool-capture-surface: var(--rasd-color-signal-50);
+  --rasd-tool-capture-border: var(--rasd-color-signal-300);
+  --rasd-tool-capture-solid: var(--rasd-color-signal-500);
+  --rasd-tool-annotate-fg: var(--rasd-color-ember-700);
+  --rasd-tool-annotate-surface: var(--rasd-color-ember-50);
+  --rasd-tool-annotate-border: var(--rasd-color-ember-300);
+  --rasd-tool-annotate-solid: var(--rasd-color-ember-500);
+  --rasd-tool-inspect-fg: var(--rasd-color-inspect-700);
+  --rasd-tool-inspect-surface: var(--rasd-color-inspect-50);
+  --rasd-tool-inspect-border: var(--rasd-color-inspect-300);
+  --rasd-tool-inspect-solid: var(--rasd-color-inspect-500);
+  --rasd-tool-measure-fg: var(--rasd-color-measure-700);
+  --rasd-tool-measure-surface: var(--rasd-color-measure-50);
+  --rasd-tool-measure-border: var(--rasd-color-measure-300);
+  --rasd-tool-measure-solid: var(--rasd-color-measure-500);
+  --rasd-tool-compare-fg: var(--rasd-color-info-700);
+  --rasd-tool-compare-surface: var(--rasd-color-info-50);
+  --rasd-tool-compare-border: var(--rasd-color-info-300);
+  --rasd-tool-compare-solid: var(--rasd-color-info-500);
+  --rasd-tool-colors-fg: var(--rasd-color-ember-700);
+  --rasd-tool-colors-surface: var(--rasd-color-ember-50);
+  --rasd-tool-colors-border: var(--rasd-color-ember-300);
+  --rasd-tool-colors-solid: var(--rasd-color-ember-500);
+  --rasd-tool-diff-added: var(--rasd-color-success-600);
+  --rasd-tool-diff-removed: var(--rasd-color-danger-600);
+  --rasd-tool-diff-added-wash: #00914124;
+  --rasd-tool-diff-removed-wash: #e3001824;
+  --rasd-overlay-scrim: #070b0d7a;
+  --rasd-overlay-scrim-soft: #070b0d3d;
+  --rasd-overlay-glass: #ffffffd1;
+  --rasd-overlay-mask: #070b0d66;
+  --rasd-overlay-grid: #0070631f;
+  --rasd-overlay-marquee-fill: #00e3c924;
+  --rasd-overlay-highlight: #00e3c933;
+  --rasd-overlay-measure-wash: #fe00a229;
+  --rasd-overlay-inspect-wash: #a867ff29;
+  --rasd-overlay-padding-wash: #00ea6e38;
+  --rasd-overlay-margin-wash: #ffb25738;
+  --rasd-overlay-hairline: #070b0d14;
+  --rasd-focus-ring: #008c7c8c;
+  --rasd-focus-ring-offset: #ffffff;
+}
+
+/* ── 3 · Type — المقاييس ثنائية اللغة. العربية هي الأساس لا الترجمة. ── */
+:host {
+  --rasd-family-display: Almarai;
+  --rasd-family-text: Cairo;
+  --rasd-family-mono: Geist Mono;
+  --rasd-direction: rtl;
+  --rasd-align-start: right;
+  --rasd-tracking-display: 0em;
+  --rasd-tracking-heading: 0em;
+  --rasd-tracking-body: 0em;
+  --rasd-tracking-ui: 0em;
+  --rasd-tracking-label: 0em;
+  --rasd-tracking-mono: 0em;
+  --rasd-leading-display: 1.3;
+  --rasd-leading-heading: 1.45;
+  --rasd-leading-body: 1.85;
+  --rasd-leading-ui: 1.6;
+  --rasd-leading-label: 1.4;
+}
+
+:host([lang='en']), [lang='en'] {
+  --rasd-family-display: Almarai;
+  --rasd-family-text: Cairo;
+  --rasd-family-mono: Geist Mono;
+  --rasd-direction: ltr;
+  --rasd-align-start: left;
+  --rasd-tracking-display: -0.025em;
+  --rasd-tracking-heading: -0.015em;
+  --rasd-tracking-body: 0em;
+  --rasd-tracking-ui: 0em;
+  --rasd-tracking-label: 0.06em;
+  --rasd-tracking-mono: 0em;
+  --rasd-leading-display: 1;
+  --rasd-leading-heading: 1.2;
+  --rasd-leading-body: 1.6;
+  --rasd-leading-ui: 1.4;
+  --rasd-leading-label: 1.2;
+}
+
+/* ── أنماط التأثير — ظلّان لكل مستوى، لأن رصد يجلس فوق صفحات لا يملكها ── */
+:host {
+  --rasd-elevation-1: 0 1px 2px #0000003d;
+  --rasd-elevation-2: 0 2px 8px #00000042, 0 1px 2px #0000002e;
+  --rasd-elevation-3: 0 8px 24px #00000057, 0 1px 3px #00000038;
+  --rasd-elevation-4: 0 16px 48px #0000006b, 0 2px 6px #00000042;
+  --rasd-elevation-5: 0 24px 64px #00000080, 0 4px 10px #0000004d;
+  --rasd-elevation-inset: inset 0 1px 3px #00000059;
+  --rasd-glow-signal: 0 0 20px #00e3c961, 0 0 4px #00e3c947;
+  --rasd-glow-measure: 0 0 20px #fe00a25c;
+  --rasd-glow-inspect: 0 0 20px #a867ff5c;
+  --rasd-glow-danger: 0 0 20px #ff3b3857;
+  --rasd-focus-ring: 0 0 0 3px #00e3c98c;
+}
+
+/* ── تقليل الحركة: تُصفَّر المدد هنا مرّة واحدة، لا في كل مكوّن ── */
+@media (prefers-reduced-motion: reduce) {
+  :host {
+    --rasd-motion-duration-instant: 0ms;
+    --rasd-motion-duration-fast: 0ms;
+    --rasd-motion-duration-normal: 0ms;
+    --rasd-motion-duration-slow: 0ms;
+    --rasd-motion-duration-slower: 0ms;
+  }
+}
+
+/* ── أنماط النص — 62 فئة. المكوّن يستخدم الفئة، لا font-size. ── */
+.t-latin-display-2xl { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 96px; font-weight: 800; line-height: 0.95; letter-spacing: -0.03em; }
+.t-latin-display-xl { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 76px; font-weight: 800; line-height: 0.98; letter-spacing: -0.028em; }
+.t-latin-display-l { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 60px; font-weight: 800; line-height: 1; letter-spacing: -0.026em; }
+.t-latin-display-m { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 48px; font-weight: 800; line-height: 1.04; letter-spacing: -0.024em; }
+.t-latin-display-s { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 40px; font-weight: 800; line-height: 1.08; letter-spacing: -0.022em; }
+.t-latin-heading-xl { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 34px; font-weight: 700; line-height: 1.16; letter-spacing: -0.018em; }
+.t-latin-heading-l { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 28px; font-weight: 700; line-height: 1.2; letter-spacing: -0.016em; }
+.t-latin-heading-m { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 24px; font-weight: 700; line-height: 1.26; letter-spacing: -0.014em; }
+.t-latin-heading-s { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 20px; font-weight: 700; line-height: 1.3; letter-spacing: -0.012em; }
+.t-latin-heading-xs { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 18px; font-weight: 700; line-height: 1.34; letter-spacing: -0.01em; }
+.t-latin-body-l { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 18px; font-weight: 400; line-height: 1.6; letter-spacing: 0; }
+.t-latin-body-m { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.6; letter-spacing: 0; }
+.t-latin-body-s { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 14px; font-weight: 400; line-height: 1.6; letter-spacing: 0; }
+.t-latin-body-l-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 18px; font-weight: 600; line-height: 1.6; letter-spacing: 0; }
+.t-latin-body-m-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 16px; font-weight: 600; line-height: 1.6; letter-spacing: 0; }
+.t-latin-body-s-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 14px; font-weight: 600; line-height: 1.6; letter-spacing: 0; }
+.t-latin-ui-l { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.4; letter-spacing: 0; }
+.t-latin-ui-m { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 14px; font-weight: 400; line-height: 1.4; letter-spacing: 0; }
+.t-latin-ui-s { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 13px; font-weight: 400; line-height: 1.4; letter-spacing: 0; }
+.t-latin-ui-xs { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 12px; font-weight: 400; line-height: 1.4; letter-spacing: 0; }
+.t-latin-ui-l-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 16px; font-weight: 600; line-height: 1.4; letter-spacing: 0; }
+.t-latin-ui-m-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 14px; font-weight: 600; line-height: 1.4; letter-spacing: 0; }
+.t-latin-ui-s-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 13px; font-weight: 600; line-height: 1.4; letter-spacing: 0; }
+.t-latin-ui-xs-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 12px; font-weight: 600; line-height: 1.4; letter-spacing: 0; }
+.t-latin-label-m { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 12px; font-weight: 700; line-height: 1.2; letter-spacing: 0.06em; text-transform: uppercase; }
+.t-latin-label-s { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 11px; font-weight: 700; line-height: 1.2; letter-spacing: 0.07em; text-transform: uppercase; }
+.t-latin-label-xs { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 10px; font-weight: 700; line-height: 1.2; letter-spacing: 0.08em; text-transform: uppercase; }
+.t-arabic-display-2xl { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 88px; font-weight: 800; line-height: 1.2; letter-spacing: 0; }
+.t-arabic-display-xl { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 70px; font-weight: 800; line-height: 1.24; letter-spacing: 0; }
+.t-arabic-display-l { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 56px; font-weight: 800; line-height: 1.28; letter-spacing: 0; }
+.t-arabic-display-m { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 44px; font-weight: 800; line-height: 1.32; letter-spacing: 0; }
+.t-arabic-display-s { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 36px; font-weight: 800; line-height: 1.36; letter-spacing: 0; }
+.t-arabic-heading-xl { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 32px; font-weight: 700; line-height: 1.42; letter-spacing: 0; }
+.t-arabic-heading-l { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 27px; font-weight: 700; line-height: 1.46; letter-spacing: 0; }
+.t-arabic-heading-m { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 23px; font-weight: 700; line-height: 1.5; letter-spacing: 0; }
+.t-arabic-heading-s { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 19px; font-weight: 700; line-height: 1.54; letter-spacing: 0; }
+.t-arabic-heading-xs { font-family: var(--rasd-font-family-display), system-ui, sans-serif; font-size: 17px; font-weight: 700; line-height: 1.58; letter-spacing: 0; }
+.t-arabic-body-l { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 18px; font-weight: 400; line-height: 1.85; letter-spacing: 0; }
+.t-arabic-body-m { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.85; letter-spacing: 0; }
+.t-arabic-body-s { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 14px; font-weight: 400; line-height: 1.85; letter-spacing: 0; }
+.t-arabic-body-l-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 18px; font-weight: 600; line-height: 1.85; letter-spacing: 0; }
+.t-arabic-body-m-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 16px; font-weight: 600; line-height: 1.85; letter-spacing: 0; }
+.t-arabic-body-s-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 14px; font-weight: 600; line-height: 1.85; letter-spacing: 0; }
+.t-arabic-ui-l { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 16px; font-weight: 400; line-height: 1.6; letter-spacing: 0; }
+.t-arabic-ui-m { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 14px; font-weight: 400; line-height: 1.6; letter-spacing: 0; }
+.t-arabic-ui-s { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 13px; font-weight: 400; line-height: 1.6; letter-spacing: 0; }
+.t-arabic-ui-xs { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 12px; font-weight: 400; line-height: 1.6; letter-spacing: 0; }
+.t-arabic-ui-l-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 16px; font-weight: 600; line-height: 1.6; letter-spacing: 0; }
+.t-arabic-ui-m-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 14px; font-weight: 600; line-height: 1.6; letter-spacing: 0; }
+.t-arabic-ui-s-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 13px; font-weight: 600; line-height: 1.6; letter-spacing: 0; }
+.t-arabic-ui-xs-strong { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 12px; font-weight: 600; line-height: 1.6; letter-spacing: 0; }
+.t-arabic-label-m { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 13px; font-weight: 700; line-height: 1.4; letter-spacing: 0; }
+.t-arabic-label-s { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 12px; font-weight: 700; line-height: 1.4; letter-spacing: 0; }
+.t-arabic-label-xs { font-family: var(--rasd-font-family-text), system-ui, sans-serif; font-size: 11px; font-weight: 700; line-height: 1.4; letter-spacing: 0; }
+.t-mono-l { font-family: var(--rasd-font-family-mono), ui-monospace, monospace; font-size: 14px; font-weight: 400; line-height: 1.4; letter-spacing: 0; }
+.t-mono-m { font-family: var(--rasd-font-family-mono), ui-monospace, monospace; font-size: 13px; font-weight: 400; line-height: 1.4; letter-spacing: 0; }
+.t-mono-s { font-family: var(--rasd-font-family-mono), ui-monospace, monospace; font-size: 12px; font-weight: 400; line-height: 1.4; letter-spacing: 0; }
+.t-mono-xs { font-family: var(--rasd-font-family-mono), ui-monospace, monospace; font-size: 11px; font-weight: 400; line-height: 1.4; letter-spacing: 0; }
+.t-mono-2xs { font-family: var(--rasd-font-family-mono), ui-monospace, monospace; font-size: 10px; font-weight: 400; line-height: 1.4; letter-spacing: 0; }
+.t-mono-m-strong { font-family: var(--rasd-font-family-mono), ui-monospace, monospace; font-size: 13px; font-weight: 600; line-height: 1.4; letter-spacing: 0; }
+.t-mono-s-strong { font-family: var(--rasd-font-family-mono), ui-monospace, monospace; font-size: 12px; font-weight: 600; line-height: 1.4; letter-spacing: 0; }
+.t-mono-xs-strong { font-family: var(--rasd-font-family-mono), ui-monospace, monospace; font-size: 11px; font-weight: 600; line-height: 1.4; letter-spacing: 0; }
+
+/* ── الاتجاه: المونو وكتل الكود تبقى LTR داخل واجهة RTL ── */
+[class^='t-mono-'], [class*=' t-mono-'], code, pre, kbd, samp {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: left;
+}
+
+/* المقطع التقني داخل نصّ عربي — يعزل نفسه فلا يعيد bidi ترتيب السطر. */
+bdi[data-technical] {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* الأيقونات الاتجاهية تُعكس؛ ما عداها لا. */
+[data-mirror='true'] {
+  scale: -1 1;
+}

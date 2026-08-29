@@ -1,0 +1,72 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--rasd-stroke-thin) solid transparent;
+  border-radius: var(--rasd-radius-sm);
+  background: transparent;
+  color: var(--rasd-icon-primary);
+  cursor: pointer;
+  flex: none;
+  transition: background-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard);
+}
+.button:focus-visible,
+.forceFocus {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* 32×32 هو الحدّ الأدنى الإلزامي لهدف مؤشِّر — S يجلس عليه بالضبط. */
+.size-s {
+  inline-size: var(--rasd-control-sm);
+  block-size: var(--rasd-control-sm);
+}
+.size-m {
+  inline-size: var(--rasd-control-md);
+  block-size: var(--rasd-control-md);
+}
+.size-l {
+  inline-size: var(--rasd-control-lg);
+  block-size: var(--rasd-control-lg);
+}
+
+.variant-ghost:hover,
+.variant-ghost.forceHover {
+  background: var(--rasd-surface-hover);
+}
+.variant-ghost:active,
+.variant-ghost.forcePressed {
+  background: var(--rasd-surface-pressed);
+}
+.variant-ghost.selected {
+  background: var(--rasd-surface-selected);
+  color: var(--rasd-icon-brand);
+}
+
+.variant-solid {
+  background: var(--rasd-surface-raised);
+  border-color: var(--rasd-border-default);
+}
+.variant-solid:hover,
+.variant-solid.forceHover {
+  background: var(--rasd-surface-hover);
+}
+.variant-solid:active,
+.variant-solid.forcePressed {
+  background: var(--rasd-surface-pressed);
+}
+.variant-solid.selected {
+  background: var(--rasd-action-primary-rest);
+  color: var(--rasd-text-on-brand);
+  border-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+}

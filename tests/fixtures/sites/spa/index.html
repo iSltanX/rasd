@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>لوحة — عيّنة SPA</title>
+    <style>
+      :root {
+        --ink: #161d26;
+        --muted: #5f6b78;
+        --line: #e4e9ee;
+        --accent: #6d28d9;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        color: var(--ink);
+        background: #f7f8fa;
+        line-height: 1.8;
+      }
+      header {
+        background: #fff;
+        border-block-end: 1px solid var(--line);
+        padding: 0 28px;
+        display: flex;
+        gap: 4px;
+        align-items: stretch;
+      }
+      header b {
+        align-self: center;
+        margin-inline-end: 24px;
+      }
+      header button {
+        border: 0;
+        background: transparent;
+        font: inherit;
+        color: var(--muted);
+        padding: 16px 14px;
+        cursor: pointer;
+        border-block-end: 2px solid transparent;
+      }
+      header button[aria-current='page'] {
+        color: var(--accent);
+        border-block-end-color: var(--accent);
+        font-weight: 600;
+      }
+      main {
+        padding: 32px 28px 80px;
+        max-width: 900px;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 26px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 24px;
+      }
+      .rows {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .row {
+        display: flex;
+        gap: 16px;
+        padding: 13px 18px;
+        border-block-end: 1px solid var(--line);
+        font-size: 14px;
+      }
+      .row:last-child {
+        border-block-end: 0;
+      }
+      .row span:last-child {
+        margin-inline-start: auto;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <b>لوحة الفريق</b>
+      <button data-route="/overview" aria-current="page">نظرة عامة</button>
+      <button data-route="/tasks">المهام</button>
+      <button data-route="/reports">التقارير</button>
+    </header>
+    <main id="view"></main>
+
+    <script>
+      // موجّه عميل بسيط — يبدّل المحتوى عبر pushState بلا إعادة تحميل.
+      const VIEWS = {
+        '/overview': {
+          h: 'نظرة عامة',
+          s: 'ملخّص الأسبوع الحالي.',
+          rows: [
+            ['المهام المفتوحة', '18'],
+            ['أُغلقت هذا الأسبوع', '42'],
+            ['متوسط زمن الإغلاق', '1.4 يوم'],
+          ],
+        },
+        '/tasks': {
+          h: 'المهام',
+          s: 'كل ما هو مسنَد إلى الفريق.',
+          rows: [
+            ['مراجعة عقد التوكنز', 'غدًا'],
+            ['ترحيل قاعدة البيانات', 'الخميس'],
+            ['تدقيق الإتاحة', 'الأسبوع القادم'],
+          ],
+        },
+        '/reports': {
+          h: 'التقارير',
+          s: 'تُولَّد كل اثنين صباحًا.',
+          rows: [
+            ['تقرير الأداء', '12 صفحة'],
+            ['تقرير الاستعمال', '5 صفحات'],
+          ],
+        },
+      }
+
+      function render(path) {
+        const v = VIEWS[path] || VIEWS['/overview']
+        const view = document.getElementById('view')
+        // إعادة بناء الشجرة بالكامل — يحاكي إطار عمل يستبدل المحتوى
+        view.innerHTML =
+          '<h1>' +
+          v.h +
+          '</h1><p class="sub">' +
+          v.s +
+          '</p><div class="rows">' +
+          v.rows
+            .map((r) => '<div class="row"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>')
+            .join('') +
+          '</div>'
+        document.querySelectorAll('header button').forEach((b) => {
+          if (b.dataset.route === path) b.setAttribute('aria-current', 'page')
+          else b.removeAttribute('aria-current')
+        })
+      }
+
+      function go(path) {
+        history.pushState({ path }, '', path)
+        render(path)
+      }
+
+      document.querySelectorAll('header button').forEach((b) => {
+        b.addEventListener('click', () => go(b.dataset.route))
+      })
+      window.addEventListener('popstate', (e) => render((e.state && e.state.path) || '/overview'))
+
+      // مسار الاختبار الآلي: يستدعيه Playwright مباشرةً
+      window.__spaNavigate = go
+
+      render(
+        location.pathname.startsWith('/') && VIEWS[location.pathname]
+          ? location.pathname
+          : '/overview',
+      )
+    </script>
+  </body>
+</html>

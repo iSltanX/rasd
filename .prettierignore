@@ -1,0 +1,19 @@
+dist/
+coverage/
+node_modules/
+pnpm-lock.yaml
+src/tokens/
+# أصول مولَّدة: ورقة التوكنز والخطوط
+public/assets/tokens.css
+public/assets/tokens-shadow.css
+public/assets/fonts.css
+public/assets/fonts/
+src/ui/icons/icon-data.ts
+src/ui/icons/icon-snapshot.json
+tests/fixtures/lint/
+public/icons/
+# وثائق مؤلَّفة بالعربية — إعادة تنسيق الجداول تُفسد محاذاتها
+Rasd_Ar.md
+Rasd_Plan.md
+Phase_*.md
+ADR/

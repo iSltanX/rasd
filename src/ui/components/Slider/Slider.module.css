@@ -1,0 +1,65 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  inline-size: 100%;
+  block-size: var(--rasd-control-sm);
+}
+
+.native {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.native:disabled {
+  cursor: not-allowed;
+}
+
+.track {
+  position: relative;
+  inline-size: 100%;
+  block-size: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-sunken);
+}
+.wrap:hover .track,
+.forceHover .track {
+  background: var(--rasd-border-subtle);
+}
+
+.fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--rasd-slider-value);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-action-primary-rest);
+}
+
+.thumb {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: var(--rasd-slider-value);
+  translate: -50% -50%;
+  inline-size: var(--rasd-space-16);
+  block-size: var(--rasd-space-16);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-text-on-brand);
+  border: var(--rasd-stroke-medium) solid var(--rasd-action-primary-rest);
+  box-shadow: var(--rasd-elevation-1);
+}
+[dir='rtl'] .thumb {
+  translate: 50% -50%;
+}
+.native:focus-visible ~ .track .thumb,
+.forceFocus .thumb {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+.native:disabled ~ .track .thumb {
+  opacity: 0.55;
+}

@@ -1,0 +1,8 @@
+# pnpm 11 يقرأ هذه الإعدادات من هنا لا من package.json.
+# سكربتات ما بعد التثبيت مرفوضة افتراضيًا؛ كل استثناء يُذكر صراحةً.
+allowBuilds:
+  unrs-resolver: true # محلّل مسارات أصلي يستخدمه eslint-import-resolver-typescript
+  esbuild: true # مترجم Vite/Vitest
+
+minimumReleaseAgeExclude:
+  - happy-dom@20.11.12

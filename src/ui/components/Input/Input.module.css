@@ -1,0 +1,65 @@
+.wrap {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--rasd-space-4);
+  inline-size: 100%;
+}
+
+.input {
+  inline-size: 100%;
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-surface-default);
+  color: var(--rasd-text-primary);
+  font-family: var(--rasd-font-family-text);
+  transition:
+    border-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard),
+    background-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard);
+}
+.input::placeholder {
+  color: var(--rasd-text-tertiary);
+}
+.input:hover,
+.input.forceHover {
+  border-color: var(--rasd-border-strong);
+}
+.input:focus-visible,
+.input.forceFocus {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+  border-color: var(--rasd-border-focus);
+}
+.input:disabled {
+  background: var(--rasd-surface-disabled);
+  color: var(--rasd-text-disabled);
+  cursor: not-allowed;
+}
+.input.error {
+  border-color: var(--rasd-status-danger-border);
+}
+.input.error:focus-visible {
+  outline-color: var(--rasd-status-danger-solid);
+}
+
+/* M يفي بحدّ 32px الأدنى؛ L مريح للنماذج الطويلة. */
+.size-m {
+  block-size: var(--rasd-control-md);
+  padding-inline: var(--rasd-space-12);
+  font-size: var(--rasd-font-size-base);
+}
+.size-l {
+  block-size: var(--rasd-control-lg);
+  padding-inline: var(--rasd-space-16);
+  font-size: var(--rasd-font-size-md);
+}
+
+.errorMessage {
+  color: var(--rasd-status-danger-fg);
+  font-size: var(--rasd-font-size-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input {
+    transition: none;
+  }
+}

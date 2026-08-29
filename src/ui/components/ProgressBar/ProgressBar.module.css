@@ -1,0 +1,19 @@
+.track {
+  inline-size: 100%;
+  block-size: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-sunken);
+  overflow: hidden;
+}
+.fill {
+  block-size: 100%;
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-action-primary-rest);
+  transition: inline-size var(--rasd-motion-duration-normal) var(--rasd-motion-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+}

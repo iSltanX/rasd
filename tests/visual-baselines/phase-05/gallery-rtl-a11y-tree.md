@@ -1,0 +1,869 @@
+- main [ref=f4e3]:
+  - generic [ref=f4e4]:
+    - generic [ref=f4e5]:
+      - heading "معرض المكوّنات" [level=1] [ref=f4e6]
+      - paragraph [ref=f4e7]: 20 مجموعة · 249 variant · مستبعَد من بناء الإنتاج
+    - generic [ref=f4e8]:
+      - radiogroup "الوضع" [ref=f4e9]:
+        - radio "داكن" [checked] [ref=f4e10] [cursor=pointer]
+        - radio "فاتح" [ref=f4e11] [cursor=pointer]
+      - radiogroup "الاتجاه" [ref=f4e12]:
+        - radio "RTL" [checked] [ref=f4e13] [cursor=pointer]
+        - radio "LTR" [ref=f4e14] [cursor=pointer]
+  - generic [ref=f4e15]:
+    - heading "مصفوفة الحالات — 14 حالة × 8 أسطح" [level=2] [ref=f4e16]
+    - group "مصفوفة الحالات — قابلة للتمرير أفقيًا" [ref=f4e17]:
+      - table [ref=f4e18]:
+        - rowgroup [ref=f4e19]
+        - rowgroup [ref=f4e36]
+  - generic [ref=f4e165]:
+    - generic [ref=f4e166]:
+      - heading "Button" [level=2] [ref=f4e167]
+      - generic [ref=f4e168]: 72 / 72 variant
+    - generic [ref=f4e169]:
+      - generic [ref=f4e170]:
+        - button "التقاط" [ref=f4e172] [cursor=pointer]
+        - generic [ref=f4e176]: variant=primary · size=s · state=default
+      - generic [ref=f4e177]:
+        - button "التقاط" [ref=f4e179] [cursor=pointer]
+        - generic [ref=f4e183]: variant=primary · size=s · state=hover
+      - generic [ref=f4e184]:
+        - button "التقاط" [ref=f4e186] [cursor=pointer]
+        - generic [ref=f4e190]: variant=primary · size=s · state=pressed
+      - generic [ref=f4e191]:
+        - button "التقاط" [disabled] [ref=f4e193]
+        - generic [ref=f4e197]: variant=primary · size=s · state=disabled
+      - generic [ref=f4e198]:
+        - button "التقاط" [ref=f4e200] [cursor=pointer]
+        - generic [ref=f4e204]: variant=primary · size=s · state=focused
+      - generic [ref=f4e205]:
+        - button "التقاط" [disabled] [ref=f4e207]
+        - generic [ref=f4e217]: variant=primary · size=s · state=loading
+      - generic [ref=f4e218]:
+        - button "التقاط" [ref=f4e220] [cursor=pointer]
+        - generic [ref=f4e224]: variant=primary · size=m · state=default
+      - generic [ref=f4e225]:
+        - button "التقاط" [ref=f4e227] [cursor=pointer]
+        - generic [ref=f4e231]: variant=primary · size=m · state=hover
+      - generic [ref=f4e232]:
+        - button "التقاط" [ref=f4e234] [cursor=pointer]
+        - generic [ref=f4e238]: variant=primary · size=m · state=pressed
+      - generic [ref=f4e239]:
+        - button "التقاط" [disabled] [ref=f4e241]
+        - generic [ref=f4e245]: variant=primary · size=m · state=disabled
+      - generic [ref=f4e246]:
+        - button "التقاط" [ref=f4e248] [cursor=pointer]
+        - generic [ref=f4e252]: variant=primary · size=m · state=focused
+      - generic [ref=f4e253]:
+        - button "التقاط" [disabled] [ref=f4e255]
+        - generic [ref=f4e265]: variant=primary · size=m · state=loading
+      - generic [ref=f4e266]:
+        - button "التقاط" [ref=f4e268] [cursor=pointer]
+        - generic [ref=f4e272]: variant=primary · size=l · state=default
+      - generic [ref=f4e273]:
+        - button "التقاط" [ref=f4e275] [cursor=pointer]
+        - generic [ref=f4e279]: variant=primary · size=l · state=hover
+      - generic [ref=f4e280]:
+        - button "التقاط" [ref=f4e282] [cursor=pointer]
+        - generic [ref=f4e286]: variant=primary · size=l · state=pressed
+      - generic [ref=f4e287]:
+        - button "التقاط" [disabled] [ref=f4e289]
+        - generic [ref=f4e293]: variant=primary · size=l · state=disabled
+      - generic [ref=f4e294]:
+        - button "التقاط" [ref=f4e296] [cursor=pointer]
+        - generic [ref=f4e300]: variant=primary · size=l · state=focused
+      - generic [ref=f4e301]:
+        - button "التقاط" [disabled] [ref=f4e303]
+        - generic [ref=f4e313]: variant=primary · size=l · state=loading
+      - generic [ref=f4e314]:
+        - button "التقاط" [ref=f4e316] [cursor=pointer]
+        - generic [ref=f4e320]: variant=secondary · size=s · state=default
+      - generic [ref=f4e321]:
+        - button "التقاط" [ref=f4e323] [cursor=pointer]
+        - generic [ref=f4e327]: variant=secondary · size=s · state=hover
+      - generic [ref=f4e328]:
+        - button "التقاط" [ref=f4e330] [cursor=pointer]
+        - generic [ref=f4e334]: variant=secondary · size=s · state=pressed
+      - generic [ref=f4e335]:
+        - button "التقاط" [disabled] [ref=f4e337]
+        - generic [ref=f4e341]: variant=secondary · size=s · state=disabled
+      - generic [ref=f4e342]:
+        - button "التقاط" [ref=f4e344] [cursor=pointer]
+        - generic [ref=f4e348]: variant=secondary · size=s · state=focused
+      - generic [ref=f4e349]:
+        - button "التقاط" [disabled] [ref=f4e351]
+        - generic [ref=f4e361]: variant=secondary · size=s · state=loading
+      - generic [ref=f4e362]:
+        - button "التقاط" [ref=f4e364] [cursor=pointer]
+        - generic [ref=f4e368]: variant=secondary · size=m · state=default
+      - generic [ref=f4e369]:
+        - button "التقاط" [ref=f4e371] [cursor=pointer]
+        - generic [ref=f4e375]: variant=secondary · size=m · state=hover
+      - generic [ref=f4e376]:
+        - button "التقاط" [ref=f4e378] [cursor=pointer]
+        - generic [ref=f4e382]: variant=secondary · size=m · state=pressed
+      - generic [ref=f4e383]:
+        - button "التقاط" [disabled] [ref=f4e385]
+        - generic [ref=f4e389]: variant=secondary · size=m · state=disabled
+      - generic [ref=f4e390]:
+        - button "التقاط" [ref=f4e392] [cursor=pointer]
+        - generic [ref=f4e396]: variant=secondary · size=m · state=focused
+      - generic [ref=f4e397]:
+        - button "التقاط" [disabled] [ref=f4e399]
+        - generic [ref=f4e409]: variant=secondary · size=m · state=loading
+      - generic [ref=f4e410]:
+        - button "التقاط" [ref=f4e412] [cursor=pointer]
+        - generic [ref=f4e416]: variant=secondary · size=l · state=default
+      - generic [ref=f4e417]:
+        - button "التقاط" [ref=f4e419] [cursor=pointer]
+        - generic [ref=f4e423]: variant=secondary · size=l · state=hover
+      - generic [ref=f4e424]:
+        - button "التقاط" [ref=f4e426] [cursor=pointer]
+        - generic [ref=f4e430]: variant=secondary · size=l · state=pressed
+      - generic [ref=f4e431]:
+        - button "التقاط" [disabled] [ref=f4e433]
+        - generic [ref=f4e437]: variant=secondary · size=l · state=disabled
+      - generic [ref=f4e438]:
+        - button "التقاط" [ref=f4e440] [cursor=pointer]
+        - generic [ref=f4e444]: variant=secondary · size=l · state=focused
+      - generic [ref=f4e445]:
+        - button "التقاط" [disabled] [ref=f4e447]
+        - generic [ref=f4e457]: variant=secondary · size=l · state=loading
+      - generic [ref=f4e458]:
+        - button "التقاط" [ref=f4e460] [cursor=pointer]
+        - generic [ref=f4e464]: variant=ghost · size=s · state=default
+      - generic [ref=f4e465]:
+        - button "التقاط" [ref=f4e467] [cursor=pointer]
+        - generic [ref=f4e471]: variant=ghost · size=s · state=hover
+      - generic [ref=f4e472]:
+        - button "التقاط" [ref=f4e474] [cursor=pointer]
+        - generic [ref=f4e478]: variant=ghost · size=s · state=pressed
+      - generic [ref=f4e479]:
+        - button "التقاط" [disabled] [ref=f4e481]
+        - generic [ref=f4e485]: variant=ghost · size=s · state=disabled
+      - generic [ref=f4e486]:
+        - button "التقاط" [ref=f4e488] [cursor=pointer]
+        - generic [ref=f4e492]: variant=ghost · size=s · state=focused
+      - generic [ref=f4e493]:
+        - button "التقاط" [disabled] [ref=f4e495]
+        - generic [ref=f4e505]: variant=ghost · size=s · state=loading
+      - generic [ref=f4e506]:
+        - button "التقاط" [ref=f4e508] [cursor=pointer]
+        - generic [ref=f4e512]: variant=ghost · size=m · state=default
+      - generic [ref=f4e513]:
+        - button "التقاط" [ref=f4e515] [cursor=pointer]
+        - generic [ref=f4e519]: variant=ghost · size=m · state=hover
+      - generic [ref=f4e520]:
+        - button "التقاط" [ref=f4e522] [cursor=pointer]
+        - generic [ref=f4e526]: variant=ghost · size=m · state=pressed
+      - generic [ref=f4e527]:
+        - button "التقاط" [disabled] [ref=f4e529]
+        - generic [ref=f4e533]: variant=ghost · size=m · state=disabled
+      - generic [ref=f4e534]:
+        - button "التقاط" [ref=f4e536] [cursor=pointer]
+        - generic [ref=f4e540]: variant=ghost · size=m · state=focused
+      - generic [ref=f4e541]:
+        - button "التقاط" [disabled] [ref=f4e543]
+        - generic [ref=f4e553]: variant=ghost · size=m · state=loading
+      - generic [ref=f4e554]:
+        - button "التقاط" [ref=f4e556] [cursor=pointer]
+        - generic [ref=f4e560]: variant=ghost · size=l · state=default
+      - generic [ref=f4e561]:
+        - button "التقاط" [ref=f4e563] [cursor=pointer]
+        - generic [ref=f4e567]: variant=ghost · size=l · state=hover
+      - generic [ref=f4e568]:
+        - button "التقاط" [ref=f4e570] [cursor=pointer]
+        - generic [ref=f4e574]: variant=ghost · size=l · state=pressed
+      - generic [ref=f4e575]:
+        - button "التقاط" [disabled] [ref=f4e577]
+        - generic [ref=f4e581]: variant=ghost · size=l · state=disabled
+      - generic [ref=f4e582]:
+        - button "التقاط" [ref=f4e584] [cursor=pointer]
+        - generic [ref=f4e588]: variant=ghost · size=l · state=focused
+      - generic [ref=f4e589]:
+        - button "التقاط" [disabled] [ref=f4e591]
+        - generic [ref=f4e601]: variant=ghost · size=l · state=loading
+      - generic [ref=f4e602]:
+        - button "التقاط" [ref=f4e604] [cursor=pointer]
+        - generic [ref=f4e608]: variant=danger · size=s · state=default
+      - generic [ref=f4e609]:
+        - button "التقاط" [ref=f4e611] [cursor=pointer]
+        - generic [ref=f4e615]: variant=danger · size=s · state=hover
+      - generic [ref=f4e616]:
+        - button "التقاط" [ref=f4e618] [cursor=pointer]
+        - generic [ref=f4e622]: variant=danger · size=s · state=pressed
+      - generic [ref=f4e623]:
+        - button "التقاط" [disabled] [ref=f4e625]
+        - generic [ref=f4e629]: variant=danger · size=s · state=disabled
+      - generic [ref=f4e630]:
+        - button "التقاط" [ref=f4e632] [cursor=pointer]
+        - generic [ref=f4e636]: variant=danger · size=s · state=focused
+      - generic [ref=f4e637]:
+        - button "التقاط" [disabled] [ref=f4e639]
+        - generic [ref=f4e649]: variant=danger · size=s · state=loading
+      - generic [ref=f4e650]:
+        - button "التقاط" [ref=f4e652] [cursor=pointer]
+        - generic [ref=f4e656]: variant=danger · size=m · state=default
+      - generic [ref=f4e657]:
+        - button "التقاط" [ref=f4e659] [cursor=pointer]
+        - generic [ref=f4e663]: variant=danger · size=m · state=hover
+      - generic [ref=f4e664]:
+        - button "التقاط" [ref=f4e666] [cursor=pointer]
+        - generic [ref=f4e670]: variant=danger · size=m · state=pressed
+      - generic [ref=f4e671]:
+        - button "التقاط" [disabled] [ref=f4e673]
+        - generic [ref=f4e677]: variant=danger · size=m · state=disabled
+      - generic [ref=f4e678]:
+        - button "التقاط" [ref=f4e680] [cursor=pointer]
+        - generic [ref=f4e684]: variant=danger · size=m · state=focused
+      - generic [ref=f4e685]:
+        - button "التقاط" [disabled] [ref=f4e687]
+        - generic [ref=f4e697]: variant=danger · size=m · state=loading
+      - generic [ref=f4e698]:
+        - button "التقاط" [ref=f4e700] [cursor=pointer]
+        - generic [ref=f4e704]: variant=danger · size=l · state=default
+      - generic [ref=f4e705]:
+        - button "التقاط" [ref=f4e707] [cursor=pointer]
+        - generic [ref=f4e711]: variant=danger · size=l · state=hover
+      - generic [ref=f4e712]:
+        - button "التقاط" [ref=f4e714] [cursor=pointer]
+        - generic [ref=f4e718]: variant=danger · size=l · state=pressed
+      - generic [ref=f4e719]:
+        - button "التقاط" [disabled] [ref=f4e721]
+        - generic [ref=f4e725]: variant=danger · size=l · state=disabled
+      - generic [ref=f4e726]:
+        - button "التقاط" [ref=f4e728] [cursor=pointer]
+        - generic [ref=f4e732]: variant=danger · size=l · state=focused
+      - generic [ref=f4e733]:
+        - button "التقاط" [disabled] [ref=f4e735]
+        - generic [ref=f4e745]: variant=danger · size=l · state=loading
+  - generic [ref=f4e746]:
+    - generic [ref=f4e747]:
+      - heading "Icon Button" [level=2] [ref=f4e748]
+      - generic [ref=f4e749]: 36 / 36 variant
+    - generic [ref=f4e750]:
+      - generic [ref=f4e751]:
+        - button "الإعدادات" [ref=f4e753] [cursor=pointer]
+        - generic [ref=f4e756]: variant=ghost · size=s · state=default
+      - generic [ref=f4e757]:
+        - button "الإعدادات" [ref=f4e759] [cursor=pointer]
+        - generic [ref=f4e762]: variant=ghost · size=s · state=hover
+      - generic [ref=f4e763]:
+        - button "الإعدادات" [ref=f4e765] [cursor=pointer]
+        - generic [ref=f4e768]: variant=ghost · size=s · state=pressed
+      - generic [ref=f4e769]:
+        - button "الإعدادات" [disabled] [ref=f4e771]
+        - generic [ref=f4e774]: variant=ghost · size=s · state=disabled
+      - generic [ref=f4e775]:
+        - button "الإعدادات" [ref=f4e777] [cursor=pointer]
+        - generic [ref=f4e780]: variant=ghost · size=s · state=focused
+      - generic [ref=f4e781]:
+        - button "الإعدادات" [pressed] [ref=f4e783] [cursor=pointer]
+        - generic [ref=f4e786]: variant=ghost · size=s · state=selected
+      - generic [ref=f4e787]:
+        - button "الإعدادات" [ref=f4e789] [cursor=pointer]
+        - generic [ref=f4e792]: variant=ghost · size=m · state=default
+      - generic [ref=f4e793]:
+        - button "الإعدادات" [ref=f4e795] [cursor=pointer]
+        - generic [ref=f4e798]: variant=ghost · size=m · state=hover
+      - generic [ref=f4e799]:
+        - button "الإعدادات" [ref=f4e801] [cursor=pointer]
+        - generic [ref=f4e804]: variant=ghost · size=m · state=pressed
+      - generic [ref=f4e805]:
+        - button "الإعدادات" [disabled] [ref=f4e807]
+        - generic [ref=f4e810]: variant=ghost · size=m · state=disabled
+      - generic [ref=f4e811]:
+        - button "الإعدادات" [ref=f4e813] [cursor=pointer]
+        - generic [ref=f4e816]: variant=ghost · size=m · state=focused
+      - generic [ref=f4e817]:
+        - button "الإعدادات" [pressed] [ref=f4e819] [cursor=pointer]
+        - generic [ref=f4e822]: variant=ghost · size=m · state=selected
+      - generic [ref=f4e823]:
+        - button "الإعدادات" [ref=f4e825] [cursor=pointer]
+        - generic [ref=f4e828]: variant=ghost · size=l · state=default
+      - generic [ref=f4e829]:
+        - button "الإعدادات" [ref=f4e831] [cursor=pointer]
+        - generic [ref=f4e834]: variant=ghost · size=l · state=hover
+      - generic [ref=f4e835]:
+        - button "الإعدادات" [ref=f4e837] [cursor=pointer]
+        - generic [ref=f4e840]: variant=ghost · size=l · state=pressed
+      - generic [ref=f4e841]:
+        - button "الإعدادات" [disabled] [ref=f4e843]
+        - generic [ref=f4e846]: variant=ghost · size=l · state=disabled
+      - generic [ref=f4e847]:
+        - button "الإعدادات" [ref=f4e849] [cursor=pointer]
+        - generic [ref=f4e852]: variant=ghost · size=l · state=focused
+      - generic [ref=f4e853]:
+        - button "الإعدادات" [pressed] [ref=f4e855] [cursor=pointer]
+        - generic [ref=f4e858]: variant=ghost · size=l · state=selected
+      - generic [ref=f4e859]:
+        - button "الإعدادات" [ref=f4e861] [cursor=pointer]
+        - generic [ref=f4e864]: variant=solid · size=s · state=default
+      - generic [ref=f4e865]:
+        - button "الإعدادات" [ref=f4e867] [cursor=pointer]
+        - generic [ref=f4e870]: variant=solid · size=s · state=hover
+      - generic [ref=f4e871]:
+        - button "الإعدادات" [ref=f4e873] [cursor=pointer]
+        - generic [ref=f4e876]: variant=solid · size=s · state=pressed
+      - generic [ref=f4e877]:
+        - button "الإعدادات" [disabled] [ref=f4e879]
+        - generic [ref=f4e882]: variant=solid · size=s · state=disabled
+      - generic [ref=f4e883]:
+        - button "الإعدادات" [ref=f4e885] [cursor=pointer]
+        - generic [ref=f4e888]: variant=solid · size=s · state=focused
+      - generic [ref=f4e889]:
+        - button "الإعدادات" [pressed] [ref=f4e891] [cursor=pointer]
+        - generic [ref=f4e894]: variant=solid · size=s · state=selected
+      - generic [ref=f4e895]:
+        - button "الإعدادات" [ref=f4e897] [cursor=pointer]
+        - generic [ref=f4e900]: variant=solid · size=m · state=default
+      - generic [ref=f4e901]:
+        - button "الإعدادات" [ref=f4e903] [cursor=pointer]
+        - generic [ref=f4e906]: variant=solid · size=m · state=hover
+      - generic [ref=f4e907]:
+        - button "الإعدادات" [ref=f4e909] [cursor=pointer]
+        - generic [ref=f4e912]: variant=solid · size=m · state=pressed
+      - generic [ref=f4e913]:
+        - button "الإعدادات" [disabled] [ref=f4e915]
+        - generic [ref=f4e918]: variant=solid · size=m · state=disabled
+      - generic [ref=f4e919]:
+        - button "الإعدادات" [ref=f4e921] [cursor=pointer]
+        - generic [ref=f4e924]: variant=solid · size=m · state=focused
+      - generic [ref=f4e925]:
+        - button "الإعدادات" [pressed] [ref=f4e927] [cursor=pointer]
+        - generic [ref=f4e930]: variant=solid · size=m · state=selected
+      - generic [ref=f4e931]:
+        - button "الإعدادات" [ref=f4e933] [cursor=pointer]
+        - generic [ref=f4e936]: variant=solid · size=l · state=default
+      - generic [ref=f4e937]:
+        - button "الإعدادات" [ref=f4e939] [cursor=pointer]
+        - generic [ref=f4e942]: variant=solid · size=l · state=hover
+      - generic [ref=f4e943]:
+        - button "الإعدادات" [ref=f4e945] [cursor=pointer]
+        - generic [ref=f4e948]: variant=solid · size=l · state=pressed
+      - generic [ref=f4e949]:
+        - button "الإعدادات" [disabled] [ref=f4e951]
+        - generic [ref=f4e954]: variant=solid · size=l · state=disabled
+      - generic [ref=f4e955]:
+        - button "الإعدادات" [ref=f4e957] [cursor=pointer]
+        - generic [ref=f4e960]: variant=solid · size=l · state=focused
+      - generic [ref=f4e961]:
+        - button "الإعدادات" [pressed] [ref=f4e963] [cursor=pointer]
+        - generic [ref=f4e966]: variant=solid · size=l · state=selected
+  - generic [ref=f4e967]:
+    - generic [ref=f4e968]:
+      - heading "Input" [level=2] [ref=f4e969]
+      - generic [ref=f4e970]: 10 / 10 variant
+    - generic [ref=f4e971]:
+      - generic [ref=f4e972]:
+        - textbox "بحث" [ref=f4e975]:
+          - /placeholder: ابحث في المكتبة
+        - generic [ref=f4e976]: size=m · state=default
+      - generic [ref=f4e977]:
+        - textbox "بحث" [ref=f4e980]:
+          - /placeholder: ابحث في المكتبة
+        - generic [ref=f4e981]: size=m · state=hover
+      - generic [ref=f4e982]:
+        - textbox "بحث" [ref=f4e985]:
+          - /placeholder: ابحث في المكتبة
+        - generic [ref=f4e986]: size=m · state=focus
+      - generic [ref=f4e987]:
+        - textbox "بحث" [invalid] [ref=f4e990]:
+          - /placeholder: ابحث في المكتبة
+        - generic [ref=f4e991]: size=m · state=error
+      - generic [ref=f4e992]:
+        - textbox "بحث" [disabled] [ref=f4e995]:
+          - /placeholder: ابحث في المكتبة
+        - generic [ref=f4e996]: size=m · state=disabled
+      - generic [ref=f4e997]:
+        - textbox "بحث" [ref=f4e1000]:
+          - /placeholder: ابحث في المكتبة
+        - generic [ref=f4e1001]: size=l · state=default
+      - generic [ref=f4e1002]:
+        - textbox "بحث" [ref=f4e1005]:
+          - /placeholder: ابحث في المكتبة
+        - generic [ref=f4e1006]: size=l · state=hover
+      - generic [ref=f4e1007]:
+        - textbox "بحث" [ref=f4e1010]:
+          - /placeholder: ابحث في المكتبة
+        - generic [ref=f4e1011]: size=l · state=focus
+      - generic [ref=f4e1012]:
+        - textbox "بحث" [invalid] [ref=f4e1015]:
+          - /placeholder: ابحث في المكتبة
+        - generic [ref=f4e1016]: size=l · state=error
+      - generic [ref=f4e1017]:
+        - textbox "بحث" [disabled] [ref=f4e1020]:
+          - /placeholder: ابحث في المكتبة
+        - generic [ref=f4e1021]: size=l · state=disabled
+  - generic [ref=f4e1022]:
+    - generic [ref=f4e1023]:
+      - heading "Checkbox" [level=2] [ref=f4e1024]
+      - generic [ref=f4e1025]: 12 / 12 variant
+    - generic [ref=f4e1026]:
+      - generic [ref=f4e1027]:
+        - generic [ref=f4e1029] [cursor=pointer]
+        - generic [ref=f4e1033]: checked=off · state=default
+      - generic [ref=f4e1034]:
+        - generic [ref=f4e1036] [cursor=pointer]
+        - generic [ref=f4e1040]: checked=off · state=hover
+      - generic [ref=f4e1041]:
+        - generic [ref=f4e1043] [cursor=pointer]
+        - generic [ref=f4e1047]: checked=off · state=focus
+      - generic [ref=f4e1048]:
+        - generic [ref=f4e1050]
+        - generic [ref=f4e1054]: checked=off · state=disabled
+      - generic [ref=f4e1055]:
+        - generic [ref=f4e1057] [cursor=pointer]
+        - generic [ref=f4e1063]: checked=on · state=default
+      - generic [ref=f4e1064]:
+        - generic [ref=f4e1066] [cursor=pointer]
+        - generic [ref=f4e1072]: checked=on · state=hover
+      - generic [ref=f4e1073]:
+        - generic [ref=f4e1075] [cursor=pointer]
+        - generic [ref=f4e1081]: checked=on · state=focus
+      - generic [ref=f4e1082]:
+        - generic [ref=f4e1084]
+        - generic [ref=f4e1090]: checked=on · state=disabled
+      - generic [ref=f4e1091]:
+        - generic [ref=f4e1093] [cursor=pointer]
+        - generic [ref=f4e1098]: checked=mixed · state=default
+      - generic [ref=f4e1099]:
+        - generic [ref=f4e1101] [cursor=pointer]
+        - generic [ref=f4e1106]: checked=mixed · state=hover
+      - generic [ref=f4e1107]:
+        - generic [ref=f4e1109] [cursor=pointer]
+        - generic [ref=f4e1114]: checked=mixed · state=focus
+      - generic [ref=f4e1115]:
+        - generic [ref=f4e1117]
+        - generic [ref=f4e1122]: checked=mixed · state=disabled
+  - generic [ref=f4e1123]:
+    - generic [ref=f4e1124]:
+      - heading "Toggle" [level=2] [ref=f4e1125]
+      - generic [ref=f4e1126]: 8 / 8 variant
+    - generic [ref=f4e1127]:
+      - generic [ref=f4e1128]:
+        - generic [ref=f4e1130] [cursor=pointer]
+        - generic [ref=f4e1135]: on=off · state=default
+      - generic [ref=f4e1136]:
+        - generic [ref=f4e1138] [cursor=pointer]
+        - generic [ref=f4e1143]: on=off · state=hover
+      - generic [ref=f4e1144]:
+        - generic [ref=f4e1146] [cursor=pointer]
+        - generic [ref=f4e1151]: on=off · state=focus
+      - generic [ref=f4e1152]:
+        - generic [ref=f4e1154]
+        - generic [ref=f4e1159]: on=off · state=disabled
+      - generic [ref=f4e1160]:
+        - generic [ref=f4e1162] [cursor=pointer]
+        - generic [ref=f4e1167]: on=on · state=default
+      - generic [ref=f4e1168]:
+        - generic [ref=f4e1170] [cursor=pointer]
+        - generic [ref=f4e1175]: on=on · state=hover
+      - generic [ref=f4e1176]:
+        - generic [ref=f4e1178] [cursor=pointer]
+        - generic [ref=f4e1183]: on=on · state=focus
+      - generic [ref=f4e1184]:
+        - generic [ref=f4e1186]
+        - generic [ref=f4e1191]: on=on · state=disabled
+  - generic [ref=f4e1192]:
+    - generic [ref=f4e1193]:
+      - heading "Chip" [level=2] [ref=f4e1194]
+      - generic [ref=f4e1195]: 18 / 18 variant
+    - generic [ref=f4e1196]:
+      - generic [ref=f4e1197]:
+        - generic [ref=f4e1198]: خطأ بصري
+        - generic [ref=f4e1201]: tone=neutral · style=soft
+      - generic [ref=f4e1202]:
+        - generic [ref=f4e1203]: خطأ بصري
+        - generic [ref=f4e1206]: tone=neutral · style=solid
+      - generic [ref=f4e1207]:
+        - generic [ref=f4e1208]: خطأ بصري
+        - generic [ref=f4e1211]: tone=brand · style=soft
+      - generic [ref=f4e1212]:
+        - generic [ref=f4e1213]: خطأ بصري
+        - generic [ref=f4e1216]: tone=brand · style=solid
+      - generic [ref=f4e1217]:
+        - generic [ref=f4e1218]: خطأ بصري
+        - generic [ref=f4e1221]: tone=capture · style=soft
+      - generic [ref=f4e1222]:
+        - generic [ref=f4e1223]: خطأ بصري
+        - generic [ref=f4e1226]: tone=capture · style=solid
+      - generic [ref=f4e1227]:
+        - generic [ref=f4e1228]: خطأ بصري
+        - generic [ref=f4e1231]: tone=annotate · style=soft
+      - generic [ref=f4e1232]:
+        - generic [ref=f4e1233]: خطأ بصري
+        - generic [ref=f4e1236]: tone=annotate · style=solid
+      - generic [ref=f4e1237]:
+        - generic [ref=f4e1238]: خطأ بصري
+        - generic [ref=f4e1241]: tone=inspect · style=soft
+      - generic [ref=f4e1242]:
+        - generic [ref=f4e1243]: خطأ بصري
+        - generic [ref=f4e1246]: tone=inspect · style=solid
+      - generic [ref=f4e1247]:
+        - generic [ref=f4e1248]: خطأ بصري
+        - generic [ref=f4e1251]: tone=measure · style=soft
+      - generic [ref=f4e1252]:
+        - generic [ref=f4e1253]: خطأ بصري
+        - generic [ref=f4e1256]: tone=measure · style=solid
+      - generic [ref=f4e1257]:
+        - generic [ref=f4e1258]: خطأ بصري
+        - generic [ref=f4e1261]: tone=success · style=soft
+      - generic [ref=f4e1262]:
+        - generic [ref=f4e1263]: خطأ بصري
+        - generic [ref=f4e1266]: tone=success · style=solid
+      - generic [ref=f4e1267]:
+        - generic [ref=f4e1268]: خطأ بصري
+        - generic [ref=f4e1271]: tone=warning · style=soft
+      - generic [ref=f4e1272]:
+        - generic [ref=f4e1273]: خطأ بصري
+        - generic [ref=f4e1276]: tone=warning · style=solid
+      - generic [ref=f4e1277]:
+        - generic [ref=f4e1278]: خطأ بصري
+        - generic [ref=f4e1281]: tone=danger · style=soft
+      - generic [ref=f4e1282]:
+        - generic [ref=f4e1283]: خطأ بصري
+        - generic [ref=f4e1286]: tone=danger · style=solid
+  - generic [ref=f4e1287]:
+    - generic [ref=f4e1288]:
+      - heading "Progress Bar" [level=2] [ref=f4e1289]
+      - generic [ref=f4e1290]: 4 / 4 variant
+    - generic [ref=f4e1291]:
+      - generic [ref=f4e1292]:
+        - progressbar "تقدّم الالتقاط" [ref=f4e1294]
+        - generic [ref=f4e1295]: value=0
+      - generic [ref=f4e1296]:
+        - progressbar "تقدّم الالتقاط" [ref=f4e1298]
+        - generic [ref=f4e1300]: value=35
+      - generic [ref=f4e1301]:
+        - progressbar "تقدّم الالتقاط" [ref=f4e1303]
+        - generic [ref=f4e1305]: value=65
+      - generic [ref=f4e1306]:
+        - progressbar "تقدّم الالتقاط" [ref=f4e1308]
+        - generic [ref=f4e1310]: value=100
+  - generic [ref=f4e1311]:
+    - generic [ref=f4e1312]:
+      - heading "Segmented Control" [level=2] [ref=f4e1313]
+      - generic [ref=f4e1314]: 3 / 3 variant
+    - generic [ref=f4e1315]:
+      - generic [ref=f4e1316]:
+        - radiogroup "عرض المكتبة" [ref=f4e1318]
+        - generic [ref=f4e1322]: selected=1
+      - generic [ref=f4e1323]:
+        - radiogroup "عرض المكتبة" [ref=f4e1325]
+        - generic [ref=f4e1329]: selected=2
+      - generic [ref=f4e1330]:
+        - radiogroup "عرض المكتبة" [ref=f4e1332]
+        - generic [ref=f4e1336]: selected=3
+  - generic [ref=f4e1337]:
+    - generic [ref=f4e1338]:
+      - heading "Spinner" [level=2] [ref=f4e1339]
+      - generic [ref=f4e1340]: 9 / 9 variant
+    - generic [ref=f4e1341]:
+      - generic [ref=f4e1342]:
+        - status [ref=f4e1344]
+        - generic [ref=f4e1349]: size=s · tone=brand
+      - generic [ref=f4e1350]:
+        - status [ref=f4e1352]
+        - generic [ref=f4e1357]: size=s · tone=neutral
+      - generic [ref=f4e1358]:
+        - status [ref=f4e1360]
+        - generic [ref=f4e1365]: size=s · tone=inverse
+      - generic [ref=f4e1366]:
+        - status [ref=f4e1368]
+        - generic [ref=f4e1373]: size=m · tone=brand
+      - generic [ref=f4e1374]:
+        - status [ref=f4e1376]
+        - generic [ref=f4e1381]: size=m · tone=neutral
+      - generic [ref=f4e1382]:
+        - status [ref=f4e1384]
+        - generic [ref=f4e1389]: size=m · tone=inverse
+      - generic [ref=f4e1390]:
+        - status [ref=f4e1392]
+        - generic [ref=f4e1397]: size=l · tone=brand
+      - generic [ref=f4e1398]:
+        - status [ref=f4e1400]
+        - generic [ref=f4e1405]: size=l · tone=neutral
+      - generic [ref=f4e1406]:
+        - status [ref=f4e1408]
+        - generic [ref=f4e1413]: size=l · tone=inverse
+  - generic [ref=f4e1414]:
+    - generic [ref=f4e1415]:
+      - heading "Radio" [level=2] [ref=f4e1416]
+      - generic [ref=f4e1417]: 8 / 8 variant
+    - generic [ref=f4e1418]:
+      - generic [ref=f4e1419]:
+        - generic [ref=f4e1421] [cursor=pointer]
+        - generic [ref=f4e1425]: selected=off · state=default
+      - generic [ref=f4e1426]:
+        - generic [ref=f4e1428] [cursor=pointer]
+        - generic [ref=f4e1432]: selected=off · state=hover
+      - generic [ref=f4e1433]:
+        - generic [ref=f4e1435] [cursor=pointer]
+        - generic [ref=f4e1439]: selected=off · state=focus
+      - generic [ref=f4e1440]:
+        - generic [ref=f4e1442]
+        - generic [ref=f4e1446]: selected=off · state=disabled
+      - generic [ref=f4e1447]:
+        - generic [ref=f4e1449] [cursor=pointer]
+        - generic [ref=f4e1453]: selected=on · state=default
+      - generic [ref=f4e1454]:
+        - generic [ref=f4e1456] [cursor=pointer]
+        - generic [ref=f4e1460]: selected=on · state=hover
+      - generic [ref=f4e1461]:
+        - generic [ref=f4e1463] [cursor=pointer]
+        - generic [ref=f4e1467]: selected=on · state=focus
+      - generic [ref=f4e1468]:
+        - generic [ref=f4e1470]
+        - generic [ref=f4e1474]: selected=on · state=disabled
+  - generic [ref=f4e1475]:
+    - generic [ref=f4e1476]:
+      - heading "Slider" [level=2] [ref=f4e1477]
+      - generic [ref=f4e1478]: 16 / 16 variant
+    - generic [ref=f4e1479]:
+      - generic [ref=f4e1480]:
+        - slider "الشفافية" [ref=f4e1483] [cursor=pointer]: "0"
+        - generic [ref=f4e1486]: value=0 · state=default
+      - generic [ref=f4e1487]:
+        - slider "الشفافية" [ref=f4e1490] [cursor=pointer]: "0"
+        - generic [ref=f4e1493]: value=0 · state=hover
+      - generic [ref=f4e1494]:
+        - slider "الشفافية" [ref=f4e1497] [cursor=pointer]: "0"
+        - generic [ref=f4e1500]: value=0 · state=focus
+      - generic [ref=f4e1501]:
+        - slider "الشفافية" [disabled] [ref=f4e1504]: "0"
+        - generic [ref=f4e1507]: value=0 · state=disabled
+      - generic [ref=f4e1508]:
+        - slider "الشفافية" [ref=f4e1511] [cursor=pointer]: "35"
+        - generic [ref=f4e1515]: value=35 · state=default
+      - generic [ref=f4e1516]:
+        - slider "الشفافية" [ref=f4e1519] [cursor=pointer]: "35"
+        - generic [ref=f4e1523]: value=35 · state=hover
+      - generic [ref=f4e1524]:
+        - slider "الشفافية" [ref=f4e1527] [cursor=pointer]: "35"
+        - generic [ref=f4e1531]: value=35 · state=focus
+      - generic [ref=f4e1532]:
+        - slider "الشفافية" [disabled] [ref=f4e1535]: "35"
+        - generic [ref=f4e1539]: value=35 · state=disabled
+      - generic [ref=f4e1540]:
+        - slider "الشفافية" [ref=f4e1543] [cursor=pointer]: "70"
+        - generic [ref=f4e1547]: value=70 · state=default
+      - generic [ref=f4e1548]:
+        - slider "الشفافية" [ref=f4e1551] [cursor=pointer]: "70"
+        - generic [ref=f4e1555]: value=70 · state=hover
+      - generic [ref=f4e1556]:
+        - slider "الشفافية" [ref=f4e1559] [cursor=pointer]: "70"
+        - generic [ref=f4e1563]: value=70 · state=focus
+      - generic [ref=f4e1564]:
+        - slider "الشفافية" [disabled] [ref=f4e1567]: "70"
+        - generic [ref=f4e1571]: value=70 · state=disabled
+      - generic [ref=f4e1572]:
+        - slider "الشفافية" [ref=f4e1575] [cursor=pointer]: "100"
+        - generic [ref=f4e1579]: value=100 · state=default
+      - generic [ref=f4e1580]:
+        - slider "الشفافية" [ref=f4e1583] [cursor=pointer]: "100"
+        - generic [ref=f4e1587]: value=100 · state=hover
+      - generic [ref=f4e1588]:
+        - slider "الشفافية" [ref=f4e1591] [cursor=pointer]: "100"
+        - generic [ref=f4e1595]: value=100 · state=focus
+      - generic [ref=f4e1596]:
+        - slider "الشفافية" [disabled] [ref=f4e1599]: "100"
+        - generic [ref=f4e1603]: value=100 · state=disabled
+  - generic [ref=f4e1604]:
+    - generic [ref=f4e1605]:
+      - heading "Tabs" [level=2] [ref=f4e1606]
+      - generic [ref=f4e1607]: 4 / 4 variant
+    - generic [ref=f4e1608]:
+      - generic [ref=f4e1609]:
+        - generic [ref=f4e1611]
+        - generic [ref=f4e1617]: selected=1
+      - generic [ref=f4e1618]:
+        - generic [ref=f4e1620]
+        - generic [ref=f4e1626]: selected=2
+      - generic [ref=f4e1627]:
+        - generic [ref=f4e1629]
+        - generic [ref=f4e1635]: selected=3
+      - generic [ref=f4e1636]:
+        - generic [ref=f4e1638]
+        - generic [ref=f4e1644]: selected=4
+  - generic [ref=f4e1645]:
+    - generic [ref=f4e1646]:
+      - heading "Avatar" [level=2] [ref=f4e1647]
+      - generic [ref=f4e1648]: 8 / 8 variant
+    - generic [ref=f4e1649]:
+      - generic [ref=f4e1650]:
+        - img "سارة أحمد" [ref=f4e1652]: سأ
+        - generic [ref=f4e1653]: size=xs · type=initials
+      - generic [ref=f4e1654]:
+        - img "سارة أحمد" [ref=f4e1656]
+        - generic [ref=f4e1657]: size=xs · type=colour
+      - generic [ref=f4e1658]:
+        - img "سارة أحمد" [ref=f4e1660]: سأ
+        - generic [ref=f4e1661]: size=s · type=initials
+      - generic [ref=f4e1662]:
+        - img "سارة أحمد" [ref=f4e1664]
+        - generic [ref=f4e1665]: size=s · type=colour
+      - generic [ref=f4e1666]:
+        - img "سارة أحمد" [ref=f4e1668]: سأ
+        - generic [ref=f4e1669]: size=m · type=initials
+      - generic [ref=f4e1670]:
+        - img "سارة أحمد" [ref=f4e1672]
+        - generic [ref=f4e1673]: size=m · type=colour
+      - generic [ref=f4e1674]:
+        - img "سارة أحمد" [ref=f4e1676]: سأ
+        - generic [ref=f4e1677]: size=l · type=initials
+      - generic [ref=f4e1678]:
+        - img "سارة أحمد" [ref=f4e1680]
+        - generic [ref=f4e1681]: size=l · type=colour
+  - generic [ref=f4e1682]:
+    - generic [ref=f4e1683]:
+      - heading "Tooltip" [level=2] [ref=f4e1684]
+      - generic [ref=f4e1685]: 8 / 8 variant
+    - generic [ref=f4e1686]:
+      - generic [ref=f4e1687]:
+        - generic [ref=f4e1688]
+        - generic [ref=f4e1689]: side=top · type=plain
+      - generic [ref=f4e1690]:
+        - generic [ref=f4e1691]
+        - generic [ref=f4e1692]: side=top · type=shortcut
+      - generic [ref=f4e1693]:
+        - generic [ref=f4e1694]
+        - generic [ref=f4e1695]: side=bottom · type=plain
+      - generic [ref=f4e1696]:
+        - generic [ref=f4e1697]
+        - generic [ref=f4e1698]: side=bottom · type=shortcut
+      - generic [ref=f4e1699]:
+        - generic [ref=f4e1700]
+        - generic [ref=f4e1701]: side=left · type=plain
+      - generic [ref=f4e1702]:
+        - generic [ref=f4e1703]
+        - generic [ref=f4e1704]: side=left · type=shortcut
+      - generic [ref=f4e1705]:
+        - generic [ref=f4e1706]
+        - generic [ref=f4e1707]: side=right · type=plain
+      - generic [ref=f4e1708]:
+        - generic [ref=f4e1709]
+        - generic [ref=f4e1710]: side=right · type=shortcut
+  - generic [ref=f4e1711]:
+    - generic [ref=f4e1712]:
+      - heading "Toast" [level=2] [ref=f4e1713]
+      - generic [ref=f4e1714]: 8 / 8 variant
+    - generic [ref=f4e1715]:
+      - generic [ref=f4e1716]:
+        - status [ref=f4e1718]
+        - generic [ref=f4e1726]: tone=success · action=with-action
+      - generic [ref=f4e1727]:
+        - status [ref=f4e1729]
+        - generic [ref=f4e1736]: tone=success · action=plain
+      - generic [ref=f4e1737]:
+        - status [ref=f4e1739]
+        - generic [ref=f4e1747]: tone=info · action=with-action
+      - generic [ref=f4e1748]:
+        - status [ref=f4e1750]
+        - generic [ref=f4e1757]: tone=info · action=plain
+      - generic [ref=f4e1758]:
+        - status [ref=f4e1760]
+        - generic [ref=f4e1768]: tone=warning · action=with-action
+      - generic [ref=f4e1769]:
+        - status [ref=f4e1771]
+        - generic [ref=f4e1778]: tone=warning · action=plain
+      - generic [ref=f4e1779]:
+        - status [ref=f4e1781]
+        - generic [ref=f4e1789]: tone=danger · action=with-action
+      - generic [ref=f4e1790]:
+        - status [ref=f4e1792]
+        - generic [ref=f4e1799]: tone=danger · action=plain
+  - generic [ref=f4e1800]:
+    - generic [ref=f4e1801]:
+      - heading "Banner" [level=2] [ref=f4e1802]
+      - generic [ref=f4e1803]: 4 / 4 variant
+    - generic [ref=f4e1804]:
+      - generic [ref=f4e1805]:
+        - status [ref=f4e1807]
+        - generic [ref=f4e1811]: tone=info
+      - generic [ref=f4e1812]:
+        - status [ref=f4e1814]
+        - generic [ref=f4e1818]: tone=warning
+      - generic [ref=f4e1819]:
+        - status [ref=f4e1821]
+        - generic [ref=f4e1825]: tone=danger
+      - generic [ref=f4e1826]:
+        - status [ref=f4e1828]
+        - generic [ref=f4e1832]: tone=success
+  - generic [ref=f4e1833]:
+    - generic [ref=f4e1834]:
+      - heading "Empty State" [level=2] [ref=f4e1835]
+      - generic [ref=f4e1836]: 4 / 4 variant
+    - generic [ref=f4e1837]:
+      - generic [ref=f4e1838]:
+        - generic [ref=f4e1840]
+        - generic [ref=f4e1846]: kind=no-captures
+      - generic [ref=f4e1847]:
+        - generic [ref=f4e1849]
+        - generic [ref=f4e1855]: kind=no-results
+      - generic [ref=f4e1856]:
+        - generic [ref=f4e1858]
+        - generic [ref=f4e1864]: kind=no-reference
+      - generic [ref=f4e1865]:
+        - generic [ref=f4e1867]
+        - generic [ref=f4e1873]: kind=no-palette
+  - generic [ref=f4e1874]:
+    - generic [ref=f4e1875]:
+      - heading "Skeleton" [level=2] [ref=f4e1876]
+      - generic [ref=f4e1877]: 3 / 3 variant
+    - generic [ref=f4e1878]:
+      - generic [ref=f4e1879]: kind=card
+      - generic [ref=f4e1883]: kind=row
+      - generic [ref=f4e1888]: kind=panel
+  - generic [ref=f4e1892]:
+    - generic [ref=f4e1893]:
+      - heading "Menu" [level=2] [ref=f4e1894]
+      - generic [ref=f4e1895]: 2 / 2 variant
+    - generic [ref=f4e1896]:
+      - generic [ref=f4e1897]:
+        - menu [ref=f4e1899]
+        - generic [ref=f4e1913]: type=default
+      - generic [ref=f4e1914]:
+        - menu [ref=f4e1916]
+        - generic [ref=f4e1929]: type=with-sections
+  - generic [ref=f4e1930]:
+    - generic [ref=f4e1931]:
+      - heading "Tool Card" [level=2] [ref=f4e1932]
+      - generic [ref=f4e1933]: 12 / 12 variant
+    - generic [ref=f4e1934]:
+      - generic [ref=f4e1935]:
+        - button "تصوير جزء اختصار ⌥⇧" [ref=f4e1937] [cursor=pointer]
+        - generic [ref=f4e1944]: tool=capture · state=default
+      - generic [ref=f4e1945]:
+        - button "تصوير جزء اختصار ⌥⇧" [ref=f4e1947] [cursor=pointer]
+        - generic [ref=f4e1954]: tool=capture · state=hover
+      - generic [ref=f4e1955]:
+        - button "تصوير جزء اختصار ⌥⇧" [ref=f4e1957] [cursor=pointer]
+        - generic [ref=f4e1964]: tool=capture · state=pressed
+      - generic [ref=f4e1965]:
+        - button "تصوير جزء اختصار ⌥⇧" [ref=f4e1967] [cursor=pointer]
+        - generic [ref=f4e1974]: tool=capture · state=focused
+      - generic [ref=f4e1975]:
+        - button "تصوير جزء اختصار ⌥⇧" [pressed] [ref=f4e1977] [cursor=pointer]
+        - generic [ref=f4e1984]: tool=capture · state=selected
+      - generic [ref=f4e1985]:
+        - button "تصوير جزء اختصار ⌥⇧" [disabled] [ref=f4e1987]
+        - generic [ref=f4e1994]: tool=capture · state=disabled
+      - generic [ref=f4e1995]:
+        - button "فحص عنصر اختصار ⌥⇧" [ref=f4e1997] [cursor=pointer]
+        - generic [ref=f4e2004]: tool=inspect · state=default
+      - generic [ref=f4e2005]:
+        - button "فحص عنصر اختصار ⌥⇧" [ref=f4e2007] [cursor=pointer]
+        - generic [ref=f4e2014]: tool=inspect · state=hover
+      - generic [ref=f4e2015]:
+        - button "فحص عنصر اختصار ⌥⇧" [ref=f4e2017] [cursor=pointer]
+        - generic [ref=f4e2024]: tool=inspect · state=pressed
+      - generic [ref=f4e2025]:
+        - button "فحص عنصر اختصار ⌥⇧" [ref=f4e2027] [cursor=pointer]
+        - generic [ref=f4e2034]: tool=inspect · state=focused
+      - generic [ref=f4e2035]:
+        - button "فحص عنصر اختصار ⌥⇧" [pressed] [ref=f4e2037] [cursor=pointer]
+        - generic [ref=f4e2044]: tool=inspect · state=selected
+      - generic [ref=f4e2045]:
+        - button "فحص عنصر اختصار ⌥⇧" [disabled] [ref=f4e2047]
+        - generic [ref=f4e2054]: tool=inspect · state=disabled

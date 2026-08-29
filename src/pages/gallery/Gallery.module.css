@@ -1,0 +1,182 @@
+.page {
+  padding: var(--rasd-space-32);
+  max-inline-size: 96rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-40);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-16);
+  flex-wrap: wrap;
+}
+.title {
+  font-family: var(--rasd-font-family-display);
+  font-size: var(--rasd-font-size-4xl);
+  font-weight: 800;
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+.subtitle {
+  margin: var(--rasd-space-4) 0 0;
+  color: var(--rasd-text-secondary);
+}
+.controls {
+  display: flex;
+  gap: var(--rasd-space-8);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-16);
+}
+.groupHeader {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rasd-space-8);
+}
+.groupTitle {
+  font-size: var(--rasd-font-size-xl);
+  font-weight: 700;
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+.groupCount {
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-tertiary);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.groupCount.mismatch {
+  color: var(--rasd-status-danger-fg);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--rasd-space-12);
+}
+/*
+ * `Toast` وحدها بين المجموعات تصل إلى `max-inline-size: 24rem` — عمود
+ * أضيق يجعل محتواها (الأيقونة، الرسالة، زرّا الإجراء والإغلاق) يفيض خارج
+ * خليّته رغم `min-inline-size: 0` أعلاه، لأن الفيض هنا من محتوى الخليّة
+ * نفسها لا من مسار الشبكة. عمود أعرض يكفي دون تضييق بقيّة المجموعات.
+ */
+[data-gallery-group='Toast'] .grid {
+  grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr));
+}
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+  padding: var(--rasd-space-12);
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-raised);
+  min-block-size: 6rem;
+  /*
+   * بلا هذا، عنصر شبكة يرث الحد الأدنى الضمني `min-width: auto` — فإذا
+   * حمل محتوًى غير قابل للالتفاف أعرض من مسار العمود (Toast بعرضه الأقصى
+   * 24rem مثلًا)، يرفض العمود الانكماش دون هذا العرض فتفيض الشبكة كلّها
+   * أفقيًا خارج نافذة العرض. الانكماش هنا محلي للخلية، لا يقصّ محتواها.
+   */
+  min-inline-size: 0;
+}
+.cellPreview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-block-size: 2.5rem;
+  min-inline-size: 0;
+  position: relative;
+}
+.cellCombo {
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-2xs);
+  color: var(--rasd-text-tertiary);
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: center;
+  word-break: break-all;
+}
+.cellError {
+  color: var(--rasd-status-danger-fg);
+  font-size: var(--rasd-font-size-sm);
+}
+
+/* أدوات لوحة قياس الأهداف — تُستخدم في الفحص الآلي عبر Playwright */
+[data-gallery-cell] {
+  position: relative;
+}
+
+.stateMatrix {
+  overflow-x: auto;
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  border-radius: var(--rasd-radius-md);
+}
+.matrixTable {
+  border-collapse: collapse;
+  inline-size: 100%;
+  font-size: var(--rasd-font-size-sm);
+}
+.matrixTable th,
+.matrixTable td {
+  padding: var(--rasd-space-8);
+  text-align: center;
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  border-inline-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+.matrixTable th {
+  background: var(--rasd-surface-sunken);
+  font-weight: 700;
+}
+.matrixTable td:first-child,
+.matrixTable th:first-child {
+  text-align: start;
+  position: sticky;
+  inset-inline-start: 0;
+  background: var(--rasd-surface-raised);
+}
+.dotYes {
+  color: var(--rasd-status-success-fg);
+}
+.dotNo {
+  color: var(--rasd-text-disabled);
+}
+
+/*
+ * مسارح الطبقة تحتاج عمودًا أعرض من عمود المكوّنات: البدائيّات تُوضع
+ * بإحداثيات مطلقة تحاكي نافذة حقيقية، فعمود 13rem يقصّها عند حافّته.
+ */
+[data-gallery-group='Overlay'] .grid {
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+}
+
+/* ── مسارح الطبقة داخل الصفحة ─────────────────────────────────────
+   نافذة صغيرة تحاكي صفحة مضيفة: خلفية محايدة، وحدّ يوضّح أين تنتهي
+   مساحة الرسم، و`position: relative` ليكون مرجع البدائيّات المطلقة. */
+.overlayStage {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--rasd-radius-sm);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: repeating-linear-gradient(
+      45deg,
+      var(--rasd-surface-sunken) 0 var(--rasd-space-8),
+      transparent var(--rasd-space-8) var(--rasd-space-16)
+    )
+    var(--rasd-surface-default);
+}
+
+.overlayNote {
+  font-size: var(--rasd-font-size-2xs);
+  color: var(--rasd-text-tertiary);
+  text-align: center;
+}

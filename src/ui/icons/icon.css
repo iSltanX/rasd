@@ -1,0 +1,41 @@
+/* حجم الأيقونة من سلّم icon/* وحده — لا مقاس حرّ. */
+.rasd-icon {
+  flex: none;
+  color: inherit;
+  stroke: currentColor;
+}
+.rasd-icon-xs {
+  inline-size: var(--rasd-icon-xs);
+  block-size: var(--rasd-icon-xs);
+}
+.rasd-icon-sm {
+  inline-size: var(--rasd-icon-sm);
+  block-size: var(--rasd-icon-sm);
+}
+.rasd-icon-md {
+  inline-size: var(--rasd-icon-md);
+  block-size: var(--rasd-icon-md);
+}
+.rasd-icon-lg {
+  inline-size: var(--rasd-icon-lg);
+  block-size: var(--rasd-icon-lg);
+}
+.rasd-icon-xl {
+  inline-size: var(--rasd-icon-xl);
+  block-size: var(--rasd-icon-xl);
+}
+.rasd-icon-2xl {
+  inline-size: var(--rasd-icon-2xl);
+  block-size: var(--rasd-icon-2xl);
+}
+
+/* الأيقونات الاتجاهية تُعكس في RTL؛ الباقي — الشعار والصحّ والوسائط — لا. */
+[dir='rtl'] .rasd-icon[data-mirror='true'] {
+  scale: -1 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rasd-icon {
+    transition: none;
+  }
+}

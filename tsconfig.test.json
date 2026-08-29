@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // الاختبارات وحدها ترى واجهات Node — يمنع ذلك تسرّبها إلى src/
+    // حيث الشيفرة تعمل داخل المتصفح أو داخل صفحة طرف ثالث.
+    "types": ["chrome", "vite/client", "node"],
+    // اختبار سياسة البيان يستورد `manifest.config.ts`، وهو بدوره يستورد
+    // بامتداد صريح كما يشترط مُحمِّل إعداد Vite الأصلي.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["tests/**/*.ts", "tests/**/*.tsx"],
+  "exclude": ["node_modules", "dist", "tests/fixtures/lint"]
+}

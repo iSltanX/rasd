@@ -1,0 +1,64 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  cursor: pointer;
+  /* هدف المؤشِّر ≥32×32 حتى مع صندوق بصري أصغر — الحشوة تمتصّ الفرق. */
+  padding-block: var(--rasd-space-6);
+  min-block-size: var(--rasd-control-sm);
+}
+.wrap.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* rasd-allow-literal: تقنية إخفاء بصري قياسية 1×1px — ليست قيمة تصميم من السلّم، ثابتة أينما استُخدمت. */
+.native {
+  position: absolute;
+  inline-size: 1px; /* rasd-allow-literal */
+  block-size: 1px; /* rasd-allow-literal */
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--rasd-icon-md);
+  block-size: var(--rasd-icon-md);
+  border: var(--rasd-stroke-medium) solid var(--rasd-border-strong);
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-surface-default);
+  flex: none;
+  transition:
+    background-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard),
+    border-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard);
+}
+.wrap:hover .box,
+.forceHover .box {
+  border-color: var(--rasd-border-brand);
+}
+.native:focus-visible ~ .box,
+.forceFocus .box {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+.box.filled {
+  background: var(--rasd-action-primary-rest);
+  border-color: var(--rasd-action-primary-rest);
+}
+.mark {
+  color: var(--rasd-text-on-brand);
+}
+
+.label {
+  font-size: var(--rasd-font-size-base);
+  color: var(--rasd-text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box {
+    transition: none;
+  }
+}

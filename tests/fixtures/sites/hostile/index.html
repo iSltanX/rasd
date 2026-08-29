@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hostile CSS — isolation stress fixture</title>
+    <style>
+      /* ── هجوم 1: قاعدة شاملة عدوانية بـ!important ──────────────────
+         تستهدف كل عنصر في المستند. طبقة رصد تعيش في Shadow Root مغلق،
+         فالقاعدة يجب ألّا تعبر الحدّ. */
+      * {
+        font-family: 'Comic Sans MS', cursive !important;
+        color: #ff00ff !important;
+        letter-spacing: 3px !important;
+        line-height: 3 !important;
+        text-transform: uppercase !important;
+      }
+
+      /* ── هجوم 2: إعادة تعيين شاملة ─────────────────────────────────
+         `all: unset` يمسح كل خاصية موروثة ومحسوبة. */
+      div,
+      span,
+      p,
+      section,
+      button {
+        all: unset;
+      }
+
+      /* ── هجوم 3: منافس على أقصى z-index ──────────────────────────── */
+      #jail {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 2147483647 !important;
+        background: rgba(255, 0, 255, 0.12) !important;
+        pointer-events: none !important;
+        display: block !important;
+      }
+
+      /* ── هجوم 4: استهداف مباشر لأسماء يُتوقّع أن تستعملها الإضافات ── */
+      [class*='rasd'],
+      [id*='rasd'],
+      [data-rasd],
+      rasd-overlay {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        position: static !important;
+        transform: scale(0) !important;
+      }
+
+      body {
+        margin: 0 !important;
+        background: #fdf4ff !important;
+        padding: 40px !important;
+      }
+      h1,
+      h2 {
+        all: unset;
+        display: block !important;
+        font-size: 24px !important;
+        margin: 16px 0 !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="jail"></div>
+
+    <h1>Hostile CSS fixture</h1>
+    <p>Four CSS attacks are active by default. Two more are opt-in via the hooks below.</p>
+
+    <h2>Active</h2>
+    <p>
+      1 — universal <code>!important</code> · 2 — <code>all: unset</code> · 3 — max z-index overlay
+      · 4 — name-targeted hiding
+    </p>
+
+    <h2>Opt-in</h2>
+    <p>
+      5 — <code>window.__attackTopLayer()</code> opens a native dialog (real top layer, beats
+      z-index)
+    </p>
+    <p>
+      6 — <code>window.__attackTransform()</code> puts a transform on &lt;html&gt; (breaks
+      position:fixed containing block)
+    </p>
+
+    <dialog id="tl">
+      <p>Native dialog in the browser top layer.</p>
+    </dialog>
+
+    <script>
+      // هجوم 5: الطبقة العليا الحقيقية — z-index لا يهزمها إطلاقًا.
+      window.__attackTopLayer = () => {
+        const d = document.getElementById('tl')
+        if (!d.open) d.showModal()
+        return true
+      }
+      window.__clearTopLayer = () => {
+        const d = document.getElementById('tl')
+        if (d.open) d.close()
+        return true
+      }
+
+      // هجوم 6: transform على العنصر الجذر يجعله containing block،
+      // فيصير `position: fixed` نسبيًا إليه لا إلى النافذة.
+      window.__attackTransform = () => {
+        document.documentElement.style.transform = 'translateZ(0)'
+        return true
+      }
+      window.__clearTransform = () => {
+        document.documentElement.style.transform = ''
+        return true
+      }
+    </script>
+  </body>
+</html>

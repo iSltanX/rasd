@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>بثّ حيّ — عيّنة DOM متغيّر</title>
+    <style>
+      :root {
+        --ink: #12181f;
+        --muted: #5d6873;
+        --line: #e5e9ee;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        color: var(--ink);
+        line-height: 1.8;
+        background: #fff;
+      }
+      header {
+        padding: 18px 28px;
+        border-block-end: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .live {
+        inline-size: 8px;
+        block-size: 8px;
+        border-radius: 50%;
+        background: #dc2626;
+      }
+      main {
+        padding: 24px 28px 80px;
+        max-width: 820px;
+      }
+      .feed {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .item {
+        padding: 12px 16px;
+        border-block-end: 1px solid var(--line);
+        font-size: 14px;
+        display: flex;
+        gap: 12px;
+      }
+      .item:last-child {
+        border-block-end: 0;
+      }
+      .item time {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        margin-inline-start: auto;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 13px;
+        margin-block-start: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="live"></span>
+      <b>بثّ الأحداث</b>
+    </header>
+    <main>
+      <div class="feed" id="feed"></div>
+      <p class="note">
+        هذه الصفحة تعيد بناء شجرتها باستمرار، وتحذف كل عنصر لا تعرفه من
+        <code>documentElement</code> — لاختبار صمود الطبقة المحقونة.
+      </p>
+    </main>
+
+    <script>
+      const MSGS = [
+        'اكتمل النشر إلى eu-west-1',
+        'تنبيه: زمن الاستجابة تجاوز 300ms',
+        'أُغلقت المهمة #4182',
+        'بدأت دورة النسخ الاحتياطي',
+        'تحديث الفهرس انتهى',
+      ]
+      let n = 0
+      const feed = document.getElementById('feed')
+
+      function tick() {
+        const el = document.createElement('div')
+        el.className = 'item'
+        el.innerHTML =
+          '<span>' +
+          MSGS[n % MSGS.length] +
+          '</span><time>' +
+          String(n).padStart(4, '0') +
+          '</time>'
+        feed.prepend(el)
+        while (feed.children.length > 12) feed.lastElementChild.remove()
+        n++
+      }
+
+      let timer = setInterval(tick, 250)
+      for (let i = 0; i < 8; i++) tick()
+
+      // الجزء العدائي: تحذف أي عنصر مباشر تحت documentElement ليس head أو body.
+      let sweeps = 0
+      const sweeper = new MutationObserver(() => {
+        for (const el of Array.from(document.documentElement.children)) {
+          if (el.tagName !== 'HEAD' && el.tagName !== 'BODY') {
+            el.remove()
+            sweeps++
+          }
+        }
+      })
+      sweeper.observe(document.documentElement, { childList: true })
+
+      // مسارات الاختبار الآلي
+      window.__sweepCount = () => sweeps
+      window.__stopMutating = () => {
+        clearInterval(timer)
+        sweeper.disconnect()
+      }
+    </script>
+  </body>
+</html>

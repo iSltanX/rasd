@@ -1,0 +1,57 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  padding-inline: var(--rasd-space-12);
+  padding-block: var(--rasd-space-8);
+  border-radius: var(--rasd-radius-sm);
+  border: var(--rasd-stroke-thin) solid transparent;
+}
+
+.icon {
+  flex: none;
+}
+
+.message {
+  flex: 1;
+  font-size: var(--rasd-font-size-base);
+}
+
+.dismiss {
+  flex: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  padding: var(--rasd-space-2);
+  opacity: 0.8;
+}
+.dismiss:hover {
+  opacity: 1;
+}
+.dismiss:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+  border-radius: var(--rasd-radius-xs);
+}
+
+.tone-info {
+  background: var(--rasd-status-info-surface);
+  border-color: var(--rasd-status-info-border);
+  color: var(--rasd-status-info-fg);
+}
+.tone-warning {
+  background: var(--rasd-status-warning-surface);
+  border-color: var(--rasd-status-warning-border);
+  color: var(--rasd-status-warning-fg);
+}
+.tone-danger {
+  background: var(--rasd-status-danger-surface);
+  border-color: var(--rasd-status-danger-border);
+  color: var(--rasd-status-danger-fg);
+}
+.tone-success {
+  background: var(--rasd-status-success-surface);
+  border-color: var(--rasd-status-success-border);
+  color: var(--rasd-status-success-fg);
+}
