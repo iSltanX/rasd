@@ -10,7 +10,7 @@ import { defineConfig } from 'vite'
  * حزمةً واحدة مكتفية بذاتها بصيغة IIFE، خارج بناء CRXJS الذي يخرج وحدات.
  *
  * ولا مدخل لها في البيان عمدًا: لا `content_scripts` في رصد، والحقن يدوي
- * بعد إيماءة المستخدم — [ADR 0005](ADR/0005-manual-injection.md).
+ * بعد إيماءة المستخدم — [ADR 0005](Docs/ADR/0005-manual-injection.md).
  */
 export default defineConfig(({ mode }) => ({
   // JSX عبر Preact لا React — كما في بقيّة المشروع.

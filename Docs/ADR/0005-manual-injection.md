@@ -22,7 +22,7 @@
 إيماءة → activeTab يُمنح → checkInjectable(url) → executeScript
 ```
 
-`checkInjectable` في [`src/shared/restricted.ts`](../src/shared/restricted.ts) يمنع الحقن
+`checkInjectable` في [`src/shared/restricted.ts`](../../src/shared/restricted.ts) يمنع الحقن
 في واجهات المتصفح الداخلية وصفحات المتجر وعارض PDF والملفات المحلية، ويُرجع **سببًا**
 تعرضه الحالة `popup / restricted` نصًّا مفهومًا لا رسالة خطأ عامة.
 

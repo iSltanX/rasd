@@ -2,7 +2,7 @@
 
 > المواصفة التنفيذية · **المودل** `Opus 5` · **الإصدار** MVP · **الحالة** ✅ مكتملة · 2026-08-28
 >
-> المرجع: [`Rasd_Plan.md § المرحلة 2`](Rasd_Plan.md)
+> المرجع: [`Rasd_Plan.md § المرحلة 2`](../../Rasd_Plan.md)
 
 ---
 
@@ -83,7 +83,7 @@ ADR/permissions.md · ADR/0005-manual-injection.md
 | `permissions` | 6 | صفر تحذيرات تثبيت |
 | `optional_permissions` | `tabs` `downloads` `desktopCapture` | تُطلب عند أول حاجة |
 | `optional_host_permissions` | `<all_urls>` | **اختيارية** — لا تُطلب عند التثبيت |
-| `content_scripts` | **غائب** | الحقن يدوي — [ADR 0005](ADR/0005-manual-injection.md) |
+| `content_scripts` | **غائب** | الحقن يدوي — [ADR 0005](../ADR/0005-manual-injection.md) |
 | `commands` | 4 باختصار مقترح | حدّ Chrome |
 | `web_accessible_resources` | 3 أنماط · `use_dynamic_url` | يمنع تبصيم المواقع بمعرّف ثابت |
 | `content_security_policy` | `script-src 'self'; object-src 'self'; connect-src 'self'` | بلا `unsafe-eval` ولا مصادر خارجية |
@@ -203,7 +203,7 @@ pnpm verify:load → Chrome → Extensions.loadUnpacked → قراءة permissio
 | # | المعيار | الحالة | الدليل |
 | --- | --- | --- | --- |
 | 1 | التثبيت لا يعرض تحذير «قراءة وتغيير جميع بياناتك» | ✅ | `permissions.getAll().origins` فارغة في متصفح حيّ |
-| 2 | كل صلاحية لها سطر مبرِّر في `ADR/permissions.md` | ✅ | 6 دائمة + 3 اختيارية + 12 محظورة، ومُختبَر أن لكلٍّ سببًا عربيًا |
+| 2 | كل صلاحية لها سطر مبرِّر في `Docs/ADR/permissions.md` | ✅ | 6 دائمة + 3 اختيارية + 12 محظورة، ومُختبَر أن لكلٍّ سببًا عربيًا |
 | 3 | `isInjectable` تمرّ بكل الحالات | ✅ | 28 عنوانًا · 8 أسباب · الافتراض الآمن عند الغياب |
 
 ---
@@ -242,7 +242,7 @@ Chrome مكوّنة (`Google Network Speech`) ويظنّها إضافتنا. **�
 
 ### 11.2 تناقضان جديدان مع المصدر
 
-سُجّلا في [`Rasd_Plan.md § 6`](Rasd_Plan.md) برقمَي 6 و7، ويُحسمان في المرحلة 26:
+سُجّلا في [`Rasd_Plan.md § 6`](../../Rasd_Plan.md) برقمَي 6 و7، ويُحسمان في المرحلة 26:
 اختصارات `⌥⌘` غير القابلة للتسجيل، و`downloads` المتعارضة مع معيار صفر تحذيرات.
 
 ---

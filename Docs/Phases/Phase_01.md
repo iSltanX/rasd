@@ -2,7 +2,7 @@
 
 > المواصفة التنفيذية · **المودل** `Opus 5` · **الإصدار** MVP · **الحالة** ✅ مكتملة · 2026-08-28
 >
-> المرجع: [`Rasd_Plan.md § المرحلة 1`](Rasd_Plan.md)
+> المرجع: [`Rasd_Plan.md § المرحلة 1`](../../Rasd_Plan.md)
 
 ---
 
@@ -66,9 +66,9 @@ Rasd/
 | --- | --- | --- |
 | Node | `24.16.0` | مثبَّت في `.nvmrc` |
 | pnpm | `11.11.0` | مثبَّت في `packageManager` |
-| Vite | `8.2.2` | الخطة ذكرت 6؛ المستقرّ عند التنفيذ 8 — [ADR 0001](ADR/0001-build-toolchain.md) |
+| Vite | `8.2.2` | الخطة ذكرت 6؛ المستقرّ عند التنفيذ 8 — [ADR 0001](../ADR/0001-build-toolchain.md) |
 | `@crxjs/vite-plugin` | `2.7.1` | يعلن دعم `vite ^8` |
-| TypeScript | `6.0.3` | **لا 7.0.2** — [ADR 0003](ADR/0003-typescript-6.md) |
+| TypeScript | `6.0.3` | **لا 7.0.2** — [ADR 0003](../ADR/0003-typescript-6.md) |
 | ESLint | `10.9.1` | flat config |
 | `typescript-eslint` | `8.68.0` | يحدّ TS عند `<6.1.0` |
 | `eslint-plugin-import-x` | `4.17.1` | حدود المعمار |
@@ -248,7 +248,7 @@ pnpm build → verify:dist → verify:load → pnpm zip → dist-zip/rasd-0.1.0.
 | البند | الخطة | المُنفَّذ | السبب |
 | --- | --- | --- | --- |
 | Vite | 6 | **8.2.2** | المستقرّ عند التنفيذ؛ CRXJS يدعمه |
-| TypeScript | «أحدث» | **6.0.3** | `typescript-eslint` يحدّ عند `<6.1.0` — [ADR 0003](ADR/0003-typescript-6.md) |
+| TypeScript | «أحدث» | **6.0.3** | `typescript-eslint` يحدّ عند `<6.1.0` — [ADR 0003](../ADR/0003-typescript-6.md) |
 | `eslint-plugin-import` | مذكور | **`eslint-plugin-import-x`** | الأنشط والأصلح لـflat config |
 | مشاريع TS | واحد | **ثلاثة** | إبقاء أنواع Node خارج `src/` — الشيفرة تعمل في المتصفح |
 | `tokens:sync` `test:e2e` | سكربتان | **موجودان ويخرجان بخطأ صريح** | واجهة كاملة بلا ادّعاء نجاح |

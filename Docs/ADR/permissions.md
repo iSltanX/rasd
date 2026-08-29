@@ -2,7 +2,7 @@
 
 > كل صلاحية في `manifest.json` لها سطر هنا. صلاحية بلا سطر = عطل، ويُسقطها `verify:dist`.
 >
-> المصدر الوحيد للقوائم: [`src/shared/permission-policy.ts`](../src/shared/permission-policy.ts).
+> المصدر الوحيد للقوائم: [`src/shared/permission-policy.ts`](../../src/shared/permission-policy.ts).
 > البيان يُبنى منها، والفحص يقارنه بها.
 
 ## المبدأ

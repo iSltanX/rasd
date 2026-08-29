@@ -2,7 +2,7 @@
 /**
  * لقطة أيقونات Figma ← `src/ui/icons/icon-data.ts`.
  *
- * نفس بنية `tokens-sync.mjs` ([ADR 0007](../ADR/0007-token-pipeline.md)): لقطة
+ * نفس بنية `tokens-sync.mjs` ([ADR 0007](../Docs/ADR/0007-token-pipeline.md)): لقطة
  * مودَعة في المستودع، وتوليد حتمي بلا شبكة. الأيقونات صُدِّرت من صفحة
  * `07 — Iconography` عبر `node.exportAsync({ format: 'SVG_STRING' })`.
  *

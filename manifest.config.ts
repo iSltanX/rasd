@@ -12,8 +12,8 @@ import {
  * بيان الإضافة — مصدر واحد مكتوب بـTypeScript، لا JSON يدوي.
  *
  * قرارات هذا الملف موثّقة في:
- *   ADR/permissions.md              — سبب كل صلاحية
- *   ADR/0005-manual-injection.md    — لماذا لا يوجد `content_scripts`
+ *   Docs/ADR/permissions.md              — سبب كل صلاحية
+ *   Docs/ADR/0005-manual-injection.md    — لماذا لا يوجد `content_scripts`
  *
  * القوائم تأتي من `src/shared/permission-policy.ts`، و`verify:dist` يقارن
  * البيان المبنيّ بها — فلا تتسلّل صلاحية بصمت.
