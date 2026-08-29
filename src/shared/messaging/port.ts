@@ -142,6 +142,28 @@ export function openPortCount(): number {
 }
 
 /** يسجّل معالجًا لقناة داخل الـservice worker. */
+/**
+ * يبثّ رسالة إلى **كل** عملاء قناة، لا إلى منفذ بعينه.
+ *
+ * `ChannelHost.post` يخدم المنفذ الذي وصلت منه الرسالة؛ والمهمّة الطويلة
+ * تبدأ من الـservice worker نفسه (باختصار لوحة مفاتيح مثلًا) فلا منفذ
+ * «وارد» لها أصلًا، وقد يفتح المستخدم النافذة بعد بدئها. البثّ يجعل التقدّم
+ * يصل إلى من كان مشتركًا ومن اشترك لاحقًا.
+ */
+export function broadcastChannel(name: ChannelName, message: ChannelDown): number {
+  let sent = 0
+  for (const port of hosts) {
+    if (port.name !== name) continue
+    try {
+      port.postMessage(message)
+      sent += 1
+    } catch {
+      // عميل أُغلق بين الفحص والإرسال — الانقطاع سيصل.
+    }
+  }
+  return sent
+}
+
 export function serveChannel(name: ChannelName, handler: ChannelHandler): void {
   channelHandlers.set(name, handler)
   ensureHostListener()

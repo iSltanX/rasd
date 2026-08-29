@@ -7,8 +7,17 @@
  * الاختصار بمرور الوقت.
  */
 
-import { sendToTab, type ToolName } from '@/shared/messaging'
+import {
+  broadcastChannel,
+  CHANNELS,
+  sendToTab,
+  type ChannelDown,
+  type ToolName,
+} from '@/shared/messaging'
 import { checkInjectable, type RestrictionReason } from '@/shared/restricted'
+
+import { saveFullPage } from './capture-service'
+import { startFullPage } from './full-page-job'
 
 import type { CaptureKind } from '@/shared/storage/schema'
 import type { ActiveMode } from '@/shared/storage/session'
@@ -61,7 +70,26 @@ export async function activateTool(tabId: number, tool: ToolName): Promise<Activ
     await deliver()
   }
 
-  if (isInstant(tool)) {
+  if (tool === 'full-page') {
+    /*
+     * الالتقاط الكامل **لا يمرّ عبر `capture/start`**.
+     *
+     * تلك الرسالة تخدم الالتقاط الفوري الذي تقوده الصفحة (عدّاد التأجيل
+     * فيها). أمّا هنا فالحلقة تُقاد من الـservice worker — لأن نداءات
+     * واجهاته هي ما يمنع إنهاءه، وقيس أن `Port` مفتوحة وحدها لا تمنعه.
+     * فتبدأ المهمّة هنا مباشرةً ولا تُنتظَر: عشرون ثانية لا يجوز أن يعلّق
+     * فيها الاختصار.
+     */
+    startFullPage(tabId, {
+      broadcast: (message) => void broadcastChannel(CHANNELS.job, message as ChannelDown),
+      save: (result) =>
+        saveFullPage(
+          tabId,
+          { blob: result.blob, width: result.width, height: result.height },
+          result.width / Math.max(1, result.notes.innerWidth),
+        ),
+    })
+  } else if (isInstant(tool)) {
     // التقاط فوري: يمرّ من الصفحة لا من الخلفية مباشرةً، لأن عدّاد التأجيل
     // يجب أن يُعرَض ويُلغى فيها، وكثافة البكسل الحيّة لا تُقرأ إلا منها.
     await retryOnce(() => sendToTab({ tabId }, 'capture/start', { kind: tool }))

@@ -189,12 +189,59 @@ async function grabVisible(tab: chrome.tabs.Tab): Promise<Result<string>> {
   try {
     const dataUrl = await limiter.run(async () => {
       await awaitSessionInterval()
-      const shot = await withTimeout(
+      // البذرة **قبل** النداء لا بعده: `createRateLimiter` يقيس من بداية
+      // النداء، فلو كُتبت بعد عودته لصار انتظار الجلسة «نهاية + 550» بينما
+      // المُنظِّم ينتظر «بداية + 550» — فيُحتسب الفاصل مرّتين ويُضاف زمن
+      // النداء كلّه (قيس 234–351ms) إلى كل بلاطة. على صفحة من عشرين بلاطة
+      // قيس الفرق بالثواني، وهو الفرق بين الوفاء بمعيار المرحلة 10 وخرقه.
+      await markShot()
+      return withTimeout(
         chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }),
         CAPTURE_TIMEOUT_MS,
       )
-      await markShot()
-      return shot
+    })
+    if (!dataUrl) return errText('handler-failed', 'أعاد المتصفّح لقطة فارغة.')
+    return ok(dataUrl)
+  } catch (thrown) {
+    return errText('permission-denied', captureFailureMessage(thrown), String(thrown))
+  }
+}
+
+/**
+ * يلتقط بلاطة واحدة لحلقة الصفحة الكاملة — بلا قصّ وبلا حفظ.
+ *
+ * **يختلف عن `runCapture` في موضع الإخفاء لا في شيء آخر.** هناك تُخفى
+ * الطبقة قبل دخول الطابور، فتبقى مخفيّة طوال انتظار الفاصل أيضًا؛ وهذا لا
+ * يضرّ التقاطًا واحدًا لأن لا شيء يُعرَض حينها. أمّا هنا فالانتظار يقع
+ * **والطبقة ظاهرة**، والإخفاء يضيق على نافذة الالتقاط وحدها — وإلا بقيت
+ * لوحة التقدّم مخفيّة طوال المهمّة، فلا يراها المستخدم أصلًا. صفحة من
+ * أربعين بلاطة تعني عندئذٍ ≈22 ثانية إخفاء متّصل.
+ *
+ * والحراسة تُعاد **لكل بلاطة** لا مرّة واحدة: قيس أن
+ * `captureVisibleTab(windowId)` على تبويب لم يعد النشط **ينجح** ويُعيد
+ * بكسلات تبويب آخر بلا خطأ. المهمّة تستغرق عشرين ثانية، والمستخدم قد يبدّل
+ * التبويب في أثنائها.
+ */
+export async function captureTile(tabId: number): Promise<Result<string>> {
+  const guarded = await assertShootable(tabId)
+  if (!guarded.ok) return guarded
+  const tab = guarded.value
+
+  try {
+    const dataUrl = await limiter.run(async () => {
+      // الانتظار أوّلًا والطبقة ظاهرة — هنا يرى المستخدم التقدّم.
+      await awaitSessionInterval()
+
+      const hidden = await hideOverlay(tabId)
+      try {
+        await markShot()
+        return await withTimeout(
+          chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }),
+          CAPTURE_TIMEOUT_MS,
+        )
+      } finally {
+        if (hidden) await showOverlay(tabId)
+      }
     })
     if (!dataUrl) return errText('handler-failed', 'أعاد المتصفّح لقطة فارغة.')
     return ok(dataUrl)
@@ -231,6 +278,27 @@ export async function runCapture(input: CaptureInput): Promise<Result<CaptureOut
   } finally {
     if (hidden) await showOverlay(input.tabId)
   }
+}
+
+/**
+ * يحفظ صورة صفحة كاملة بسجلّها.
+ *
+ * يعيش هنا لا في `full-page-job.ts` كي يستعمل `buildRecord` نفسه: البيانات
+ * الوصفية التي يفرضها `Rasd_Ar.md §10.1` (الرابط · العنوان · الأصل · نوع
+ * الالتقاط · كثافة البكسل) واحدة لكل الأنواع، وازدواجها يعني انحرافها.
+ */
+export async function saveFullPage(
+  tabId: number,
+  image: { blob: Blob; width: number; height: number },
+  dpr: number,
+): Promise<Result<{ id: string }>> {
+  const guarded = await assertShootable(tabId)
+  if (!guarded.ok) return guarded
+
+  const record = buildRecord('full-page', image, guarded.value, dpr)
+  const saved = await putCaptureWithBlob(record, image.blob)
+  if (!saved.ok) return saved
+  return ok({ id: record.id })
 }
 
 /**

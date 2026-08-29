@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>تحميل مؤجَّل و content-visibility</title>
+    <style>
+      body {
+        margin: 0;
+        font: 16px system-ui;
+      }
+      /* أقسام تتخطّى العرض حتى تقترب — لا تُعرَض بقفزة واحدة إلى القاع */
+      section {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 300px;
+        block-size: 300px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      img {
+        inline-size: 200px;
+        block-size: 200px;
+        object-fit: cover;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      // صور مؤجَّلة بألوان فريدة، مولَّدة كـSVG بلا شبكة خارجية.
+      const N = 20
+      for (let i = 0; i < N; i++) {
+        const s = document.createElement('section')
+        const img = document.createElement('img')
+        img.loading = 'lazy'
+        const c = `rgb(${(i * 11) % 256},${(i * 29) % 200},${210 - i * 8})`
+        img.src =
+          'data:image/svg+xml;utf8,' +
+          encodeURIComponent(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="${c}"/></svg>`,
+          )
+        s.appendChild(img)
+        document.body.appendChild(s)
+      }
+      document.title = `lazy · ${N} صورة · ${document.documentElement.scrollHeight}px`
+    </script>
+  </body>
+</html>

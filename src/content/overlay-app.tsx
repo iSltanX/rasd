@@ -17,7 +17,7 @@ import { useEffect } from 'preact/hooks'
 import { describeRatio, HANDLES, handlePoint } from '@/modules/capture/selection'
 import { viewportRect, viewportRectToDevice, type CoordSpace } from '@/shared/geometry'
 import { send } from '@/shared/messaging'
-import { ElementHover, type QuickAction } from '@/ui/overlay'
+import { ElementHover, FullPageStatus, type QuickAction } from '@/ui/overlay'
 import { AreaSelect, Countdown, type HandleSpot } from '@/ui/overlay/AreaSelect'
 
 import type { AreaSelectTool } from './tools/area-select'
@@ -41,10 +41,26 @@ const ELEMENT_HINTS: readonly { label: string; key: string }[] = [
   { label: 'تنقّل في DOM', key: '↑↓' },
 ]
 
+export interface FullPageState {
+  readonly done: number
+  readonly total: number
+  readonly note: string
+}
+
 export interface OverlayAppProps {
   mode: Signal<Mode>
   area: AreaSelectTool
   element: ElementHoverTool
+  /**
+   * تقدّم الالتقاط الكامل — `null` يعني لا مهمّة.
+   *
+   * **لا يمرّ عبر `mode`**: الالتقاط الكامل مهمّة لا أداة يوجّهها المستخدم،
+   * فلا `phase` لها ولا `handlers`. وتُعرَض **فوق** أي وضع نشط لأنها قد تبدأ
+   * باختصار لوحة مفاتيح بينما أداة أخرى مفتوحة.
+   */
+  fullPage: Signal<FullPageState | null>
+  /** يُطلَب حين يضغط المستخدم زرّ الإلغاء في اللوحة. */
+  onCancelFullPage?: () => void
   /** لقطة الإحداثيات الحيّة — تُقرأ عند كل إطار مزامنة. */
   space: Signal<CoordSpace>
   /** ثوانٍ التأجيل من الإعدادات؛ صفر يعني التقاطًا فوريًا. */
@@ -61,7 +77,7 @@ function AreaLayer({
   delaySeconds,
   pendingViewport,
   onCapture,
-}: Omit<OverlayAppProps, 'mode' | 'element'>) {
+}: Omit<OverlayAppProps, 'mode' | 'element' | 'fullPage' | 'onCancelFullPage'>) {
   const countdown = useSignal<number | null>(null)
 
   const rect = area.state.rect.value
@@ -236,19 +252,64 @@ function ElementLayer({
   )
 }
 
+function FullPageLayer({
+  state,
+  space,
+  onCancel,
+}: {
+  state: Signal<FullPageState | null>
+  space: Signal<CoordSpace>
+  onCancel?: () => void
+}) {
+  const job = state.value
+  if (!job) return null
+  const s = space.value
+  return (
+    <FullPageStatus
+      bounds={viewportRect(0, 0, s.layoutWidth, s.layoutHeight)}
+      done={job.done}
+      total={job.total}
+      {...(job.note ? { note: job.note } : {})}
+      {...(onCancel ? { onCancel } : {})}
+    />
+  )
+}
+
 function OverlayApp(props: OverlayAppProps): JSX.Element | null {
+  /*
+   * لوحة الالتقاط الكامل تُرسَم **فوق** ما تعرضه الأوضاع لا بدلًا منه:
+   * المهمّة قد تبدأ باختصار بينما أداة أخرى مفتوحة، وإخفاء تلك الأداة
+   * تحتها يربك المستخدم.
+   */
+  const job = (
+    <FullPageLayer
+      state={props.fullPage}
+      space={props.space}
+      {...(props.onCancelFullPage ? { onCancel: props.onCancelFullPage } : {})}
+    />
+  )
+
   // القراءة داخل المكوّن هي ما يشترك في الإشارة — لا `subscribe` يدوي.
   const mode = props.mode.value
-  if (mode === 'element') return <ElementLayer element={props.element} space={props.space} />
-  if (mode !== 'area') return null
+  if (mode === 'element')
+    return (
+      <>
+        <ElementLayer element={props.element} space={props.space} />
+        {job}
+      </>
+    )
+  if (mode !== 'area') return job
   return (
-    <AreaLayer
-      area={props.area}
-      space={props.space}
-      delaySeconds={props.delaySeconds}
-      pendingViewport={props.pendingViewport}
-      onCapture={props.onCapture}
-    />
+    <>
+      {job}
+      <AreaLayer
+        area={props.area}
+        space={props.space}
+        delaySeconds={props.delaySeconds}
+        pendingViewport={props.pendingViewport}
+        onCapture={props.onCapture}
+      />
+    </>
   )
 }
 

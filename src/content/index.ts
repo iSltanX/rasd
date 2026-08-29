@@ -27,6 +27,12 @@ import { installShortcuts, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
 import { createElementHover, type ElementHoverTool } from './tools/element-hover'
+import {
+  finishFullPage,
+  hasFullPageSession,
+  prepareFullPage,
+  stepFullPage,
+} from './tools/full-page'
 
 import type { AreaSelectTool } from './tools/area-select'
 
@@ -150,6 +156,14 @@ export async function startOverlay(
   /** التقاط ظاهر مؤجَّل ينتظر انتهاء العدّ — لا تحديد له. */
   const pendingViewport = signal(false)
 
+  /**
+   * تقدّم الالتقاط الكامل — `null` يعني لا مهمّة.
+   *
+   * إشارة لا حالة ساكنة: اللوحة داخل الطبقة تقرؤها فتُعاد رسمتها عند كل
+   * بلاطة، وهي كتابة واحدة لكل ~550ms لا لكل إطار.
+   */
+  const fullPage = signal<{ done: number; total: number; note: string } | null>(null)
+
   const runCaptureNow = (rect: ReturnType<typeof viewportRect> | null) => {
     void (async () => {
       const reply = await requestCapture(rect ? 'area' : 'viewport', rect, spaceSignal.peek())
@@ -212,6 +226,8 @@ export async function startOverlay(
     mode: modes.mode,
     area,
     element,
+    fullPage,
+    onCancelFullPage: () => void send('fullpage/cancel', undefined),
     space: spaceSignal,
     delaySeconds: delaySignal,
     pendingViewport,
@@ -248,6 +264,34 @@ export async function startOverlay(
    * يمرّ من هنا لا من الخلفية مباشرةً لسببين: عدّاد التأجيل يجب أن يُعرَض
    * ويُلغى داخل الصفحة، وكثافة البكسل الحيّة لا تُقرأ إلا هنا.
    */
+  /*
+   * رسائل الالتقاط الكامل الثلاث.
+   *
+   * الحلقة في الـservice worker، وهذه الصفحة تنفّذ ما يُطلَب منها: تهيئة
+   * (مسح · تصنيف · تمهيد)، ثم خطوة لكل بلاطة، ثم استعادة. والاستعادة
+   * تُنادى في `finally` هناك، فلا تعتمد على نجاح ما قبلها.
+   */
+  const unregisterPrepare = onMessage('fullpage/prepare', async () => {
+    const prepared = await prepareFullPage(win, host.hostEl)
+    fullPage.value = { done: 0, total: 0, note: '' }
+    return prepared
+  })
+
+  const unregisterStep = onMessage('fullpage/step', async (input) => {
+    const moved = await stepFullPage(input, win)
+    fullPage.value = {
+      done: input.tileIndex + 1,
+      total: input.lastIndex + 1,
+      note: '',
+    }
+    return moved
+  })
+
+  const unregisterFinish = onMessage('fullpage/finish', () => {
+    fullPage.value = null
+    return finishFullPage(win)
+  })
+
   const unregisterStart = onMessage('capture/start', ({ kind }) => {
     if (kind === 'viewport') {
       const seconds = delaySignal.peek()
@@ -275,14 +319,26 @@ export async function startOverlay(
   const removeShortcuts = installShortcuts({
     doc,
     // `Esc` يُبتلع فقط حين يكون له معنى عندنا — وإلا فهو مفتاح الصفحة.
-    shouldSwallowEscape: () => modes.mode.value !== 'idle',
+    /*
+     * `Esc` يُبتلع كذلك أثناء الالتقاط الكامل.
+     *
+     * المهمّة ليست وضعًا، فـ`modes.mode` يبقى `idle` طوالها — والشرط
+     * القديم كان يترك المفتاح للصفحة بينما الواجهة تعرض «إلغاء · esc».
+     * وعدٌ معروض بلا سلك خلفه.
+     */
+    shouldSwallowEscape: () => modes.mode.value !== 'idle' || hasFullPageSession(),
     onAction: (action) => {
       switch (action.kind) {
         case 'mode':
           modes.set(action.mode)
           break
         case 'escape':
-          if (modes.mode.value !== 'idle') modes.escape()
+          if (hasFullPageSession()) {
+            // الإلغاء يمرّ من الخلفية: هي التي تملك الحلقة و`AbortController`.
+            void send('fullpage/cancel', undefined)
+          } else if (modes.mode.value !== 'idle') {
+            modes.escape()
+          }
           break
         default:
           options.onAction?.(action)
@@ -298,6 +354,9 @@ export async function startOverlay(
     // رأى المراقبُ المضيفَ يختفي فأعاد إلحاقه في اللحظة نفسها.
     removeShortcuts()
     unregisterModeSet()
+    unregisterPrepare()
+    unregisterStep()
+    unregisterFinish()
     unregisterStart()
     unregisterHide()
     unregisterShow()

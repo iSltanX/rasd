@@ -777,3 +777,145 @@
     transition: none;
   }
 }
+
+/* ── لوحة الالتقاط الكامل ────────────────────────────────────────── */
+
+/*
+ * `capture / full-page` — لوحة الحالة أثناء المسح.
+ *
+ * تُبنى بأصنافها لا بإعادة استعمال `ProgressBar`: تلك بدائيّة CSS Modules
+ * تُشحن في حزمة صفحات الإضافة، والطبقة تتبنّى `tokens-shadow.css`
+ * و`overlay.css` وحدهما. استيرادها هنا يعني شحن ورقة لا تصل.
+ */
+.rasd-ov-fp {
+  direction: rtl;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-16);
+  inline-size: var(--rasd-ov-fp-w);
+  padding: var(--rasd-space-20);
+  border-radius: var(--rasd-radius-xl);
+  background: var(--rasd-overlay-glass);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  box-shadow: var(--rasd-elevation-4);
+  backdrop-filter: blur(18px) saturate(140%); /* rasd-allow-literal: نصف قطر الطمس أثر بصري لا قيمة من سلّم المسافات */
+}
+
+/*
+ * عرض اللوحة.
+ *
+ * الملفّ يقول 320px. و`rem` لا تصلح هنا: داخل جذر الظلّ تُحلّ على جذر
+ * **الصفحة** لا على جذرنا — فصفحةٌ بـ`font-size: 62.5%` تعطي 200px وأخرى
+ * بـ24px تعطي 480px. والمتغيّر المحلّي يعطي رقمًا ثابتًا بلا قيمة حرفية
+ * مبعثرة في الملفّ.
+ */
+.rasd-ov-fp {
+  --rasd-ov-fp-w: 20rem; /* rasd-allow-literal: عرض لوحة مقيس من الملفّ، ويُحلّ على جذرنا لا على جذر الصفحة */
+  font-size: var(--rasd-font-size-base);
+}
+
+.rasd-ov-fp-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rasd-space-12);
+}
+
+.rasd-ov-fp-titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-4);
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.rasd-ov-fp-title {
+  font-family: var(--rasd-font-family-display), var(--rasd-font-family-text), sans-serif;
+  font-weight: 700;
+  font-size: var(--rasd-font-size-md);
+  color: var(--rasd-text-primary);
+  line-height: 1.4;
+}
+
+.rasd-ov-fp-sub {
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-secondary);
+  line-height: 1.5;
+}
+
+/*
+ * زرّ الإلغاء هو **السطح التفاعلي الوحيد** في اللوحة.
+ *
+ * `.rasd-ov-place` يُخمِد كل الزينة للمؤشِّر (المرحلة 9)، وما يحتاج التقاطًا
+ * يعلنه لنفسه. وأثناء الالتقاط الكامل لا وضع نشط ولا `setInteractive`، فتبقى
+ * الصفحة قابلة للتمرير تحت اللوحة.
+ */
+.rasd-ov-fp-cancel {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--rasd-space-28);
+  block-size: var(--rasd-space-28);
+  flex: none;
+  border: 0;
+  border-radius: var(--rasd-radius-md);
+  background: transparent;
+  color: var(--rasd-icon-secondary);
+  cursor: pointer;
+}
+
+.rasd-ov-fp-cancel:hover {
+  background: var(--rasd-surface-hover);
+  color: var(--rasd-text-primary);
+}
+
+.rasd-ov-fp-cancel:focus-visible {
+  outline: var(--rasd-stroke-medium) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-medium);
+}
+
+.rasd-ov-fp-bar {
+  block-size: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-sunken);
+  overflow: hidden;
+}
+
+.rasd-ov-fp-bar-fill {
+  display: block;
+  block-size: 100%;
+  inline-size: var(--rasd-fp-pct, 0%);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-tool-capture-fg);
+  transition: inline-size 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rasd-ov-fp-bar-fill {
+    transition: none;
+  }
+}
+
+.rasd-ov-fp-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+  margin: 0;
+}
+
+.rasd-ov-fp-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  font-size: var(--rasd-font-size-xs);
+}
+
+.rasd-ov-fp-row dt {
+  color: var(--rasd-text-tertiary);
+}
+
+.rasd-ov-fp-row dd {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+}

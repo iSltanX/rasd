@@ -14,19 +14,19 @@
  */
 
 import { isFullSource, planCrop } from '@/modules/capture/crop'
+import { withinCanvasLimits } from '@/shared/canvas-limits'
 import { errText, ok, type Result } from '@/shared/result'
 
 import type { DeviceRect } from '@/shared/geometry'
 
 /**
- * حدود `OffscreenCanvas` في Chrome.
+ * حدود القماش — تُعاد من `shared/` لا تُعرَّف هنا.
  *
- * تجاوزها **لا يرمي**: يُرجع سياقًا يبلّغ المقاس الصحيح، ويقبل الرسم،
- * ويُهمله بصمت. النتيجة صورة فارغة تُحفَظ كأنها نجحت. الحراسة قبل التخصيص
- * أرخص من اكتشاف الأمر من شكوى مستخدم.
+ * نزلت إلى `shared/canvas-limits.ts` في المرحلة 10: حارس الصفحة الكاملة
+ * يعيش في `modules/` وهو ممنوع بقاعدة لنت من الاستيراد من `background/`.
+ * وتُعاد هنا كي لا ينكسر مستهلكوها المبنيّون في المرحلة 8.
  */
-export const MAX_CANVAS_AREA = 268_435_456
-export const MAX_CANVAS_SIDE = 65_535
+export { MAX_CANVAS_AREA, MAX_CANVAS_SIDE } from '@/shared/canvas-limits'
 
 /**
  * `data:image/png;base64,…` → بايتات. بلا شبكة وبلا سياسة.
@@ -95,11 +95,7 @@ export async function cropCapture(
     const plan = planCrop(rect, source)
     if (!plan) return errText('invalid-data', 'التحديد يقع خارج حدود اللقطة بالكامل.')
 
-    if (
-      plan.dw > MAX_CANVAS_SIDE ||
-      plan.dh > MAX_CANVAS_SIDE ||
-      plan.dw * plan.dh > MAX_CANVAS_AREA
-    ) {
+    if (!withinCanvasLimits(plan.dw, plan.dh)) {
       return errText('invalid-data', 'التحديد أكبر مما يستطيع المتصفّح رسمه. اختر منطقة أصغر.')
     }
 

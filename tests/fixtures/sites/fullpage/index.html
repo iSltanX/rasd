@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة الالتقاط الكامل — علامات مزروعة</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+        background: #fff;
+      }
+
+      /*
+        كل قسم بلون فريد محسوب: العلامة هي اللون نفسه.
+        فحص «لا فقد ولا تكرار» يقرأ بكسلًا من كل قسم في الصورة المجمَّعة
+        ويتحقّق أن الألوان ظهرت كلّها، مرّة واحدة، وبالترتيب.
+      */
+      .band {
+        block-size: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        font-weight: 700;
+        color: #fff;
+      }
+
+      /* رأس لاصق — يتكرّر في كل بلاطة بلا تحييد */
+      header {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: 50;
+        background: #111827;
+        color: #fff;
+        padding: 12px 20px;
+        font-weight: 700;
+      }
+
+      /* شريط ثابت مرسًى إلى الأسفل — قاعدة «اتركه في البلاطة الأولى» تزرعه في الوسط */
+      #cookie {
+        position: fixed;
+        inset-inline: 0;
+        inset-block-end: 0;
+        z-index: 60;
+        background: #7c2d12;
+        color: #fff;
+        padding: 16px;
+        text-align: center;
+      }
+
+      /* عائم — يُخفى ويُعلَن عدده */
+      #chat {
+        position: fixed;
+        inset-block-end: 90px;
+        inset-inline-start: 20px;
+        inline-size: 56px;
+        block-size: 56px;
+        border-radius: 50%;
+        background: #059669;
+        z-index: 70;
+      }
+
+      /* محبوس بجدٍّ ذي transform — يمرّ مع الصفحة، ولمسه خطأ */
+      #trap {
+        transform: translateZ(0);
+        position: relative;
+      }
+      #trapped {
+        position: fixed;
+        inset-block-start: 0;
+        inset-inline-end: 0;
+        inline-size: 120px;
+        block-size: 40px;
+        background: #9333ea;
+      }
+    </style>
+  </head>
+  <body>
+    <header id="head">رأس لاصق — يجب أن يظهر مرّة واحدة</header>
+    <main id="bands"></main>
+    <div id="trap"><div id="trapped"></div></div>
+    <div id="chat"></div>
+    <div id="cookie">لافتة ملفّات تعريف الارتباط — مرساة سفلية</div>
+
+    <script>
+      // 24 قسمًا × 400px ≈ 9600px، أي ~14 بلاطة عند نافذة 700px.
+      const COUNT = 24
+      const bands = document.getElementById('bands')
+      const frag = document.createDocumentFragment()
+      for (let i = 0; i < COUNT; i++) {
+        const d = document.createElement('div')
+        d.className = 'band'
+        d.dataset.index = String(i)
+        // ألوان متباعدة ومحسوبة، ليُتحقَّق منها بالبكسل لا بالنظر.
+        d.style.background = `rgb(${(i * 10) % 256}, ${(i * 37) % 200}, ${200 - i * 6})`
+        d.textContent = String(i)
+        frag.appendChild(d)
+      }
+      bands.appendChild(frag)
+      window.__marks = Array.from(bands.children).map((el) => getComputedStyle(el).backgroundColor)
+      document.title = `fullpage · ${COUNT} علامة · ${document.documentElement.scrollHeight}px`
+    </script>
+  </body>
+</html>

@@ -24,6 +24,8 @@ import { quotaState } from '@/shared/storage/quota'
 import { blobs } from '@/shared/storage/repository'
 import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
+import { cancelFullPage } from './full-page-job'
+
 /** اسم منبّه الحارس. */
 const WATCHDOG_ALARM = 'rasd:watchdog'
 /** أقصر فاصل يقبله Chrome للمنبّهات المتكرّرة. */
@@ -37,6 +39,7 @@ const bootedAt = Date.now()
 export function registerLifecycle() {
   registerRequestHandlers()
   registerChannels()
+  registerFullPage()
   registerWatchdog()
   void syncIncognitoPolicy()
 }
@@ -174,16 +177,30 @@ function registerRequestHandlers() {
   })
 }
 
+function registerFullPage() {
+  // الإلغاء من الصفحة: `Esc` أو زرّ اللوحة. الاستعادة تقع في `finally`
+  // داخل الحلقة، فالردّ هنا لا يعني أن الصفحة استُعيدت بعد.
+  onMessage('fullpage/cancel', () => ({ cancelled: cancelFullPage() }))
+}
+
 function registerChannels() {
   // قناة صرفة لإبقاء SW مستيقظًا. لا حمولة — وجودها هو الوظيفة.
   serveChannel(CHANNELS.keepalive, () => {
     // النبضة يردّ عليها `port.ts`؛ لا شيء آخر هنا.
   })
 
-  // قناة المهام الطويلة. المهام نفسها تُسجَّل في مراحل لاحقة (10 · 14 · 17).
+  /*
+   * قناة المهام الطويلة. المرحلة 10 هي أوّل مسجِّل فيها.
+   *
+   * الإلغاء **يُجهض المهمّة فعلًا** لا يكتفي بإبلاغ العميل: الحلقة تملك
+   * `AbortController`، واستعادة الصفحة تقع في `finally` داخلها. وردّ
+   * «أُلغيت» يأتي من الحلقة نفسها حين تُحسم، لا من هنا — وإلا أُبلغ
+   * المستخدم بالإلغاء قبل أن تُستعاد صفحته.
+   */
   serveChannel(CHANNELS.job, (host, message) => {
-    if (message.kind === 'cancel') {
-      host.post({ kind: 'failed', code: 'cancelled', message: 'أُلغيت العملية.' })
+    if (message.kind !== 'cancel') return
+    if (!cancelFullPage()) {
+      host.post({ kind: 'failed', code: 'cancelled', message: 'لا عملية جارية.' })
     }
   })
 

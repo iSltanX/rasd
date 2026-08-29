@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>حاوية تمرير داخلية</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        block-size: 100%;
+        overflow: hidden;
+      }
+      body {
+        display: flex;
+        font: 16px system-ui;
+      }
+      /* شريط جانبي ثابت العرض — لا يمرّر */
+      aside {
+        inline-size: 220px;
+        background: #1f2937;
+        color: #fff;
+        padding: 16px;
+        flex: none;
+      }
+      /* المُمرِّر الحقيقي: ليس المستند */
+      #app {
+        flex: 1;
+        overflow-y: auto;
+        block-size: 100%;
+      }
+      .band {
+        block-size: 350px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        font-weight: 700;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <aside>شريط جانبي — لا يمرّر</aside>
+    <div id="app"></div>
+    <script>
+      const app = document.getElementById('app')
+      for (let i = 0; i < 20; i++) {
+        const d = document.createElement('div')
+        d.className = 'band'
+        d.style.background = `rgb(${(i * 12) % 256}, ${90 + ((i * 7) % 120)}, ${240 - i * 9})`
+        d.textContent = String(i)
+        app.appendChild(d)
+      }
+      document.title = `container · ${app.scrollHeight}px داخل ${app.clientHeight}px`
+    </script>
+  </body>
+</html>

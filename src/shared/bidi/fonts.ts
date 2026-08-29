@@ -18,6 +18,14 @@
 const OVERLAY_FACES = [
   { family: 'Cairo', weight: '400', file: 'cairo-400-arabic.woff2' },
   { family: 'Cairo', weight: '600', file: 'cairo-400-arabic.woff2' },
+  /*
+   * `Almarai` وجهُ العناوين — أُضيف في المرحلة 10.
+   *
+   * لوحة الالتقاط الكامل أوّل سطح في الطبقة يحمل عنوانًا بنمط
+   * `Arabic/Heading/XS`، وهو Almarai Bold في الملفّ. وبلا حقنه يسقط إلى
+   * الاحتياطي: قيس اتّساع السطر **+31.3%** فتنكسر عرض اللوحة المحدَّد.
+   */
+  { family: 'Almarai', weight: '700', file: 'almarai-700-arabic.woff2' },
   { family: 'Geist Mono', weight: '400', file: 'geistmono-400-latin.woff2' },
 ] as const
 

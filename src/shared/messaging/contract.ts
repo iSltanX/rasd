@@ -109,6 +109,25 @@ export interface RequestMap {
    * البايتات إلى حيث يمكن كتابتها في الحافظة: مستند **مركَّز**.
    */
   'capture/blob': { id: string }
+  /**
+   * يهيّئ الصفحة لالتقاط كامل: يجد المُمرِّر، ويحيّد الثوابت، ويمهّد.
+   *
+   * ثلاث رسائل لا واحدة (`prepare`/`step`/`finish`) لأن الحلقة تُقاد من
+   * الـservice worker: قيس أن `Port` مفتوحة **لا** تمنع إنهاءه (مات عند
+   * 30.0s و31.1s)، وأن ما يُبقيه حيًّا هو نداءات واجهاته نفسها — وهي عنده.
+   */
+  'fullpage/prepare': void
+  /** يمرّر إلى الموضع ويُرجع ما قُرئ فعلًا بعد الاستقرار. */
+  'fullpage/step': { y: number; tileIndex: number; lastIndex: number }
+  /** يستعيد كل ما مُسّ: الأنماط والموضع. يُنادى في `finally` دائمًا. */
+  'fullpage/finish': void
+  /**
+   * يُجهض المهمّة الجارية.
+   *
+   * من الصفحة إلى الخلفية لأن الخلفية تملك الحلقة و`AbortController`.
+   * `Esc` في الصفحة وزرّ الإلغاء في اللوحة كلاهما يمرّ من هنا.
+   */
+  'fullpage/cancel': void
   'page/open': { page: PageName; active?: boolean }
   'offscreen/ensure': void
   'offscreen/close': void
@@ -146,6 +165,10 @@ export interface ResponseMap {
   'capture/hide-overlay': { hidden: boolean }
   'capture/show-overlay': { shown: boolean }
   'capture/blob': { base64: string; mime: string; bytes: number }
+  'fullpage/prepare': FullPagePrepared
+  'fullpage/step': FullPageStep
+  'fullpage/finish': { restored: boolean }
+  'fullpage/cancel': { cancelled: boolean }
   'page/open': { tabId: number }
   'offscreen/ensure': { created: boolean }
   'offscreen/close': { closed: boolean }
@@ -182,6 +205,43 @@ export function isEnvelope(value: unknown): value is Envelope {
 // ─────────────────────────────────────────────────────────────────
 // القنوات — تدفّق طويل باتجاهين
 // ─────────────────────────────────────────────────────────────────
+
+/**
+ * ما تُبلّغه الصفحة عند التهيئة.
+ *
+ * كلّه **مقروء لا محسوب**: الأرقام المشتقّة (`scrollHeight × dpr`) خاطئة
+ * مقيسًا، والحلقة تبني عليها القماش كلّه.
+ */
+export interface FullPagePrepared {
+  /** ارتفاع نافذة العرض بالبكسل المنطقي — خطوة التمرير. */
+  readonly step: number
+  /** أقصى إزاحة تمرير مقروءة. */
+  readonly maxScroll: number
+  /** عرض النافذة — مقام المقياس. */
+  readonly innerWidth: number
+  /** عرض منطقة المحتوى بلا شريط التمرير. */
+  readonly clientWidth: number
+  /** `visualViewport.scale` — تكبير القرص يوقف المهمّة. */
+  readonly visualScale: number
+  /** هل شريط التمرير على جانب البداية؟ يُشتقّ وقت التشغيل لا من `dir`. */
+  readonly gutterOnStart: boolean
+  /** عدد العناصر العائمة التي أُخفيت — يُعلَن للمستخدم لا يُخفى عنه. */
+  readonly hiddenFloating: number
+  /** المستند يمرّر أيضًا وقد اختيرت حاوية — محتوًى خارجها لن يُلتقَط. */
+  readonly rootAlsoScrolls: number
+  /** التمهيد لم يكتمل ضمن ميزانيته — لا رسالة نجاح كاذبة. */
+  readonly preflightComplete: boolean
+}
+
+/** ما تُبلّغه الصفحة بعد كل خطوة تمرير. */
+export interface FullPageStep {
+  /** الموضع **المقروء** بعد الاستقرار — لا المطلوب. */
+  readonly scrollY: number
+  /** ارتفاع المحتوى الآن — يُقرأ كل خطوة لأن الصفحة قد تنمو أو تتقلّص. */
+  readonly scrollHeight: number
+  readonly maxScroll: number
+  readonly visualScale: number
+}
 
 /** أسماء القنوات. القناة تبقي الـservice worker حيًّا ما دامت مفتوحة. */
 export const CHANNELS = {
