@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>رصد — معاينة طبقة الالتقاط (المرحلة 8)</title>
+    <link rel="stylesheet" href="/assets/fonts.css" />
+    <link rel="stylesheet" href="/assets/tokens.css" />
+    <link rel="stylesheet" href="/assets/base.css" />
+    <style>
+      /*
+       * صفحة معاينة داخلية — تحاكي ما يراه المستخدم فوق صفحة حقيقية.
+       * الطبقة في المنتج تعيش في جذر ظلّ بورقة `tokens-shadow.css`؛ هنا
+       * تُعرَض في المستند مباشرةً بورقة `tokens.css` المكافئة لها.
+       */
+      body {
+        margin: 0;
+        min-block-size: 100vh;
+      }
+      .stage {
+        position: relative;
+        inline-size: 1440px;
+        block-size: 900px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+      /* صفحة مضيفة وهمية — لا تُنفَّذ، غرضها إظهار التعتيم فوق محتوى. */
+      .mock {
+        position: absolute;
+        inset: 0;
+        padding: 64px;
+        font-family: var(--rasd-font-family-text), system-ui, sans-serif;
+        color: #14181d;
+      }
+      .mock h1 {
+        font-size: 56px;
+        margin: 0 0 24px;
+      }
+      .mock p {
+        font-size: 20px;
+        line-height: 1.9;
+        max-inline-size: 700px;
+        color: #5a6672;
+      }
+      .mock .band {
+        margin-block-start: 48px;
+        block-size: 220px;
+        border-radius: 12px;
+        background: linear-gradient(120deg, #dfe4e9, #f2f5f7);
+      }
+    </style>
+  </head>
+  <body class="rasd-page">
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

@@ -10,3 +10,8 @@
 | [0002](0002-ui-framework.md)            | إطار الواجهة: Preact                    | معتمد  | 1       |
 | [0003](0003-typescript-6.md)            | تثبيت TypeScript على 6.0.x لا 7.x       | معتمد  | 1       |
 | [0004](0004-architecture-boundaries.md) | حدود الاستيراد بين الطبقات مفروضة آليًا | معتمد  | 1       |
+| [0005](0005-manual-injection.md)        | الحقن يدوي، لا `content_scripts` تلقائي | معتمد  | 2       |
+| [0006](0006-messaging-layer.md)         | طبقة رسائل واحدة بعقد مكتوب             | معتمد  | 3       |
+| [0007](0007-token-pipeline.md)          | لقطة توكنز مودَعة + توليد بلا شبكة       | معتمد  | 4       |
+| [0008](0008-geometry-in-shared.md)      | مفردات الإحداثيات في `shared/`           | معتمد  | 8       |
+| [0009](0009-capture-in-service-worker.md) | القصّ في الـservice worker، والنسخ من الصفحة | معتمد  | 8       |

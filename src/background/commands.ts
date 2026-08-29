@@ -10,6 +10,7 @@
 import { sendToTab, type ToolName } from '@/shared/messaging'
 import { checkInjectable, type RestrictionReason } from '@/shared/restricted'
 
+import type { CaptureKind } from '@/shared/storage/schema'
 import type { ActiveMode } from '@/shared/storage/session'
 
 /** أوامر `chrome.commands` الأربعة — الحدّ الأقصى الذي يقبله Chrome. */
@@ -20,9 +21,16 @@ export const COMMAND_TOOL: Record<string, ToolName> = {
   'capture-full-page': 'full-page',
 }
 
-/** `viewport` و`full-page` التقاط فوري — لا وضع طبقة يقابلهما بعد. */
+/** أدوات الالتقاط الفوري — لا وضع طبقة يقابلها، بل أمر يُنفَّذ. */
+const INSTANT = new Set<ToolName>(['viewport', 'full-page'])
+
+/** حارس نوع: يضيّق `ToolName` إلى نوع لقطة صالح. */
+function isInstant(tool: ToolName): tool is Extract<CaptureKind, 'viewport' | 'full-page'> {
+  return INSTANT.has(tool)
+}
+
 function toolToMode(tool: ToolName): ActiveMode | null {
-  return tool === 'viewport' || tool === 'full-page' ? null : tool
+  return isInstant(tool) ? null : tool
 }
 
 export type ActivateResult =
@@ -42,15 +50,23 @@ export async function activateTool(tabId: number, tool: ToolName): Promise<Activ
   await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] })
 
   const mode = toolToMode(tool)
-  if (mode) {
-    // لا ينتظر تركيب الجلسة قبل الإرسال: `startOverlay` يسجّل مستقبِل
-    // `mode/set` قبل أن يُرجع، والرسالة الأولى — إن سبقته — تُعاد بمهلة
-    // قصيرة عبر إعادة محاولة واحدة، لا تعليقًا صامتًا.
-    const first = await sendToTab({ tabId }, 'mode/set', { mode })
-    if (!first.ok) {
-      await new Promise((r) => setTimeout(r, 60))
-      await sendToTab({ tabId }, 'mode/set', { mode })
-    }
+
+  // لا ينتظر تركيب الجلسة قبل الإرسال: `startOverlay` يسجّل مستقبِلاته قبل
+  // أن يُرجع، والرسالة الأولى — إن سبقته — تُعاد بمهلة قصيرة عبر إعادة
+  // محاولة واحدة، لا تعليقًا صامتًا.
+  const retryOnce = async (deliver: () => Promise<{ ok: boolean }>) => {
+    const first = await deliver()
+    if (first.ok) return
+    await new Promise((r) => setTimeout(r, 60))
+    await deliver()
+  }
+
+  if (isInstant(tool)) {
+    // التقاط فوري: يمرّ من الصفحة لا من الخلفية مباشرةً، لأن عدّاد التأجيل
+    // يجب أن يُعرَض ويُلغى فيها، وكثافة البكسل الحيّة لا تُقرأ إلا منها.
+    await retryOnce(() => sendToTab({ tabId }, 'capture/start', { kind: tool }))
+  } else {
+    await retryOnce(() => sendToTab({ tabId }, 'mode/set', { mode: tool }))
   }
 
   return { started: true, mode }

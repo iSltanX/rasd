@@ -467,6 +467,190 @@
   font-size: var(--rasd-font-size-sm);
 }
 
+/* ── تعتيم التحديد — أربع قطع لا ثقب واحد ────────────────────────── */
+
+/*
+ * `capture / area-select` في Figma يرسم أربعة مستطيلات حول التحديد لا
+ * مستطيلًا واحدًا بثقب. الأربعة أصدق تنفيذًا: `clip-path` بثقب يعيد رسم
+ * المسار كلّه عند كل إطار سحب، بينما أربع قطع تتحرّك بـ`translate` وحدها
+ * على المُركِّب. والفرق يظهر عمليًا في سلاسة السحب على صفحة طويلة.
+ */
+.rasd-ov-scrim {
+  inline-size: var(--rasd-ov-w);
+  block-size: var(--rasd-ov-h);
+  background: var(--rasd-overlay-scrim);
+}
+
+/* ── مقابض تغيير الحجم ───────────────────────────────────────────── */
+
+/*
+ * المقبض **مساحة التقاط شفّافة**، لا شكل مرئي.
+ *
+ * الشكل المرئي موجود أصلًا: زوايا `Marquee` الأربع (ثماني شُرَط في Figma).
+ * إضافة نقاط فوقها تخالف الملفّ وتزحم تحديدًا صغيرًا. أمّا مقابض المنتصفات
+ * فلا شكل لها في التصميم إطلاقًا — وهي مع ذلك مطلوبة وظيفيًا، فتبقى
+ * مساحات التقاط بمؤشِّر يشرح نفسه عند المرور.
+ *
+ * المقاس 20px: أصغر من ذلك يجعل الإمساك بالزاوية على شاشة لمس مستحيلًا،
+ * وأكبر منه يجعل مقابض تحديد صغير تتداخل.
+ */
+.rasd-ov-handle {
+  position: absolute;
+  inline-size: var(--rasd-space-20);
+  block-size: var(--rasd-space-20);
+  /* الترجمة تُموضِع مركز المقبض على الحافّة لا ركنه. */
+  translate: -50% -50%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.rasd-ov-handle-nw,
+.rasd-ov-handle-se {
+  cursor: nwse-resize;
+}
+.rasd-ov-handle-ne,
+.rasd-ov-handle-sw {
+  cursor: nesw-resize;
+}
+.rasd-ov-handle-n,
+.rasd-ov-handle-s {
+  cursor: ns-resize;
+}
+.rasd-ov-handle-e,
+.rasd-ov-handle-w {
+  cursor: ew-resize;
+}
+
+/*
+ * جسم التحديد — يُسحب كاملًا. يقع **تحت** المقابض في ترتيب DOM فتفوز هي
+ * عند التداخل عند الزوايا.
+ */
+.rasd-ov-grab {
+  position: absolute;
+  inset: 0;
+  cursor: move;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* ── رقاقة النسبة ────────────────────────────────────────────────── */
+
+.rasd-ov-ratio {
+  display: inline-flex;
+  align-items: center;
+  padding-block: var(--rasd-space-4);
+  padding-inline: var(--rasd-space-8);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-surface-overlay);
+  border: var(--rasd-stroke-thin) solid var(--rasd-tool-capture-border);
+  color: var(--rasd-tool-capture-fg);
+  font-family: var(--rasd-font-family-mono), ui-monospace, monospace;
+  font-size: var(--rasd-font-size-xs);
+  font-weight: 600;
+  line-height: var(--rasd-leading-label);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── شريط التلميحات ──────────────────────────────────────────────── */
+
+/*
+ * الاتجاه `rtl` والمحاذاة إلى النهاية: نسخة `capture / element-hover` في
+ * Figma هي الصحيحة لمنتج عربي، ونسخة `area-select` بقيّة أقدم لم تُحدَّث
+ * (مسجَّل في `Rasd_Plan.md §6`). التنفيذ يتبع الأصحّ لا الأقدم.
+ */
+.rasd-ov-hint {
+  direction: rtl;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-16);
+  padding-block: var(--rasd-space-8);
+  padding-inline: var(--rasd-space-12);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-overlay-glass);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  box-shadow: var(--rasd-elevation-3);
+  backdrop-filter: blur(16px) saturate(140%); /* rasd-allow-literal: نصف قطر الطمس أثر بصري لا قيمة من سلّم المسافات */
+  white-space: nowrap;
+}
+
+.rasd-ov-hint-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+}
+
+.rasd-ov-hint-label {
+  font-family: var(--rasd-font-family-text), system-ui, sans-serif;
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-tertiary);
+}
+
+/* شارة مفتاح — `esc` و`⇧` و`⌥` و`↵`. */
+.rasd-ov-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-surface-raised);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  color: var(--rasd-text-secondary);
+  font-family: var(--rasd-font-family-mono), ui-monospace, monospace;
+  font-size: var(--rasd-font-size-2xs);
+  line-height: var(--rasd-leading-label);
+  /* الشارة صندوق لا نصّ: ارتفاع ثابت يمنع اختلافها بين `esc` و`↵`. */
+  block-size: var(--rasd-space-16);
+}
+
+/* ── مؤشِّر الالتقاط المؤجَّل ─────────────────────────────────────── */
+
+/*
+ * **خامل للمؤشِّر عمدًا** (`pointer-events` موروثة `none`): الغرض من التأجيل
+ * أن يفتح المستخدم قائمة منسدلة أثناء العدّ، فلا يجوز أن يعترض العدّاد نقرته.
+ * الإلغاء بـ`Esc` وحده — وهو ما يقوله الشريط نفسه.
+ */
+.rasd-ov-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-10);
+  padding-block: var(--rasd-space-10);
+  padding-inline: var(--rasd-space-16);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-overlay-glass);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  box-shadow: var(--rasd-elevation-4);
+  backdrop-filter: blur(18px) saturate(140%); /* rasd-allow-literal: نصف قطر الطمس أثر بصري لا قيمة من سلّم المسافات */
+}
+
+.rasd-ov-countdown-num {
+  font-family: var(--rasd-font-family-mono), ui-monospace, monospace;
+  font-size: var(--rasd-font-size-2xl);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--rasd-tool-capture-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.rasd-ov-countdown-note {
+  direction: rtl;
+  font-family: var(--rasd-font-family-text), system-ui, sans-serif;
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-tertiary);
+}
+
+/*
+ * أثناء الالتقاط الفعلي تختفي الطبقة كاملةً — وإلا صوّرت نفسها.
+ * `visibility` لا `display`: الأخيرة تُسقط التخطيط فتُفقد مواضع كل شيء
+ * ويُعاد حسابها عند العودة، وهو ومضة مرئية بلا سبب.
+ */
+.rasd-ov-layer[data-rasd-hidden='true'] {
+  visibility: hidden;
+}
+
 /* ── تقليل الحركة ────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

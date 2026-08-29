@@ -8,8 +8,10 @@
  * `shared/` طبقة قاعدية: لا تستورد من أي طبقة أعلى منها.
  */
 
+import type { DeviceRect } from '../geometry'
 import type { PageName } from '../page-paths'
 import type { RestrictionReason } from '../restricted'
+import type { CaptureKind } from '../storage/schema'
 import type { ActiveMode } from '../storage/session'
 
 /** أدوات القائمة الرئيسية: أوضاع الطبقة الستّة القابلة للتفعيل، زائد نوعا الالتقاط الفوري. */
@@ -51,6 +53,62 @@ export interface RequestMap {
    * لا تحمل `sender.tab` إطلاقًا.
    */
   'tool/activate': { tool: ToolName; tabId: number }
+  /**
+   * ينفّذ التقاطًا **من الخلفية**: هي وحدها تملك `chrome.tabs.captureVisibleTab`.
+   *
+   * `rect` بفضاء **الجهاز** لا النافذة — التحويل يحدث في الصفحة مرّة واحدة
+   * حيث تُعرف `dpr` الحيّة، فلا تُخمَّن في الخلفية. `null` يعني الجزء الظاهر
+   * كاملًا بلا قصّ.
+   *
+   * الطبقة تُخفي نفسها وتضمن رسمة قبل أن ترسل — انظر `capture/hide-overlay`.
+   */
+  'capture/run': {
+    /**
+     * التبويب المستهدَف. **اختياري**: حين تُرسل الطبقة من داخل الصفحة يعرفه
+     * المستقبِل من `sender.tab.id`، فإرساله يفتح بابًا لتناقض بين ما تظنّه
+     * الصفحة وما هي فيه فعلًا. يبقى للمُرسِلين الذين لا `sender.tab` لهم —
+     * نافذة الإضافة وصفحاتها.
+     */
+    tabId?: number
+    kind: CaptureKind
+    rect: DeviceRect | null
+    /**
+     * كثافة البكسل الحيّة وقت الالتقاط.
+     *
+     * تُرسَل ولا تُخمَّن: الخلفية لا تملك طريقًا موثوقًا لقراءتها (مقاس
+     * النافذة ليس مقاس إطار العرض)، وهي تتغيّر بسحب النافذة بين شاشتين.
+     * تُحفَظ في السجلّ ليعرف المحرّر والمكتبة بأي مقياس عُرضت اللقطة.
+     */
+    dpr: number
+  }
+  /**
+   * يأمر الطبقة ببدء التقاط **فوري** (لا تحديد فيه).
+   *
+   * `viewport` لا وضع طبقة لها: لا شيء يُرسَم ولا يُنتظَر من المستخدم. ومع
+   * ذلك تمرّ من الصفحة لا من الخلفية مباشرةً، لسببين: عدّاد التأجيل يجب أن
+   * يُعرَض ويُلغى داخل الصفحة، وكثافة البكسل الحيّة لا تُقرأ إلا فيها.
+   */
+  'capture/start': { kind: CaptureKind }
+  /**
+   * يطلب من الطبقة أن تختفي **وتضمن أن رسمة وقعت** قبل أن تردّ.
+   *
+   * بلا هذا تصوّر الطبقة نفسها: عنصر المضيف في DOM الصفحة وفي طبقتها العليا،
+   * و`captureVisibleTab` يلتقط ما يُرسَم فعلًا. «الاختفاء» وحده لا يكفي —
+   * تغيير النمط لا يعني أن المتصفّح رسم بعد.
+   *
+   * غياب المستقبِل ليس خطأً: الالتقاط الفوري للجزء الظاهر لا يحقن طبقة أصلًا.
+   */
+  'capture/hide-overlay': void
+  /** يُعيد إظهار الطبقة بعد انتهاء الالتقاط، نجح أو فشل. */
+  'capture/show-overlay': void
+  /**
+   * يُرجع بايتات لقطة محفوظة، مُرمَّزة base64.
+   *
+   * الرسائل لا تحمل `Blob`، والصفحة لا تصل إلى IndexedDB الخاصة بالإضافة
+   * (أصلها أصل الصفحة لا أصل الإضافة). فالنقل نصًّا هو الطريق الوحيد لتصل
+   * البايتات إلى حيث يمكن كتابتها في الحافظة: مستند **مركَّز**.
+   */
+  'capture/blob': { id: string }
   'page/open': { page: PageName; active?: boolean }
   'offscreen/ensure': void
   'offscreen/close': void
@@ -82,6 +140,12 @@ export interface ResponseMap {
   'mode/set': { ok: true }
   'tool/activate':
     { started: true; mode: ActiveMode | null } | { started: false; reason: RestrictionReason }
+  /** الأبعاد بالبكسل الفيزيائي — ما حُفظ فعلًا لا ما طُلب. */
+  'capture/run': { id: string; width: number; height: number }
+  'capture/start': { started: boolean }
+  'capture/hide-overlay': { hidden: boolean }
+  'capture/show-overlay': { shown: boolean }
+  'capture/blob': { base64: string; mime: string; bytes: number }
   'page/open': { tabId: number }
   'offscreen/ensure': { created: boolean }
   'offscreen/close': { closed: boolean }

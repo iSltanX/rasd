@@ -11,6 +11,7 @@ import { isIncognitoContext } from '../env'
 import { errWith, ok, toRasdError, type Result } from '../result'
 
 import { runMigrations } from './migrations'
+import { assertWritable } from './quota'
 import { DB_NAME, DB_VERSION, type RasdDB } from './schema'
 
 let dbPromise: Promise<IDBPDatabase<RasdDB>> | null = null
@@ -48,7 +49,17 @@ export async function guardWrite(incomingBytes = 0): Promise<Result<null>> {
   if (incognitoWritesBlocked()) {
     return errWith('incognito-blocked', 'الحفظ التلقائي معطَّل في التصفّح الخاص')
   }
-  const { assertWritable } = await import('./quota')
+  /*
+   * استيراد ساكن لا ديناميكي.
+   *
+   * Vite يغلّف كل `import()` بمساعِد `__vitePreload`، وهو يلمس `document`
+   * و`window` — وكلاهما غائب في الـservice worker، فيرمي
+   * `ReferenceError: window is not defined` عند أوّل كتابة. العطل كامن منذ
+   * المرحلة 3 وكشفته المرحلة 8، أوّل من يكتب في القاعدة من الخلفية فعليًا.
+   *
+   * والتأجيل لم يكن يشتري شيئًا: `quota.ts` لا يستورد إلا `result`، ولا
+   * دورة استيراد تُتفادى هنا.
+   */
   const quota = await assertWritable(incomingBytes)
   if (!quota.ok) return quota
   return ok(null)

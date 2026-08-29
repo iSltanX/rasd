@@ -37,6 +37,19 @@ describe('حدود المعمار مفروضة آليًا', () => {
     expect(violation?.message).toContain('modules/')
   })
 
+  /*
+   * أُضيفت في المرحلة 8 — أوّل مرحلة تملأ `modules/`. القاعدة السابقة كانت
+   * تمنع `ui/` وتسمح بـ`content/`، أي تسمح لمنطق خالص أن يعتمد على طبقة
+   * تشغيل. الفجوة لم تظهر قبلًا لأن `modules/` كانت فارغة.
+   */
+  it('يمنع modules/ من استيراد content/', async () => {
+    const messages = await lintFixture('src/modules/violates-content.ts')
+    const violation = messages.find((m) => m.ruleId === RULE)
+    expect(violation, 'كان يجب أن تُرفع مخالفة').toBeDefined()
+    expect(violation?.severity).toBe(2)
+    expect(violation?.message).toContain('modules/')
+  })
+
   it('يمنع content/ من استيراد pages/', async () => {
     const messages = await lintFixture('src/content/violates-pages.ts')
     const violation = messages.find((m) => m.ruleId === RULE)

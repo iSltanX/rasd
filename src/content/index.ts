@@ -9,17 +9,25 @@
  * أخيرًا، حتى لا يُطلَق معالج على مضيف أُزيل.
  */
 
+import { signal } from '@preact/signals'
+
 import { onMessage, send } from '@/shared/messaging'
 import { isMode, type Mode } from '@/shared/modes'
 import { errWith, ok, type RasdError, type Result } from '@/shared/result'
+import { getSettings } from '@/shared/settings'
 
-import { readSpace, watchDpr, type CoordSpace } from './coords'
+import { copyCaptureToClipboard } from './clipboard'
+import { readSpace, viewportRect, watchDpr, type CoordSpace } from './coords'
 import { blockedFrames, isTopFrame } from './frames'
 import { adoptTeardown, mountHost, type OverlayHost } from './host'
 import { createModeManager, type ModeManager } from './mode-manager'
+import { mountOverlayApp, requestCapture } from './overlay-app'
 import { startPersistence, type Persistence } from './persistence'
 import { installShortcuts, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
+import { createAreaSelect } from './tools/area-select'
+
+import type { AreaSelectTool } from './tools/area-select'
 
 export interface OverlaySession {
   readonly host: OverlayHost
@@ -28,6 +36,10 @@ export interface OverlaySession {
   readonly persistence: Persistence
   /** لقطة الإحداثيات الحالية — تُحدَّث مرّة لكل إطار. */
   space(): CoordSpace
+  /** أداة تحديد المنطقة — يقرأ حالتها فحصُ المتصفّح الحقيقي. */
+  readonly area: AreaSelectTool
+  /** آخر التقاط نجح؛ `null` قبل أوّل واحد. */
+  lastCapture(): { id: string; width: number; height: number } | null
   teardown(): void
 }
 
@@ -71,6 +83,7 @@ export async function startOverlay(
     onFrame: () => {
       // كل قراءة تخطيط تحدث هنا وحدها، مرّة لكل إطار — لا داخل معالج تمرير.
       space = readSpace(win)
+      spaceSignal.value = space
       options.onFrame?.(space)
     },
   })
@@ -110,6 +123,116 @@ export async function startOverlay(
     return { ok: true }
   })
 
+  /**
+   * ── أداة الالتقاط (المرحلة 8) ──────────────────────────────────
+   *
+   * لقطة الإحداثيات تُنشر كإشارة: العرض يقرؤها، و`startSync` يكتبها مرّة لكل
+   * إطار. هذا يجعل التحديد يتبع التمرير وتغيّر المقاس بلا مستمع خاصّ به.
+   */
+  const spaceSignal = signal<CoordSpace>(space)
+  const delaySignal = signal(0)
+  let copyAfterCapture = false
+  void getSettings().then((settings) => {
+    delaySignal.value = settings.capture.delaySeconds
+    copyAfterCapture = settings.capture.copyToClipboard
+  })
+
+  /** آخر نتيجة التقاط — تُقرأ في الاختبار والتشخيص. */
+  let lastCapture: { id: string; width: number; height: number } | null = null
+
+  /** التقاط ظاهر مؤجَّل ينتظر انتهاء العدّ — لا تحديد له. */
+  const pendingViewport = signal(false)
+
+  const runCaptureNow = (rect: ReturnType<typeof viewportRect> | null) => {
+    void (async () => {
+      const reply = await requestCapture(rect ? 'area' : 'viewport', rect, spaceSignal.peek())
+      pendingViewport.value = false
+      if (reply.ok) {
+        lastCapture = reply.value
+        // النسخ **بعد** الحفظ لا بدلًا منه: فشله يترك اللقطة في المكتبة.
+        if (copyAfterCapture) {
+          const copied = await copyCaptureToClipboard(reply.value.id)
+          if (!copied.ok) console.warn(`[رصد] ${copied.error.message}`)
+        }
+        // الالتقاط ينهي الوضع: بقاء التحديد بعده يوحي بأن شيئًا لم يحدث.
+        area.reset()
+        modes.escape()
+      } else {
+        // الفشل يترك التحديد قائمًا كي يعيد المستخدم المحاولة بلا إعادة رسم.
+        console.warn(`[رصد] تعذّر الالتقاط: ${reply.error.message}`)
+      }
+    })()
+  }
+
+  const area = createAreaSelect({
+    bounds: () => {
+      const s = spaceSignal.peek()
+      return viewportRect(0, 0, s.layoutWidth, s.layoutHeight)
+    },
+    onCommit: runCaptureNow,
+    onCancel: () => modes.escape(),
+    // السحب الجاري يمنع تبديل الوضع تحته — `Esc` وحده يتجاوزه.
+    onBusy: (busy) => {
+      modes.busy.value = busy
+    },
+  })
+
+  const app = mountOverlayApp(host.layer, {
+    mode: modes.mode,
+    area,
+    space: spaceSignal,
+    delaySeconds: delaySignal,
+    pendingViewport,
+    onCapture: runCaptureNow,
+  })
+
+  /**
+   * الطبقة تبتلع المؤشِّر في وضع «منطقة» وحده.
+   *
+   * في غيره تبقى خاملة كما بنتها المرحلة 6، فلا تمنع تمرير الصفحة ولا نقرها.
+   */
+  const unsubscribeInteractive = modes.subscribe((mode) => {
+    host.setInteractive(mode === 'area')
+    if (mode !== 'area') area.reset()
+  })
+  host.setInteractive(modes.mode.value === 'area')
+
+  /**
+   * الخلفية تطلب الإخفاء قبل أن تلتقط.
+   *
+   * الطبقة في DOM الصفحة وفي طبقتها العليا، فـ`captureVisibleTab` يراها.
+   * `host.hide()` ينتظر إطارَي رسم قبل أن يردّ — الردّ نفسه هو الضمانة.
+   */
+  /**
+   * التقاط فوري بأمر من الخلفية (`viewport`).
+   *
+   * يمرّ من هنا لا من الخلفية مباشرةً لسببين: عدّاد التأجيل يجب أن يُعرَض
+   * ويُلغى داخل الصفحة، وكثافة البكسل الحيّة لا تُقرأ إلا هنا.
+   */
+  const unregisterStart = onMessage('capture/start', ({ kind }) => {
+    if (kind === 'viewport') {
+      const seconds = delaySignal.peek()
+      if (seconds > 0) {
+        // التأجيل يمرّ عبر وضع «منطقة» بلا تحديد: العدّاد يعيش في العرض،
+        // والطبقة تبقى خاملة للمؤشِّر فيستطيع المستخدم فتح قائمة أثناء العدّ.
+        pendingViewport.value = true
+        modes.set('area')
+      } else {
+        runCaptureNow(null)
+      }
+    }
+    return { started: true }
+  })
+
+  const unregisterHide = onMessage('capture/hide-overlay', async () => {
+    await host.hide()
+    return { hidden: true }
+  })
+  const unregisterShow = onMessage('capture/show-overlay', () => {
+    host.show()
+    return { shown: true }
+  })
+
   const removeShortcuts = installShortcuts({
     doc,
     // `Esc` يُبتلع فقط حين يكون له معنى عندنا — وإلا فهو مفتاح الصفحة.
@@ -136,6 +259,12 @@ export async function startOverlay(
     // رأى المراقبُ المضيفَ يختفي فأعاد إلحاقه في اللحظة نفسها.
     removeShortcuts()
     unregisterModeSet()
+    unregisterStart()
+    unregisterHide()
+    unregisterShow()
+    unsubscribeInteractive()
+    app.unmount()
+    area.dispose()
     stopDpr()
     persistence.stop()
     sync.stop()
@@ -157,6 +286,8 @@ export async function startOverlay(
     sync,
     persistence,
     space: () => space,
+    area,
+    lastCapture: () => lastCapture,
     teardown,
   })
 }

@@ -35,6 +35,7 @@
     "verify:lifecycle": "node scripts/verify-lifecycle.mjs",
     "verify:overlay": "node scripts/verify-overlay.mjs",
     "verify:popup": "node scripts/verify-popup.mjs",
+    "verify:capture": "node scripts/verify-capture.mjs",
     "zip": "node scripts/zip.mjs",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run tokens:check && pnpm run verify:tokens && pnpm run test"
   },

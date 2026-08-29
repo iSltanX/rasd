@@ -24,6 +24,22 @@ export default defineConfig(({ mode }) => ({
     outDir: 'dist',
     emptyOutDir: true,
     target: 'chrome116',
+    /*
+     * لا مساعِد تحميل مسبق للوحدات.
+     *
+     * Vite يحقن `__vitePreload` مع كل استيراد ديناميكي، وهو يستدعي
+     * `window.dispatchEvent` عند فشل التحميل. و**الـservice worker بلا
+     * `window`** — فأوّل استيراد ديناميكي داخله يرمي `ReferenceError:
+     * window is not defined` بدل أن يعمل.
+     *
+     * العطل كامن منذ المرحلة 3 (طبقة التخزين تُستورَد ديناميكيًا) ولم يظهر
+     * قبل المرحلة 8: هي أوّل من يكتب في IndexedDB من الـservice worker في
+     * متصفّح حقيقي. اكتشفه `pnpm verify:capture`.
+     *
+     * الإيقاف بلا كلفة هنا: الإضافة تُحمَّل من القرص لا من الشبكة، فالتحميل
+     * المسبق لا يوفّر شيئًا أصلًا.
+     */
+    modulePreload: false,
     // خرائط المصدر للتطوير فقط — المرحلة 27 تحسم سياسة الإنتاج.
     sourcemap: mode !== 'production',
     minify: mode === 'production',
@@ -45,6 +61,7 @@ export default defineConfig(({ mode }) => ({
           : {
               gallery: 'src/pages/gallery/index.html',
               'popup-preview': 'src/pages/popup-preview/index.html',
+              'capture-preview': 'src/pages/capture-preview/index.html',
             }),
       },
       output: {

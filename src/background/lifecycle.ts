@@ -10,15 +10,18 @@
  * فالمهمة التي علقت لأن SW أُنهي تبقى «جارية» للأبد. المنبّه ينجو ويوقظ SW.
  */
 
+import { runCapture } from '@/background/capture-service'
 import { activateTool } from '@/background/commands'
 import { isIncognitoContext, VERSION } from '@/shared/env'
 import { CHANNELS, onMessage, openPortCount, serveChannel } from '@/shared/messaging'
 import { PAGE_PATHS } from '@/shared/page-paths'
 import { checkInjectable } from '@/shared/restricted'
+import { RasdThrow } from '@/shared/result'
 import { getSettings, patchSettings, resetSettings } from '@/shared/settings'
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
 import { closeOffscreen, ensureOffscreen } from '@/shared/storage/offscreen'
 import { quotaState } from '@/shared/storage/quota'
+import { blobs } from '@/shared/storage/repository'
 import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
 /** اسم منبّه الحارس. */
@@ -92,11 +95,62 @@ function registerRequestHandlers() {
 
   onMessage('tool/activate', async ({ tool, tabId }) => activateTool(tabId, tool))
 
+  /**
+   * الالتقاط يعبر الخلفية لا الصفحة: `captureVisibleTab` غير متاح لسكربت
+   * المحتوى، ومُنظِّم الإيقاع يجب أن يكون واحدًا لكل التبويبات لا لكل تبويب.
+   *
+   * الرمي يتحوّل إلى ردّ خطأ في غلاف `onMessage`، لكن `runCapture` لا ترمي
+   * أصلًا — ترجع `Result`. الرفع هنا صريح ليصل نصّ السبب المحدَّد إلى الصفحة
+   * بدل رسالة الرمز العامّة.
+   */
+  onMessage('capture/run', async ({ tabId, kind, rect, dpr }, context) => {
+    /*
+     * **صفحة الإضافة تبويبٌ أيضًا.**
+     *
+     * `sender.tab` مضبوط لكل مُرسِل يعيش في تبويب — بما فيه صفحات الإضافة
+     * نفسها (المكتبة، المحرّر). فتفضيل `sender.tab.id` مطلقًا كان يوجّه
+     * الالتقاط إلى صفحة الإضافة بدل الصفحة المقصودة.
+     *
+     * التمييز بالأصل: مُرسِل من أصلنا صفحةُ إضافة تعرف أي تبويب تقصد
+     * (النافذة تمرّره صراحةً)؛ وأي مُرسِل آخر سكربتُ محتوى **لا يُصدَّق** في
+     * تحديد تبويب غير تبويبه.
+     */
+    const fromOwnPage = context.origin?.startsWith('chrome-extension://') ?? false
+    const target = fromOwnPage ? (tabId ?? context.tabId) : (context.tabId ?? tabId)
+    if (target === undefined) throw new Error('لا تبويب مستهدَف للالتقاط.')
+    const result = await runCapture({ tabId: target, kind, rect, dpr })
+    // `RasdThrow` لا `Error`: الرسالة المحدَّدة يجب أن تصل إلى المستخدم كما
+    // كُتبت، لا مطويّةً تحت رسالة الرمز العامّة.
+    if (!result.ok) throw new RasdThrow(result.error)
+    return result.value
+  })
+
   onMessage('mode/report', async ({ mode }, { tabId }) => {
     // بلا تبويب مُرسِل لا معنى للتقرير — لا يُرمى، يُهمَل بصمت. هذا يقع فقط
     // لو استُدعي `send()` بدل `sendToTab()` من سياق ليس تبويبًا.
     if (tabId !== undefined) await setTabMode(tabId, mode)
     return { ok: true }
+  })
+
+  /**
+   * بايتات لقطة، لتنسخها الصفحة إلى الحافظة.
+   *
+   * الترميز هنا لا في الصفحة: الخلفية وحدها تصل إلى المخزن، والصفحة لا
+   * تصل إلى IndexedDB الخاصة بالإضافة إطلاقًا.
+   */
+  onMessage('capture/blob', async ({ id }) => {
+    const found = await blobs.get(id)
+    if (!found.ok) throw new RasdThrow(found.error)
+    const buffer = await found.value.blob.arrayBuffer()
+    const bytes = new Uint8Array(buffer)
+    let binary = ''
+    // على دفعات: `String.fromCharCode(...bytes)` على صورة بحجم ميغابايت
+    // يتجاوز حدّ وسائط النداء ويرمي `RangeError`.
+    const CHUNK = 0x8000
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+    }
+    return { base64: btoa(binary), mime: found.value.mime, bytes: found.value.bytes }
   })
 
   onMessage('page/open', async ({ page, active }) => {

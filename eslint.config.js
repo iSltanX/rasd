@@ -19,6 +19,19 @@ export const architectureZones = [
     from: './src/ui',
     message: 'modules/ منطق خالص ولا يعرف الواجهة. أرجِع بيانات، ولا تستورد من ui/.',
   },
+  /*
+   * `modules/` منطق خالص فوق `shared/` وحدها.
+   *
+   * أُضيفت في المرحلة 8، وهي أوّل مرحلة تملأ `modules/`: كتابة أوّل وحدة
+   * كشفت أن القاعدة السابقة تمنع `ui/` وتسمح بـ`content/` — أي تسمح لمنطق
+   * خالص أن يعتمد على طبقة تشغيل. هذا ما دفع مفردات الإحداثيات من
+   * `content/coords.ts` إلى `shared/geometry.ts`.
+   */
+  ...['content', 'background', 'offscreen', 'pages', 'tokens'].map((layer) => ({
+    target: './src/modules',
+    from: `./src/${layer}`,
+    message: `modules/ منطق خالص ولا يعتمد على طبقة تشغيل. انقل ما تحتاجه إلى shared/ بدل الاستيراد من ${layer}/.`,
+  })),
   {
     target: './src/content',
     from: './src/pages',

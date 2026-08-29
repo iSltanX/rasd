@@ -135,6 +135,24 @@ export function installShortcuts(options: ShortcutOptions): () => void {
   if (!win) return () => undefined
 
   const onKeyDown = (e: KeyboardEvent) => {
+    /*
+     * `Esc` يُفحص **قبل** حارس التركيز.
+     *
+     * الحارس موجود كي لا نسرق حرفًا من مستخدم يكتب — و`Esc` ليس حرفًا. وقد
+     * ينقر المستخدم داخل حقل في الصفحة أثناء عدّ الالتقاط المؤجَّل (لإظهار
+     * حالة تركيز يريد تصويرها)، فلو ابتلع الحارسُ `Esc` لصار الإلغاء غير
+     * قابل للوصول أصلًا.
+     */
+    if (e.code === 'Escape') {
+      const swallow = options.shouldSwallowEscape?.() ?? false
+      if (swallow) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+      options.onAction({ kind: 'escape' }, e)
+      return
+    }
+
     if (isTypingTarget(deepActiveElement(doc))) return
 
     if (e.key === 'Shift' && !e.repeat) {

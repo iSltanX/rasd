@@ -66,7 +66,8 @@ export const REQUIRED_PERMISSION_RATIONALE: Record<RequiredPermission, string> =
   scripting: 'لحقن أدوات الفحص في الصفحة عند طلبك، لا تلقائيًا.',
   storage: 'لحفظ إعداداتك محليًا.',
   unlimitedStorage: 'لأن اللقطة الواحدة قد تتجاوز حصة التخزين الافتراضية البالغة 10MB.',
-  offscreen: 'لنسخ الصور إلى الحافظة ومعالجة Canvas الثقيلة — لا يستطيع الـservice worker ذلك.',
+  offscreen:
+    'لمعالجة الصور الثقيلة خارج خيط الصفحة — لا يملك الـservice worker عناصر DOM اللازمة لها.',
   contextMenus: 'لإتاحة أدوات رصد من قائمة الزر الأيمن.',
   alarms:
     'حارس يكتشف المهام الطويلة المعلَّقة وينهيها بحالة فشل — بديل مؤقّتات لا تنجو من إيقاف الـservice worker.',

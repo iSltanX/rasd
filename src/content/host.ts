@@ -126,6 +126,27 @@ export interface OverlayHost {
   readonly layer: HTMLElement
   /** يعيد الإلحاق والترقية بعد أن تعبث الصفحة. */
   reassert(): void
+  /**
+   * يفتح الطبقة للمؤشِّر أو يغلقها.
+   *
+   * الافتراضي **مغلق** (`pointer-events: none`) وهو ما بنته المرحلة 6: طبقة
+   * خاملة لا تمنع تمرير الصفحة ولا نقرها. المرحلة 8 أوّل من يحتاج العكس —
+   * تحديد منطقة بالسحب يجب أن يبتلع كل حدث مؤشِّر، وإلا تفاعلت الصفحة تحته
+   * (روابط تُفتح، نصّ يُظلَّل) أثناء السحب.
+   *
+   * يُكتب بـ`!important` سطريًا لأن هذا ما تفعله `applyCritical`، وأي كتابة
+   * أضعف منها لا تتفوّق عليها.
+   */
+  setInteractive(on: boolean): void
+  /**
+   * يُخفي الطبقة **ويضمن أن رسمة وقعت** قبل أن يُرجع.
+   *
+   * `captureVisibleTab` يلتقط ما رُسم فعلًا، وتغيير النمط لا يعني أن
+   * المتصفّح رسم. إطارا `requestAnimationFrame` متتاليان هما الضمانة
+   * القياسية: الأوّل يقع **قبل** الرسمة التالية، والثاني بعد أن التزمت.
+   */
+  hide(): Promise<void>
+  show(): void
   teardown(): void
 }
 
@@ -270,6 +291,27 @@ export async function mountHost(doc: Document = document): Promise<Result<Overla
   const installed: Installed = { protocol: PROTOCOL, root: shadow, hostEl, reassert, teardown }
   win[FLAG] = installed
 
+  const setInteractive = (on: boolean) => {
+    hostEl.style.setProperty('pointer-events', on ? 'auto' : 'none', 'important')
+  }
+
+  const show = () => {
+    layer.removeAttribute('data-rasd-hidden')
+  }
+
+  const hide = () =>
+    new Promise<void>((resolve) => {
+      layer.setAttribute('data-rasd-hidden', 'true')
+      const raf = win.requestAnimationFrame?.bind(win)
+      // بيئة بلا `requestAnimationFrame` (اختبارات الوحدة): الإخفاء تمّ،
+      // والضمانة غير قابلة للتحقّق أصلًا بلا مُركِّب.
+      if (!raf) {
+        resolve()
+        return
+      }
+      raf(() => raf(() => resolve()))
+    })
+
   return ok({
     root: shadow,
     hostEl,
@@ -278,18 +320,36 @@ export async function mountHost(doc: Document = document): Promise<Result<Overla
     },
     layer,
     reassert,
+    setInteractive,
+    hide,
+    show,
     teardown,
   })
 }
 
 function toPublic(i: Installed): OverlayHost {
-  const layer = i.root.querySelector<HTMLElement>('.rasd-ov-layer')
+  const layer = i.root.querySelector<HTMLElement>('.rasd-ov-layer') ?? i.hostEl
+  const win = i.hostEl.ownerDocument.defaultView
   return {
     root: i.root,
     hostEl: i.hostEl,
     level: i.hostEl.matches(':popover-open') ? 'top-layer' : 'fixed',
-    layer: layer ?? i.hostEl,
+    layer,
     reassert: () => i.reassert(),
+    setInteractive: (on) => {
+      i.hostEl.style.setProperty('pointer-events', on ? 'auto' : 'none', 'important')
+    },
+    hide: () =>
+      new Promise<void>((resolve) => {
+        layer.setAttribute('data-rasd-hidden', 'true')
+        const raf = win?.requestAnimationFrame?.bind(win)
+        if (!raf) {
+          resolve()
+          return
+        }
+        raf(() => raf(() => resolve()))
+      }),
+    show: () => layer.removeAttribute('data-rasd-hidden'),
     teardown: () => i.teardown(),
   }
 }
