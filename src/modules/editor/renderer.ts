@@ -25,6 +25,8 @@ import { handleAt, normaliseBox } from './hit-test'
 import { snapToPixel, statsOf, type RenderPlan, type RenderStats } from './render-plan'
 
 import type { AnnotationColor, NodeId, Scene, SceneNode } from './scene'
+import type { TextLayoutCache } from './text-layout'
+
 
 /**
  * أضيق واجهة رسم تكفي المحرر.
@@ -120,6 +122,8 @@ export interface Frame {
   readonly selection: ReadonlySet<NodeId>
   readonly style: RenderStyle
   readonly measure?: MeasureBox
+  /** ذاكرة تخطيط النصّ — بدونها تُتخطّى العقد النصّية. */
+  readonly layout?: TextLayoutCache
   /** أثناء إيماءة حيّة — يمنع توليد المخابئ الغالية لإطار واحد. */
   readonly interacting: boolean
 }
@@ -200,6 +204,7 @@ export function paintAnnotations(
     camera: frame.camera,
     source: src,
     interacting: frame.interacting,
+    ...(frame.layout ? { layout: frame.layout } : {}),
   }
 
   for (const node of plan.nodes) drawNode(draw, node)

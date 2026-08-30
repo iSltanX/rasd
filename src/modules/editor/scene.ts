@@ -178,8 +178,29 @@ export interface TextNode extends HideableBase {
   readonly dir: 'rtl' | 'ltr' | 'auto'
 }
 
-/** تصنيف الملاحظة — القاموس الثلاثي المضمَر في لوحة الملاحظات. */
-export type NoteTag = 'type' | 'spacing' | 'token'
+/**
+ * تصنيف الملاحظة — القاموس الثلاثي المضمَر في لوحة الملاحظات.
+ *
+ * **مصفوفة يُشتقّ منها النوع، لا نوعٌ تُكرَّر قائمته.** القائمة يحتاجها
+ * المخطَّط للتحقّق، والقائمة الجانبية للترشيح، والرسّام للتسمية — وثلاث
+ * نسخ يدوية تتباعد: يُضاف تصنيف رابع فيقبله المخطَّط ولا يظهر له زرّ.
+ */
+export const NOTE_TAGS = ['type', 'spacing', 'token'] as const
+
+export type NoteTag = (typeof NOTE_TAGS)[number]
+
+/**
+ * تسمية التصنيف — هنا لا في طبقة الصفحة.
+ *
+ * الوسم يُرسم **داخل البطاقة على القماش** ويظهر في القائمة الجانبية معًا.
+ * ونسختان تجعلان الصورة المصدَّرة تقول «الخط» واللوحة تقول شيئًا آخر —
+ * وسابقة `OBSCURE_LABEL` هنا للسبب نفسه.
+ */
+export const NOTE_TAG_LABEL: Readonly<Record<NoteTag, string>> = {
+  type: 'الخطّ',
+  spacing: 'المسافات',
+  token: 'الرموز',
+}
 
 export interface NoteNode extends HideableBase {
   readonly kind: 'note'

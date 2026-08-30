@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { planStageSurface } from '@/modules/editor/budget'
 import {
@@ -22,13 +22,26 @@ import {
   type Layer,
   type RenderStyle,
 } from '@/modules/editor/renderer'
-import { addNode, replaceNodes } from '@/modules/editor/scene-ops'
+import { cssToImage } from '@/modules/editor/scene'
+import { addNode, deleteNodes, replaceNodes } from '@/modules/editor/scene-ops'
+import { createTextLayoutCache, noteBox, textBox } from '@/modules/editor/text-layout'
 import { canvasPoint, type DevicePoint } from '@/shared/geometry'
 
-import { createNode, translateNode, TOOL_LABEL, type ToolName, type ToolSettings } from './tools'
+import { createMeasurer } from './measure'
+import { createTextEditSession } from './text-editing'
+import { TextEditorOverlay } from './TextEditorOverlay'
+import {
+  createNode,
+  MIN_DRAG_CSS,
+  translateNode,
+  TOOL_LABEL,
+  type ToolName,
+  type ToolSettings,
+} from './tools'
 
+import type { MeasureBox } from '@/modules/editor/bounds'
 import type { History } from '@/modules/editor/history'
-import type { NodeId, Scene, SceneNode } from '@/modules/editor/scene'
+import type { NodeId, Scene, SceneNode, TextNode } from '@/modules/editor/scene'
 import type { JSX } from 'preact'
 
 export interface StageProps {
@@ -76,10 +89,59 @@ export function Stage(props: StageProps): JSX.Element {
   const annoRef = useRef<HTMLCanvasElement>(null)
 
   const [size, setSize] = useState({ cssWidth: 0, cssHeight: 0 })
+  const [editing, setEditing] = useState<NodeId | null>(null)
+
+  /*
+   * ذاكرة تخطيط واحدة لعمر المسرح، مربوطة بالعائلة الفعلية.
+   *
+   * وبناؤها مع كل تصيير يُبطل غرضها: اللفّ يُعاد حسابه لكل عقدة نصّية في كل
+   * إطار، وهو أغلى ما في الرسم — نداءُ `measureText` لكل سطر مرشَّح.
+   */
+  const layout = useMemo(() => {
+    const m = createMeasurer(props.style.textFamily)
+    return createTextLayoutCache(m.measure, m.measureFont)
+  }, [props.style.textFamily])
+
+  /**
+   * صندوق العقد النصّية من القياس الحقيقي.
+   *
+   * **بدونه تُقدَّر أبعاد النصّ بسطر واحد** — والتقدير في `bounds.ts` مكتوب
+   * لما قبل جهوز سياق الرسم. قِيس حيًّا: سطرٌ لُفّ إلى ثلاثة أسطر أعطى
+   * مستطيل تحديد يغطّي الأوّل وحده، ويترك ثلثي النصّ بلا إصابة ولا مساحة
+   * متّسخة — فلا يُعاد رسمه حين يتحرّك ما تحته.
+   */
+  const measureBox = useMemo<MeasureBox>(
+    () => (node) => {
+      if (node.kind === 'text') return textBox(node, layout)
+      if (node.kind === 'note') return noteBox(node, layout)
+      return null
+    },
+    [layout],
+  )
+
+  /*
+   * أوّل قياس قد يقع قبل جهوز `Cairo`، فيُجرى بخطّ احتياطي بمقاييس أخرى.
+   * والنتيجة تخطيطٌ صحيح الشكل خاطئ الأبعاد **يُخلَّد** في الذاكرة.
+   */
+  useEffect(() => {
+    let live = true
+    void document.fonts.ready.then(() => {
+      if (!live) return
+      layout.invalidate()
+      schedule()
+    })
+    return () => {
+      live = false
+    }
+  }, [layout])
 
   const cameraRef = useRef<Camera>({ zoom: 1, tx: 0, ty: 0 })
   const gestureRef = useRef<Gesture | null>(null)
+  const sessionRef = useRef<ReturnType<typeof createTextEditSession> | null>(null)
   const dirtyRef = useRef<'base' | 'anno' | null>('base')
+  // تُقرأ داخل حلقة الرسم، فتلزم مرجعًا لا حالةً — الحلقة لا تُعاد بالتصيير.
+  const editingRef = useRef<NodeId | null>(null)
+  editingRef.current = editing
   const frameRef = useRef(0)
   const propsRef = useRef(props)
   propsRef.current = props
@@ -144,15 +206,26 @@ export function Stage(props: StageProps): JSX.Element {
 
     const gesture = gestureRef.current
     const scene = p.history.state.scene
-    const shown: Scene = gesture?.preview
-      ? { ...scene, nodes: [...scene.nodes, gesture.preview] }
-      : scene
+    /*
+     * العقدة قيد التحرير تُحذَف من المرسوم: الحقل الحيّ فوقها هو صورتها،
+     * ورسمهما معًا يُنتج شبحًا مزدوجًا بإزاحة بكسل — الشرح في
+     * `TextEditorOverlay`.
+     */
+    const visible = editingRef.current
+      ? scene.nodes.filter((n) => n.id !== editingRef.current)
+      : scene.nodes
+    const shown: Scene = {
+      ...scene,
+      nodes: gesture?.preview ? [...visible, gesture.preview] : visible,
+    }
 
     const frame: Frame = {
       scene: shown,
       camera,
       selection: p.selection,
       style: p.style,
+      layout,
+      measure: measureBox,
       interacting: gesture !== null,
     }
 
@@ -162,6 +235,7 @@ export function Stage(props: StageProps): JSX.Element {
       scene: shown,
       camera,
       stage: { ...size, dpr },
+      measure: measureBox,
       forceFull: true,
     })
     paintAnnotations(annoLayer, framePlan, frame, p.source)
@@ -173,6 +247,39 @@ export function Stage(props: StageProps): JSX.Element {
   useEffect(() => {
     schedule()
   })
+
+  // ── تحرير النصّ ───────────────────────────────────────────────
+  const beginEdit = (id: NodeId): void => {
+    sessionRef.current?.finish()
+    sessionRef.current = createTextEditSession(propsRef.current.history, id, 'text', TOOL_LABEL.text)
+    setEditing(id)
+  }
+
+  /**
+   * ينهي التحرير — **ويحذف العقدة إن بقيت فارغة**.
+   *
+   * نقرةٌ بأداة النصّ ثمّ نقرةٌ في مكان آخر تترك عقدةً بلا محرف: لا تُرسم،
+   * ولا تُصاب بالمؤشِّر، ولا تظهر إلّا في عدّاد العقد وفي قائمة الطبقات —
+   * فيتراكم في المشهد ما لا يراه أحد ولا يستطيع حذفه.
+   */
+  const endEdit = (): void => {
+    const p = propsRef.current
+    const id = editingRef.current
+    sessionRef.current?.finish()
+    sessionRef.current = null
+    setEditing(null)
+    if (!id) return
+
+    const node = p.history.state.scene.nodes.find((n) => n.id === id)
+    if (node?.kind === 'text' && node.text.trim() === '') {
+      p.history.mark(TOOL_LABEL.text)
+      p.history.push(deleteNodes(p.history.state.scene, [id]).patches)
+      p.history.commit()
+      p.onSelectionChange(new Set())
+    }
+    p.onSceneChange?.(p.history.state.scene)
+    schedule()
+  }
 
   // ── أحداث المؤشِّر ────────────────────────────────────────────
   const toImage = (e: PointerEvent): DevicePoint => {
@@ -205,7 +312,7 @@ export function Stage(props: StageProps): JSX.Element {
     }
 
     if (p.tool === 'select') {
-      const hit = hitTest(scene, at, { camera: cameraRef.current })
+      const hit = hitTest(scene, at, { camera: cameraRef.current, measureBox })
       const next = hit ? new Set([hit]) : new Set<NodeId>()
       p.onSelectionChange(next)
       gestureRef.current = {
@@ -290,6 +397,29 @@ export function Stage(props: StageProps): JSX.Element {
     }
 
     const at = toImage(e)
+
+    /*
+     * **نقرةٌ بأداة النصّ على نصٍّ قائم تفتحه، ولا تكدّس فوقه عقدةً جديدة.**
+     *
+     * الأداة تبقى مختارة بعد الكتابة، فأوّل نقرة على ما كُتب توًّا كانت تُنشئ
+     * عقدةً فارغة **فوقه بالضبط**: لا تُرى (النصّ فارغ)، وتسرق الإصابة ممّا
+     * تحتها، وتتراكم واحدةً لكل نقرة. قِيس حيًّا في كروم: نقرة مزدوجة على
+     * السطر المكتوب أعطت حقلًا فارغًا لا السطر. والسحب يُنشئ كما كان.
+     */
+    const dragged = Math.hypot(at.x - gesture.from.x, at.y - gesture.from.y)
+    if (p.tool === 'text' && dragged < cssToImage(MIN_DRAG_CSS, p.history.state.scene.source.dpr)) {
+      const hit = hitTest(p.history.state.scene, at, { camera: cameraRef.current, measureBox })
+      const existing = hit
+        ? p.history.state.scene.nodes.find((n) => n.id === hit)
+        : undefined
+      if (existing?.kind === 'text') {
+        p.onSelectionChange(new Set([existing.id]))
+        beginEdit(existing.id)
+        schedule()
+        return
+      }
+    }
+
     const node = createNode({
       tool: p.tool,
       from: gesture.from,
@@ -305,8 +435,28 @@ export function Stage(props: StageProps): JSX.Element {
       p.history.commit()
       p.onSelectionChange(new Set([node.id]))
       p.onSceneChange?.(p.history.state.scene)
+      // النصّ يُفتَح للكتابة فور وضعه: عقدةٌ نصّية فارغة لا تُرى، فلا معنى
+      // لخطوة ثانية يكتشفها المستخدم وحده.
+      if (node.kind === 'text') beginEdit(node.id)
     }
     schedule()
+  }
+
+  /** النقر المزدوج يفتح نصًّا قائمًا للتحرير — بأي أداة، لا بأداة النصّ وحدها. */
+  const onDoubleClick = (e: MouseEvent): void => {
+    const p = propsRef.current
+    const el = annoRef.current
+    const box = el?.getBoundingClientRect()
+    const at = canvasToImage(
+      canvasPoint(e.clientX - (box?.left ?? 0), e.clientY - (box?.top ?? 0)),
+      cameraRef.current,
+    )
+    const hit = hitTest(p.history.state.scene, at, { camera: cameraRef.current, measureBox })
+    if (!hit) return
+    const node = p.history.state.scene.nodes.find((n) => n.id === hit)
+    if (node?.kind !== 'text') return
+    p.onSelectionChange(new Set([hit]))
+    beginEdit(hit)
   }
 
   const onWheel = (e: WheelEvent): void => {
@@ -328,6 +478,11 @@ export function Stage(props: StageProps): JSX.Element {
   }
 
   useEffect(() => () => cancelAnimationFrame(frameRef.current), [])
+
+  const editingRaw = editing
+    ? props.history.state.scene.nodes.find((n) => n.id === editing)
+    : undefined
+  const editingNode: TextNode | null = editingRaw?.kind === 'text' ? editingRaw : null
 
   return (
     <div
@@ -353,6 +508,7 @@ export function Stage(props: StageProps): JSX.Element {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onDblClick={onDoubleClick}
         onWheel={onWheel}
         style={{
           position: 'absolute',
@@ -363,6 +519,33 @@ export function Stage(props: StageProps): JSX.Element {
           touchAction: 'none',
         }}
       />
+      {editingNode && sessionRef.current ? (
+        <TextEditorOverlay
+          node={editingNode}
+          camera={cameraRef.current}
+          family={props.style.textFamily}
+          colorHex={props.style.palette[editingNode.stroke.colorToken]}
+          metrics={layout.metrics(editingNode.font)}
+          widthCss={
+            (editingNode.maxWidthPx > 0
+              ? editingNode.maxWidthPx
+              : Math.max(textBox(editingNode, layout).width, editingNode.font.sizePx * 8)) *
+            cameraRef.current.zoom
+          }
+          session={sessionRef.current}
+          onDone={endEdit}
+          onUndo={() => {
+            props.history.undo()
+            props.onSceneChange?.(props.history.state.scene)
+            schedule()
+          }}
+          onRedo={() => {
+            props.history.redo()
+            props.onSceneChange?.(props.history.state.scene)
+            schedule()
+          }}
+        />
+      ) : null}
     </div>
   )
 }

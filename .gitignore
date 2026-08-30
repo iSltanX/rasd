@@ -25,6 +25,9 @@ stats.html
 *.swp
 
 # test artifacts
+# artifacts/ مخرَج فحوص الشغل الحيّ (لقطات للمراجعة البصرية) — يُعاد توليده
+# بكل تشغيل، ولا يُقارَن به شيء. خطوط الأساس البصرية في tests/visual-baselines.
+artifacts/
 test-results/
 playwright-report/
 blob-report/

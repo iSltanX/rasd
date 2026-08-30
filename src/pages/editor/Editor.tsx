@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 
 import { createHistory } from '@/modules/editor/history'
+import { isHistoryShortcut } from '@/modules/editor/typing'
 
 import { buildRenderStyle } from './colors'
 import {
@@ -9,6 +10,8 @@ import {
   releaseContext,
   type EditorContext,
 } from './context'
+import { NoteList } from './parts/NoteList'
+import { PageMeta } from './parts/PageMeta'
 import { Stage } from './Stage'
 import { DEFAULT_TOOL_SETTINGS, DRAW_TOOLS, TOOL_LABEL, type ToolName } from './tools'
 import { NotFound } from './views/NotFound'
@@ -16,6 +19,10 @@ import { NotFound } from './views/NotFound'
 import type { BaseSource } from '@/modules/editor/renderer'
 import type { NodeId } from '@/modules/editor/scene'
 import type { JSX } from 'preact'
+
+/** هل يحرَّر نصٌّ داخل هذا العنصر؟ */
+const isEditable = (el: HTMLElement): boolean =>
+  el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
 
 /**
  * جذر المحرر — يحمّل ثم يوزّع.
@@ -75,9 +82,9 @@ export function Editor(): JSX.Element {
 /**
  * المحرر بمسرحه.
  *
- * **الدفعة الثالثة تصل إلى هنا**: مسرح بطبقتين، وسبع أدوات رسم، وتحديد،
- * وتكبير وتحريك. والنصّ والملاحظات والطمس والتصدير في الدفعات التالية —
- * وأزرارها لا تُرسم قبل محرّكاتها.
+ * **الدفعة الرابعة تصل إلى هنا**: مسرح بطبقتين، وتسع أدوات، ونصّ عربي
+ * يُحرَّر على القماش، ولوحة ملاحظات مصنَّفة، وبيانات الصفحة. والطمس والاقتصاص
+ * والتصدير في الدفعات التالية — وأزرارها لا تُرسم قبل محرّكاتها.
  */
 function Loaded({ context }: { context: EditorContext }): JSX.Element {
   const [tool, setTool] = useState<ToolName>('select')
@@ -115,16 +122,23 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
     }
   }, [context.imageUrl])
 
-  // اختصارات التاريخ — تُعترَض قبل أن يلتقطها المتصفّح.
+  /*
+   * اختصارات التاريخ على مستوى النافذة — **بعد الحقول لا قبلها**.
+   *
+   * الحقول (محرر النصّ على القماش، وحقول لوحة الملاحظات) تعترض `⌘Z` عندها
+   * وتُوقف الانتشار، لأنها تحتاج إغلاق نوبة الكتابة أوّلًا. وهذا المستمع
+   * يخدم بقيّة المحرر — والحارس أدناه يمنع التراجع مرّتين لو أفلت حدثٌ.
+   */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const meta = e.metaKey || e.ctrlKey
-      if (meta && e.key.toLowerCase() === 'z') {
-        e.preventDefault()
-        if (e.shiftKey) history.redo()
-        else history.undo()
-        bump((n) => n + 1)
-      }
+      const shortcut = isHistoryShortcut(e)
+      if (!shortcut) return
+      const target = e.target
+      if (target instanceof HTMLElement && isEditable(target)) return
+      e.preventDefault()
+      if (shortcut === 'redo') history.redo()
+      else history.undo()
+      bump((n) => n + 1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -149,12 +163,20 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
         )}
       </div>
 
-      <aside style={{ inlineSize: '15rem', padding: '1rem' }} data-editor-side>
-        <h1 style={{ fontSize: '1rem' }}>{context.capture.title || 'لقطة بلا عنوان'}</h1>
-        <p data-editor-origin>{context.capture.origin}</p>
-        <p data-editor-size>
-          {context.capture.width} × {context.capture.height}
-        </p>
+      <aside
+        style={{
+          inlineSize: '19rem',
+          padding: '1rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem',
+          // اللوحة تمرّر محتواها وحدها — القائمة تطول والمسرح لا ينزلق معها.
+          minBlockSize: 0,
+          overflowY: 'auto',
+        }}
+        data-editor-side
+      >
+        <PageMeta capture={context.capture} />
         {context.sceneError ? <p data-editor-scene-error>{context.sceneError}</p> : null}
 
         <div data-editor-tools>
@@ -170,6 +192,13 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
             </button>
           ))}
         </div>
+
+        <NoteList
+          history={history}
+          selection={selection}
+          onSelect={(id) => setSelection(new Set([id]))}
+          onChange={() => bump((n) => n + 1)}
+        />
 
         <p data-editor-nodes>{history.state.scene.nodes.length}</p>
       </aside>

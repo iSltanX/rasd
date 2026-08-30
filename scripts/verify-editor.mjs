@@ -19,7 +19,15 @@
  *   pnpm build && pnpm verify:editor
  */
 import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
@@ -253,10 +261,16 @@ async function seedAndOpen(w, h, dpr) {
   await inSW(
     `chrome.tabs.create({ url: chrome.runtime.getURL('src/pages/editor/index.html?capture=probe'), active: true }).then(t => t.id)`,
   )
+  /*
+   * **آخر هدفٍ للمحرر لا أوّله.** التبويب الجديد يُفتح فوق تبويبٍ سابق ما زال
+   * حيًّا، و`find` تُعيد الأقدم — فتُزرع اللقطة في تبويب ويُقاس آخر، ويصير
+   * قياس الحالة القصوى قياسًا للحالة العادية بلا رسالة.
+   */
   let target = null
   for (let i = 0; i < 40; i++) {
     const { targetInfos } = await send('Target.getTargets')
-    target = targetInfos.find((t) => t.type === 'page' && String(t.url).includes('/editor/'))
+    const editors = targetInfos.filter((t) => t.type === 'page' && String(t.url).includes('/editor/'))
+    target = editors.at(-1) ?? null
     if (target) break
     await new Promise((r) => setTimeout(r, 200))
   }
@@ -276,10 +290,30 @@ async function seedAndOpen(w, h, dpr) {
       c.fillStyle='#204060'; c.fillRect(0,0,${w},${h})
       c.fillStyle='#ff3355'; c.fillRect(0,0,${Math.floor(w / 2)},${Math.floor(h / 2)})
       const blob = await cv.convertToBlob({ type: 'image/png' })
-      const db = await new Promise((res, rej) => {
-        const r = indexedDB.open('rasd', 1); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error)
-      })
-      const tx = db.transaction(['captures','blobs','annotations'], 'readwrite')
+      /*
+       * **تُنتظَر قاعدة التطبيق، ولا تُنشَأ هنا.**
+       * فتحُ 'rasd' بنسخة 1 على قاعدة لم تُنشأ بعد **يُنشئها فارغة بلا
+       * مخازن**، فيسبق الزرعُ ترقيةَ التطبيق ويعطي
+       * «object store was not found». وهو سباقٌ كان يُربَح بالتوقيت وحده،
+       * حتى أبطأت واردات الدفعة الرابعة إقلاع الصفحة قليلًا فانكشف.
+       */
+      const need = ['captures','blobs','annotations']
+      const db = await (async () => {
+        for (let i = 0; i < 80; i++) {
+          const list = await indexedDB.databases()
+          if (list.some(d => d.name === 'rasd')) {
+            const opened = await new Promise((res, rej) => {
+              const r = indexedDB.open('rasd')
+              r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error)
+            })
+            if (need.every(n => opened.objectStoreNames.contains(n))) return opened
+            opened.close()
+          }
+          await new Promise(r => setTimeout(r, 150))
+        }
+        throw new Error('قاعدة rasd لم تجهز بمخازنها')
+      })()
+      const tx = db.transaction(need, 'readwrite')
       tx.objectStore('annotations').delete('probe')
       tx.objectStore('captures').put({
         id:'probe', createdAt: Date.now(), origin:'https://probe.test', url:'https://probe.test/p',
@@ -440,6 +474,301 @@ if (extId && sw && granted) {
       if ((await nodeCount(S)) === 0) ok('و⌘Z أعاد المشهد فارغًا')
       else fail('التراجع لم يُفرغ المشهد')
 
+      // ── 4) النصّ العربي على القماش — ما لا يُقاس إلّا بمتصفّح يرسم ─
+      /*
+       * أربع مقدّمات بُنيت عليها `draw/text.ts` و`text-layout.ts`، وكلّها
+       * دعاوى عن **سلوك كروم** لا عن منطقنا. بيئة الاختبار بلا سياق ثنائي
+       * الأبعاد أصلًا، فلا تنفي ولا تثبت. وتُقاس هنا مرّةً واحدة.
+       */
+      const canvasFacts = JSON.parse(
+        await evalIn(
+          S,
+          `JSON.stringify((() => {
+            const c = document.querySelector('[data-stage-layer="annotations"]').getContext('2d')
+            const fresh = document.createElement('canvas').getContext('2d')
+            const F = '400 16px system-ui'
+
+            c.save(); c.setTransform(1,0,0,1,0,0)
+            const inheritedDir = c.direction
+            c.restore()
+
+            fresh.font = F
+            const joined = fresh.measureText('مرحبا').width
+            const apart = ['م','ر','ح','ب','ا'].reduce((s,ch) => s + fresh.measureText(ch).width, 0)
+
+            fresh.letterSpacing = '3px'
+            const arabicSpaced = fresh.measureText('مرحبا').width
+            const latinSpaced = fresh.measureText('ABC').width
+            fresh.letterSpacing = '0px'
+            const latinPlain = fresh.measureText('ABC').width
+
+            const bare = fresh.measureText('الحشوة 14px واللون #3B82F6').width
+            const isolated = fresh.measureText('الحشوة ⁦14px⁩ واللون ⁦#3B82F6⁩').width
+
+            return {
+              inheritedDir, joined, apart, arabicSpaced, latinSpaced, latinPlain, bare, isolated,
+            }
+          })())`,
+        ),
+      )
+
+      if (canvasFacts.inheritedDir === 'rtl') {
+        ok('اتجاه سياق القماش يرث `rtl` من المستند — فالضبط الصريح في كل رسمة ليس زيادة')
+      } else {
+        fail(`اتجاه السياق الموروث ${canvasFacts.inheritedDir} لا rtl — راجع تعليل draw/text.ts`)
+      }
+
+      if (canvasFacts.joined < canvasFacts.apart) {
+        ok(
+          `**التشكيل المتّصل يعمل** — «مرحبا» ${canvasFacts.joined.toFixed(2)} مقابل ${canvasFacts.apart.toFixed(2)} لحروفها مفردة، فنداءٌ لكل كلمة كان سيوسّعها`,
+        )
+      } else {
+        fail('لا فرق بين المتّصل والمفرد — التشكيل لا يعمل في هذا السياق')
+      }
+
+      if (
+        Math.abs(canvasFacts.arabicSpaced - canvasFacts.joined) < 0.01 &&
+        canvasFacts.latinSpaced > canvasFacts.latinPlain + 1
+      ) {
+        ok(
+          `و\`letterSpacing\` يُتجاهَل على العربية (${canvasFacts.arabicSpaced.toFixed(2)}) ويُطبَّق على اللاتيني (${canvasFacts.latinPlain.toFixed(2)} ← ${canvasFacts.latinSpaced.toFixed(2)}) — ولذلك صفرٌ مفروضٌ بالنوع`,
+        )
+      } else {
+        fail('سلوك letterSpacing لا يطابق المقيس — راجع FontSpec.letterSpacingPx')
+      }
+
+      if (Math.abs(canvasFacts.bare - canvasFacts.isolated) < 0.5) {
+        ok(
+          `**ومحارف العزل لا تُضيف عرضًا** (${canvasFacts.bare.toFixed(2)} ≈ ${canvasFacts.isolated.toFixed(2)}) — فاللفّ يُقاس على النصّ المرسوم بلا فرق`,
+        )
+      } else {
+        fail(
+          `العزل غيّر العرض ${canvasFacts.bare.toFixed(2)} ← ${canvasFacts.isolated.toFixed(2)} — اللفّ سيخالف الرسم`,
+        )
+      }
+
+      // ── 5) سطر القبول: يُكتَب حيًّا، ويُلَفّ، ويُرسَم ────────────
+      await evalIn(S, `document.querySelector('[data-tool="text"]').click(), 1`)
+      await new Promise((r) => setTimeout(r, 120))
+
+      // سحبةٌ تحدّد عرض اللفّ — نقرةٌ كانت ستعني «بلا لفّ».
+      await send(
+        'Input.dispatchMouseEvent',
+        { type: 'mousePressed', x: cx - 120, y: cy - 40, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        S,
+      )
+      await moveTo(S, cx - 40, cy - 20)
+      await moveTo(S, cx + 30, cy)
+      await send(
+        'Input.dispatchMouseEvent',
+        { type: 'mouseReleased', x: cx + 30, y: cy, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        S,
+      )
+      await settle(S)
+      await new Promise((r) => setTimeout(r, 250))
+
+      const editorOpen = JSON.parse(
+        await evalIn(
+          S,
+          `JSON.stringify((() => {
+            const el = document.querySelector('[data-text-editor]')
+            return el ? { dir: el.dir, focused: document.activeElement === el } : null
+          })())`,
+        ),
+      )
+      if (editorOpen?.focused) {
+        ok('أداة النصّ تفتح حقلًا مركَّزًا فور وضعها — لا خطوة ثانية يكتشفها المستخدم')
+      } else {
+        fail('حقل النصّ لم يُفتَح أو لم يُركَّز')
+      }
+
+      /** يكتب محرفًا واحدًا كما يكتبه إنسان — بأحداث لوحة مفاتيح حقيقية. */
+      const typeChar = async (ch) => {
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', text: ch, key: ch }, S)
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch }, S)
+      }
+
+      const LINE = 'الحشوة 14px 24px واللون #3B82F6'
+      for (const ch of LINE) await typeChar(ch)
+      await settle(S)
+      await new Promise((r) => setTimeout(r, 200))
+
+      const typed = JSON.parse(
+        await evalIn(
+          S,
+          `JSON.stringify((() => {
+            const el = document.querySelector('[data-text-editor]')
+            return el ? { value: el.value, dir: el.dir } : null
+          })())`,
+        ),
+      )
+      if (typed?.value === LINE) ok(`**سطر القبول مكتوب حيًّا** — «${LINE}»`)
+      else fail(`ما وصل إلى الحقل «${typed?.value ?? 'لا شيء'}» لا سطر القبول`)
+
+      if (typed?.dir === 'rtl') {
+        ok('واتجاه الحقل `rtl` — أوّل محرف قويّ عربي، والأرقام والرموز لا تقلبه')
+      } else {
+        fail(`اتجاه الحقل ${typed?.dir} لا rtl`)
+      }
+
+      // ⎋ يُنهي التحرير فتنتقل الصورة من الحقل إلى القماش.
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, S)
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, S)
+      await settle(S)
+      await new Promise((r) => setTimeout(r, 300))
+
+      /*
+       * يُلغى التحديد قبل قياس النطاقات.
+       *
+       * مستطيل التحديد ومقابضه حبرٌ أيضًا، ويصل بين الأسطر فيدمج نطاقاتها
+       * في نطاق واحد. وهذا ما وقع فعلًا حين صارت حدود النصّ مقيسة: العدّ
+       * هبط من ٢ إلى ١ بلا تغيّر في اللفّ نفسه.
+       */
+      await evalIn(S, `document.querySelector('[data-tool="select"]').click(), 1`)
+      await new Promise((r) => setTimeout(r, 120))
+      await send(
+        'Input.dispatchMouseEvent',
+        { type: 'mousePressed', x: cx - 260, y: cy + 200, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        S,
+      )
+      await send(
+        'Input.dispatchMouseEvent',
+        { type: 'mouseReleased', x: cx - 260, y: cy + 200, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        S,
+      )
+      await settle(S)
+      await new Promise((r) => setTimeout(r, 200))
+
+      /*
+       * اللفّ يُقاس بعدّ **نطاقات الحبر الأفقية**: سطرٌ ملفوف يترك فراغًا
+       * بين نطاقين. وهذا قياسٌ على البكسلات لا على بنيتنا — فلو لفّ التخطيط
+       * صحيحًا ورسم الرسّام كل الأسطر فوق بعضها لكشفه العدّ.
+       */
+      const bands = JSON.parse(
+        await evalIn(
+          S,
+          `JSON.stringify((() => {
+            const c = document.querySelector('[data-stage-layer="annotations"]')
+            const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+            const rows = new Uint8Array(c.height)
+            for (let y = 0; y < c.height; y++) {
+              for (let x = 0; x < c.width; x++) {
+                if (d[(y * c.width + x) * 4 + 3] > 24) { rows[y] = 1; break }
+              }
+            }
+            let bands = 0, ink = 0
+            for (let y = 0; y < c.height; y++) {
+              if (rows[y]) { ink++; if (y === 0 || !rows[y - 1]) bands++ }
+            }
+            return { bands, ink }
+          })())`,
+        ),
+      )
+      if (bands.ink > 0) ok(`والنصّ مرسوم على القماش — ${bands.ink} صفًّا فيه حبر`)
+      else fail('لا حبر على طبقة التعليقات بعد إنهاء التحرير')
+
+      if (bands.bands >= 2) {
+        ok(`**والسطر لُفّ إلى ${bands.bands} نطاقات** — العرض المسحوب أضيق من السطر`)
+      } else {
+        fail(`نطاقٌ واحد فقط (${bands.bands}) — لم يقع لفّ رغم ضيق العرض`)
+      }
+
+      /*
+       * لقطةٌ للعين لا للتأكيد.
+       *
+       * كل ما سبق يقيس أرقامًا؛ ولا رقم يكشف «الحروف متّصلة لكنها تبدو
+       * خاطئة» — الهمزة على السطر، أو التشكيل المكسور، أو سطرٌ يلامس الذي
+       * تحته. تُكتَب إلى `artifacts/` ولا تُفحَص آليًّا.
+       */
+      try {
+        const shot = await send('Page.captureScreenshot', { format: 'png' }, S)
+        const dir = join(root, 'artifacts')
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+        const file = join(dir, 'editor-arabic-text.png')
+        writeFileSync(file, Buffer.from(shot.data, 'base64'))
+        note(`لقطة للمراجعة البصرية: artifacts/editor-arabic-text.png`)
+      } catch (e) {
+        note(`تعذّرت اللقطة البصرية: ${e}`)
+      }
+
+      // ── 6) نوبة الكتابة على المكدّس: ⌘Z تمحو كلمة لا فقرة ───────
+      const undoOnce = async () => {
+        await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'z', code: 'KeyZ', modifiers: 4, windowsVirtualKeyCode: 90 }, S)
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', modifiers: 4, windowsVirtualKeyCode: 90 }, S)
+        await settle(S)
+        await new Promise((r) => setTimeout(r, 150))
+      }
+
+      await undoOnce()
+      if ((await nodeCount(S)) === 1) {
+        ok('و⌘Z واحدة **لم تمحُ عقدة النصّ** — النوبة كلمةٌ لا جلسة كاملة')
+      } else {
+        fail('⌘Z واحدة محت عقدة النصّ — الكتابة كلّها في علامة واحدة')
+      }
+
+      /*
+       * ما بقي بعد التراجع يُقرأ من الحقل نفسه: يُعاد فتحه بنقرة مزدوجة على
+       * النصّ. وهذا هو بند القبول حرفيًّا — «تُمحى كلمةٌ لا الفقرة».
+       */
+      await send(
+        'Input.dispatchMouseEvent',
+        { type: 'mousePressed', x: cx - 60, y: cy - 26, button: 'left', clickCount: 2, pointerType: 'mouse' },
+        S,
+      )
+      await send(
+        'Input.dispatchMouseEvent',
+        { type: 'mouseReleased', x: cx - 60, y: cy - 26, button: 'left', clickCount: 2, pointerType: 'mouse' },
+        S,
+      )
+      await settle(S)
+      await new Promise((r) => setTimeout(r, 250))
+
+      await evalIn(S, `document.querySelector('[data-tool="text"]').click(), 1`)
+      await new Promise((r) => setTimeout(r, 120))
+
+      const stacked = await nodeCount(S)
+      if (stacked === 1) {
+        ok('**والنقر على نصٍّ قائم يفتحه ولا يكدّس فوقه عقدةً فارغة**')
+      } else {
+        fail(`النقر على النصّ أعطى ${stacked} عقدة لا 1 — عقدة فارغة تراكمت فوقه`)
+      }
+
+      const remaining = await evalIn(
+        S,
+        `(document.querySelector('[data-text-editor]')?.value ?? '\u0000')`,
+      )
+      if (remaining === '\u0000') {
+        note('تعذّر إعادة فتح النصّ بنقرة مزدوجة — يُكتفى بعدّ الضغطات أدناه')
+      } else if (remaining !== '' && remaining.length < LINE.length && LINE.startsWith(remaining)) {
+        ok(
+          `**وما بقي «${remaining}»** — بادئةٌ صحيحة أقصر من السطر، لا فراغ ولا الفقرة كلّها`,
+        )
+      } else {
+        fail(`ما بقي بعد ⌘Z واحدة «${remaining}» — ليس بادئةً أقصر من السطر`)
+      }
+
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, S)
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, S)
+      await settle(S)
+
+      let presses = 1
+      while (presses < 40 && (await nodeCount(S)) > 0) {
+        await undoOnce()
+        presses++
+      }
+      /*
+       * حدّا القبول معًا: أكثر من ضغطتين (وإلّا فالسطر كلّه علامة واحدة)،
+       * وأقلّ من نصف عدد المحارف (وإلّا فعلامةٌ لكل حرف تُخلي مكدّسًا سعته
+       * خمسون بسطرٍ واحد).
+       */
+      if (presses > 2 && presses < LINE.length / 2) {
+        ok(
+          `**ومحو السطر كلّه احتاج ${presses} ضغطة** لا ${LINE.length} — بين الطرفين اللذين يُسقطان بند القبول`,
+        )
+      } else {
+        fail(`محو السطر احتاج ${presses} ضغطة على ${LINE.length} محرفًا — خارج المدى المقبول`)
+      }
+
       // ── 4) الذاكرة — البند الذي يعلنه ADR 0011 مفتوحًا ─────────
       const mem = JSON.parse(
         await evalIn(
@@ -456,6 +785,18 @@ if (extId && sw && granted) {
         ),
       )
       note(`ذاكرة (1200×900، كثافة ${s1.dpr}): أسطح ${mem.surfaceMB}MB · كومة JS ${mem.usedMB}MB`)
+
+      /*
+       * يُغلَق تبويب المحرر الأوّل قبل الحالة القصوى.
+       *
+       * تبويبان مفتوحان يتنازعان أمرين: اختيارَ الهدف (يُحلّ أعلاه)،
+       * و**الذاكرة** — والحالة القصوى هي بالضبط ما يُقاس. فبقاء الأوّل
+       * يُلوّث الرقم الذي تُبنى عليه ميزانية الخبز.
+       */
+      await send('Target.closeTarget', { targetId: (await send('Target.getTargets')).targetInfos
+        .filter((t) => t.type === 'page' && String(t.url).includes('/editor/'))
+        .at(-1).targetId })
+      await new Promise((r) => setTimeout(r, 400))
 
       // الحالة القصوى — الرقم الذي تُبنى عليه ميزانية الخبز.
       const extreme = await seedAndOpen(2560, 28_672, 1)

@@ -13,14 +13,25 @@ import {
   cssToImage,
   asNodeId,
   type AnnotationColor,
+  type FontSpec,
   type Scene,
   type SceneNode,
 } from '@/modules/editor/scene'
+import { finalizeStroke } from '@/modules/editor/smoothing'
 import { devicePoint, deviceRect, type DevicePoint } from '@/shared/geometry'
 
-/** الأدوات المبنيّة في هذه الدفعة. النصّ والملاحظة والقياس في التالية. */
+/** الأدوات المبنيّة. القياس في الدفعة السابعة. */
 export type ToolName =
-  'select' | 'arrow' | 'line' | 'rect' | 'ellipse' | 'freehand' | 'pin' | 'redact'
+  | 'select'
+  | 'arrow'
+  | 'line'
+  | 'rect'
+  | 'ellipse'
+  | 'freehand'
+  | 'pin'
+  | 'redact'
+  | 'text'
+  | 'note'
 
 /** أدوات تُنشئ عقدة بالسحب — `select` ليست منها. */
 export const DRAW_TOOLS: readonly ToolName[] = [
@@ -31,6 +42,8 @@ export const DRAW_TOOLS: readonly ToolName[] = [
   'freehand',
   'pin',
   'redact',
+  'text',
+  'note',
 ]
 
 export interface ToolSettings {
@@ -65,6 +78,27 @@ function strokeOf(settings: ToolSettings, dpr: number) {
     widthPx: cssToImage(settings.strokeWidthCss, dpr),
     dash: [] as number[],
     opacity: 1,
+  }
+}
+
+/** عرض بطاقة الملاحظة حين تُوضع بنقرة — من ملفّ التصميم. */
+export const NOTE_DEFAULT_WIDTH_CSS = 240
+
+export const NOTE_PADDING_CSS = 12
+
+/**
+ * مواصفة الخطّ.
+ *
+ * `family` هنا **اسم منطقي يُحفَظ**، والعائلة الفعلية تُحقن لحظة الرسم من
+ * `RenderStyle.textFamily`. مشهدٌ يحمل سلسلة `font-family` كاملة يُقيَّد
+ * بالخطوط المثبّتة على جهاز مُنشئه — ويُرسم بخطّ بديل عند غيره بلا إشعار.
+ */
+function fontOf(settings: ToolSettings, dpr: number): FontSpec {
+  return {
+    family: 'ui',
+    sizePx: cssToImage(settings.fontSizeCss, dpr),
+    weight: 400,
+    letterSpacingPx: 0,
   }
 }
 
@@ -157,10 +191,55 @@ export function createNode(input: CreateInput): SceneNode | null {
           }
 
     case 'freehand': {
-      const points = input.points ?? [from.x, from.y, to.x, to.y]
-      if (points.length < 4) return null
-      return { ...base, kind: 'freehand', points, closed: false, epsilon: cssToImage(1, dpr) }
+      const raw = input.points ?? [from.x, from.y, to.x, to.y]
+      if (raw.length < 4) return null
+      /*
+       * **التنعيم عند الإنشاء لا عند الرسم.** لو نُعِّم في الرسّام لأُعيد
+       * حسابه في كل إطار — ولحُفظت العيّنات الخام كلّها في IndexedDB،
+       * فتجاوز مسارٌ واحد `MAX_SCENE_BYTES` وحده.
+       */
+      const { points, epsilon } = finalizeStroke(raw, false, cssToImage(1, dpr))
+      return { ...base, kind: 'freehand', points, closed: false, epsilon }
     }
+
+    case 'text':
+      return {
+        ...base,
+        kind: 'text',
+        /*
+         * **زاوية الصندوق لا نهاية السحبة.** `to` هو موضع الإفلات، وقد يقع
+         * يمين البداية أو يسارها. ووضعُ النصّ عنده يجعل السطر ينمو من حيث
+         * انتهت اليد لا من حيث بدأت: سحبةٌ من اليسار إلى اليمين تُنشئ نصًّا
+         * **خارج** المستطيل الذي رسمه المستخدم بعرضه. قِيس حيًّا في كروم.
+         *
+         * والنقرة لا تتأثّر: `from === to` فالزاوية هي النقطة نفسها.
+         */
+        at: devicePoint(box.x, box.y),
+        text: '',
+        font: fontOf(settings, dpr),
+        /*
+         * سحبةٌ تُحدّد عرض اللفّ، ونقرةٌ تعني «بلا لفّ» (صفر). فالمستخدم
+         * يملك الأمرين بإيماءة واحدة، بلا مقبض إضافي ولا وضع ثانٍ.
+         */
+        maxWidthPx: box.width >= minImage ? box.width : 0,
+        align: 'start',
+        // `'auto'` تُحسَم لحظة الرسم من أوّل محرف قويّ — والنصّ هنا فارغ بعد.
+        dir: 'auto',
+      }
+
+    case 'note':
+      return {
+        ...base,
+        kind: 'note',
+        at: devicePoint(box.x, box.y),
+        widthPx: box.width >= minImage ? box.width : cssToImage(NOTE_DEFAULT_WIDTH_CSS, dpr),
+        title: '',
+        body: '',
+        tag: null,
+        font: fontOf(settings, dpr),
+        paddingPx: cssToImage(NOTE_PADDING_CSS, dpr),
+        pinId: null,
+      }
   }
 }
 
@@ -210,4 +289,6 @@ export const TOOL_LABEL: Readonly<Record<ToolName, string>> = {
   freehand: 'تحديد حرّ',
   pin: 'دبّوس',
   redact: 'حجب',
+  text: 'نصّ',
+  note: 'ملاحظة',
 }

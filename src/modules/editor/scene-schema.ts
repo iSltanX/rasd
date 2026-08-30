@@ -21,6 +21,7 @@ import { ANNOTATION_COLORS } from '@/shared/settings/schema'
 import {
   asNodeId,
   MAX_FREEHAND_POINTS,
+  NOTE_TAGS,
   MAX_SCENE_NODES,
   SCENE_SCHEMA_VERSION,
   type Scene,
@@ -146,7 +147,7 @@ const NodeSchema = v.variant('kind', [
     widthPx: v.pipe(finite, v.minValue(1)),
     title: v.string(),
     body: v.string(),
-    tag: v.nullable(v.picklist(['type', 'spacing', 'token'])),
+    tag: v.nullable(v.picklist(NOTE_TAGS)),
     font: FontSchema,
     paddingPx: v.pipe(finite, v.minValue(0)),
     pinId: v.nullable(NodeIdSchema),

@@ -13,6 +13,8 @@
 
 import { normaliseBox } from '../hit-test'
 
+import { drawNote, drawPinNumber, drawText } from './text'
+
 import type { Camera } from '../camera'
 import type { BaseSource, Ctx2D, RenderStyle } from '../renderer'
 import type {
@@ -26,6 +28,7 @@ import type {
   SceneNode,
   StrokeStyle,
 } from '../scene'
+import type { TextLayoutCache } from '../text-layout'
 
 export interface DrawContext {
   readonly ctx: Ctx2D
@@ -34,6 +37,14 @@ export interface DrawContext {
   /** المصدر السليم — رسّام الحجب وحده يقرأ منه. */
   readonly source: BaseSource
   readonly interacting: boolean
+  /**
+   * ذاكرة تخطيط النصّ.
+   *
+   * اختيارية عمدًا: الأشكال الهندسية لا تحتاجها، وتمريرُها إلزاميًّا كان
+   * سيفرض بناء ذاكرة على كل مستدعٍ لا يرسم نصًّا — ومنهم اختبارات الأشكال.
+   * وغيابها يعني أن العقد النصّية تُتخطّى بدل أن تُرسم بأبعاد مقدَّرة.
+   */
+  readonly layout?: TextLayoutCache
 }
 
 /** يطبّق نمط الخطّ على السياق. يُستدعى داخل `save`/`restore` دائمًا. */
@@ -220,7 +231,7 @@ function drawPin(d: DrawContext, node: PinNode): void {
   ctx.fill()
   ctx.restore()
 
-  // الرقم يُرسم في `draw/text.ts` (الدفعة الرابعة) — هنا الشكل وحده.
+  drawPinNumber(d, node)
 }
 
 /**
@@ -258,8 +269,8 @@ function drawRedact(d: DrawContext, node: RedactNode): void {
 /**
  * يرسم عقدة واحدة.
  *
- * النصّ والملاحظات والقياس في الدفعة الرابعة — تُتخطّى هنا صراحةً بدل أن
- * تُرسم ناقصة.
+ * والقياس (`measure`) في الدفعة السابعة — يُتخطّى هنا صراحةً بدل أن يُرسم
+ * ناقصًا.
  */
 export function drawNode(d: DrawContext, node: SceneNode): void {
   switch (node.kind) {
@@ -278,7 +289,11 @@ export function drawNode(d: DrawContext, node: SceneNode): void {
     case 'redact':
       return drawRedact(d, node)
     case 'text':
+      // بلا ذاكرة تخطيط لا يُرسم نصّ: الأبعاد المقدَّرة تعطي سطرًا في موضع
+      // خاطئ، وهو أسوأ من لا شيء.
+      return d.layout ? drawText(d, node, d.layout) : undefined
     case 'note':
+      return d.layout ? drawNote(d, node, d.layout) : undefined
     case 'measure':
       return
   }
