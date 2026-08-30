@@ -3,6 +3,8 @@ coverage/
 node_modules/
 pnpm-lock.yaml
 src/tokens/
+# نُسخ عمل معزولة لجلسات خلفية موازية — انظر تعليل eslint.config.js المطابق
+.claude/worktrees/
 # أصول مولَّدة: ورقة التوكنز والخطوط
 public/assets/tokens.css
 public/assets/tokens-shadow.css
