@@ -33,6 +33,7 @@ import type { AreaSelectTool } from './tools/area-select'
 import type { ElementHoverTool } from './tools/element-hover'
 import type { InspectTool } from './tools/inspect'
 import type { Mode } from '@/shared/modes'
+import type { CaptureKind } from '@/shared/storage/schema'
 import type { Signal } from '@preact/signals'
 import type { JSX } from 'preact'
 
@@ -532,7 +533,7 @@ export function toDeviceRect(rect: ReturnType<typeof viewportRect>, s: CoordSpac
  * أصلًا، ولا يجوز أن تُصدَّق فيه لو عرفته.
  */
 export async function requestCapture(
-  kind: 'area' | 'viewport',
+  kind: CaptureKind,
   rect: ReturnType<typeof viewportRect> | null,
   s: CoordSpace,
 ) {

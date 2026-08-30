@@ -11,6 +11,7 @@
 
 import { signal } from '@preact/signals'
 
+import { captureKindFor, type CaptureSource } from '@/modules/capture/kind'
 import { toCss, toJson, toTailwindText } from '@/modules/style-export/css'
 import { onMessage, send } from '@/shared/messaging'
 import { isMode, type Mode } from '@/shared/modes'
@@ -168,9 +169,20 @@ export async function startOverlay(
    */
   const fullPage = signal<{ done: number; total: number; note: string } | null>(null)
 
-  const runCaptureNow = (rect: ReturnType<typeof viewportRect> | null) => {
+  /**
+   * `source` يفصل أداة المنطقة عن أداة العنصر.
+   *
+   * وجود المستطيل وحده لا يميّزهما — كلتاهما تُسلّم مستطيلًا — وكان النوع
+   * يُشتقّ منه فيُسجَّل كل التقاط عنصر `'area'`. النوع يُفهرَس في IndexedDB
+   * وتقوم عليه تصفية المكتبة (المرحلة 18)، فالقرار في `captureKindFor`
+   * المُختبَرة لا هنا.
+   */
+  const runCaptureNow = (
+    rect: ReturnType<typeof viewportRect> | null,
+    source: CaptureSource = 'area',
+  ) => {
     void (async () => {
-      const reply = await requestCapture(rect ? 'area' : 'viewport', rect, spaceSignal.peek())
+      const reply = await requestCapture(captureKindFor(source, rect), rect, spaceSignal.peek())
       pendingViewport.value = false
       if (reply.ok) {
         lastCapture = reply.value
@@ -211,7 +223,7 @@ export async function startOverlay(
   const element = createElementHover({
     doc,
     skip: host.hostEl,
-    onCommit: (rect) => runCaptureNow(rect),
+    onCommit: (rect) => runCaptureNow(rect, 'element'),
     onCancel: () => modes.escape(),
     onBusy: (busy) => {
       modes.busy.value = busy
