@@ -20,6 +20,7 @@ import { getSettings } from '@/shared/settings'
 
 import { copyCaptureToClipboard } from './clipboard'
 import { readSpace, viewportRect, watchDpr, type CoordSpace } from './coords'
+import { createCssResolver } from './css-resolver'
 import { blockedFrames, isTopFrame } from './frames'
 import { adoptTeardown, mountHost, type OverlayHost } from './host'
 import { createModeManager, type ModeManager } from './mode-manager'
@@ -250,8 +251,22 @@ export async function startOverlay(
    * الصفحة هو ما يُبقي `:hover` صادقة، وهو الشرط الذي يمنع محرّك التتالي
    * من الكذب.
    */
+  /**
+   * حلّال التتالي — **مثيل واحد لأداتين**.
+   *
+   * الفحص (11) واللون (13) كلاهما يحتاج القاعدة الفائزة واسم المتغيّر،
+   * وبناء الفهرس مقيس بـ99.5ms على github. ومثيلٌ مشترك يعني أن من فحص
+   * عنصرًا ثم أخذ عيّنة لون لا يدفع الثمن مرّتين: الذاكرة مفتاحها بصمة
+   * الأوراق، فلا تُعاد إلّا إن تغيّرت فعلًا.
+   *
+   * كسول: لا يُبنى فهرس حتى يُثبَّت شيء — التمرير وأخذ العيّنة يعملان بلا
+   * فهرس تمامًا.
+   */
+  const cssResolver = createCssResolver(doc, win)
+
   const inspect = createInspect({
     doc,
+    resolver: cssResolver,
     onInvalidate: () => sync.invalidate('pointer'),
     onReport: (snapshot) => void send('inspect/report', { snapshot }),
   })
@@ -283,6 +298,7 @@ export async function startOverlay(
   const colour = createEyedropper({
     doc,
     skip: host.hostEl,
+    resolver: cssResolver,
     onInvalidate: () => sync.invalidate('pointer'),
   })
 
@@ -510,6 +526,8 @@ export async function startOverlay(
     // اللقطة المفكوكة تُحرَّر صراحةً: `ImageBitmap` لا يُجمَع بجمع القمامة
     // وحده، وحجمها بحجم النافذة كاملةً بأربعة بايتات للبكسل.
     colour.dispose()
+    // الحلّال ملك هذه الجلسة لا الأدوات — فتُحرّره هي.
+    cssResolver.dispose()
     stopDpr()
     persistence.stop()
     sync.stop()
@@ -535,6 +553,7 @@ export async function startOverlay(
     element,
     inspect,
     measure,
+    colour,
     lastCapture: () => lastCapture,
     teardown,
   })

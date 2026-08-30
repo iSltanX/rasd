@@ -149,11 +149,7 @@ export function ColourPanel({
         </div>
 
         {/* اللون من الصفحة، فيُمرَّر سطريًا: لا توكن لدينا يمثّله. */}
-        <span
-          class="rasd-ov-cp-sw"
-          style={{ '--rasd-ov-sample': swatch }}
-          data-rasd-ov-sample=""
-        />
+        <span class="rasd-ov-cp-sw" style={{ '--rasd-ov-sample': swatch }} data-rasd-ov-sample="" />
       </div>
 
       {mismatch || outOfGamut ? (

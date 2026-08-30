@@ -434,6 +434,16 @@
 .rasd-ov-cross-v {
   position: absolute;
   background: var(--rasd-tool-capture-fg);
+
+  /*
+   * **زينة لا سطح إصابة.** الخطّان يمرّان بنقطة المؤشِّر بحكم تعريفهما،
+   * فبدونها يصير هدف كل `pointerdown`/`pointerup` أحدَهما بدل الطبقة —
+   * ويسقط شرط «وقع على خلفية الطبقة» في `mountOverlayApp` فلا تصل النقرة
+   * إلى أي أداة. قِيس في `verify-colour.mjs`: صفر تثبيت، وهدف الحدث
+   * `rasd-ov-cross-v`. وبقيّة البدائيّات تنجو بـ`.rasd-ov-place`، وهذان
+   * لا يحملانها لأنهما يمتدّان على النافذة كلّها لا عند نقطة.
+   */
+  pointer-events: none;
 }
 .rasd-ov-cross-h {
   inset-inline: 0;

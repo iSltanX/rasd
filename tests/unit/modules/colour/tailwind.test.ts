@@ -1,15 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { readColour } from '@/modules/colour/formats'
-import {
-  nearestTailwind,
-  TAILWIND_NEAR_DELTA,
-  tailwindNaming,
-} from '@/modules/colour/tailwind'
-import {
-  TAILWIND_PALETTE,
-  TAILWIND_PALETTE_4_2_NEUTRALS,
-} from '@/modules/colour/tailwind-palette'
+import { nearestTailwind, TAILWIND_NEAR_DELTA, tailwindNaming } from '@/modules/colour/tailwind'
+import { TAILWIND_PALETTE, TAILWIND_PALETTE_4_2_NEUTRALS } from '@/modules/colour/tailwind-palette'
 
 const c = (css: string) => {
   const r = readColour(css)

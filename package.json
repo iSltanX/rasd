@@ -36,6 +36,7 @@
     "verify:overlay": "node scripts/verify-overlay.mjs",
     "verify:picker": "node scripts/verify-picker.mjs",
     "verify:measure": "node scripts/verify-measure.mjs",
+    "verify:colour": "node scripts/verify-colour.mjs",
     "verify:fullpage": "node scripts/verify-fullpage.mjs",
     "verify:inspect": "node scripts/verify-inspect.mjs",
     "verify:popup": "node scripts/verify-popup.mjs",

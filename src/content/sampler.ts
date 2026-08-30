@@ -209,7 +209,11 @@ export function createSampler(options: SamplerOptions = {}): Sampler {
             continue
           }
           const d = readRect(px, py, 1, 1)
-          out.push(d ? { r: d[0] ?? 0, g: d[1] ?? 0, b: d[2] ?? 0, a: d[3] ?? 255 } : { r: 0, g: 0, b: 0, a: 0 })
+          out.push(
+            d
+              ? { r: d[0] ?? 0, g: d[1] ?? 0, b: d[2] ?? 0, a: d[3] ?? 255 }
+              : { r: 0, g: 0, b: 0, a: 0 },
+          )
         }
       }
       return out

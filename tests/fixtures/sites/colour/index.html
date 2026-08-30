@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>عيّنة اللون — البكسل مقابل التصريح</title>
+    <style>
+      /*
+       * كل كتلة هنا حالة يفترق فيها **ما يُرى** عن **ما يُصرَّح به**، أو
+       * تُثبت أنهما يتطابقان حين لا سبب لافتراقهما. المواضع ثابتة
+       * (`position: absolute`) كي يعرف السكربت أين ينقر بالضبط بلا قياس.
+       *
+       * **وكلّها على يمين 460px فيزيائيًّا عمدًا.** لوحة اللون ترسو عند
+       * (40, 44) بعرض 360px، وهي السطح التفاعلي الوحيد في الطبقة — فنقرة
+       * على ما تحتها تصيب اللوحة لا الصفحة. اكتُشف بالتشغيل: صفر تثبيت،
+       * والنقرات كلّها ابتلعتها اللوحة.
+       *
+       * **و`inset-inline-end` لا `-start`**: المستند عربي (`dir="rtl"`)،
+       * فبداية السطر هي **يمين** الشاشة. أوّل تصحيح استعمل `-start` بقيم
+       * كبيرة فدفع الكتل إلى اليسار — أي تحت اللوحة تمامًا، عكس المقصود.
+       * والنهاية في RTL هي اليسار الفيزيائي، فالقيمة تُقاس من حافّة اليسار
+       * مباشرةً ولا تعتمد على عرض النافذة.
+       */
+      :root {
+        --brand: #2b7fff;
+        --ink: #0f172b;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #ffffff;
+        font-family: system-ui, sans-serif;
+        min-height: 1200px;
+      }
+
+      .block {
+        position: absolute;
+        inline-size: 200px;
+        block-size: 120px;
+      }
+
+      /* ── 1. لون صريح، بلا شفافية ولا مزج: البكسل = التصريح ─────── */
+      #solid {
+        inset-block-start: 40px;
+        inset-inline-end: 460px;
+        background-color: rgb(255, 0, 0);
+      }
+
+      /* ── 2. متغيّر CSS: الاسم يجب أن يُتتبَّع إلى تعريفه ────────── */
+      #var-bg {
+        inset-block-start: 40px;
+        inset-inline-end: 700px;
+        background-color: var(--brand);
+      }
+
+      /* ── 3. لون خارج مدى sRGB — درجة Tailwind v4 كما هي ────────── */
+      #wide {
+        inset-block-start: 40px;
+        inset-inline-end: 940px;
+        background-color: oklch(72.3% 0.219 149.579); /* green-500 */
+      }
+
+      /* ── 4. تدرّج: `background-color` شفّاف، والبكسل وحده يعرف ──── */
+      #gradient {
+        inset-block-start: 200px;
+        inset-inline-end: 460px;
+        background-image: linear-gradient(90deg, #ff0000 0%, #0000ff 100%);
+      }
+
+      /*
+       * ── 5. طبقة نصف شفّافة فوق لون معتم ───────────────────────
+       * أسود 50% فوق أبيض ⇒ البكسل يجب أن يكون (128,128,128) بالضبط،
+       * بينما `background-color` المصرَّحة `rgba(0,0,0,0.5)`.
+       */
+      #under {
+        inset-block-start: 200px;
+        inset-inline-end: 700px;
+        background-color: rgb(255, 255, 255);
+      }
+      #over {
+        position: absolute;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+
+      /* ── 6. خلفية على جدٍّ لا على العنصر — الصعود لازم ──────────── */
+      #ancestor {
+        inset-block-start: 200px;
+        inset-inline-end: 940px;
+        background-color: rgb(0, 128, 0);
+      }
+      #leaf {
+        position: absolute;
+        inset: 30px;
+        /* بلا خلفية: خلفيته الفعلية على الجدّ */
+        color: rgb(255, 255, 255);
+      }
+
+      /* ── 7. نصّ فوق صورة — التباين يُحسب والحدّ يُعلَن ───────────── */
+      #on-image {
+        inset-block-start: 360px;
+        inset-inline-end: 460px;
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="%23444"/></svg>');
+        color: rgb(200, 200, 200);
+        padding: 16px;
+      }
+
+      /* ── 8. `mix-blend-mode`: لا `getComputedStyle` يعرف الناتج ─── */
+      #blend-base {
+        inset-block-start: 360px;
+        inset-inline-end: 700px;
+        background-color: rgb(255, 255, 0);
+      }
+      #blend-top {
+        position: absolute;
+        inset: 0;
+        background-color: rgb(0, 255, 255);
+        mix-blend-mode: multiply;
+      }
+
+      /* ── 9. حقل قياس المقياس: مربّع بلون فريد عند إحداثية معلومة ── */
+      #probe {
+        inset-block-start: 360px;
+        inset-inline-end: 940px;
+        background-color: rgb(17, 34, 51);
+      }
+
+      /* ── 10. شريط درجات Tailwind — لاختبار التسمية على قيَم حقيقية ── */
+      #swatches {
+        position: absolute;
+        inset-block-start: 520px;
+        inset-inline-end: 460px;
+        display: flex;
+      }
+      #swatches span {
+        inline-size: 80px;
+        block-size: 80px;
+        display: block;
+      }
+      .tw-blue {
+        background-color: oklch(62.3% 0.214 259.815);
+      }
+      .tw-red {
+        background-color: oklch(63.7% 0.237 25.331);
+      }
+      .tw-slate {
+        background-color: oklch(20.8% 0.042 265.755);
+      }
+      .tw-fuchsia {
+        background-color: oklch(66.7% 0.295 322.15);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="block" id="solid"></div>
+    <div class="block" id="var-bg"></div>
+    <div class="block" id="wide"></div>
+
+    <div class="block" id="gradient"></div>
+    <div class="block" id="under"><div id="over"></div></div>
+    <div class="block" id="ancestor"><div id="leaf">نصّ على جدّ</div></div>
+
+    <div class="block" id="on-image">نصّ فوق صورة</div>
+    <div class="block" id="blend-base"><div id="blend-top"></div></div>
+    <div class="block" id="probe"></div>
+
+    <div id="swatches">
+      <span class="tw-blue"></span>
+      <span class="tw-red"></span>
+      <span class="tw-slate"></span>
+      <span class="tw-fuchsia"></span>
+    </div>
+  </body>
+</html>

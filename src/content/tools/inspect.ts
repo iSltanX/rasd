@@ -23,38 +23,16 @@
 
 import { signal, type Signal } from '@preact/signals'
 
-import { resolveAll, type RuleContext, type WinningRule } from '@/modules/computed-style/cascade'
-import {
-  createContainerProbe,
-  disposeContainerProbe,
-  evaluateContainer,
-  evaluateMedia,
-  evaluateScope,
-  evaluateSupports,
-  type ContainerProbe,
-} from '@/modules/computed-style/conditions'
-import { LayerOrder } from '@/modules/computed-style/layer-order'
-import { effectiveSelectors } from '@/modules/computed-style/nesting'
 import { pageOffset, readInspectStyles, readState } from '@/modules/computed-style/read'
-import {
-  entriesForSelector,
-  indexRules,
-  type CssIndex,
-  type IndexedRule,
-} from '@/modules/computed-style/selector-index'
-import {
-  collectSheets,
-  readRules,
-  sheetApplies,
-  sheetsFingerprint,
-  type SheetSource,
-} from '@/modules/computed-style/sheets'
 import { pickAt } from '@/modules/dom-picker/hit-test'
 import { buildSelector, shortLabel } from '@/modules/dom-picker/selector'
 import { traceVariable, type VarTrace } from '@/modules/var-trace/declaration'
 import { INSPECT_PROPS, type InspectSnapshot } from '@/shared/inspect-schema'
 
+import { createCssResolver, firstVarName, type CssResolver } from '../css-resolver'
+
 import type { SyncReason } from '../sync'
+import type { WinningRule } from '@/modules/computed-style/cascade'
 
 /** ما تعرضه اللوحة عن العنصر المثبَّت. */
 export interface InspectDetail {
@@ -74,6 +52,14 @@ export interface InspectState {
 
 export interface InspectOptions {
   doc?: Document
+  /**
+   * حلّال التتالي المشترك.
+   *
+   * يُمرَّر من `content/index.ts` كي تتشارك أداتا الفحص واللون فهرسًا
+   * واحدًا — بناؤه مقيس بـ99.5ms، وبناؤه مرّتين لمستند واحد هدرٌ صرف.
+   * وحين لا يُمرَّر تُنشئ الأداة حلّالها الخاصّ فتبقى مستقلّة في الاختبار.
+   */
+  resolver?: CssResolver
   /** يُبلَّغ عند تثبيت لقطة أو مسحها. */
   onReport?: (snapshot: InspectSnapshot | null) => void
   onInvalidate?: () => void
@@ -98,6 +84,10 @@ export function createInspect(options: InspectOptions = {}): InspectTool {
   const doc = options.doc ?? document
   const win = doc.defaultView ?? window
 
+  /** حلّال خاصّ، كسول — لا يُبنى ما لم يُثبَّت عنصر بلا حلّال مُمرَّر. */
+  let own: CssResolver | null = null
+  const ownResolver = (): CssResolver => (own ??= createCssResolver(doc, win))
+
   const state: InspectState = {
     rect: signal<{ x: number; y: number; width: number; height: number } | null>(null),
     detail: signal<InspectDetail | null>(null),
@@ -108,106 +98,6 @@ export function createInspect(options: InspectOptions = {}): InspectTool {
   let px = -1
   let py = -1
   let dirty = false
-
-  let index: CssIndex | null = null
-  let layers: LayerOrder | null = null
-  let sources: WeakMap<CSSRule, SheetSource> | null = null
-  let probe: ContainerProbe | null = null
-  let blocked: { count: number; origins: string[] } = { count: 0, origins: [] }
-
-  /**
-   * يبني فهرس القواعد لهذا المستند.
-   *
-   * **كسول ومرّة واحدة**: قِيس بناؤه بـ99.5ms على github، وهو ثمن لا يُدفَع
-   * إلا حين يثبّت المستخدم عنصرًا فعلًا. والتمرير يعمل بلا فهرس تمامًا —
-   * القيم المحسوبة والصندوق والمحدِّد كلّها متاحة بدونه.
-   */
-  const ensureIndex = (): CssIndex => {
-    const fingerprint = sheetsFingerprint(doc)
-    if (index && index.fingerprint === fingerprint) return index
-
-    const order = new LayerOrder()
-    const map = new WeakMap<CSSRule, SheetSource>()
-    const entries: IndexedRule[] = []
-    const gaps: { href: string; origin: string }[] = []
-    let n = 0
-
-    for (const entry of collectSheets(doc)) {
-      if (!sheetApplies(entry, win)) continue
-      const read = readRules(entry.sheet)
-      if (read.state === 'blocked') {
-        gaps.push({ href: entry.sheet.href ?? '', origin: read.origin })
-        continue
-      }
-      walk(read.rules, entry.source, order, map, entries, () => n++)
-    }
-
-    blocked = {
-      count: gaps.length,
-      origins: [...new Set(gaps.map((g) => g.origin))].filter(Boolean),
-    }
-    layers = order
-    sources = map
-    index = indexRules(entries, { gaps, fingerprint, complete: true })
-    return index
-  }
-
-  const ctx = (): RuleContext => ({
-    layer: (rule) => layers?.key(layers.qualify(rule)) ?? null,
-    layerPath: (rule) => layers?.qualify(rule) || null,
-    source: (rule) => sources?.get(rule) ?? null,
-    conditionsMatch: (rule, el) => conditionsMatch(rule, el),
-  })
-
-  /** يصعد على آباء القاعدة ويقيّم كل شرط. */
-  const conditionsMatch = (rule: CSSRule, el: Element): boolean => {
-    let node: CSSRule | null = rule
-    let guard = 0
-
-    while (node && guard++ < 64) {
-      const parent: CSSRule | null = node.parentRule
-      const verdict = evaluateOne(node, el)
-      // «لم يُقيَّم» لا يُسقط القاعدة ولا يُثبتها — تُقبَل ويُعلَن الحدّ.
-      if (verdict === false) return false
-      node = parent
-    }
-    return true
-  }
-
-  const evaluateOne = (rule: CSSRule, el: Element): boolean | null => {
-    const r = rule as CSSRule & {
-      media?: MediaList
-      conditionText?: string
-      start?: string | null
-      end?: string | null
-      selectorText?: string
-    }
-
-    if (r.media && typeof r.conditionText === 'string' && !('start' in r)) {
-      const v = evaluateMedia(rule as CSSMediaRule, el)
-      return v.kind === 'matched' ? v.value : null
-    }
-    if (typeof r.conditionText === 'string' && !r.media && !('start' in r)) {
-      // `@supports` و`@container` كلاهما يحمل `conditionText` بلا `media`.
-      const isContainer = 'containerName' in r
-      if (isContainer) {
-        probe ??= createContainerProbe(doc)
-        const v = evaluateContainer(rule as CSSContainerRule, el, probe)
-        return v.kind === 'matched' ? v.value : null
-      }
-      const v = evaluateSupports(rule as CSSSupportsRule, el)
-      return v.kind === 'matched' ? v.value : null
-    }
-    if ('start' in r) {
-      const v = evaluateScope(
-        { start: r.start ?? null, end: r.end ?? null },
-        el,
-        r.selectorText ?? '*',
-      )
-      return v.kind === 'matched' ? v.value : null
-    }
-    return true
-  }
 
   const onPointerMove = (event: PointerEvent): void => {
     if (state.detail.peek()) return // مثبَّت — لا يُعاد الاستهداف.
@@ -247,9 +137,11 @@ export function createInspect(options: InspectOptions = {}): InspectTool {
     const page = pageOffset(el, win)
     const live = readState(el)
 
-    const idx = ensureIndex()
-    const context = ctx()
-    const rules = resolveAll(el, INSPECT_PROPS, idx, context)
+    const resolver = options.resolver ?? ownResolver()
+    const idx = resolver.ensureIndex()
+    const context = resolver.ctx()
+    const blocked = resolver.blocked
+    const rules = resolver.resolve(el, INSPECT_PROPS)
 
     const vars = new Map<string, VarTrace>()
     for (const prop of TRACED) {
@@ -321,43 +213,12 @@ export function createInspect(options: InspectOptions = {}): InspectTool {
 
   const dispose = (): void => {
     reset()
-    if (probe) {
-      disposeContainerProbe(probe)
-      probe = null
-    }
-    index = null
-    layers = null
-    sources = null
+    // الحلّال المُمرَّر ليس ملكنا — يُحرّره من بناه في `content/index.ts`.
+    own?.dispose()
+    own = null
   }
 
   return { state, onPointerMove, onPointerUp, frame, clear, reset, dispose }
 }
 
 /** يمشي على شجرة القواعد ويجمع قواعد الأنماط مفكَّكةَ التداخل. */
-function walk(
-  rules: readonly CSSRule[],
-  source: SheetSource,
-  order: LayerOrder,
-  map: WeakMap<CSSRule, SheetSource>,
-  out: IndexedRule[],
-  next: () => number,
-): void {
-  for (const rule of rules) {
-    map.set(rule, source)
-    order.qualify(rule)
-
-    const style = rule as CSSStyleRule
-    if (typeof style.selectorText === 'string' && style.style) {
-      out.push(...entriesForSelector(style, effectiveSelectors(style), next()))
-    }
-
-    const nested = (rule as CSSGroupingRule).cssRules
-    if (nested) walk(Array.from(nested), source, order, map, out, next)
-  }
-}
-
-/** يستخرج اسم أوّل متغيّر في قيمة مصرَّح بها. */
-function firstVarName(declared: string): string | null {
-  const m = /var\(\s*(--[\w-]+)/.exec(declared)
-  return m ? m[1]! : null
-}

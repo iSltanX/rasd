@@ -35,9 +35,11 @@ import { buildSelector, shortLabel, type SelectorResult } from '@/modules/dom-pi
 import { traceVariable, type VarTrace } from '@/modules/var-trace/declaration'
 import { viewportPoint, type ViewportPoint } from '@/shared/geometry'
 
+import { firstVarName, type CssResolver } from '../css-resolver'
 import { createSampler, LOUPE_CELLS, type Pixel, type Sampler } from '../sampler'
 
 import type { SyncReason } from '../sync'
+import type { WinningRule } from '@/modules/computed-style/cascade'
 
 /** خصائص اللون التي تُقرأ من العنصر تحت المؤشِّر — ترتيب العرض. */
 export const COLOUR_PROPS = [
@@ -121,6 +123,12 @@ export interface EyedropperOptions {
   onInvalidate?: () => void
   /** يُبلَّغ عند تثبيت لون أو مسحه — لتغذية اللوحة والمكتبة. */
   onPin?: (pinned: PinnedColour | null) => void
+  /**
+   * حلّال التتالي المشترك — من `content/index.ts`.
+   *
+   * بدونه تعمل الأداة كاملةً عدا **اسم المتغيّر**: لا يُخمَّن ولا يُختلق.
+   */
+  resolver?: CssResolver
   /** يُستدعى بحقن `Sampler` بديل في الاختبار. */
   sampler?: Sampler
 }
@@ -147,10 +155,32 @@ function differs(a: ColourReading, b: ColourReading): boolean {
   return a.rgb.r !== b.rgb.r || a.rgb.g !== b.rgb.g || a.rgb.b !== b.rgb.b
 }
 
-/** قراءة الخصائص اللونية المصرَّحة، مع تتبّع متغيّراتها. */
-function readDeclared(el: Element, win: Window): DeclaredColour[] {
+/**
+ * قراءة الخصائص اللونية المصرَّحة، مع تتبّع متغيّراتها.
+ *
+ * **التتبّع يبدأ من اسم المتغيّر لا من اسم الخاصّية.** `traceVariable`
+ * يأخذ `--brand` لا `background-color`، والاسم لا يُعرَف إلّا من **القيمة
+ * المصرَّحة** في القاعدة الفائزة — و`getComputedStyle` تُرجع القيمة
+ * **المحسوبة** وقد ذابت فيها كل `var()`. ولذلك يلزم حلّ التتالي، وهو ما
+ * تفعله المرحلة 11 بالضبط. (أوّل تشغيل لـ`verify-colour.mjs` مرّر اسم
+ * الخاصّية فأعاد `varName: 'background-color'` — سلسلةً لمتغيّر لا وجود له.)
+ *
+ * وبلا حلّال لا تتبّع: القيم والألوان تُقرأ كاملة، ويبقى حقل المتغيّر
+ * `null` — نقصُ معلومةٍ معلَن، لا قيمة مخترَعة.
+ */
+function readDeclared(el: Element, win: Window, resolver: CssResolver | null): DeclaredColour[] {
   const cs = win.getComputedStyle(el)
   const out: DeclaredColour[] = []
+
+  let rules: ReadonlyMap<string, WinningRule | null> | null = null
+  if (resolver) {
+    try {
+      rules = resolver.resolve(el, [...COLOUR_PROPS])
+    } catch {
+      // حلّ التتالي يقرأ أوراق الأنماط، وقد ترمي ورقة عابرة للأصل.
+      rules = null
+    }
+  }
 
   for (const prop of COLOUR_PROPS) {
     const computed = cs.getPropertyValue(prop).trim()
@@ -162,13 +192,20 @@ function readDeclared(el: Element, win: Window): DeclaredColour[] {
     // خلفية شفّافة تمامًا ليست معلومة: هي «لا خلفية هنا» لا لونًا مصرَّحًا.
     if (prop === 'background-color' && reading.alpha === 0) continue
 
-    let trace: VarTrace | null
-    try {
-      trace = traceVariable(el, prop, { win })
-    } catch {
-      // التتبّع يلمس أوراق الأنماط، وقد تُرمى `SecurityError` على ورقة
-      // عابرة للأصل. غياب التتبّع لا يجوز أن يُسقط قراءة اللون نفسه.
-      trace = null
+    let trace: VarTrace | null = null
+    const declared = rules?.get(prop)?.declared
+    const name = declared ? firstVarName(declared) : null
+    if (name && resolver) {
+      try {
+        trace = traceVariable(el, name, {
+          win,
+          index: resolver.ensureIndex(),
+          ctx: resolver.ctx(),
+          blocked: resolver.blocked,
+        })
+      } catch {
+        trace = null
+      }
     }
 
     out.push({ prop, computed, reading, trace: trace?.chain.length ? trace : null })
@@ -241,7 +278,7 @@ export function createEyedropper(options: EyedropperOptions = {}): EyedropperToo
     const hit = pickAt(doc, point.x, point.y, options.skip)
     const el = hit?.el ?? null
 
-    const declared = el ? readDeclared(el, win) : []
+    const declared = el ? readDeclared(el, win, options.resolver ?? null) : []
     const background = el ? resolveBackground(el, win) : null
 
     const textColour = declared.find((d) => d.prop === 'color')
@@ -254,8 +291,7 @@ export function createEyedropper(options: EyedropperOptions = {}): EyedropperToo
      * البكسل — لا يُلغى التثبيت ولا يُرجَع لون فارغ.
      */
     const fromCss = event.altKey
-    const cssPick =
-      declared.find((d) => d.prop === 'background-color') ?? textColour ?? declared[0]
+    const cssPick = declared.find((d) => d.prop === 'background-color') ?? textColour ?? declared[0]
     const useCss = fromCss && !!cssPick
     const reading = useCss ? cssPick.reading : pixelReading
     const contrast =

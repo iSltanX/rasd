@@ -13,11 +13,7 @@ import { type TailwindNaming } from '@/modules/colour/tailwind'
 
 import type { PinnedColour } from './tools/eyedropper'
 import type { SheetSource } from '@/modules/computed-style/sheets'
-import type {
-  ColourContrastView,
-  ColourRow,
-  ColourVarView,
-} from '@/ui/overlay/colour/ColourPanel'
+import type { ColourContrastView, ColourRow, ColourVarView } from '@/ui/overlay/colour/ColourPanel'
 
 /**
  * الصيغة المضغوطة المعروضة — الكاملة تُنسخ.
@@ -97,10 +93,7 @@ const VERDICT_TEXT: Record<string, string> = {
  * عند 4.5 وتنجح عند 3 — فقول «فشل» وحده يخفي أنها صالحة للنصّ الكبير،
  * وقول «AA» وحده يكذب. ونصّ الملفّ نفسه يحسمها: «AA للنص الكبير فقط».
  */
-export function contrastView(
-  check: ContrastCheck,
-  assumedWhite: boolean,
-): ColourContrastView {
+export function contrastView(check: ContrastCheck, assumedWhite: boolean): ColourContrastView {
   const ratio = check.wcag.ratio
   const level = check.wcag.level
   const badge =

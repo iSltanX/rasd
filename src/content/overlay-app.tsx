@@ -717,6 +717,16 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
       props.measure.onPointerDown(e)
       return
     }
+    /*
+     * وضع اللون **يبتلع الضغط ولا يمرّره**.
+     *
+     * أداة اللون لا تحتاج `pointerdown` (القراءة عند الإفلات كما في
+     * الفحص)، لكن السقوط إلى `area` هنا ليس حيادًا: معالجه يبدأ سحب تحديد
+     * ويأسر المؤشِّر، فيتغيّر هدف `pointerup` التالي ولا يصل الأداة أبدًا.
+     * قِيس ذلك في `verify-colour.mjs`: صفر تثبيت رغم أن `pointermove`
+     * يصل سليمًا — والفرق أن الحركة لا تمرّ بـ`onDown`.
+     */
+    if (props.mode.value === 'colour') return
     // نقرة على خلفية الطبقة (لا على مقبض ولا على جسم التحديد) تبدأ سحبًا
     // جديدًا. المقابض توقف الانتشار بنفسها.
     if (onBackground(e)) props.area.handlers.onPointerDown(e)
