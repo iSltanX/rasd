@@ -274,7 +274,7 @@
 
   <div class="progress-block">
     <div class="progress-head">
-      <span><b class="num" id="doneCount">11</b> من <b class="num">28</b> مرحلة مغلقة</span>
+      <span><b class="num" id="doneCount">12</b> من <b class="num">28</b> مرحلة مغلقة</span>
       <span id="progressPct" class="num" style="color:var(--ink-faint)"></span>
     </div>
     <div class="progress-track">
@@ -418,20 +418,22 @@
      deps:[6,9], adrs:['0012'], legacy:[], orderNote:'يبدأ الترتيب التنفيذي المعتمد بعدها مباشرةً — لا اعتماد أماميًّا يسبق المرحلة 12 (ADR 0013).'},
 
     {n:12, title:'محرك القياس', section:'الفحص', model:'Sonnet', version:'v1.0',
-     status:'next', date:null, hash:null, artifact:null,
-     oneliner:'قياس بصري لكل ما يحتاجه مراجع الواجهة: أبعاد، مسافات، حشوات، محاذاة، إحداثيات.',
-     units:['src/modules/measure/','src/content/tools/measure.ts','src/ui/panels/measure/'],
-     completion:['كل أنواع القياس في §5.5 و§7.3 تعمل','الأرقام دقيقة عند transform وzoom','الالتقاط اللحظي يعمل ويُعطَّل بـ⌥','معيار اللغة الموحَّد (§3.5)'],
-     deps:[6,9,11], adrs:['0012'], legacy:[{dir:'in', text:'بند افتتاحي موروث من المرحلة 9 (البند 51): فرعا التقاط العنصر الغائبان والتمرير التلقائي.'},
-             {dir:'in', text:'قرار شكل حزمة content script (IIFE أحادية مقابل تقسيم كسول) يُحسم هنا — لا في المرحلة 24.'}],
-     orderNote:'التالية — لا اعتماد أماميًّا يسبقها.'},
+     status:'done', date:'2026-08-30', hash:'d2652b7', artifact:ART+'57ebb141-3584-4f0d-acb4-68947edbe217',
+     oneliner:'قياس بصري لكل ما يحتاجه مراجع الواجهة: أبعاد، مسافات في أربعة اتجاهات وأقربها، محاذاة، قياس حرّ، التقاط لحظي.',
+     units:['src/modules/measure/ (distance · alignment · snap · units)','src/content/tools/measure.ts','src/ui/overlay/MeasureGap.tsx و AlignGuide.tsx'],
+     completion:['كل أنواع القياس تعمل ومُختبَرة (80 اختبارًا)','الأرقام دقيقة عند transform وzoom — مُثبَت حيًّا على عنصر scale(2)','الالتقاط اللحظي يعمل ويُعطَّل بـ⌥ — مُثبَت حيًّا','⚠️ فضاءا page/device غير موصولين بواجهة بعد (viewport فقط)'],
+     deps:[6,9,11], adrs:['0012'],
+     legacy:[{dir:'in', text:'البند 51 (المرحلة 9): فرعان نُفِّذا (تمرير تلقائي بالمشي، تمرير-ثم-التقاط)؛ الفرع الثالث (oversized) مؤجَّل صراحةً إلى 22 — يحتاج عقد رسائل جديدًا.'},
+             {dir:'in', text:'قرار شكل الحزمة: تبقى IIFE أحادية (+8.9KB فقط) — لا تقسيم كسول، محجوز لـ15/17/14 في المرحلة 24.'},
+             {dir:'out', text:'البند 56 (جديد، §6): عطل مُكتشَف عرَضًا في host.ts (المرحلة 6) — حقن ثانٍ يُسكِت التفاعل صامتًا (toPublic() ناقصة سطر). مُثبَت باختبار، مؤجَّل الإصلاح إلى 20 أو 22.'}],
+     orderNote:null},
 
     {n:13, title:'محرك الألوان: الاختيار والصيغ والتباين', section:'الفحص', model:'Opus', version:'MVP',
-     status:'pending', date:null, hash:null, artifact:null,
+     status:'next', date:null, hash:null, artifact:null,
      oneliner:'دقّة اختيار اللون وربطه بمصدره — بعدسة مكبِّرة، وصيغ HEX/RGB/HSL/OKLCH، وتباين WCAG وAPCA معًا.',
      units:['src/modules/colour/','src/modules/colour/contrast.ts','src/content/tools/eyedropper.ts'],
      completion:['الصيغ الخمس صحيحة ومُتحقَّق منها','WCAG وAPCA يطابقان المتجهات المرجعية','معيار اللغة الموحَّد (§3.5)'],
-     deps:[6,8,11], adrs:[], legacy:[], orderNote:null},
+     deps:[6,8,11], adrs:[], legacy:[], orderNote:'التالية — لا اعتماد أماميًّا يسبقها.'},
 
     {n:14, title:'اللوحات والدرجات والاستبدال المؤقت', section:'الفحص', model:'Opus', version:'v1.0',
      status:'pending', date:null, hash:null, artifact:null,
@@ -607,9 +609,10 @@
 
   function renderStats(){
     var el = document.getElementById('stats');
+    var next = PHASES.find(function(p){return p.status==='next';});
     var items = [
       ['مكتملة', toIndic(done)+' / '+toIndic(28), true],
-      ['التالية', 'المرحلة 12', false],
+      ['التالية', next ? ('المرحلة '+next.n) : '—', false],
       ['Opus 5', toIndic(opusCount)+' مرحلة', false],
       ['Sonnet 5', toIndic(sonnetCount)+' مرحلة', false],
       ['بوّابة MVP', 'بعد 20', false],
