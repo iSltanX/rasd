@@ -122,16 +122,79 @@ export async function putCaptureWithBlob(
   })
 }
 
-/** يحذف اللقطة وبايتاتها معًا — لا بايتات يتيمة تستهلك الحصّة. */
+/**
+ * يحذف اللقطة وبايتاتها **ومشهد تعليقها** معًا.
+ *
+ * الثالث أُضيف في المرحلة 15، وأثره أمني لا تنظيمي: مشهدُ تعليق يصف مواضع
+ * الحجب («تغطية عند س,ص») يبقى بعد زوال صورته، فيصف ما كان حسّاسًا في لقطة
+ * لم تعد موجودة. والسجلّ اليتيم لا يظهر في أي واجهة، فلا أحد يحذفه يدويًّا.
+ */
 export async function deleteCaptureWithBlob(id: string): Promise<Result<null>> {
   return withDb(async (db) => {
-    const tx = db.transaction(['captures', 'blobs'], 'readwrite')
+    const tx = db.transaction(['captures', 'blobs', 'annotations'], 'readwrite')
     await Promise.all([
       tx.objectStore('captures').delete(id),
       tx.objectStore('blobs').delete(id),
+      tx.objectStore('annotations').delete(id),
       tx.done,
     ])
     return null
+  })
+}
+
+/** نتيجة كتابة مشروطة — التمييز بين «كُتب» و«سبقني غيري» لا يُبتلع. */
+export type ConditionalWrite<K> =
+  { readonly written: true; readonly key: K } | { readonly written: false }
+
+/**
+ * كتابة مشروطة بأن السجلّ لم يتغيّر — **منعُ تعارض لا كشفُه**.
+ *
+ * المشكلة حقيقية لا نظرية: المحرر صفحة إضافة، ولا شيء يمنع فتح تبويبين على
+ * اللقطة نفسها. و`put` كتابةٌ عمياء، فآخر كاتب يفوز **صمتًا** وتضيع جلسة
+ * كاملة بلا رسالة.
+ *
+ * والحلّ أن تقع القراءة والمقارنة والكتابة داخل **معاملة `readwrite`
+ * واحدة**. معاملات IndexedDB مُسلسَلة على المخزن الواحد، فالدورة كاملةً
+ * ذرّية — وهذا مقارنةٌ-وتبديل حقيقي. أمّا دورة موزَّعة على ثلاث معاملات
+ * فلا تضمن شيئًا: التبويب الآخر يكتب بين قراءتنا وكتابتنا.
+ *
+ * `expected === null` يعني: توقّعتُ ألّا يكون السجلّ موجودًا (أوّل حفظ).
+ */
+export async function putIfUnchanged<S extends StoreName>(
+  store: S,
+  key: RasdDB[S]['key'],
+  value: RasdDB[S]['value'],
+  expected: number | null,
+  read: (record: RasdDB[S]['value']) => number,
+  sizeHint = 0,
+): Promise<Result<ConditionalWrite<RasdDB[S]['key']>>> {
+  const guard = await guardWrite(sizeHint)
+  if (!guard.ok) return guard
+
+  return withDb(async (db) => {
+    const tx = db.transaction(store, 'readwrite')
+    const current = await tx.store.get(key)
+
+    const actual = current === undefined ? null : read(current)
+    if (actual !== expected) {
+      /*
+       * الإجهاض صريح: ترك المعاملة تنتهي بلا كتابة يعمل، لكنه يترك القارئ
+       * يظنّ أن شيئًا كُتب.
+       *
+       * و`tx.done` **يُنتظَر ويُبتلَع رفضه**: `idb` يرفض ذلك الوعد بـ
+       * `AbortError` عند الإجهاض، وتركه بلا معالج يعطي رفضًا غير ملتقَط —
+       * لا يُسقط العملية لكنه يُسقط أي عدّاد أخطاء عامّ، ويظهر ضجيجًا في
+       * سجلّ الاختبارات وفي وحدة التحكّم عند المستخدم. والإجهاض هنا **نتيجة
+       * متوقَّعة** لا عطل.
+       */
+      tx.abort()
+      await tx.done.catch(() => undefined)
+      return { written: false } as const
+    }
+
+    const written = await tx.store.put(value)
+    await tx.done
+    return { written: true, key: written } as const
   })
 }
 

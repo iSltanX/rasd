@@ -44,7 +44,9 @@ const STATUS_BY_STATE: Record<PopupStateName, (l: Loaded) => string> = {
 export function Popup(): JSX.Element | null {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [dismissedOffline, setDismissedOffline] = useState(false)
-  const [success, setSuccess] = useState<{ width: number; height: number } | null>(null)
+  const [success, setSuccess] = useState<{ width: number; height: number; id?: string } | null>(
+    null,
+  )
   const [liveProgress, setLiveProgress] = useState<{ done: number; total: number } | null>(null)
   const [online, setOnline] = useState(navigator.onLine)
 
@@ -71,9 +73,16 @@ export function Popup(): JSX.Element | null {
         if (message.kind === 'progress') {
           setLiveProgress({ done: message.done, total: message.total })
         } else if (message.kind === 'done') {
-          const result = message.result as { width?: unknown; height?: unknown } | undefined
+          const result = message.result as
+            { width?: unknown; height?: unknown; id?: unknown } | undefined
           if (typeof result?.width === 'number' && typeof result.height === 'number') {
-            setSuccess({ width: result.width, height: result.height })
+            // المعرّف يُقرأ إن وُجد كي يفتح زرّ «تعليق» اللقطة التي التُقطت
+            // للتوّ لا محرّرًا فارغًا. وغيابه لا يُسقط حالة النجاح.
+            setSuccess({
+              width: result.width,
+              height: result.height,
+              ...(typeof result.id === 'string' ? { id: result.id } : {}),
+            })
           }
         } else if (message.kind === 'failed') {
           setLiveProgress(null)
@@ -133,9 +142,26 @@ export function Popup(): JSX.Element | null {
     void send('page/open', { page }).then(() => window.close())
   }
 
+  /**
+   * يفتح المحرر **على لقطة بعينها**.
+   *
+   * المعرّف كان يُسقَط: `Default` يمرّره في `onOpenRecent(record.id)` منذ
+   * المرحلة 7، والمستقبِل يتجاهله. فالمحرر — حين وُجد — كان سيُفتح فارغًا
+   * دائمًا. والمعامل يمرّ استعلامًا يبنيه الخلفية.
+   */
+  const openEditor = (captureId: string) => {
+    void send('page/open', { page: 'editor', params: { capture: captureId } }).then(() =>
+      window.close(),
+    )
+  }
+
   const successActions: SuccessAction[] = [
     { icon: 'split-view', label: 'مقارنة', onClick: () => runTool('compare') },
-    { icon: 'pen', label: 'تعليق', onClick: () => openPage('editor') },
+    {
+      icon: 'pen',
+      label: 'تعليق',
+      onClick: () => (success?.id ? openEditor(success.id) : openPage('editor')),
+    },
     { icon: 'share', label: 'رابط مشاركة', onClick: () => undefined },
     { icon: 'copy', label: 'نسخ', onClick: () => undefined },
   ]
@@ -172,7 +198,7 @@ export function Popup(): JSX.Element | null {
             <Default
               onTool={runTool}
               recent={loaded.recent}
-              onOpenRecent={() => openPage('editor')}
+              onOpenRecent={openEditor}
               onOpenLibrary={() => openPage('library')}
             />
           )
@@ -244,7 +270,7 @@ export function Popup(): JSX.Element | null {
           <Default
             onTool={runTool}
             recent={loaded.recent}
-            onOpenRecent={() => openPage('editor')}
+            onOpenRecent={openEditor}
             onOpenLibrary={() => openPage('library')}
           />
         )

@@ -223,9 +223,20 @@ function registerRequestHandlers() {
     return { id: record.id }
   })
 
-  onMessage('page/open', async ({ page, active }) => {
+  onMessage('page/open', async ({ page, active, params }) => {
+    /*
+     * المعاملات تُلحَق استعلامًا، و`URLSearchParams` هي التي ترمّزها — لا
+     * تسلسل يدوي. معرّف اللقطة `crypto.randomUUID()` فلا يحتاج ترميزًا
+     * اليوم، لكن الرسالة عقد عامّ: أوّل معامل يحمل مسافة أو `&` يكسر
+     * العنوان بصمت لو بُني بالضمّ.
+     *
+     * **والتبويب يُفتح نشِطًا افتراضيًّا** — وهذا شرط عملي لا تفضيل: نسخ
+     * الصورة إلى الحافظة من المحرر يشترط مستندًا **مركَّزًا**، والفتح
+     * بـ`active: false` يعطي `NotAllowedError` (ADR 0009).
+     */
+    const query = params ? `?${new URLSearchParams(params).toString()}` : ''
     const tab = await chrome.tabs.create({
-      url: chrome.runtime.getURL(PAGE_PATHS[page]),
+      url: chrome.runtime.getURL(`${PAGE_PATHS[page]}${query}`),
       active: active ?? true,
     })
     return { tabId: tab.id ?? -1 }

@@ -167,7 +167,15 @@ export interface RequestMap {
   'inspect/report': { snapshot: InspectSnapshot | null }
   /** تقرأ آخر لقطة مثبَّتة لتبويب. */
   'inspect/get': { tabId: number }
-  'page/open': { page: PageName; active?: boolean }
+  /**
+   * `params` أُضيف في المرحلة 15.
+   *
+   * لا طريق قبله لفتح المحرر على لقطة بعينها: `Popup.tsx` يحمل معرّف اللقطة
+   * ويُسقطه عند النداء. والمعاملات تُبنى استعلامًا فوق مسار الصفحة في
+   * الخلفية، لأن الصفحة لا تملك `chrome.runtime.getURL` بمسار مطلق موثوق قبل
+   * أن تُفتح.
+   */
+  'page/open': { page: PageName; active?: boolean; params?: Record<string, string> }
   'offscreen/ensure': void
   'offscreen/close': void
 }
