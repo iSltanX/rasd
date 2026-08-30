@@ -11,6 +11,7 @@
 
 import { signal } from '@preact/signals'
 
+import { toCss, toJson, toTailwindText } from '@/modules/style-export/css'
 import { onMessage, send } from '@/shared/messaging'
 import { isMode, type Mode } from '@/shared/modes'
 import { errWith, ok, type RasdError, type Result } from '@/shared/result'
@@ -33,6 +34,7 @@ import {
   prepareFullPage,
   stepFullPage,
 } from './tools/full-page'
+import { createInspect } from './tools/inspect'
 
 import type { AreaSelectTool } from './tools/area-select'
 
@@ -94,12 +96,14 @@ export async function startOverlay(
       // أداة العنصر تُعلَّق على هذه الحلقة لا على حلقة ثانية: الحلقة الثانية
       // تأخذ لقطة إحداثيات مستقلّة عن هذه فتتناقضان داخل الإطار الواحد.
       elementTool?.frame(reasons)
+      inspectTool?.frame(reasons)
       options.onFrame?.(space)
     },
   })
 
-  // تُسنَد بعد إنشاء الأداة: الحلقة تبدأ قبلها، والأداة تحتاج `host`.
+  // تُسنَد بعد إنشاء الأدوات: الحلقة تبدأ قبلها، وهي تحتاج `host`.
   let elementTool: ElementHoverTool | null = null
+  let inspectTool: ReturnType<typeof createInspect> | null = null
 
   const stopDpr = watchDpr(() => sync.invalidate('dpr'), win)
 
@@ -220,12 +224,54 @@ export async function startOverlay(
     },
   })
 
+  /**
+   * أداة الفحص.
+   *
+   * **بلا `skip`**: المضيف يبقى `pointer-events: none` في هذا الوضع، فلا
+   * يتصدّر اختبار الإصابة أصلًا — قِيس أن غيابه عن `elementsFromPoint` فوق
+   * الصفحة هو ما يُبقي `:hover` صادقة، وهو الشرط الذي يمنع محرّك التتالي
+   * من الكذب.
+   */
+  const inspect = createInspect({
+    doc,
+    onInvalidate: () => sync.invalidate('pointer'),
+    onReport: (snapshot) => void send('inspect/report', { snapshot }),
+  })
+
   elementTool = element
+  inspectTool = inspect
+
+  /**
+   * ينسخ مخرَج الفحص إلى الحافظة.
+   *
+   * الحدود تُكتب في النصّ المنسوخ نفسه لا في اللوحة وحدها: المستخدم يلصقه
+   * في مكان آخر، فيجب أن يحمل معه ما لم نجزم به.
+   */
+  const copyInspect = (
+    tool: ReturnType<typeof createInspect>,
+    kind: 'css' | 'tailwind' | 'json',
+  ) => {
+    const detail = tool.state.detail.peek()
+    if (!detail) return
+    const rootPx = Number.parseFloat(win.getComputedStyle(doc.documentElement).fontSize) || 16
+    const text =
+      kind === 'css'
+        ? toCss(detail.snapshot)
+        : kind === 'tailwind'
+          ? toTailwindText(detail.snapshot, rootPx)
+          : JSON.stringify(toJson(detail.snapshot, rootPx), null, 2)
+
+    void navigator.clipboard?.writeText(text).catch(() => {
+      console.warn('[رصد] تعذّر نسخ مخرَج الفحص إلى الحافظة.')
+    })
+  }
 
   const app = mountOverlayApp(host.layer, {
     mode: modes.mode,
     area,
     element,
+    inspect,
+    onCopyInspect: (kind) => copyInspect(inspect, kind),
     fullPage,
     onCancelFullPage: () => void send('fullpage/cancel', undefined),
     space: spaceSignal,
@@ -243,12 +289,25 @@ export async function startOverlay(
    * فالنقر على رابط يغادرها قبل أن نلتقط؛ وأنماط `:hover` الخاصّة بها تشتغل
    * تحت المؤشِّر فتُغيّر العنصر الذي يفحصه المستخدم قبل التقاطه.
    */
+  /*
+   * **وضع الفحص ليس فيها عمدًا.**
+   *
+   * الدرع يعطّل `:hover` و`:active` على الصفحة تحته — قِيس أن
+   * `matches(':hover')` يصير `false` والمؤشِّر فوق العنصر فعلًا. ومحرّك
+   * التتالي يقرأ تلك الحالات، فيُعلن قاعدة `:hover` غير فائزة وهي التي
+   * تفوز. أي أن رفع الدرع في الفحص يجعل الفاحص **يكذب**.
+   *
+   * وبديله «الدرع الجزئيّ»: المضيف `none`، ولوحة الفحص وحدها تعلن
+   * `pointer-events: auto` لنفسها في `overlay.css` — وهو نمط
+   * `.rasd-ov-place` القائم منذ المرحلة 9.
+   */
   const INTERACTIVE_MODES = new Set<Mode>(['area', 'element'])
 
   const unsubscribeInteractive = modes.subscribe((mode) => {
     host.setInteractive(INTERACTIVE_MODES.has(mode))
     if (mode !== 'area') area.reset()
     if (mode !== 'element') element.reset()
+    if (mode !== 'inspect') inspect.reset()
   })
   host.setInteractive(INTERACTIVE_MODES.has(modes.mode.value))
 
@@ -386,6 +445,7 @@ export async function startOverlay(
     space: () => space,
     area,
     element,
+    inspect,
     lastCapture: () => lastCapture,
     teardown,
   })

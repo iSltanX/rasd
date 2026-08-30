@@ -9,6 +9,7 @@
  */
 
 import type { DeviceRect } from '../geometry'
+import type { InspectSnapshot } from '../inspect-schema'
 import type { PageName } from '../page-paths'
 import type { RestrictionReason } from '../restricted'
 import type { CaptureKind } from '../storage/schema'
@@ -128,6 +129,16 @@ export interface RequestMap {
    * `Esc` في الصفحة وزرّ الإلغاء في اللوحة كلاهما يمرّ من هنا.
    */
   'fullpage/cancel': void
+  /**
+   * تُبلّغ الخلفية بلقطة فحص مثبَّتة.
+   *
+   * **عند التثبيت وحده لا عند التمرير**: التمرير يتغيّر عشر مرّات في
+   * الثانية، وبثّ لقطة كاملة بكل واحدة يُغرق القناة بلا فائدة — النافذة لا
+   * تُعرَض أثناء التمرير أصلًا.
+   */
+  'inspect/report': { snapshot: InspectSnapshot | null }
+  /** تقرأ آخر لقطة مثبَّتة لتبويب. */
+  'inspect/get': { tabId: number }
   'page/open': { page: PageName; active?: boolean }
   'offscreen/ensure': void
   'offscreen/close': void
@@ -169,6 +180,8 @@ export interface ResponseMap {
   'fullpage/step': FullPageStep
   'fullpage/finish': { restored: boolean }
   'fullpage/cancel': { cancelled: boolean }
+  'inspect/report': { ok: true }
+  'inspect/get': { snapshot: InspectSnapshot | null }
   'page/open': { tabId: number }
   'offscreen/ensure': { created: boolean }
   'offscreen/close': { closed: boolean }

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>عيّنة التتالي والمتغيّرات</title>
+    <style>
+      /* ── طبقات متداخلة: محتوى الطبقة يقع بعد فروعها ───────────── */
+      @layer outer {
+        @layer inner {
+          #layered {
+            color: rgb(1, 1, 1);
+          }
+        }
+      }
+      @layer outer {
+        /* هذه تفوز — والقائمة المسطّحة تعطي inner خطأً */
+        #layered {
+          color: rgb(2, 2, 2);
+        }
+      }
+
+      /* ── ‏!important يعكس مقارنة الطبقات ──────────────────────── */
+      @layer base {
+        #reversed {
+          color: rgb(3, 3, 3) !important;
+        }
+      }
+      #reversed {
+        color: rgb(4, 4, 4) !important;
+      }
+
+      /* ── متغيّرات: جذر ← وسيط ← عنصر ──────────────────────────── */
+      :root {
+        --brand: #00e3c9;
+        --alias: var(--brand);
+      }
+      #mid {
+        --brand: #ff5577;
+      }
+
+      #var-root {
+        color: var(--brand);
+      }
+      #var-mid {
+        color: var(--brand);
+      }
+      #var-chain {
+        color: var(--alias);
+      }
+      #var-fallback {
+        color: var(--missing, #123456);
+      }
+
+      /* ── أولوية: ‏:where صفر ──────────────────────────────────── */
+      :where(#w, .w) {
+        outline-color: rgb(5, 5, 5);
+      }
+      .w {
+        outline-color: rgb(6, 6, 6);
+      }
+
+      /* ── تداخل ‏&‎ ─────────────────────────────────────────────── */
+      #nest {
+        color: rgb(7, 7, 7);
+        & .child {
+          color: rgb(8, 8, 8);
+        }
+      }
+
+      /* ── شرط لا يطابق: لا يجوز أن يفوز ───────────────────────── */
+      @media (min-width: 99999px) {
+        #cond {
+          color: rgb(9, 9, 9);
+        }
+      }
+      #cond {
+        color: rgb(10, 10, 10);
+      }
+
+      /* ── ‏@supports مطابق ─────────────────────────────────────── */
+      @supports (display: grid) {
+        #sup {
+          color: rgb(11, 11, 11);
+        }
+      }
+
+      /* ── تهريب رقمي في اسم الصنف ─────────────────────────────── */
+      .\32 xl\:flex {
+        color: rgb(12, 12, 12);
+      }
+
+      body {
+        font-family: system-ui;
+        padding: 20px;
+      }
+      div {
+        margin-block-end: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="layered">طبقات متداخلة</div>
+    <div id="reversed">‏!important معكوس</div>
+    <div id="var-root">متغيّر من الجذر</div>
+    <div id="mid"><div id="var-mid">متغيّر من وسيط</div></div>
+    <div id="var-chain">سلسلة متغيّرات</div>
+    <div id="var-fallback">احتياطي</div>
+    <div id="w" class="w">‏:where صفر</div>
+    <div id="nest">
+      تداخل
+      <div class="child">ابن</div>
+    </div>
+    <div id="cond">شرط غير مطابق</div>
+    <div id="sup">‏@supports</div>
+    <div class="2xl:flex">تهريب رقمي</div>
+    <div id="inline" style="color: rgb(13, 13, 13)">نمط سطري</div>
+  </body>
+</html>

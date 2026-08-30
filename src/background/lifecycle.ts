@@ -13,7 +13,13 @@
 import { runCapture } from '@/background/capture-service'
 import { activateTool } from '@/background/commands'
 import { isIncognitoContext, VERSION } from '@/shared/env'
-import { CHANNELS, onMessage, openPortCount, serveChannel } from '@/shared/messaging'
+import {
+  broadcastChannel,
+  CHANNELS,
+  onMessage,
+  openPortCount,
+  serveChannel,
+} from '@/shared/messaging'
 import { PAGE_PATHS } from '@/shared/page-paths'
 import { checkInjectable } from '@/shared/restricted'
 import { RasdThrow } from '@/shared/result'
@@ -25,6 +31,8 @@ import { blobs } from '@/shared/storage/repository'
 import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
 import { cancelFullPage } from './full-page-job'
+
+import type { InspectSnapshot } from '@/shared/inspect-schema'
 
 /** اسم منبّه الحارس. */
 const WATCHDOG_ALARM = 'rasd:watchdog'
@@ -40,6 +48,7 @@ export function registerLifecycle() {
   registerRequestHandlers()
   registerChannels()
   registerFullPage()
+  registerInspect()
   registerWatchdog()
   void syncIncognitoPolicy()
 }
@@ -177,6 +186,37 @@ function registerRequestHandlers() {
   })
 }
 
+/**
+ * آخر لقطة فحص مثبَّتة، لكل تبويب.
+ *
+ * **في الذاكرة لا في التخزين**: اللقطة محتوى صفحة المستخدم (محدِّدات وقيم
+ * وألوان)، وحفظها على القرص يجعلها تنجو من الجلسة بلا سبب. وهي تُمسَح مع
+ * إنهاء الـservice worker، وهو بالضبط عمرها الصحيح.
+ */
+const inspectByTab = new Map<number, InspectSnapshot>()
+
+function registerInspect() {
+  onMessage('inspect/report', ({ snapshot }, { tabId }) => {
+    if (typeof tabId === 'number') {
+      if (snapshot) inspectByTab.set(tabId, snapshot)
+      else inspectByTab.delete(tabId)
+    }
+    // البثّ إلى كل عميل مشترك — النافذة قد تُفتح بعد التثبيت.
+    broadcastChannel(CHANNELS.inspect, {
+      kind: 'progress',
+      done: snapshot ? 1 : 0,
+      total: 1,
+      ...(snapshot ? { note: snapshot.selector } : {}),
+    })
+    return { ok: true } as const
+  })
+
+  onMessage('inspect/get', ({ tabId }) => ({ snapshot: inspectByTab.get(tabId) ?? null }))
+
+  // التبويب أُغلق ⇒ لقطته تذهب معه.
+  chrome.tabs.onRemoved.addListener((tabId) => inspectByTab.delete(tabId))
+}
+
 function registerFullPage() {
   // الإلغاء من الصفحة: `Esc` أو زرّ اللوحة. الاستعادة تقع في `finally`
   // داخل الحلقة، فالردّ هنا لا يعني أن الصفحة استُعيدت بعد.
@@ -204,8 +244,10 @@ function registerChannels() {
     }
   })
 
+  // بثّ حالة الفحص — المرحلة 11 هي أوّل من يملؤها.
   serveChannel(CHANNELS.inspect, () => {
-    // بثّ حالة الفحص — المرحلة 6.
+    // لا رسائل صاعدة على هذه القناة: البثّ من الصفحة إلى بقيّة الإضافة
+    // وحده، عبر `inspect/report`.
   })
 }
 

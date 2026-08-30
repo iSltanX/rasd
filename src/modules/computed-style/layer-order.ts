@@ -109,11 +109,21 @@ const anonymousNames = new WeakMap<CSSRule, string>()
 
 function layerNameOf(rule: CSSRule): string | null {
   /*
-   * لا `instanceof`: قيس أن `rule.type` يساوي صفرًا لستّة أنواع متمايزة
+   * **الخاصّية اسمها `name` لا `layerName`.**
+   *
+   * قيس في Chrome 151: `CSSLayerBlockRule` يعرض `name`، و
+   * `'layerName' in CSSLayerBlockRule.prototype` يساوي **`false`**. وقراءة
+   * الاسم الخطأ لا تُسقط شيئًا ولا ترمي — تُرجع `undefined` فيصير كل
+   * إعلان «خارج الطبقات»، فيسقط ترتيب الطبقات إلى ترتيب المستند **صامتًا**
+   * ويعطي الجواب الصحيح بالمصادفة أحيانًا. أمسكه `verify-inspect.mjs`
+   * حين لاحظ أن الطبقة المبلَّغة `null` لعنصر داخل `@layer`.
+   *
+   * ولا `instanceof`: قيس أن `rule.type` يساوي صفرًا لستّة أنواع متمايزة
    * (‎LayerStatement · LayerBlock · NestedDeclarations · Container · Scope ·
    * Property)، والبناء قد يجري في بيئة بلا هذه الأصناف أصلًا.
    */
-  const name = (rule as { layerName?: unknown }).layerName
+  const r = rule as { name?: unknown; layerName?: unknown }
+  const name = typeof r.name === 'string' ? r.name : r.layerName
   if (typeof name !== 'string') return null
   if (name) return name
 

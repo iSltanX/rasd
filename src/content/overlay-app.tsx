@@ -17,11 +17,21 @@ import { useEffect } from 'preact/hooks'
 import { describeRatio, HANDLES, handlePoint } from '@/modules/capture/selection'
 import { viewportRect, viewportRectToDevice, type CoordSpace } from '@/shared/geometry'
 import { send } from '@/shared/messaging'
-import { ElementHover, FullPageStatus, type QuickAction } from '@/ui/overlay'
+import {
+  ElementHover,
+  FullPageStatus,
+  InspectIdle,
+  InspectPanel,
+  type QuickAction,
+} from '@/ui/overlay'
 import { AreaSelect, Countdown, type HandleSpot } from '@/ui/overlay/AreaSelect'
+import { at, box } from '@/ui/overlay/geometry'
+
+import { buildGroups } from './inspect-view'
 
 import type { AreaSelectTool } from './tools/area-select'
 import type { ElementHoverTool } from './tools/element-hover'
+import type { InspectTool } from './tools/inspect'
 import type { Mode } from '@/shared/modes'
 import type { Signal } from '@preact/signals'
 import type { JSX } from 'preact'
@@ -51,6 +61,9 @@ export interface OverlayAppProps {
   mode: Signal<Mode>
   area: AreaSelectTool
   element: ElementHoverTool
+  inspect: InspectTool
+  /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة الفحص. */
+  onCopyInspect?: (kind: 'css' | 'tailwind' | 'json') => void
   /**
    * تقدّم الالتقاط الكامل — `null` يعني لا مهمّة.
    *
@@ -77,7 +90,10 @@ function AreaLayer({
   delaySeconds,
   pendingViewport,
   onCapture,
-}: Omit<OverlayAppProps, 'mode' | 'element' | 'fullPage' | 'onCancelFullPage'>) {
+}: Omit<
+  OverlayAppProps,
+  'mode' | 'element' | 'inspect' | 'onCopyInspect' | 'fullPage' | 'onCancelFullPage'
+>) {
   const countdown = useSignal<number | null>(null)
 
   const rect = area.state.rect.value
@@ -275,6 +291,68 @@ function FullPageLayer({
   )
 }
 
+/**
+ * `17 — Inspect` — الإبراز واللوحة.
+ *
+ * **بلا درع**: المضيف يبقى `pointer-events: none` كي تبقى `:hover` صادقة
+ * على الصفحة تحته، واللوحة وحدها تعلن `auto` لنفسها. قِيس أن الدرع الكامل
+ * يجعل `matches(':hover')` كاذبًا فيُعلن محرّك التتالي قاعدة `:hover` غير
+ * فائزة وهي التي تفوز — أي أن الفاحص يكذب.
+ */
+function InspectLayer({
+  inspect,
+  space,
+  onCopy,
+}: {
+  inspect: InspectTool
+  space: Signal<CoordSpace>
+  onCopy?: (kind: 'css' | 'tailwind' | 'json') => void
+}) {
+  const detail = inspect.state.detail.value
+  const rect = inspect.state.rect.value
+  const s = space.value
+
+  return (
+    <>
+      {!detail && rect ? (
+        <div
+          class="rasd-ov-place rasd-ov-elhl"
+          style={box(viewportRect(rect.x, rect.y, rect.width, rect.height))}
+          data-rasd-ov="inspect-highlight"
+        />
+      ) : null}
+
+      <div
+        class="rasd-ov-place"
+        style={at({ x: PANEL_INSET, y: PANEL_TOP })}
+        data-rasd-ov="inspect-dock"
+      >
+        {detail ? (
+          <InspectPanel
+            snapshot={detail.snapshot}
+            groups={buildGroups(detail)}
+            onClose={() => inspect.clear()}
+            {...(onCopy ? { onCopy } : {})}
+          />
+        ) : (
+          <InspectIdle />
+        )}
+      </div>
+      {/* الإحداثيات تُقرأ كي تشترك الطبقة في تغيّر المقاس. */}
+      <span hidden data-w={s.layoutWidth} />
+    </>
+  )
+}
+
+/**
+ * مرساة اللوحة — الركن الأعلى الأيسر بإحداثيات فيزيائية.
+ *
+ * الملفّ يضعها عند (40, 64) في إطار 1440×900، **يسارًا رغم أن المحتوى
+ * عربي**: فضاء الطبقة فيزيائي، والمحتوى داخل اللوحة هو ما يُقلَب.
+ */
+const PANEL_INSET = 40
+const PANEL_TOP = 64
+
 function OverlayApp(props: OverlayAppProps): JSX.Element | null {
   /*
    * لوحة الالتقاط الكامل تُرسَم **فوق** ما تعرضه الأوضاع لا بدلًا منه:
@@ -291,6 +369,17 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
 
   // القراءة داخل المكوّن هي ما يشترك في الإشارة — لا `subscribe` يدوي.
   const mode = props.mode.value
+  if (mode === 'inspect')
+    return (
+      <>
+        <InspectLayer
+          inspect={props.inspect}
+          space={props.space}
+          {...(props.onCopyInspect ? { onCopy: props.onCopyInspect } : {})}
+        />
+        {job}
+      </>
+    )
   if (mode === 'element')
     return (
       <>
@@ -360,6 +449,61 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
   layer.addEventListener('pointerup', onUp)
   layer.addEventListener('pointercancel', onUp)
 
+  /*
+   * ── وضع الفحص: مستمعات على `window` لا على الطبقة ──────────────
+   *
+   * المضيف في هذا الوضع `pointer-events: none` عمدًا (كي تبقى `:hover`
+   * صادقة على الصفحة)، فأحداث المؤشِّر **لا تصل الطبقة أصلًا** — تذهب إلى
+   * الصفحة. فالالتقاط على `window` هو الطريق الوحيد.
+   *
+   * والكبت **مشروط**: ما وقع على مضيفنا يمرّ بلا مساس كي تعمل أزرار
+   * اللوحة، وما وقع على الصفحة يُمنع كي لا يتبع المستخدمُ رابطًا وهو يفحص.
+   * قِيس أن الكبت الأعمى يقتل واجهتنا (صفر نقرات على زرّنا).
+   */
+  const win = layer.ownerDocument.defaultView
+  const host =
+    layer.getRootNode() instanceof ShadowRoot ? (layer.getRootNode() as ShadowRoot).host : null
+
+  const inInspect = () => props.mode.value === 'inspect'
+  const onOurs = (e: Event) => e.target === host || (host?.contains(e.target as Node) ?? false)
+
+  const winMove = (e: Event) => {
+    if (!inInspect() || onOurs(e)) return
+    props.inspect.onPointerMove(e as PointerEvent)
+  }
+
+  const winUp = (e: Event) => {
+    if (!inInspect() || onOurs(e)) return
+    props.inspect.onPointerUp(e as PointerEvent)
+  }
+
+  /**
+   * يمنع تسرّب النقرة إلى الصفحة.
+   *
+   * ثمانية أنواع لا نوعان: قِيس أن كبت المؤشِّر وحده يترك `click` يتسرّب
+   * فيتبع الرابط. و`:active` تشتعل بالنقرة نفسها رغم المنع — ولذلك تقع
+   * القراءة عند الإفلات لا عند الضغط.
+   */
+  const SUPPRESSED = [
+    'pointerdown',
+    'mousedown',
+    'mouseup',
+    'click',
+    'auxclick',
+    'contextmenu',
+    'dblclick',
+  ] as const
+
+  const suppress = (e: Event) => {
+    if (!inInspect() || onOurs(e)) return
+    e.preventDefault()
+    e.stopImmediatePropagation()
+  }
+
+  win?.addEventListener('pointermove', winMove, { capture: true, passive: true })
+  win?.addEventListener('pointerup', winUp, { capture: true })
+  for (const type of SUPPRESSED) win?.addEventListener(type, suppress, { capture: true })
+
   render(<OverlayApp {...props} />, layer)
 
   return {
@@ -368,6 +512,9 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
       layer.removeEventListener('pointermove', onMove)
       layer.removeEventListener('pointerup', onUp)
       layer.removeEventListener('pointercancel', onUp)
+      win?.removeEventListener('pointermove', winMove, { capture: true })
+      win?.removeEventListener('pointerup', winUp, { capture: true })
+      for (const type of SUPPRESSED) win?.removeEventListener(type, suppress, { capture: true })
       render(null, layer)
     },
   }

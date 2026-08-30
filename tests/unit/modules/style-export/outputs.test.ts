@@ -83,7 +83,7 @@ describe('mapProperty', () => {
 
   it('الأوزان على السلّم', () => {
     expect(mapProperty('font-weight', '700', 16)).toEqual({ kind: 'scale', cls: 'font-bold' })
-    expect(mapProperty('font-weight', '450', 16).kind).toBe('arbitrary')
+    expect(mapProperty('font-weight', '450', 16)?.kind).toBe('arbitrary')
   })
 
   it('الألوان تُكتب صريحة — لا تُخمَّن أسماء اللوحة', () => {

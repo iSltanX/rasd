@@ -19,3 +19,10 @@ export { FrameBlocked, type FrameBlockedProps } from './FrameBlocked'
 export { at, box, type Point, type Rect } from './geometry'
 export { FullPageStatus, fullPageRows } from './FullPageStatus'
 export type { FullPageStatusProps, FullPageRow } from './FullPageStatus'
+export { InspectPanel, InspectIdle, INSPECT_TABS, TAB_LABELS } from './inspect/InspectPanel'
+export type {
+  InspectPanelProps,
+  InspectRow,
+  InspectGroupView,
+  InspectTabId,
+} from './inspect/InspectPanel'
