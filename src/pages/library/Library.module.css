@@ -16,6 +16,19 @@
   flex: 1;
 }
 
+.plainSelectionBar {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-8) var(--rasd-space-12);
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  background: var(--rasd-surface-raised);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-primary);
+}
+
 .body {
   display: flex;
   gap: var(--rasd-space-12);

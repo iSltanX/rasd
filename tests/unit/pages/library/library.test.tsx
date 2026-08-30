@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { Library } from '@/pages/library/Library'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
-import { captures } from '@/shared/storage/repository'
+import { captures, colors, guides, palettes, references } from '@/shared/storage/repository'
 
 import type { CaptureRecord } from '@/shared/storage/schema'
 
@@ -150,6 +150,117 @@ describe('Library — الحالات المصمَّمة', () => {
 
     const stored = await captures.get('a')
     expect(stored.ok && stored.value.trashedAt).not.toBeNull()
+  })
+})
+
+describe('Library — التبويبات', () => {
+  function clickTab(root: HTMLElement, label: string) {
+    const tabs = [...root.querySelectorAll('[role="tab"]')]
+    const tab = tabs.find((t) => t.textContent === label) as HTMLButtonElement
+    tab.click()
+  }
+
+  it('يعرض التبويبات الخمسة بالترتيب المنصوص في §16', async () => {
+    const root = await mount()
+    const labels = [...root.querySelectorAll('[role="tab"]')].map((t) => t.textContent)
+    expect(labels).toEqual(['اللقطات', 'المراجع', 'الألوان', 'اللوحات', 'أدلة الخطوات'])
+  })
+
+  it('تبويب الألوان: يحمِّل ويعرض بطاقات الألوان', async () => {
+    await colors.put({
+      id: 'c1',
+      hex: '#3B82F6',
+      name: 'أزرق العلامة',
+      note: '',
+      source: 'css',
+      projectId: null,
+      sourceUrl: null,
+      createdAt: NOW,
+    })
+    const root = await mount()
+    clickTab(root, 'الألوان')
+    await waitFor(() => root.querySelector('[data-color-id="c1"]') !== null)
+    expect(root.textContent).toContain('أزرق العلامة')
+  })
+
+  it('تبويب فارغ يعرض حالة الفراغ الصحيحة له لا حالة اللقطات', async () => {
+    const root = await mount()
+    clickTab(root, 'اللوحات')
+    await waitFor(() => !root.querySelector('[aria-busy="true"]'))
+    expect(root.textContent).toContain('لا لوحة ألوان بعد')
+  })
+
+  it('شريط الترتيب والتفضيل يختفي خارج تبويب اللقطات، والبحث يبقى', async () => {
+    const root = await mount()
+    expect(root.querySelector('[aria-label="ترتيب حسب"]')).toBeTruthy()
+
+    clickTab(root, 'أدلة الخطوات')
+    await waitFor(() => !root.querySelector('[aria-label="ترتيب حسب"]'))
+
+    expect(root.querySelector('[aria-label="ترتيب حسب"]')).toBeFalsy()
+    expect(root.querySelector('input[aria-label="ابحث في المكتبة"]')).toBeTruthy()
+  })
+
+  it('التبديل بين التبويبات يُفرِغ التحديد', async () => {
+    await captures.put(capture('a'))
+    const root = await mount()
+    const checkbox = root.querySelector(
+      '[data-capture-id="a"] input[type="checkbox"]',
+    ) as HTMLInputElement
+    checkbox.click()
+    await flush()
+    expect(root.textContent).toContain('محدَّدة')
+
+    clickTab(root, 'المراجع')
+    await flush()
+    expect(root.querySelector('[role="toolbar"]')).toBeFalsy()
+  })
+
+  it('تبويب المراجع والأدلّة واللوحات: تحديد بلا شريط إجراءات غنيّ — عدّاد وإلغاء فقط', async () => {
+    await guides.put({ id: 'g1', title: 'دليل', projectId: null, captureIds: [], createdAt: NOW })
+    const root = await mount()
+    clickTab(root, 'أدلة الخطوات')
+    await waitFor(() => root.querySelector('[data-guide-id="g1"]') !== null)
+
+    const checkbox = root.querySelector(
+      '[data-guide-id="g1"] input[type="checkbox"]',
+    ) as HTMLInputElement
+    checkbox.click()
+    await flush()
+
+    expect(root.textContent).toContain('محدَّدة')
+    // لا أيقونات إجراء جماعي (تفضيل/أرشفة/مهملات) — القسم لا ينطبق على الأدلّة.
+    expect(root.querySelector('[aria-label="تفضيل المحدَّد"]')).toBeFalsy()
+  })
+
+  it('تبويب المراجع يحمِّل ويعرض المرجع المحفوظ', async () => {
+    await references.put({
+      id: 'r1',
+      projectId: null,
+      origin: 'https://figma.com',
+      path: '12:34',
+      viewport: 'desktop',
+      blobId: 'b1',
+      createdAt: NOW,
+    })
+    const root = await mount()
+    clickTab(root, 'المراجع')
+    await waitFor(() => root.querySelector('[data-reference-id="r1"]') !== null)
+    expect(root.textContent).toContain('figma.com')
+  })
+
+  it('تبويب اللوحات يحمِّل ويعرض اللوحة المحفوظة', async () => {
+    await palettes.put({
+      id: 'p1',
+      name: 'لوحة الترحيب',
+      colors: ['#111', '#222'],
+      projectId: null,
+      createdAt: NOW,
+    })
+    const root = await mount()
+    clickTab(root, 'اللوحات')
+    await waitFor(() => root.querySelector('[data-palette-id="p1"]') !== null)
+    expect(root.textContent).toContain('لوحة الترحيب')
   })
 })
 

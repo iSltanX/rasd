@@ -150,10 +150,11 @@ export const MATRICES: readonly ComponentMatrix[] = [
     axes: [{ prop: 'tone', values: ['info', 'warning', 'danger', 'success'] }],
   },
   {
-    // المرحلة 18 أضافت variant خامس `no-projects` (§10.2) في EmptyState.tsx
-    // نفسها — بلا إطار Figma مقابل بعد، فبقي خارج هذه المصفوفة عمدًا: إدراجه
-    // هنا يعني ادّعاء تطابق مع Figma لا وجود له. يُضاف حين يُرسَم الإطار في
-    // المرحلة 26 (Visual QA مقابل Figma) — لا يُخترَع هنا.
+    // المرحلة 18 أضافت ثلاث variants (`no-projects` §10.2، و`no-colors`
+    // و`no-guides` لتبويبَي الألوان والأدلة) في EmptyState.tsx نفسها — بلا
+    // إطار Figma مقابل بعد، فبقيت خارج هذه المصفوفة عمدًا: إدراجها هنا يعني
+    // ادّعاء تطابق مع Figma لا وجود له. تُضاف حين تُرسَم الأطر في المرحلة 26
+    // (Visual QA مقابل Figma) — لا تُخترَع هنا.
     name: 'Empty State',
     figmaCount: 4,
     axes: [{ prop: 'kind', values: ['no-captures', 'no-results', 'no-reference', 'no-palette'] }],

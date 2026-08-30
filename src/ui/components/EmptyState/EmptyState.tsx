@@ -6,7 +6,13 @@ import styles from './EmptyState.module.css'
 import type { ComponentChildren, JSX } from 'preact'
 
 export type EmptyStateKind =
-  'no-captures' | 'no-results' | 'no-reference' | 'no-palette' | 'no-projects'
+  | 'no-captures'
+  | 'no-results'
+  | 'no-reference'
+  | 'no-palette'
+  | 'no-projects'
+  | 'no-colors'
+  | 'no-guides'
 
 export interface EmptyStateProps {
   kind: EmptyStateKind
@@ -40,12 +46,22 @@ const CONTENT: Record<EmptyStateKind, { icon: IconName; title: string; hint: str
     title: 'لا مشاريع بعد',
     hint: 'أنشئ مشروعًا لتنظيم لقطاتك وموادّك تحته.',
   },
+  'no-colors': {
+    icon: 'eyedropper',
+    title: 'لا ألوان محفوظة بعد',
+    hint: 'التقط لونًا من الصفحة أو أضِفه يدويًّا لحفظه هنا.',
+  },
+  'no-guides': {
+    icon: 'list-view',
+    title: 'لا أدلّة خطوات بعد',
+    hint: 'اجمع لقطات مرقَّمة في دليل واحد لمشاركته.',
+  },
 }
 
 /**
- * `Empty State` — 5 حالات في الكود، أربعٌ منها فقط بإطار Figma مقابل
- * (`matrices.ts`). `no-projects` أضافتها المرحلة 18 (§10.2) بلا إطار بعد —
- * انظر التعليق في `matrices.ts` بجوار مصفوفة هذا المكوّن.
+ * `Empty State` — 7 حالات في الكود، أربعٌ منها فقط بإطار Figma مقابل
+ * (`matrices.ts`). `no-projects` و`no-colors` و`no-guides` أضافتها المرحلة 18
+ * بلا إطار بعد — انظر التعليق في `matrices.ts` بجوار مصفوفة هذا المكوّن.
  */
 export function EmptyState({ kind, action, class: className }: EmptyStateProps): JSX.Element {
   const content = CONTENT[kind]
