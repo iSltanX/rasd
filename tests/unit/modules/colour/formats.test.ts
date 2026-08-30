@@ -58,10 +58,9 @@ describe('الخروج من مدى sRGB — يُعلَن ولا يُخفى', () 
     expect(c?.inSrgb).toBe(false)
   })
 
-  it('القصّ يحفظ الإضاءة والزاوية تقريبًا ويخفض التشبّع', () => {
+  it('الإحداثيات المعروضة تبقى **الحقيقية** لا المقصوصة', () => {
     const c = readColour('oklch(70% 0.4 150)')
     expect(c).not.toBeNull()
-    // الإحداثيات المعروضة تبقى **الحقيقية** لا المقصوصة.
     expect(c?.oklch.c).toBeCloseTo(0.4, 3)
     // والقيمة المعروضة صالحة داخل sRGB.
     const { r, g, b } = c!.rgb
@@ -69,6 +68,29 @@ describe('الخروج من مدى sRGB — يُعلَن ولا يُخفى', () 
       expect(ch).toBeGreaterThanOrEqual(0)
       expect(ch).toBeLessThanOrEqual(255)
     }
+  })
+
+  /**
+   * **القصّ يطابق كروم لا المواصفة** — قِيس في متصفّح حقيقي عبر
+   * `canvas.fillStyle` + `getImageData` على درجات Tailwind v4 الخارجة عن
+   * المدى. لو أُعيد `clampChroma` لأخفقت الأولَيان.
+   */
+  describe('قيَم مقيسة من كروم — الحارس ضد العودة إلى خفض التشبّع', () => {
+    const vectors: [string, string, string][] = [
+      ['blue-500', 'oklch(62.3% 0.214 259.815)', '#2b7fff'],
+      ['green-500', 'oklch(72.3% 0.219 149.579)', '#00c950'],
+      ['fuchsia-500', 'oklch(66.7% 0.295 322.15)', '#e12afb'],
+    ]
+    for (const [name, css, hex] of vectors) {
+      it(`${name} يُرسَم ${hex}`, () => {
+        expect(formatsOf(css)?.hex).toBe(hex)
+      })
+    }
+
+    it('والخروج عن المدى معلَن مع ذلك — القيمة مقصوصة لا أصلية', () => {
+      expect(readColour('oklch(62.3% 0.214 259.815)')?.inSrgb).toBe(false)
+      expect(readColour('oklch(72.3% 0.219 149.579)')?.inSrgb).toBe(false)
+    })
   })
 })
 
