@@ -29,6 +29,7 @@ import { installShortcuts, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
 import { createElementHover, type ElementHoverTool } from './tools/element-hover'
+import { createEyedropper, type EyedropperTool } from './tools/eyedropper'
 import {
   finishFullPage,
   hasFullPageSession,
@@ -100,6 +101,7 @@ export async function startOverlay(
       elementTool?.frame(reasons)
       inspectTool?.frame(reasons)
       measureTool?.frame(reasons)
+      colourTool?.frame(reasons)
       options.onFrame?.(space)
     },
   })
@@ -108,6 +110,7 @@ export async function startOverlay(
   let elementTool: ElementHoverTool | null = null
   let inspectTool: ReturnType<typeof createInspect> | null = null
   let measureTool: MeasureTool | null = null
+  let colourTool: EyedropperTool | null = null
 
   const stopDpr = watchDpr(() => sync.invalidate('dpr'), win)
 
@@ -270,9 +273,23 @@ export async function startOverlay(
     onInvalidate: () => sync.invalidate('pointer'),
   })
 
+  /**
+   * أداة اللون (المرحلة 13).
+   *
+   * **الدرع مرفوع**: النقرة تثبّت عيّنة، وبلا الدرع تملكها الصفحة أوّلًا.
+   * والأداة تطلب لقطة عند دخول الوضع لا عند تحميل الصفحة — الالتقاط محدود
+   * بنداءين في الثانية، فلا يُنفَق على وضع لم يُفتَح.
+   */
+  const colour = createEyedropper({
+    doc,
+    skip: host.hostEl,
+    onInvalidate: () => sync.invalidate('pointer'),
+  })
+
   elementTool = element
   inspectTool = inspect
   measureTool = measure
+  colourTool = colour
 
   /**
    * ينسخ مخرَج الفحص إلى الحافظة.
@@ -305,7 +322,31 @@ export async function startOverlay(
     element,
     inspect,
     measure,
+    colour,
     onCopyInspect: (kind) => copyInspect(inspect, kind),
+    onCopyColour: (value: string) => {
+      void navigator.clipboard?.writeText(value).catch(() => {
+        console.warn('[رصد] تعذّر نسخ قيمة اللون إلى الحافظة.')
+      })
+    },
+    /**
+     * الحفظ في المكتبة (`§6.15`).
+     *
+     * **بلا اسم ولا ملاحظة هنا**: نافذة تسمية داخل الصفحة تحتاج حقلَ إدخال
+     * في جذر ظلّ مغلق فوق صفحة قد تسرق التركيز — والمكتبة (المرحلة 15) هي
+     * موضع التسمية والتصنيف. فيُحفَظ اللون بمصدره وعنوانه فورًا، ويُسمّى
+     * هناك. والحقلان يبقيان في العقد كي لا يتغيّر شكل الرسالة حينئذٍ.
+     */
+    onSaveColour: () => {
+      const pinned = colour.state.pinned.peek()
+      if (!pinned) return
+      void send('colour/save', {
+        hex: pinned.formats.hex,
+        name: '',
+        note: '',
+        source: pinned.source,
+      })
+    },
     fullPage,
     onCancelFullPage: () => void send('fullpage/cancel', undefined),
     space: spaceSignal,
@@ -343,7 +384,7 @@ export async function startOverlay(
    * نستهلكها مرجعًا. القياس لا يقرأ `:hover` الصفحة كما يفعل الفحص، فلا
    * ثمن لرفع الدرع هنا.
    */
-  const INTERACTIVE_MODES = new Set<Mode>(['area', 'element', 'measure'])
+  const INTERACTIVE_MODES = new Set<Mode>(['area', 'element', 'measure', 'colour'])
 
   const unsubscribeInteractive = modes.subscribe((mode) => {
     host.setInteractive(INTERACTIVE_MODES.has(mode))
@@ -351,6 +392,7 @@ export async function startOverlay(
     if (mode !== 'element') element.reset()
     if (mode !== 'inspect') inspect.reset()
     if (mode !== 'measure') measure.reset()
+    if (mode !== 'colour') colour.reset()
   })
   host.setInteractive(INTERACTIVE_MODES.has(modes.mode.value))
 
@@ -465,6 +507,9 @@ export async function startOverlay(
     unsubscribeInteractive()
     app.unmount()
     area.dispose()
+    // اللقطة المفكوكة تُحرَّر صراحةً: `ImageBitmap` لا يُجمَع بجمع القمامة
+    // وحده، وحجمها بحجم النافذة كاملةً بأربعة بايتات للبكسل.
+    colour.dispose()
     stopDpr()
     persistence.stop()
     sync.stop()

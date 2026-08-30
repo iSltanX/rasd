@@ -33,13 +33,19 @@ import {
   type QuickAction,
 } from '@/ui/overlay'
 import { AreaSelect, Countdown, type HandleSpot } from '@/ui/overlay/AreaSelect'
+import { ColourIdle, ColourPanel } from '@/ui/overlay/colour/ColourPanel'
+import { Crosshair } from '@/ui/overlay/Crosshair'
 import { at, box } from '@/ui/overlay/geometry'
+import { Loupe } from '@/ui/overlay/Loupe'
 
+import { contrastView, formatRows, variableView } from './colour-view'
 import { buildGroups } from './inspect-view'
+import { LOUPE_CELLS } from './sampler'
 import { measureRootFontSize } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
 import type { ElementHoverTool } from './tools/element-hover'
+import type { EyedropperTool } from './tools/eyedropper'
 import type { InspectTool } from './tools/inspect'
 import type { MeasureTarget, MeasureTool } from './tools/measure'
 import type { Mode } from '@/shared/modes'
@@ -74,8 +80,13 @@ export interface OverlayAppProps {
   element: ElementHoverTool
   inspect: InspectTool
   measure: MeasureTool
+  colour: EyedropperTool
   /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة الفحص. */
   onCopyInspect?: (kind: 'css' | 'tailwind' | 'json') => void
+  /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة اللون. */
+  onCopyColour?: (value: string, label: string) => void
+  /** يُطلَب حين يحفظ المستخدم لونًا في المكتبة (`§6.15`). */
+  onSaveColour?: () => void
   /**
    * تقدّم الالتقاط الكامل — `null` يعني لا مهمّة.
    *
@@ -104,7 +115,16 @@ function AreaLayer({
   onCapture,
 }: Omit<
   OverlayAppProps,
-  'mode' | 'element' | 'inspect' | 'measure' | 'onCopyInspect' | 'fullPage' | 'onCancelFullPage'
+  | 'mode'
+  | 'element'
+  | 'inspect'
+  | 'measure'
+  | 'colour'
+  | 'onCopyInspect'
+  | 'onCopyColour'
+  | 'onSaveColour'
+  | 'fullPage'
+  | 'onCancelFullPage'
 >) {
   const countdown = useSignal<number | null>(null)
 
@@ -391,6 +411,91 @@ function MeasureLayer({ measure, space, unit }: { measure: MeasureTool; space: S
   )
 }
 
+/**
+ * طبقة اللون — العدسة تتبع المؤشِّر، واللوحة مرساة في ركنها.
+ *
+ * **اللوحة تُبنى من التثبيت لا من العيّنة الحيّة.** العيّنة الحيّة تتغيّر
+ * ستّين مرّة في الثانية، وبناء خمس صيغ واسم Tailwind وفحص تباين مع كل
+ * حركة إهدارٌ لا يُرى أثره. فالمعروض حيًّا هو العدسة وشارتها السداسية
+ * وحدهما — وهما ما يرسمه الملفّ حيًّا كذلك.
+ */
+function ColourLayer({
+  colour,
+  space,
+  onCopy,
+  onSave,
+}: {
+  colour: EyedropperTool
+  space: Signal<CoordSpace>
+  onCopy?: (value: string, label: string) => void
+  onSave?: () => void
+}) {
+  const live = colour.state.live.value
+  const pinned = colour.state.pinned.value
+  const error = colour.state.error.value
+  const s = space.value
+
+  const shown = pinned ?? null
+  const hex = shown ? shown.formats.hex : live?.pixel ? hexOfPixel(live.pixel) : null
+
+  return (
+    <>
+      {live ? (
+        <>
+          {/* خطّا التصويب من بدائيّة المرحلة 6 نفسها — `65:46` و`65:47`. */}
+          <Crosshair point={live.point} linesOnly />
+          <Loupe point={live.point} patch={live.patch} cells={LOUPE_CELLS} hex={hex} />
+        </>
+      ) : null}
+
+      <div
+        class="rasd-ov-place"
+        style={at({ x: PANEL_INSET, y: COLOUR_PANEL_TOP })}
+        data-rasd-ov="colour-dock"
+      >
+        {shown ? (
+          <ColourPanel
+            hex={shown.formats.hex}
+            swatch={shown.formats.css}
+            rows={formatRows(shown.reading, shown.formats, shown.tailwind)}
+            variable={variableView(shown)}
+            contrast={
+              shown.contrast
+                ? contrastView(shown.contrast, shown.background?.assumedWhite ?? true)
+                : null
+            }
+            mismatch={shown.mismatch}
+            outOfGamut={!shown.reading.inSrgb}
+            {...(onCopy ? { onCopy } : {})}
+            {...(onSave ? { onSave } : {})}
+            onClose={() => colour.clear()}
+          />
+        ) : (
+          <ColourIdle />
+        )}
+      </div>
+
+      {error ? (
+        <div
+          class="rasd-ov-place"
+          style={at({ x: PANEL_INSET, y: COLOUR_PANEL_TOP })}
+          data-rasd-ov="colour-error"
+        >
+          <span class="rasd-ov-badge">{error}</span>
+        </div>
+      ) : null}
+
+      <span hidden data-w={s.layoutWidth} />
+    </>
+  )
+}
+
+/** الشارة الحيّة تحت العدسة — سداسية من بكسل خام بلا مرور بـ`culori`. */
+function hexOfPixel(p: { r: number; g: number; b: number }): string {
+  const two = (n: number) => n.toString(16).padStart(2, '0')
+  return `#${two(p.r)}${two(p.g)}${two(p.b)}`
+}
+
 function FullPageLayer({
   state,
   space,
@@ -476,6 +581,9 @@ function InspectLayer({
 const PANEL_INSET = 40
 const PANEL_TOP = 64
 
+/** لوحة اللون أعلى قليلًا — `65:55` يضعها عند (40, 44). */
+const COLOUR_PANEL_TOP = 44
+
 function OverlayApp(props: OverlayAppProps): JSX.Element | null {
   /*
    * لوحة الالتقاط الكامل تُرسَم **فوق** ما تعرضه الأوضاع لا بدلًا منه:
@@ -514,6 +622,18 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
     return (
       <>
         <MeasureLayer measure={props.measure} space={props.space} unit={props.measure.state.unit.value} />
+        {job}
+      </>
+    )
+  if (mode === 'colour')
+    return (
+      <>
+        <ColourLayer
+          colour={props.colour}
+          space={props.space}
+          {...(props.onCopyColour ? { onCopy: props.onCopyColour } : {})}
+          {...(props.onSaveColour ? { onSave: props.onSaveColour } : {})}
+        />
         {job}
       </>
     )
@@ -562,12 +682,23 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
       if (onBackground(e)) props.measure.onPointerMove(e)
       return
     }
+    if (props.mode.value === 'colour') {
+      // بلا `onBackground`: العدسة وشارتها `pointer-events: none`، لكن
+      // اللوحة ليست كذلك. والحركة فوق اللوحة يجب ألّا تحرّك العدسة، فيبقى
+      // الشرط لازمًا هنا بخلاف وضع القياس.
+      if (onBackground(e)) props.colour.onPointerMove(e)
+      return
+    }
     props.area.handlers.onPointerMove(e)
   }
   const onUp = (e: PointerEvent) => {
     if (props.mode.value === 'element') return
     if (props.mode.value === 'measure') {
       props.measure.onPointerUp()
+      return
+    }
+    if (props.mode.value === 'colour') {
+      if (onBackground(e)) props.colour.onPointerUp(e)
       return
     }
     props.area.handlers.onPointerUp(e)

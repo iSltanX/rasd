@@ -12,7 +12,7 @@ import type { DeviceRect } from '../geometry'
 import type { InspectSnapshot } from '../inspect-schema'
 import type { PageName } from '../page-paths'
 import type { RestrictionReason } from '../restricted'
-import type { CaptureKind } from '../storage/schema'
+import type { CaptureKind, ColorSource } from '../storage/schema'
 import type { ActiveMode } from '../storage/session'
 
 /** أدوات القائمة الرئيسية: أوضاع الطبقة الستّة القابلة للتفعيل، زائد نوعا الالتقاط الفوري. */
@@ -111,6 +111,34 @@ export interface RequestMap {
    */
   'capture/blob': { id: string }
   /**
+   * يُرجع لقطة **خامًا** للجزء الظاهر، بلا حفظ في المكتبة.
+   *
+   * **لماذا رسالة مستقلّة عن `capture/run`:** تلك تحفظ سجلًّا وBlob وتُرجع
+   * `id` فقط — وعيّنة اللون تحتاج **بكسلات** ولا تريد سجلًّا. عيّنةٌ واحدة
+   * تُنتج لقطة في المكتبة تعني تلويث تاريخ المستخدم بكل مرور مؤشِّر.
+   *
+   * **ولماذا مرّة واحدة لا لكل حركة:** `captureVisibleTab` محدود بنداءين
+   * في الثانية (`CAPTURE_INTERVAL_MS = 550`) وزمنه المقيس 234–351ms —
+   * أي ≈1.8 عيّنة/ثانية مقابل 60 يحتاجها مؤشِّر يتحرّك. الصفحة تفكّ اللقطة
+   * مرّة وتقرأ منها محلّيًا (2.25µs للرقعة الواحدة مقيسة)، وتطلب لقطة
+   * جديدة عند الإبطال وحده: تمرير · تغيّر مقاس · تغيّر كثافة البكسل.
+   */
+  'colour/frame': void
+  /**
+   * يحفظ لونًا في المكتبة (`Rasd_Ar.md §6.15`).
+   *
+   * **من الخلفية لا من الصفحة**، كالتقاطات المرحلة 8: قاعدة البيانات
+   * مملوكة للـservice worker، وسياسة التصفّح الخاصّ والحصّة تُقرّران هناك.
+   * والصفحة لا تعرف عنوانها الموثوق أصلًا — `sender.tab.url` هو المصدر.
+   */
+  'colour/save': {
+    readonly hex: string
+    readonly name: string
+    readonly note: string
+    /** `pixel` أو `css` — أيّ المصدرين أعطى القيمة. */
+    readonly source: ColorSource
+  }
+  /**
    * يهيّئ الصفحة لالتقاط كامل: يجد المُمرِّر، ويحيّد الثوابت، ويمهّد.
    *
    * ثلاث رسائل لا واحدة (`prepare`/`step`/`finish`) لأن الحلقة تُقاد من
@@ -176,6 +204,15 @@ export interface ResponseMap {
   'capture/hide-overlay': { hidden: boolean }
   'capture/show-overlay': { shown: boolean }
   'capture/blob': { base64: string; mime: string; bytes: number }
+  /**
+   * عنوان بيانات PNG للجزء الظاهر، بفضاء **الجهاز**.
+   *
+   * بلا `dpr`: الصفحة تشتقّ مقياس الصورة إلى إحداثيات النافذة من أبعاد
+   * الصورة نفسها مقسومةً على مقاس إطار العرض. الاشتقاق يصحّح نفسه ويشمل
+   * تكبير المتصفّح، بينما تمرير رقم من الخلفية يفترض ما لا تعرفه هي.
+   */
+  'colour/frame': { dataUrl: string }
+  'colour/save': { id: string }
   'fullpage/prepare': FullPagePrepared
   'fullpage/step': FullPageStep
   'fullpage/finish': { restored: boolean }

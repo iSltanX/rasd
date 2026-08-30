@@ -1312,3 +1312,394 @@
   padding-inline: var(--rasd-space-6);
   border-radius: var(--rasd-radius-sm);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   المرحلة 13 — محرك الألوان
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── العدسة المكبِّرة ─────────────────────────────────────────────── */
+
+/*
+ * مرساة بلا مقاس عند المؤشِّر — القرص والشارة يتمركزان عليها، فمقاسهما
+ * يعيش في الورقة وحدها ولا تنشأ نسخة ثانية منه في الشيفرة.
+ * القياسات من `65:48` و`65:49` و`65:50`: قرص 72، مركز 14، فجوة 10.
+ */
+.rasd-ov-clp {
+  inline-size: 0;
+  block-size: 0;
+}
+
+.rasd-ov-clp-disc {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  translate: -50% -50%;
+  inline-size: var(--rasd-space-72);
+  block-size: var(--rasd-space-72);
+  border-radius: var(--rasd-radius-full);
+  overflow: hidden;
+
+  /*
+   * حلقة بيضاء ثابتة لا لون من السمة — السبب نفسه المكتوب عند
+   * `.rasd-ov-loupe`: ما داخل القرص لون **من الصفحة** قد يساوي أي توكن
+   * لدينا، فالحلقة يجب أن تفصله عمّا خلفه أيًّا كان. والملفّ يجعلها بيضاء
+   * هنا لأن العدسة تعلو محتوًى داكنًا وفاتحًا معًا.
+   */
+  border: var(--rasd-stroke-heavy) solid #fff; /* rasd-allow-literal */
+  box-shadow: var(--rasd-elevation-3);
+}
+
+.rasd-ov-clp-grid {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/*
+ * حلقة البكسل المختار — فارغة من الداخل عمدًا: البكسل الذي تشير إليه هو
+ * الوحيد الذي يهمّ، وملؤها يحجبه.
+ */
+.rasd-ov-clp-centre {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  inline-size: var(--rasd-space-14);
+  block-size: var(--rasd-space-14);
+  border-radius: var(--rasd-radius-full);
+  border: var(--rasd-stroke-medium) solid #fff; /* rasd-allow-literal: انظر الحلقة الخارجية */
+  box-shadow: 0 0 0 var(--rasd-stroke-thin) rgb(0 0 0 / 40%); /* rasd-allow-literal: ظلّ فاصل عن خلفية فاتحة */
+}
+
+.rasd-ov-clp-hex {
+  position: absolute;
+  /* نصف قطر القرص + فجوة الملفّ — يُشتقّ من المقاس فلا ينحرف عنه. */
+  inset-block-start: calc(var(--rasd-space-72) / 2 + var(--rasd-space-10));
+  inset-inline-start: 0;
+  translate: -50% 0;
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--rasd-space-8);
+  padding-block: var(--rasd-space-4);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-surface-overlay);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  color: var(--rasd-text-primary);
+  font-size: var(--rasd-font-size-2xs);
+  white-space: nowrap;
+}
+
+/* ── لوحة اللون ──────────────────────────────────────────────────── */
+
+.rasd-ov-cp {
+  direction: rtl;
+  display: flex;
+  flex-direction: column;
+  inline-size: var(--rasd-ov-cp-w);
+  border-radius: var(--rasd-radius-xl);
+  background: var(--rasd-overlay-glass);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  box-shadow: var(--rasd-elevation-4);
+  backdrop-filter: blur(24px) saturate(140%); /* rasd-allow-literal: نصف قطر الطمس أثر بصري لا قيمة من سلّم المسافات */
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-primary);
+
+  /* السطح التفاعلي الوحيد في الطبقة أثناء أخذ العيّنة. */
+  pointer-events: auto;
+
+  --rasd-ov-cp-w: 22.5rem; /* rasd-allow-literal: عرض 360px مقيس من `65:55`، ويُحلّ على جذرنا لا على جذر الصفحة */
+}
+
+.rasd-ov-cp-idle {
+  --rasd-ov-cp-w: 21.25rem; /* rasd-allow-literal: عرض 340px للوحة الخمول، مقيس من `98:471` */
+
+  gap: var(--rasd-space-16);
+  padding: var(--rasd-space-24);
+  align-items: flex-start;
+}
+
+.rasd-ov-cp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--rasd-space-12) var(--rasd-space-16);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+}
+
+.rasd-ov-cp-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  font-weight: 600;
+  color: var(--rasd-tool-colors-fg);
+}
+
+.rasd-ov-cp-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--rasd-space-24);
+  block-size: var(--rasd-space-24);
+  border: 0;
+  border-radius: var(--rasd-radius-sm);
+  background: transparent;
+  color: var(--rasd-icon-secondary);
+  cursor: pointer;
+  flex: none;
+}
+
+.rasd-ov-cp-icon:hover {
+  background: var(--rasd-surface-hover);
+  color: var(--rasd-icon-primary);
+}
+
+.rasd-ov-cp-icon:focus-visible,
+.rasd-ov-cp-btn:focus-visible {
+  outline: var(--rasd-stroke-medium) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-space-2);
+}
+
+/* ── كتلة العيّنة ────────────────────────────────────────────────── */
+
+.rasd-ov-cp-swatch-block {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--rasd-space-16);
+  padding: var(--rasd-space-14) var(--rasd-space-16);
+}
+
+.rasd-ov-cp-ident {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rasd-space-6);
+  min-inline-size: 0;
+}
+
+.rasd-ov-cp-hexrow {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  font-size: var(--rasd-font-size-sm);
+}
+
+.rasd-ov-cp-var {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+  padding-inline: var(--rasd-space-8);
+  padding-block: var(--rasd-space-4);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-tool-colors-surface);
+  border: var(--rasd-stroke-thin) solid var(--rasd-tool-colors-border);
+  color: var(--rasd-tool-colors-fg);
+}
+
+.rasd-ov-cp-origin {
+  color: var(--rasd-text-secondary);
+  font-size: var(--rasd-font-size-2xs);
+}
+
+.rasd-ov-cp-muted {
+  color: var(--rasd-text-tertiary);
+}
+
+/* مربّع العيّنة — 64px من `65:64`؛ لونه من الصفحة فيأتي سطريًا. */
+.rasd-ov-cp-sw {
+  flex: none;
+  inline-size: var(--rasd-space-64);
+  block-size: var(--rasd-space-64);
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  background: var(--rasd-ov-sample, transparent);
+}
+
+/*
+ * تنبيه الاختلاف — ليس خطأً بل **المعلومة** التي بُنيت الأداة لأجلها،
+ * فيأخذ لون التحذير لا لون الفشل.
+ */
+.rasd-ov-cp-flag {
+  margin: 0;
+  padding: var(--rasd-space-8) var(--rasd-space-16);
+  color: var(--rasd-text-warning);
+  background: var(--rasd-surface-warning);
+  border-block: var(--rasd-stroke-thin) solid var(--rasd-border-warning);
+  line-height: 1.5;
+}
+
+/* ── الصيغ ──────────────────────────────────────────────────────── */
+
+.rasd-ov-cp-formats {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+}
+
+.rasd-ov-cp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  padding-inline: var(--rasd-space-14);
+  padding-block: var(--rasd-space-7);
+  min-block-size: var(--rasd-space-28);
+}
+
+.rasd-ov-cp-row:hover {
+  background: var(--rasd-surface-hover);
+}
+
+.rasd-ov-cp-val {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.rasd-ov-cp-key {
+  color: var(--rasd-text-tertiary);
+  flex: none;
+}
+
+.rasd-ov-cp-note {
+  color: var(--rasd-text-secondary);
+  font-size: var(--rasd-font-size-2xs);
+}
+
+/* ── التباين ────────────────────────────────────────────────────── */
+
+.rasd-ov-cp-contrast {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-10);
+  padding: var(--rasd-space-12) var(--rasd-space-16);
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  color: var(--rasd-icon-secondary);
+}
+
+.rasd-ov-cp-against {
+  color: var(--rasd-text-secondary);
+  margin-inline-start: auto;
+}
+
+.rasd-ov-cp-verdict {
+  padding-inline: var(--rasd-space-6);
+  padding-block: var(--rasd-space-2);
+  border-radius: var(--rasd-radius-xs);
+  font-size: var(--rasd-font-size-2xs);
+  background: var(--rasd-surface-warning);
+  color: var(--rasd-text-warning);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-warning);
+  flex: none;
+}
+
+.rasd-ov-cp-verdict[data-level='AA'],
+.rasd-ov-cp-verdict[data-level='AAA'] {
+  background: var(--rasd-surface-success);
+  color: var(--rasd-text-success);
+  border-color: var(--rasd-border-success);
+}
+
+/* الفشل والتباين شبه المعدوم مرتبتان لا واحدة — `§6.13` يفرض تمييزهما. */
+.rasd-ov-cp-contrast[data-unreadable='true'] .rasd-ov-cp-verdict {
+  background: var(--rasd-surface-danger);
+  color: var(--rasd-text-danger);
+  border-color: var(--rasd-border-danger);
+}
+
+/* ── الإجراءات ──────────────────────────────────────────────────── */
+
+.rasd-ov-cp-actions {
+  display: flex;
+  gap: var(--rasd-space-8);
+  padding: var(--rasd-space-10) var(--rasd-space-12);
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+}
+
+.rasd-ov-cp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-8);
+  flex: 1;
+  min-block-size: var(--rasd-space-36);
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.rasd-ov-cp-btn:hover {
+  background: var(--rasd-surface-hover);
+}
+
+/* ── لوحة الخمول ────────────────────────────────────────────────── */
+
+.rasd-ov-cp-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--rasd-space-48);
+  block-size: var(--rasd-space-48);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-tool-colors-surface);
+  border: var(--rasd-stroke-thin) solid var(--rasd-tool-colors-border);
+  color: var(--rasd-tool-colors-fg);
+}
+
+.rasd-ov-cp-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+}
+
+.rasd-ov-cp-h {
+  margin: 0;
+  font-family: var(--rasd-font-family-display), var(--rasd-font-family-text), sans-serif;
+  font-weight: 700;
+  font-size: var(--rasd-font-size-md);
+}
+
+.rasd-ov-cp-desc {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+  line-height: 1.6;
+}
+
+.rasd-ov-cp-hints {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+  margin: 0;
+  inline-size: 100%;
+}
+
+.rasd-ov-cp-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+}
+
+.rasd-ov-cp-hint dt {
+  flex: none;
+}
+
+.rasd-ov-cp-hint dd {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+}
+
+.rasd-ov-cp-key-cap {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--rasd-space-6);
+  padding-block: var(--rasd-space-2);
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-surface-raised);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+}

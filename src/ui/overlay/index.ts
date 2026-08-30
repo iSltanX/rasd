@@ -21,6 +21,14 @@ export { FrameBlocked, type FrameBlockedProps } from './FrameBlocked'
 export { at, box, type Point, type Rect } from './geometry'
 export { FullPageStatus, fullPageRows } from './FullPageStatus'
 export type { FullPageStatusProps, FullPageRow } from './FullPageStatus'
+export { Loupe, LOUPE_GEOMETRY, type LoupeProps, type LoupePixel } from './Loupe'
+export { ColourPanel, ColourIdle, COLOUR_HINTS } from './colour/ColourPanel'
+export type {
+  ColourPanelProps,
+  ColourRow,
+  ColourVarView,
+  ColourContrastView,
+} from './colour/ColourPanel'
 export { InspectPanel, InspectIdle, INSPECT_TABS, TAB_LABELS } from './inspect/InspectPanel'
 export type {
   InspectPanelProps,

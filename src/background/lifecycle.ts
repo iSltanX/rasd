@@ -10,7 +10,7 @@
  * فالمهمة التي علقت لأن SW أُنهي تبقى «جارية» للأبد. المنبّه ينجو ويوقظ SW.
  */
 
-import { runCapture } from '@/background/capture-service'
+import { captureTile, runCapture } from '@/background/capture-service'
 import { activateTool } from '@/background/commands'
 import { isIncognitoContext, VERSION } from '@/shared/env'
 import {
@@ -27,7 +27,7 @@ import { getSettings, patchSettings, resetSettings } from '@/shared/settings'
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
 import { closeOffscreen, ensureOffscreen } from '@/shared/storage/offscreen'
 import { quotaState } from '@/shared/storage/quota'
-import { blobs } from '@/shared/storage/repository'
+import { blobs, colors } from '@/shared/storage/repository'
 import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
 import { cancelFullPage } from './full-page-job'
@@ -163,6 +163,64 @@ function registerRequestHandlers() {
       binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
     }
     return { base64: btoa(binary), mime: found.value.mime, bytes: found.value.bytes }
+  })
+
+  /**
+   * لقطة خام للعيّنة اللونية — بلا حفظ، وبلا سجلّ.
+   *
+   * تُبنى على `captureTile` القائمة منذ المرحلة 10: هي التي تحترم مُنظِّم
+   * الإيقاع وتُخفي الطبقة قبل اللقطة وتُعيدها في `finally` — فلا تلتقط
+   * العدسةُ نفسَها.
+   *
+   * **التبويب من المُرسِل لا من الحمولة**: سكربت المحتوى لا يُصدَّق في
+   * تحديد تبويب غير تبويبه (القاعدة نفسها في `capture/run` أعلاه)، وهذه
+   * الرسالة لا تأتي إلا منه.
+   */
+  onMessage('colour/frame', async (_payload, { tabId }) => {
+    if (tabId === undefined) throw new Error('لا تبويب مستهدَف للعيّنة.')
+    const shot = await captureTile(tabId)
+    if (!shot.ok) throw new RasdThrow(shot.error)
+    return { dataUrl: shot.value }
+  })
+
+  /**
+   * حفظ لون في المكتبة (`§6.15`).
+   *
+   * **العنوان من `sender` لا من الحمولة**: الصفحة قد تكذب على عنوانها،
+   * والمصدر الموثوق الوحيد هو ما يعرفه المتصفّح عن التبويب. وهذا هو نفسه
+   * ما يفعله مسار الالتقاط في المرحلة 8.
+   *
+   * و`projectId` يبقى `null` هنا: ربط اللون بمشروع قرارٌ يقع في المكتبة
+   * (المرحلة 15) لا في لحظة الأخذ، وإسناد مشروع تلقائيًّا هو تخمين.
+   */
+  onMessage('colour/save', async ({ hex, name, note, source }, { tabId }) => {
+    /*
+     * العنوان يُقرأ من المتصفّح لا من الحمولة — `MessageContext` يحمل
+     * `tabId` وحده، والقراءة قد تفشل إن أُغلق التبويب بين النقرة والحفظ.
+     * وفشلها لا يُسقط الحفظ: لون بلا مصدر أنفع من لا لون.
+     */
+    let sourceUrl: string | null = null
+    if (tabId !== undefined) {
+      try {
+        sourceUrl = (await chrome.tabs.get(tabId)).url ?? null
+      } catch {
+        sourceUrl = null
+      }
+    }
+
+    const record = {
+      id: crypto.randomUUID(),
+      hex,
+      name,
+      note,
+      source,
+      projectId: null,
+      sourceUrl,
+      createdAt: Date.now(),
+    }
+    const saved = await colors.put(record)
+    if (!saved.ok) throw new RasdThrow(saved.error)
+    return { id: record.id }
   })
 
   onMessage('page/open', async ({ page, active }) => {
