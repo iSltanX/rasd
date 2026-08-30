@@ -15,6 +15,7 @@
 
 import { isFullSource, planCrop } from '@/modules/capture/crop'
 import { withinCanvasLimits } from '@/shared/canvas-limits'
+import { dataUrlMime, dataUrlToBytes } from '@/shared/data-url'
 import { errText, ok, type Result } from '@/shared/result'
 
 import type { DeviceRect } from '@/shared/geometry'
@@ -29,25 +30,15 @@ import type { DeviceRect } from '@/shared/geometry'
 export { MAX_CANVAS_AREA, MAX_CANVAS_SIDE } from '@/shared/canvas-limits'
 
 /**
- * `data:image/png;base64,…` → بايتات. بلا شبكة وبلا سياسة.
+ * فكّ ترميز عناوين البيانات — نزل إلى `shared/` في المرحلة 13.
  *
- * النوع `Uint8Array<ArrayBuffer>` صراحةً لا `Uint8Array` المجرَّد: الأخير
- * يشمل `SharedArrayBuffer` الذي لا يقبله `Blob`، فيسقط الإسناد وقت الترجمة.
+ * المرحلة 13 تحتاجه في **الصفحة** أيضًا (فكّ لقطة العيّنة)، وطبقة المحتوى
+ * لا تستورد من الخلفية. يُعاد تصديره هنا كي لا ينكسر مستهلكو المرحلة 8 —
+ * السابقة نفسها المتّبعة مع `canvas-limits` أعلاه.
  */
-export function dataUrlToBytes(dataUrl: string): Uint8Array<ArrayBuffer> {
-  const comma = dataUrl.indexOf(',')
-  if (comma < 0) throw new Error('عنوان بيانات بلا فاصلة')
-  const binary = atob(dataUrl.slice(comma + 1))
-  const buffer = new ArrayBuffer(binary.length)
-  const bytes = new Uint8Array(buffer)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return bytes
-}
+export { dataUrlToBytes } from '@/shared/data-url'
 
-/** نوع MIME المعلن داخل عنوان البيانات، أو PNG افتراضًا. */
-function mimeOf(dataUrl: string): string {
-  return /^data:([^;,]+)/.exec(dataUrl)?.[1] ?? 'image/png'
-}
+const mimeOf = dataUrlMime
 
 export interface CroppedImage {
   readonly blob: Blob

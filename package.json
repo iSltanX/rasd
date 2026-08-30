@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@preact/signals": "2.11.1",
+    "culori": "4.0.2",
     "idb": "8.0.3",
     "preact": "10.29.8",
     "valibot": "1.4.2"
@@ -53,6 +54,7 @@
     "@crxjs/vite-plugin": "2.7.1",
     "@eslint/js": "10.0.1",
     "@types/chrome": "0.2.7",
+    "@types/culori": "4.0.1",
     "@types/node": "24.10.1",
     "@vitest/coverage-v8": "4.1.11",
     "@webext-core/fake-browser": "2.0.1",
