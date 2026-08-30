@@ -446,7 +446,11 @@ if (extId && sw && granted) {
         pageSession,
       )
       const actualScroll = await inPage(tabId, `() => window.scrollY`)
-      await moveTo(pageSession, childPage.x + childPage.w / 2, childPage.y - actualScroll + childPage.h / 2)
+      await moveTo(
+        pageSession,
+        childPage.x + childPage.w / 2,
+        childPage.y - actualScroll + childPage.h / 2,
+      )
       const childOv = (await readOverlay(tabId)).rect
       if (childOv && childOv.y < vh && childOv.y >= 0) {
         ok(`الابن مرئي بعد تمرير الصفحة يدويًا (y=${childOv.y})`)
@@ -470,7 +474,9 @@ if (extId && sw && granted) {
           )
           const parentOv = (await readOverlay(tabId)).rect
           if (parentOv && parentOv.y >= 0 && parentOv.y + parentOv.h <= vh) {
-            ok(`↑ إلى أب خارج النافذة مرّر الصفحة تلقائيًا — صار كاملًا مرئيًا (y=${parentOv.y}, h=${parentOv.h})`)
+            ok(
+              `↑ إلى أب خارج النافذة مرّر الصفحة تلقائيًا — صار كاملًا مرئيًا (y=${parentOv.y}, h=${parentOv.h})`,
+            )
           } else {
             fail(
               `التمرير التلقائي لم يقع: الأب بعد المشي ${JSON.stringify(parentOv)} والنافذة ${vh}px — كان قبل المشي ${JSON.stringify(parentBefore)}`,

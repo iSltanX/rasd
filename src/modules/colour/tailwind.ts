@@ -137,7 +137,10 @@ const PALETTE_WITH_4_2: readonly TailwindSwatch[] = [
 ]
 
 /** ذاكرة التحويل — اللوحة ثابتة، فتُحوَّل مرّة لا مع كل حركة مؤشِّر. */
-const labCache = new WeakMap<readonly TailwindSwatch[], { swatch: TailwindSwatch; lab: Lab; hex: string }[]>()
+const labCache = new WeakMap<
+  readonly TailwindSwatch[],
+  { swatch: TailwindSwatch; lab: Lab; hex: string }[]
+>()
 
 /*
  * **الطرفان يُحوَّلان بالطريق نفسه — وإلّا لم يتطابق المتطابقان.**
@@ -247,10 +250,7 @@ function alphaSuffix(alpha: number): string {
  * الخطأ يقع نحو **القيمة الصريحة** لا نحو اسم لا يطابق، وهو الاتّجاه الذي
  * تختاره المرحلة 11 كلّها.
  */
-export function tailwindNaming(
-  c: ColourReading,
-  options: NearestOptions = {},
-): TailwindNaming {
+export function tailwindNaming(c: ColourReading, options: NearestOptions = {}): TailwindNaming {
   const { nearest, ties } = nearestTailwind(c, options)
   const formats = formatColour(c)
 

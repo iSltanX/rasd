@@ -187,7 +187,9 @@ describe('MeasureGap', () => {
 
   it('data-emphasis يعكس الاتجاه الأقرب', () => {
     const el = mount(<MeasureGap rect={RECT} orientation="horizontal" value={40} emphasis />)
-    expect(el.querySelector('[data-rasd-ov="measure-gap"]')?.getAttribute('data-emphasis')).toBe('true')
+    expect(el.querySelector('[data-rasd-ov="measure-gap"]')?.getAttribute('data-emphasis')).toBe(
+      'true',
+    )
   })
 })
 
@@ -198,7 +200,9 @@ describe('AlignGuide', () => {
   })
 
   it('شارة Δ تظهر وتُقاس حين يوجد انحراف', () => {
-    const el = mount(<AlignGuide orientation="vertical" position={60} from={0} to={300} delta={1.6} />)
+    const el = mount(
+      <AlignGuide orientation="vertical" position={60} from={0} to={300} delta={1.6} />,
+    )
     expect(el.textContent).toBe('Δ 2px')
   })
 

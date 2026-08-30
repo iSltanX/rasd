@@ -75,10 +75,7 @@ export const MAX_BACKGROUND_DEPTH = 64
  * **يتوقّف عند أوّل معتم** — ما خلفه لا يُرى فلا يُقرأ. والترتيب المُمرَّر
  * إلى `flatten` من الأبعد إلى الأقرب، وهو ترتيب الرسم الفعلي.
  */
-export function resolveBackground(
-  el: Element,
-  win: Window = globalThis.window,
-): BackgroundWalk {
+export function resolveBackground(el: Element, win: Window = globalThis.window): BackgroundWalk {
   /** الأقرب أوّلًا أثناء الجمع؛ يُعكَس قبل التركيب. */
   const near: Layer[] = []
   const contributors: Element[] = []

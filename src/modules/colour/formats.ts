@@ -29,6 +29,9 @@
  * والإحداثيات الحقيقية تبقى كاملة في `oklch`، والقصّ معلَن في `inSrgb`.
  *
  * `modules/` منطق خالص: لا DOM ولا `chrome.*` — يأخذ نصًّا ويُرجع أرقامًا.
+ * **rasd-allow-literal-file** — هذه الوحدة **تُنتج** سلاسل CSS اللونية، فهي
+ * آخر مكان يصحّ فيه منع كتابتها. والقيم هنا قوالبُ تُملأ بقنوات محسوبة، لا
+ * ألوانًا مثبَّتة تتجاوز نظام التوكنز.
  */
 
 import {
@@ -198,9 +201,7 @@ export function formatColour(c: ColourReading): ColourFormats {
     hex,
     // الصيغة القديمة بفواصل: أوسع دعمًا وأشيع في الشيفرة القائمة.
     rgb: opaque ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`,
-    hsl: opaque
-      ? `hsl(${hDeg}, ${sPct}%, ${lPct}%)`
-      : `hsla(${hDeg}, ${sPct}%, ${lPct}%, ${a})`,
+    hsl: opaque ? `hsl(${hDeg}, ${sPct}%, ${lPct}%)` : `hsla(${hDeg}, ${sPct}%, ${lPct}%, ${a})`,
     // OKLCH بلا صيغة قديمة — لا وجود لها؛ والفراغات هي نحو CSS Color 4.
     oklch: opaque ? `oklch(${okL}% ${okC} ${okH})` : `oklch(${okL}% ${okC} ${okH} / ${a})`,
     css: opaque ? hex : `rgba(${r}, ${g}, ${b}, ${a})`,

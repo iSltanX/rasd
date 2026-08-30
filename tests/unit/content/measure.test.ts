@@ -30,12 +30,12 @@ afterEach(() => {
 })
 
 function stubHit(map: Record<string, Element>): void {
-  ;(document as unknown as { elementsFromPoint: (x: number, y: number) => Element[] }).elementsFromPoint = vi.fn(
-    (x: number, y: number) => {
-      const el = map[`${x},${y}`]
-      return el ? [el] : []
-    },
-  )
+  ;(
+    document as unknown as { elementsFromPoint: (x: number, y: number) => Element[] }
+  ).elementsFromPoint = vi.fn((x: number, y: number) => {
+    const el = map[`${x},${y}`]
+    return el ? [el] : []
+  })
 }
 
 function makeTool(overrides: Partial<Parameters<typeof createMeasure>[0]> = {}): MeasureTool {
@@ -58,7 +58,13 @@ describe('التتبّع', () => {
     tool.onPointerMove(pointer(20, 20))
     tool.frame(new Set(['pointer']))
 
-    expect(tool.state.hover.value?.rect).toEqual({ space: 'viewport', x: 10, y: 10, width: 100, height: 50 })
+    expect(tool.state.hover.value?.rect).toEqual({
+      space: 'viewport',
+      x: 10,
+      y: 10,
+      width: 100,
+      height: 50,
+    })
   })
 
   it('لا شيء تحت المؤشِّر: hover يبقى null', () => {
@@ -88,7 +94,13 @@ describe('تثبيت المرجع والمقارنة', () => {
     const tool = makeTool()
     tool.onPointerDown(pointer(5, 5))
 
-    expect(tool.state.reference.value?.rect).toEqual({ space: 'viewport', x: 0, y: 0, width: 40, height: 40 })
+    expect(tool.state.reference.value?.rect).toEqual({
+      space: 'viewport',
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 40,
+    })
   })
 
   it('نقرة ثانية على عنصر آخر تستبدل المرجع مباشرة', () => {
@@ -187,7 +199,13 @@ describe('القياس الحرّ بالسحب', () => {
     tool.onPointerDown(pointer(100, 100))
     tool.onPointerMove(pointer(150, 80)) // سحب لأعلى-يمين — يختبر التطبيع
 
-    expect(tool.state.freeRect.value).toEqual({ space: 'viewport', x: 100, y: 80, width: 50, height: 20 })
+    expect(tool.state.freeRect.value).toEqual({
+      space: 'viewport',
+      x: 100,
+      y: 80,
+      width: 50,
+      height: 20,
+    })
     expect(onBusy).toHaveBeenCalledWith(true)
   })
 

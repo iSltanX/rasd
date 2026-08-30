@@ -33,19 +33,28 @@ export function AlignGuide({
 }: AlignGuideProps): JSX.Element {
   const start = Math.min(from, to)
   const length = Math.abs(to - from)
-  const origin: Point = orientation === 'horizontal' ? { x: start, y: position } : { x: position, y: start }
+  const origin: Point =
+    orientation === 'horizontal' ? { x: start, y: position } : { x: position, y: start }
   const lengthVar =
-    orientation === 'horizontal' ? { '--rasd-ov-w': `${length}px` } : { '--rasd-ov-h': `${length}px` }
+    orientation === 'horizontal'
+      ? { '--rasd-ov-w': `${length}px` }
+      : { '--rasd-ov-h': `${length}px` }
 
   return (
     <div
-      class={orientation === 'horizontal' ? 'rasd-ov-place rasd-ov-align-h' : 'rasd-ov-place rasd-ov-align-v'}
+      class={
+        orientation === 'horizontal'
+          ? 'rasd-ov-place rasd-ov-align-h'
+          : 'rasd-ov-place rasd-ov-align-v'
+      }
       style={{ ...at(origin), ...lengthVar }}
       data-rasd-ov="align-guide"
       data-near={delta !== 0 ? 'true' : 'false'}
     >
       {delta !== 0 ? (
-        <span class="rasd-ov-badge rasd-ov-align-delta">Δ {formatUnit(Math.abs(Math.round(delta)), unit)}</span>
+        <span class="rasd-ov-badge rasd-ov-align-delta">
+          Δ {formatUnit(Math.abs(Math.round(delta)), unit)}
+        </span>
       ) : null}
     </div>
   )

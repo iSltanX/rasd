@@ -17,13 +17,13 @@
   color: var(--rasd-text-secondary);
   background: transparent;
   border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
-  border-radius: var(--rasd-radius-pill, 999px);
+  border-radius: var(--rasd-radius-full);
   padding: var(--rasd-space-2) var(--rasd-space-8);
   cursor: pointer;
 }
 .filter[aria-pressed='true'] {
   color: var(--rasd-text-primary);
-  border-color: var(--rasd-accent-solid, currentColor);
+  border-color: var(--rasd-border-focus);
 }
 
 .list {
@@ -46,7 +46,7 @@
   border-radius: var(--rasd-radius-sm);
 }
 .item[data-selected='true'] {
-  border-color: var(--rasd-accent-solid, currentColor);
+  border-color: var(--rasd-border-focus);
 }
 
 .ordinal {
@@ -54,7 +54,7 @@
   block-size: 1.5rem;
   display: grid;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--rasd-radius-full);
   border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
   font-family: var(--rasd-font-family-text);
   font-size: var(--rasd-font-size-xs);
@@ -94,8 +94,8 @@
 }
 .title:focus-visible,
 .text:focus-visible {
-  outline: var(--rasd-stroke-thin) solid var(--rasd-accent-solid, currentColor);
-  outline-offset: 2px;
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-space-2);
 }
 
 .tags {
@@ -109,14 +109,14 @@
   color: var(--rasd-text-tertiary);
   background: transparent;
   border: var(--rasd-stroke-thin) dashed var(--rasd-border-subtle);
-  border-radius: var(--rasd-radius-pill, 999px);
+  border-radius: var(--rasd-radius-full);
   padding: 0 var(--rasd-space-6);
   cursor: pointer;
 }
 .tag[aria-pressed='true'] {
   color: var(--rasd-text-primary);
   border-style: solid;
-  border-color: var(--rasd-accent-solid, currentColor);
+  border-color: var(--rasd-border-focus);
 }
 
 .empty {

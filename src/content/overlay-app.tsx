@@ -311,7 +311,15 @@ function overlapMid(aStart: number, aLen: number, bStart: number, bLen: number):
 /** هامش امتداد خطّ المحاذاة خارج حدود الهدفين — نفَس بصري لا التصاق بالحافّة. */
 const ALIGN_MARGIN = 24
 
-function MeasureLayer({ measure, space, unit }: { measure: MeasureTool; space: Signal<CoordSpace>; unit: string }) {
+function MeasureLayer({
+  measure,
+  space,
+  unit,
+}: {
+  measure: MeasureTool
+  space: Signal<CoordSpace>
+  unit: string
+}) {
   const hover = measure.state.hover.value
   const reference = measure.state.reference.value
   const comparison = measure.state.comparison.value
@@ -321,15 +329,32 @@ function MeasureLayer({ measure, space, unit }: { measure: MeasureTool; space: S
   const root = measureRootFontSize()
 
   const fmt = (px: number): string =>
-    unit === 'rem' ? formatUnit(Math.round(pxToRem(px, root) * 100) / 100, 'rem') : formatUnit(Math.round(px), 'px')
+    unit === 'rem'
+      ? formatUnit(Math.round(pxToRem(px, root) * 100) / 100, 'rem')
+      : formatUnit(Math.round(px), 'px')
 
-  const sameTarget = !!(hover && reference && hover.rect.x === reference.rect.x && hover.rect.y === reference.rect.y && hover.rect.width === reference.rect.width && hover.rect.height === reference.rect.height)
+  const sameTarget = !!(
+    hover &&
+    reference &&
+    hover.rect.x === reference.rect.x &&
+    hover.rect.y === reference.rect.y &&
+    hover.rect.width === reference.rect.width &&
+    hover.rect.height === reference.rect.height
+  )
 
   const targetBox = (t: MeasureTarget, role: 'hover' | 'reference') => (
     <>
-      <div class="rasd-ov-place rasd-ov-mshl" data-role={role} style={box(t.rect)} data-rasd-ov="measure-highlight" />
+      <div
+        class="rasd-ov-place rasd-ov-mshl"
+        data-role={role}
+        style={box(t.rect)}
+        data-rasd-ov="measure-highlight"
+      />
       <BoxModel rect={t.rect} margin={t.edges.margin} padding={t.edges.padding} />
-      <Dimension rect={{ x: t.rect.x, y: t.rect.y - 20, width: t.rect.width, height: 0 }} value={t.rect.width} />
+      <Dimension
+        rect={{ x: t.rect.x, y: t.rect.y - 20, width: t.rect.width, height: 0 }}
+        value={t.rect.width}
+      />
       <DimensionVertical
         rect={{ x: t.rect.x + t.rect.width + 12, y: t.rect.y, width: 0, height: t.rect.height }}
         value={t.rect.height}
@@ -350,8 +375,16 @@ function MeasureLayer({ measure, space, unit }: { measure: MeasureTool; space: S
             if (value < 0) return null
             const emphasis = comparison.gap.nearest === dir
             if (dir === 'right' || dir === 'left') {
-              const y = overlapMid(reference.rect.y, reference.rect.height, hover.rect.y, hover.rect.height)
-              const x = dir === 'right' ? reference.rect.x + reference.rect.width : hover.rect.x + hover.rect.width
+              const y = overlapMid(
+                reference.rect.y,
+                reference.rect.height,
+                hover.rect.y,
+                hover.rect.height,
+              )
+              const x =
+                dir === 'right'
+                  ? reference.rect.x + reference.rect.width
+                  : hover.rect.x + hover.rect.width
               return (
                 <MeasureGap
                   key={dir}
@@ -362,8 +395,16 @@ function MeasureLayer({ measure, space, unit }: { measure: MeasureTool; space: S
                 />
               )
             }
-            const x = overlapMid(reference.rect.x, reference.rect.width, hover.rect.x, hover.rect.width)
-            const y = dir === 'bottom' ? reference.rect.y + reference.rect.height : hover.rect.y + hover.rect.height
+            const x = overlapMid(
+              reference.rect.x,
+              reference.rect.width,
+              hover.rect.x,
+              hover.rect.width,
+            )
+            const y =
+              dir === 'bottom'
+                ? reference.rect.y + reference.rect.height
+                : hover.rect.y + hover.rect.height
             return (
               <MeasureGap
                 key={dir}
@@ -381,14 +422,36 @@ function MeasureLayer({ measure, space, unit }: { measure: MeasureTool; space: S
             const vertical = m.axis === 'left' || m.axis === 'right' || m.axis === 'centerX'
             if (vertical) {
               const from = Math.min(reference.rect.y, hover.rect.y) - ALIGN_MARGIN
-              const to = Math.max(reference.rect.y + reference.rect.height, hover.rect.y + hover.rect.height) + ALIGN_MARGIN
+              const to =
+                Math.max(
+                  reference.rect.y + reference.rect.height,
+                  hover.rect.y + hover.rect.height,
+                ) + ALIGN_MARGIN
               return (
-                <AlignGuide key={m.axis} orientation="vertical" position={m.a} from={from} to={to} delta={m.delta} />
+                <AlignGuide
+                  key={m.axis}
+                  orientation="vertical"
+                  position={m.a}
+                  from={from}
+                  to={to}
+                  delta={m.delta}
+                />
               )
             }
             const from = Math.min(reference.rect.x, hover.rect.x) - ALIGN_MARGIN
-            const to = Math.max(reference.rect.x + reference.rect.width, hover.rect.x + hover.rect.width) + ALIGN_MARGIN
-            return <AlignGuide key={m.axis} orientation="horizontal" position={m.a} from={from} to={to} delta={m.delta} />
+            const to =
+              Math.max(reference.rect.x + reference.rect.width, hover.rect.x + hover.rect.width) +
+              ALIGN_MARGIN
+            return (
+              <AlignGuide
+                key={m.axis}
+                orientation="horizontal"
+                position={m.a}
+                from={from}
+                to={to}
+                delta={m.delta}
+              />
+            )
           })
         : null}
 
@@ -621,7 +684,11 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
   if (mode === 'measure')
     return (
       <>
-        <MeasureLayer measure={props.measure} space={props.space} unit={props.measure.state.unit.value} />
+        <MeasureLayer
+          measure={props.measure}
+          space={props.space}
+          unit={props.measure.state.unit.value}
+        />
         {job}
       </>
     )

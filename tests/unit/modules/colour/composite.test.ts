@@ -132,18 +132,18 @@ describe('resolveBackground — الصعود والتركيب', () => {
 
   it('يركّب طبقتين شبه شفّافتين في الطريق', () => {
     // جدّ أبيض معتم، ثم أسود 0.5 — النتيجة رماديّ.
-    const leaf = tree(['background-color: rgb(255, 255, 255)', 'background-color: rgba(0, 0, 0, 0.5)', ''])
+    const leaf = tree([
+      'background-color: rgb(255, 255, 255)',
+      'background-color: rgba(0, 0, 0, 0.5)',
+      '',
+    ])
     const w = resolveBackground(leaf, window)
     expect(w.colour.rgb).toEqual({ r: 128, g: 128, b: 128 })
     expect(w.contributors).toHaveLength(2)
   })
 
   it('يتوقّف عند أوّل معتم — ما خلفه لا يُقرأ', () => {
-    const leaf = tree([
-      'background-color: rgb(0, 255, 0)',
-      'background-color: rgb(255, 0, 0)',
-      '',
-    ])
+    const leaf = tree(['background-color: rgb(0, 255, 0)', 'background-color: rgb(255, 0, 0)', ''])
     const w = resolveBackground(leaf, window)
     expect(w.colour.rgb).toEqual({ r: 255, g: 0, b: 0 })
     // الأخضر خلف الأحمر المعتم — لم يُسهم.

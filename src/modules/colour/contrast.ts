@@ -48,9 +48,7 @@ function linearize(channel255: number): number {
 
 /** الإضاءة النسبية `Y` في `[0, 1]` — `0` للأسود و`1` للأبيض بالضبط. */
 export function relativeLuminance(rgb: Rgb255): number {
-  return (
-    WCAG_R * linearize(rgb.r) + WCAG_G * linearize(rgb.g) + WCAG_B * linearize(rgb.b)
-  )
+  return WCAG_R * linearize(rgb.r) + WCAG_G * linearize(rgb.g) + WCAG_B * linearize(rgb.b)
 }
 
 /**

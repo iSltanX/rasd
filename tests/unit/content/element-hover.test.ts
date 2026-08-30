@@ -12,7 +12,11 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createElementHover, type ElementHoverTool, type TargetInfo } from '@/content/tools/element-hover'
+import {
+  createElementHover,
+  type ElementHoverTool,
+  type TargetInfo,
+} from '@/content/tools/element-hover'
 
 import type { ViewportRect } from '@/shared/geometry'
 
@@ -53,8 +57,9 @@ function buildParentChild(): { parent: HTMLElement; child: HTMLElement } {
 }
 
 function stubHitAt(x: number, y: number, stack: Element[]): void {
-  ;(document as unknown as { elementsFromPoint: (x: number, y: number) => Element[] }).elementsFromPoint =
-    vi.fn((qx: number, qy: number) => (qx === x && qy === y ? stack : []))
+  ;(
+    document as unknown as { elementsFromPoint: (x: number, y: number) => Element[] }
+  ).elementsFromPoint = vi.fn((qx: number, qy: number) => (qx === x && qy === y ? stack : []))
 }
 
 function makeTool(onCommit = vi.fn()): { tool: ElementHoverTool; onCommit: typeof onCommit } {
@@ -84,7 +89,13 @@ describe('التتبّع والتثبيت', () => {
     tool.frame(new Set(['pointer']))
 
     expect(tool.state.info.value?.tag).toBe('span')
-    expect(tool.state.rect.value).toEqual({ space: 'viewport', x: 100, y: 100, width: 50, height: 30 })
+    expect(tool.state.rect.value).toEqual({
+      space: 'viewport',
+      x: 100,
+      y: 100,
+      width: 50,
+      height: 30,
+    })
   })
 })
 
@@ -118,7 +129,11 @@ describe('المشي في الشجرة — البند 51: التمرير الت�
     tool.walk('up')
 
     expect(scrollSpy).toHaveBeenCalledTimes(1)
-    expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'instant', block: 'center', inline: 'nearest' })
+    expect(scrollSpy).toHaveBeenCalledWith({
+      behavior: 'instant',
+      block: 'center',
+      inline: 'nearest',
+    })
   })
 
   it('أبٌ أطول من النافذة (oversized) لا يُمرَّر إليه — لا تمرير يُصلحه', () => {
@@ -176,7 +191,11 @@ describe('الالتقاط — البند 51: التمرير ثم الالتقا
     tool.commit()
 
     expect(scrollSpy).toHaveBeenCalledTimes(1)
-    expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'instant', block: 'center', inline: 'nearest' })
+    expect(scrollSpy).toHaveBeenCalledWith({
+      behavior: 'instant',
+      block: 'center',
+      inline: 'nearest',
+    })
     expect(onCommit).toHaveBeenCalledTimes(1)
     const [rect] = onCommit.mock.calls[0] as [ViewportRect, TargetInfo]
     // المستطيل المُلتقَط هو ما بعد التمرير، لا ما قبله.

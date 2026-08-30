@@ -14,12 +14,23 @@
 import { signal, type Signal } from '@preact/signals'
 
 import { pickAt } from '@/modules/dom-picker/hit-test'
-import { boxEdges, boxGap, elementBounds, type BoxEdges, type Gap } from '@/modules/dom-picker/inspect'
+import {
+  boxEdges,
+  boxGap,
+  elementBounds,
+  type BoxEdges,
+  type Gap,
+} from '@/modules/dom-picker/inspect'
 import { detectAlignment, type AlignMatch } from '@/modules/measure/alignment'
 import { fourWayGap, type FourWayGap } from '@/modules/measure/distance'
 import { nearestSnap, SNAP_THRESHOLD_PX } from '@/modules/measure/snap'
 import { pxToRem } from '@/modules/measure/units'
-import { normalizeRect, viewportPoint, type ViewportPoint, type ViewportRect } from '@/shared/geometry'
+import {
+  normalizeRect,
+  viewportPoint,
+  type ViewportPoint,
+  type ViewportRect,
+} from '@/shared/geometry'
 
 import type { SyncReason } from '../sync'
 
@@ -135,7 +146,9 @@ export function createMeasure(options: MeasureOptions): MeasureTool {
     const ref = state.reference.peek()
     const hov = state.hover.peek()
     state.comparison.value =
-      ref && hov ? { gap: fourWayGap(ref.rect, hov.rect), alignment: detectAlignment(ref.rect, hov.rect) } : null
+      ref && hov
+        ? { gap: fourWayGap(ref.rect, hov.rect), alignment: detectAlignment(ref.rect, hov.rect) }
+        : null
   }
 
   /** المسار البارد — عند تغيّر هدف التتبّع فقط، كما في `element-hover.ts`. */

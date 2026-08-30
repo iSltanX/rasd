@@ -78,7 +78,21 @@ async function walk(dir) {
   return out
 }
 
+/**
+ * إعفاء على مستوى الملفّ — لملفّ **كلّه** بيانات لونية خام.
+ *
+ * الإعفاء السطري لا يكفي لجدول مرجعي من ثلاثمئة سطر: التعليق على كل سطر
+ * ضجيجٌ يخفي ما يشرحه. والبديل الذي وقع فعلًا أسوأ: بقيت البوّابة حمراء منذ
+ * المرحلة 13، فصار `pnpm check` لا يُشغَّل — وحارسٌ لا يعمل أسوأ من لا حارس،
+ * لأنه يُعطي أمانًا لا يقدّمه.
+ *
+ * والإعفاء **يُعلَن**: كل ملفّ يستعمله يُطبَع في التقرير، فلا يتسلّل ملفّ
+ * واجهة إلى القائمة بلا أن يراه أحد.
+ */
+const FILE_EXEMPT = /rasd-allow-literal-file/
+
 const violations = []
+const exempted = []
 const files = await walk(join(root, 'src'))
 let scanned = 0
 
@@ -87,6 +101,12 @@ for (const file of files) {
   const isCss = file.endsWith('.css')
   const text = await readFile(file, 'utf8')
   scanned++
+
+  // الإعفاء يُقرأ من ترويسة الملفّ وحدها — لا من سطرٍ في وسطه.
+  if (FILE_EXEMPT.test(text.slice(0, 2000))) {
+    exempted.push(rel)
+    continue
+  }
 
   // التعليقات لا تُفحص — الشروح والأمثلة تحمل قيمًا حرفية عمدًا،
   // ويجب تتبّع تعليقات الكتلة عبر الأسطر لا سطرًا سطرًا.
@@ -126,6 +146,9 @@ for (const file of files) {
 
 console.log('\nبوّابة عقد التوكنز:')
 console.log(`  فُحص ${scanned} ملفًا خارج src/tokens/ المولَّد`)
+for (const rel of exempted) {
+  console.log(`  ⊘ معفى بترويسته (بيانات لونية خام): ${rel}`)
+}
 
 if (violations.length > 0) {
   console.error(`\n✗ ${violations.length} مخالفة:\n`)
@@ -135,7 +158,9 @@ if (violations.length > 0) {
   }
   if (violations.length > 40) console.error(`  … و${violations.length - 40} أخرى`)
   console.error(
-    '\nاستخدم var(--rasd-…) والخصائص المنطقية. للاستثناء المبرَّر: /* rasd-allow-literal */\n',
+    '\nاستخدم var(--rasd-…) والخصائص المنطقية.' +
+      '\nللاستثناء السطري: /* rasd-allow-literal */' +
+      '\nولملفّ كلّه بيانات لونية خام: rasd-allow-literal-file في ترويسته.\n',
   )
   process.exit(1)
 }

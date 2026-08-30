@@ -242,7 +242,10 @@ async function inOverlay(tabId, fnSource) {
 }
 
 const setMode = (tabId, mode) =>
-  inOverlay(tabId, `() => { globalThis.__rasdMeasure.modes.set(${JSON.stringify(mode)}); return true }`)
+  inOverlay(
+    tabId,
+    `() => { globalThis.__rasdMeasure.modes.set(${JSON.stringify(mode)}); return true }`,
+  )
 
 /** حالة أداة القياس مباشرة من الإشارات — لا انتظار قراءة DOM. */
 const readMeasureState = (tabId) =>
@@ -297,20 +300,35 @@ async function attachToPage(urlPart) {
 async function settle(pageSession) {
   await send(
     'Runtime.evaluate',
-    { expression: 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))', awaitPromise: true },
+    {
+      expression: 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))',
+      awaitPromise: true,
+    },
     pageSession,
   )
 }
 
 /** `modifiers`: قناع بتّات CDP — Alt=1، Ctrl=2، Meta=4، Shift=8. */
 async function moveTo(pageSession, x, y, modifiers = 0) {
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, pointerType: 'mouse', modifiers }, pageSession)
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseMoved', x, y, pointerType: 'mouse', modifiers },
+    pageSession,
+  )
   await settle(pageSession)
 }
 
 async function clickAt(pageSession, x, y) {
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1, pointerType: 'mouse' }, pageSession)
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, pointerType: 'mouse' }, pageSession)
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x, y, button: 'left', clickCount: 1, pointerType: 'mouse' },
+    pageSession,
+  )
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, pointerType: 'mouse' },
+    pageSession,
+  )
   await settle(pageSession)
 }
 
@@ -378,10 +396,16 @@ if (extId && sw && granted) {
       const cy1 = plainRect.y + plainRect.h / 2
       await moveTo(pageSession, cx1, cy1)
       let st = await readMeasureState(tabId)
-      if (st.hover && near(st.hover.rect.width, plainRect.w) && near(st.hover.rect.height, plainRect.h)) {
+      if (
+        st.hover &&
+        near(st.hover.rect.width, plainRect.w) &&
+        near(st.hover.rect.height, plainRect.h)
+      ) {
         ok(`التتبّع: hover يطابق #plain الحقيقي (${st.hover.rect.width}×${st.hover.rect.height})`)
       } else {
-        fail(`التتبّع: hover=${JSON.stringify(st.hover?.rect)} بينما #plain=${JSON.stringify(plainRect)}`)
+        fail(
+          `التتبّع: hover=${JSON.stringify(st.hover?.rect)} بينما #plain=${JSON.stringify(plainRect)}`,
+        )
       }
       let drawn = await readDrawn(tabId)
       if (drawn.highlights.includes('hover')) ok('الإبراز المرسوم يحمل data-role="hover"')
@@ -461,7 +485,11 @@ if (extId && sw && granted) {
       // ── 4) القياس الحرّ بالسحب — بلا مرشَّحات التقاط قريبة ────
       const freeStart = bg ?? { x: vw - 20, y: vh - 20 }
       const freeEnd = { x: freeStart.x - 60, y: freeStart.y - 40 }
-      await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...freeStart, button: 'left', clickCount: 1, pointerType: 'mouse' }, pageSession)
+      await send(
+        'Input.dispatchMouseEvent',
+        { type: 'mousePressed', ...freeStart, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        pageSession,
+      )
       await moveTo(pageSession, freeEnd.x, freeEnd.y)
       st = await readMeasureState(tabId)
       const expectFree = {
@@ -477,27 +505,47 @@ if (extId && sw && granted) {
         near(st.freeRect.width, expectFree.width) &&
         near(st.freeRect.height, expectFree.height)
       ) {
-        ok(`القياس الحرّ: ${Math.round(st.freeRect.width)}×${Math.round(st.freeRect.height)} — يطابق نقطتَي السحب`)
+        ok(
+          `القياس الحرّ: ${Math.round(st.freeRect.width)}×${Math.round(st.freeRect.height)} — يطابق نقطتَي السحب`,
+        )
       } else {
-        fail(`القياس الحرّ غير مطابق: ${JSON.stringify(st.freeRect)} والمتوقَّع ${JSON.stringify(expectFree)}`)
+        fail(
+          `القياس الحرّ غير مطابق: ${JSON.stringify(st.freeRect)} والمتوقَّع ${JSON.stringify(expectFree)}`,
+        )
       }
       drawn = await readDrawn(tabId)
       if (drawn.marquee) ok('مستطيل السحب الحرّ مرسوم (Marquee)')
       else fail('لا Marquee مرسوم أثناء السحب الحرّ')
-      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...freeEnd, button: 'left', clickCount: 1, pointerType: 'mouse' }, pageSession)
+      await send(
+        'Input.dispatchMouseEvent',
+        { type: 'mouseReleased', ...freeEnd, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        pageSession,
+      )
 
       // ── 5) الالتقاط اللحظي ضمن 4px، وتعطيله بـ⌥ ──────────────
       await clickAt(pageSession, cx1, cy1) // #plain مرجعًا من جديد
       const snapTargetX = plainRect.x + plainRect.w // الحافّة اليمنى لـ#plain
       const dragOrigin = bg ?? { x: vw - 20, y: vh - 20 }
-      await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...dragOrigin, button: 'left', clickCount: 1, pointerType: 'mouse' }, pageSession)
+      await send(
+        'Input.dispatchMouseEvent',
+        {
+          type: 'mousePressed',
+          ...dragOrigin,
+          button: 'left',
+          clickCount: 1,
+          pointerType: 'mouse',
+        },
+        pageSession,
+      )
       await moveTo(pageSession, snapTargetX + 2, plainRect.y + 20) // ضمن 4px من الحافّة، بلا ⌥
       st = await readMeasureState(tabId)
       // الأصل (dragOrigin) على يمين الهدف، فالحافّة الملتقَطة تصير x اليسرى للمستطيل بعد normalizeRect — لا x+width.
       if (st.freeRect && near(st.freeRect.x, snapTargetX, 0.5)) {
         ok(`الالتقاط اللحظي شدّ نهاية السحب إلى حافّة #plain اليمنى (${Math.round(snapTargetX)}px)`)
       } else {
-        fail(`لم يلتقط: نهاية السحب عند ${JSON.stringify(st.freeRect)} والحافّة المتوقَّعة ${snapTargetX}`)
+        fail(
+          `لم يلتقط: نهاية السحب عند ${JSON.stringify(st.freeRect)} والحافّة المتوقَّعة ${snapTargetX}`,
+        )
       }
 
       await moveTo(pageSession, snapTargetX + 2, plainRect.y + 22, 1) // نفس النقطة تقريبًا، لكن بـ⌥ (bit 1)
@@ -507,7 +555,18 @@ if (extId && sw && granted) {
       } else {
         fail(`⌥ لم يعطّل الالتقاط: ${JSON.stringify(st.freeRect)}`)
       }
-      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: snapTargetX + 2, y: plainRect.y + 22, button: 'left', clickCount: 1, pointerType: 'mouse' }, pageSession)
+      await send(
+        'Input.dispatchMouseEvent',
+        {
+          type: 'mouseReleased',
+          x: snapTargetX + 2,
+          y: plainRect.y + 22,
+          button: 'left',
+          clickCount: 1,
+          pointerType: 'mouse',
+        },
+        pageSession,
+      )
 
       // ── 6) الخروج ينظّف ────────────────────────────────────────
       await setMode(tabId, 'idle')
