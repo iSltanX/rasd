@@ -66,7 +66,7 @@ jobs:
   # في المراحل 6 إلى 15 كان يُقاس على جهاز المطوّر وحده، فانحدارٌ في سلوك
   # المتصفّح كان يمرّ إلى `main` بلا أن يوقفه شيء.
   live:
-    name: verify:editor · كروم حقيقي
+    name: verify:editor · verify:library · كروم حقيقي
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -96,6 +96,13 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
 
+      # نفس البناء يخدم الفحصين — صفحة المكتبة إضافة صرفة بلا صلاحية
+      # مضيف، فلا حاجة لخادم عيّنات كما يحتاج verify:editor.
+      - name: Library page in real Chrome
+        run: pnpm run verify:library
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
       # لقطات المراجعة البصرية — تُرفَع ولا تُقارَن آليًّا. المقارنة بالعين
       # مقصودة: خطُّ أساسٍ بكسليّ على متصفّح يتغيّر شهريًّا يُنتج فشلًا
       # كاذبًا أكثر ممّا يُنتج كشفًا.
@@ -103,7 +110,18 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rasd-editor-shots-${{ github.sha }}
+          name: rasd-live-shots-${{ github.sha }}
           path: artifacts/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # خطّ أساس شجرة الإتاحة — يُقرأ بالعين لا يُقارَن آليًّا (نفس منطق
+      # اللقطات البصرية أعلاه)، فيُرفَع لا يُختبَر ضده تلقائيًا.
+      - name: Upload accessibility tree baselines
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rasd-a11y-baselines-${{ github.sha }}
+          path: tests/visual-baselines/
           retention-days: 14
           if-no-files-found: ignore

@@ -756,7 +756,7 @@
 
       <div class="progress-block">
         <div class="progress-head">
-          <span><b class="num" id="doneCount">12</b> من <b class="num">28</b> مرحلة مغلقة</span>
+          <span><b class="num" id="doneCount">15</b> من <b class="num">28</b> مرحلة مغلقة</span>
           <span id="progressPct" class="num" style="color: var(--ink-faint)"></span>
         </div>
         <div class="progress-track">
@@ -1354,7 +1354,7 @@
             section: 'المقارنة',
             model: 'Sonnet',
             version: 'v1.0',
-            status: 'pending',
+            status: 'next',
             date: null,
             hash: null,
             artifact: null,
@@ -1371,7 +1371,12 @@
             adrs: ['0012', '0013'],
             depsNote:
               '18 ليست هنا — تخزين المراجع مبنيّ منذ المرحلة 3؛ 18 لازمة فقط لواجهة إدارة المراجع (ADR 0013).',
-            legacy: [],
+            legacy: [
+              {
+                dir: 'in',
+                text: 'من المرحلة 18: تصفّح المراجع وبحثها جاهزان — الحذف والربط بمشروع لا يزالان غير مبنيَّين، وهذه المرحلة تفترضهما. بند مفتوح يلزم إغلاقه أولًا (Phase_18.md §4 و§8).',
+              },
+            ],
             orderNote:
               'تتقدّم على 16 و17 القديم — بل هي نفسها تعتمد الآن على 3 لا 18، بعد أن قدَّمت 18 عليها (ADR 0013).',
           },
@@ -1411,21 +1416,24 @@
             section: 'التنظيم',
             model: 'Sonnet',
             version: 'MVP جزئيًا · v1.0 كاملًا',
-            status: 'next',
-            date: null,
-            hash: null,
-            artifact: null,
+            status: 'done',
+            date: '2026-08-31',
+            hash: 'PHASE18_CLOSING_HASH',
+            hashNote: 'تسع دفعات',
+            artifact: ART + '35e90196-ab73-402b-bccc-270e8a667b55',
             oneliner:
               'المكان الذي يعيش فيه كل ما أنتجه المستخدم — واجهة فوق مخزن مبنيّ منذ المرحلة 3.',
             units: [
-              'src/modules/library/search.ts (تطبيع عربي)',
-              'src/pages/library/',
-              'src/ui/panels/projects/',
+              'src/modules/library/ (تطبيع · بحث · تصفية · ترتيب · مهملات · مصغَّرات · شبكة افتراضية)',
+              'src/pages/library/ (10 مكوّنات عرض + سياق تحميل)',
+              'src/pages/library/parts/ProjectsPanel.tsx (لا ui/panels/projects/ — لا نظير فعليّ لذاك المسار)',
+              'scripts/verify-library.mjs (5002 لقطة في كروم حقيقي)',
             ],
             completion: [
-              'الحالات العشر منفَّذة',
-              'البحث يغطي كل حقول §10.4',
-              'دورة حياة المهملات كاملة (30 يومًا)',
+              'الحالات ⚠️ — النصّ يعدّها «عشرًا»، والمسمّى فعليًا أحد عشر (البند 74 في §6)',
+              'البحث ⚠️ — الملاحظات وأسماء المشاريع غير مغطّيين فعليًا في §10.4',
+              'دورة حياة المهملات ✅ — للقطات وحدها (الحقل الوحيد الذي يملك trashedAt)',
+              'الأداء ⚠️ — شكل التمرير الافتراضي مقيسٌ (25 من 5002)، لا زمن إطار ولا زمن استجابة بحث',
             ],
             deps: [3, 5, 8],
             adrs: [],
@@ -1435,6 +1443,14 @@
               {
                 dir: 'out',
                 text: 'البند 71 (§6): «قفل المكتبة» سطحٌ أمني لا يلائم Sonnet 5 — نُقل كاملًا من هنا إلى المرحلة 20 (تنفيذه في 20ب).',
+              },
+              {
+                dir: 'out',
+                text: 'الحذف والربط بمشروع للأنواع الأربعة غير اللقطات (مراجع/ألوان/لوحات/أدلة) غير مبنيَّين — يلزم إنجازهما قبل المرحلة 16، التي يفترض نصّها وجودهما (Phase_18.md §4 و§8).',
+              },
+              {
+                dir: 'out',
+                text: 'البندان 72 و73 (§6): عيبا `Icon.tsx` و`ProgressBar.tsx` (مرحلة 5) — الأول يُسقط `<title>` صمتًا، والثاني بلا قابلية تلوين. اكتُشفا هنا، ولم يُصلحا: خارج نطاق هذه المرحلة.',
               },
             ],
             orderNote:
@@ -1865,6 +1881,10 @@
 
         function renderProgress() {
           var pct = Math.round((done / 28) * 100)
+          // كانت "١٢" ثابتة في HTML بلا سلك إلى `done` — بقيت كما كُتبت آخر مرّة يدويًا
+          // (بعد إغلاق المرحلة 12) عبر إغلاق المراحل 13 و15 و18 الثلاثة التالية كلّها،
+          // وهو عين انجراف "الصمت" الذي توثّقه §8. توصَل هنا فلا تنجرف ثانيةً.
+          document.getElementById('doneCount').textContent = done
           document.getElementById('progressFill').style.width = pct + '%'
           document.getElementById('progressPct').textContent = toIndic(pct) + '٪'
           // موضع بوّابة MVP: بعد المرحلة 20 في تسلسل التنفيذ = 20 من 28
