@@ -17,8 +17,19 @@
 
 .actions {
   display: flex;
+  align-items: center;
   gap: var(--rasd-space-4);
   margin-inline-start: auto;
+}
+
+.moveSelect {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  padding: var(--rasd-space-2) var(--rasd-space-6);
+  border-radius: var(--rasd-radius-sm);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-text-primary);
 }
 
 .clear {

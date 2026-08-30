@@ -1,9 +1,8 @@
 /**
  * صفحة المكتبة — الحاوية الجذر.
  *
- * هذه الدفعة تُضيف شريط الأدوات (بحث، ترتيب، تفضيل) فوق ما بُني في الدفعة
- * الرابعة. التبويبات الأربعة الأخرى ولوحة المشاريع وواجهة الوسوم دفعاتٌ
- * لاحقة — تبويب اللقطات وحده مُفعَّل، والقيمة مُثبَّتة صراحةً لا صامتة.
+ * هذه الدفعة تُضيف لوحة المشاريع (§10.2) فوق ما بُني في الدفعتين الرابعة
+ * والخامسة. واجهة الوسوم والتبويبات الأربعة الأخرى دفعاتٌ لاحقة.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
@@ -20,6 +19,7 @@ import { captures } from '@/shared/storage/repository'
 import { Banner } from '@/ui/components/Banner/Banner'
 import { Button } from '@/ui/components/Button/Button'
 import { EmptyState } from '@/ui/components/EmptyState/EmptyState'
+import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { Skeleton } from '@/ui/components/Skeleton/Skeleton'
 
 import {
@@ -31,11 +31,20 @@ import {
 } from './context'
 import styles from './Library.module.css'
 import { Grid } from './parts/Grid'
+import { ProjectsPanel } from './parts/ProjectsPanel'
 import { SelectionBar } from './parts/SelectionBar'
 import { Toolbar } from './parts/Toolbar'
+import {
+  createProject,
+  deleteProject,
+  loadProjects,
+  moveCapturesToProject,
+  renameProject,
+  setProjectColor,
+} from './projects'
 import { browserThumbnailEncoder } from './thumbnail-encoder'
 
-import type { CaptureRecord } from '@/shared/storage/schema'
+import type { CaptureRecord, ProjectRecord } from '@/shared/storage/schema'
 import type { JSX } from 'preact'
 
 type LoadState = 'loading' | 'ready' | 'error'
@@ -58,6 +67,9 @@ export function Library(): JSX.Element {
   const [sortKey, setSortKey] = useState<LibrarySortKey>(DEFAULT_SORT_KEY)
   const [sortDirection, setSortDirection] = useState<SortDirection>(DEFAULT_SORT_DIRECTION)
   const [favoriteOnly, setFavoriteOnly] = useState(false)
+
+  const [projects, setProjects] = useState<ProjectRecord[]>([])
+  const [projectsPanelOpen, setProjectsPanelOpen] = useState(false)
 
   useEffect(() => {
     const goOnline = () => setOnline(true)
@@ -109,6 +121,15 @@ export function Library(): JSX.Element {
   useEffect(() => {
     void reload()
   }, [reload])
+
+  const reloadProjects = useCallback(async () => {
+    const result = await loadProjects()
+    if (result.ok) setProjects(result.value)
+  }, [])
+
+  useEffect(() => {
+    void reloadProjects()
+  }, [reloadProjects])
 
   const onNeedThumbnail = useCallback((id: string) => {
     if (pendingThumbs.current.has(id)) return
@@ -162,6 +183,46 @@ export function Library(): JSX.Element {
     [applyToSelection],
   )
 
+  // ── المشاريع ──────────────────────────────────────────────────
+  const onCreateProject = useCallback(
+    (name: string, color: string) => {
+      void createProject(name, color).then(() => reloadProjects())
+    },
+    [reloadProjects],
+  )
+  const onRenameProject = useCallback(
+    (id: string, name: string) => {
+      void renameProject(id, name).then(() => reloadProjects())
+    },
+    [reloadProjects],
+  )
+  const onSetProjectColor = useCallback(
+    (id: string, color: string) => {
+      void setProjectColor(id, color).then(() => reloadProjects())
+    },
+    [reloadProjects],
+  )
+  /** حذف مشروع يُعيد تعيين مشروع اللقطات المعروضة — الشبكة تُحدَّث معه لا اللوحة وحدها. */
+  const onDeleteProject = useCallback(
+    (id: string, moveContentTo: string | null) => {
+      void deleteProject(id, moveContentTo).then(() => {
+        void reloadProjects()
+        void reload()
+      })
+    },
+    [reloadProjects, reload],
+  )
+  /** «نقل عناصر» في §10.2 — يُطبَّق على التحديد الحالي من الشبكة الرئيسية. */
+  const onMoveSelectionToProject = useCallback(
+    (projectId: string | null) => {
+      void moveCapturesToProject([...selection], projectId).then(() => {
+        clearSelection()
+        void reload()
+      })
+    },
+    [selection, clearSelection, reload],
+  )
+
   return (
     <div class={styles.page}>
       {!online ? (
@@ -170,55 +231,80 @@ export function Library(): JSX.Element {
         </Banner>
       ) : null}
 
-      <Toolbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        sortKey={sortKey}
-        onSortKeyChange={setSortKey}
-        sortDirection={sortDirection}
-        onSortDirectionChange={setSortDirection}
-        favoriteOnly={favoriteOnly}
-        onFavoriteOnlyChange={setFavoriteOnly}
-      />
+      <div class={styles.toolbarRow}>
+        <Toolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          sortKey={sortKey}
+          onSortKeyChange={setSortKey}
+          sortDirection={sortDirection}
+          onSortDirectionChange={setSortDirection}
+          favoriteOnly={favoriteOnly}
+          onFavoriteOnlyChange={setFavoriteOnly}
+        />
+        <IconButton
+          icon="folder"
+          aria-label={projectsPanelOpen ? 'إغلاق لوحة المشاريع' : 'فتح لوحة المشاريع'}
+          variant={projectsPanelOpen ? 'solid' : 'ghost'}
+          onClick={() => setProjectsPanelOpen((v) => !v)}
+        />
+      </div>
 
       {selection.size > 0 ? (
         <SelectionBar
           count={selection.size}
+          projects={projects}
           onFavorite={onFavoriteSelection}
           onArchive={onArchiveSelection}
           onTrash={onTrashSelection}
+          onMoveToProject={onMoveSelectionToProject}
           onClear={clearSelection}
         />
       ) : null}
 
-      {loadState === 'loading' ? (
-        <div class={styles.skeletonGrid} aria-busy="true" aria-label="جارٍ تحميل المكتبة">
-          {Array.from({ length: SKELETON_CARD_COUNT }, (_, i) => (
-            <Skeleton key={i} kind="card" />
-          ))}
+      <div class={styles.body}>
+        {projectsPanelOpen ? (
+          <ProjectsPanel
+            projects={projects}
+            onCreate={onCreateProject}
+            onRename={onRenameProject}
+            onSetColor={onSetProjectColor}
+            onDelete={onDeleteProject}
+            onClose={() => setProjectsPanelOpen(false)}
+          />
+        ) : null}
+
+        <div class={styles.main}>
+          {loadState === 'loading' ? (
+            <div class={styles.skeletonGrid} aria-busy="true" aria-label="جارٍ تحميل المكتبة">
+              {Array.from({ length: SKELETON_CARD_COUNT }, (_, i) => (
+                <Skeleton key={i} kind="card" />
+              ))}
+            </div>
+          ) : loadState === 'error' ? (
+            <div class={styles.errorState} role="alert">
+              <p>تعذّر تحميل المكتبة.</p>
+              <Button variant="secondary" onClick={() => void reload()}>
+                أعد المحاولة
+              </Button>
+            </div>
+          ) : records.length === 0 ? (
+            // لا لقطة في المكتبة أصلًا تختلف عن لا نتيجة لهذا البحث/التصفية —
+            // الأولى تدعو للالتقاط، والثانية لتعديل الاستعلام؛ رسالتان مختلفتان.
+            <EmptyState kind={libraryHasAny ? 'no-results' : 'no-captures'} />
+          ) : (
+            <Grid
+              records={records}
+              thumbnailUrls={thumbnailUrls}
+              onNeedThumbnail={onNeedThumbnail}
+              projectNames={projectNames}
+              selection={selection}
+              onToggleSelect={toggleSelect}
+              onOpen={openCapture}
+            />
+          )}
         </div>
-      ) : loadState === 'error' ? (
-        <div class={styles.errorState} role="alert">
-          <p>تعذّر تحميل المكتبة.</p>
-          <Button variant="secondary" onClick={() => void reload()}>
-            أعد المحاولة
-          </Button>
-        </div>
-      ) : records.length === 0 ? (
-        // لا لقطة في المكتبة أصلًا تختلف عن لا نتيجة لهذا البحث/التصفية —
-        // الأولى تدعو للالتقاط، والثانية لتعديل الاستعلام؛ رسالتان مختلفتان.
-        <EmptyState kind={libraryHasAny ? 'no-results' : 'no-captures'} />
-      ) : (
-        <Grid
-          records={records}
-          thumbnailUrls={thumbnailUrls}
-          onNeedThumbnail={onNeedThumbnail}
-          projectNames={projectNames}
-          selection={selection}
-          onToggleSelect={toggleSelect}
-          onOpen={openCapture}
-        />
-      )}
+      </div>
     </div>
   )
 }

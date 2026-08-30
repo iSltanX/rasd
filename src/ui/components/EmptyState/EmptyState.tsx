@@ -5,7 +5,8 @@ import styles from './EmptyState.module.css'
 
 import type { ComponentChildren, JSX } from 'preact'
 
-export type EmptyStateKind = 'no-captures' | 'no-results' | 'no-reference' | 'no-palette'
+export type EmptyStateKind =
+  'no-captures' | 'no-results' | 'no-reference' | 'no-palette' | 'no-projects'
 
 export interface EmptyStateProps {
   kind: EmptyStateKind
@@ -34,9 +35,18 @@ const CONTENT: Record<EmptyStateKind, { icon: IconName; title: string; hint: str
     title: 'لا لوحة ألوان بعد',
     hint: 'استخرج لوحة من الصفحة أو من لقطة محفوظة.',
   },
+  'no-projects': {
+    icon: 'folder',
+    title: 'لا مشاريع بعد',
+    hint: 'أنشئ مشروعًا لتنظيم لقطاتك وموادّك تحته.',
+  },
 }
 
-/** `Empty State` — 4 variant، واحد لكل سياق فراغ. */
+/**
+ * `Empty State` — 5 حالات في الكود، أربعٌ منها فقط بإطار Figma مقابل
+ * (`matrices.ts`). `no-projects` أضافتها المرحلة 18 (§10.2) بلا إطار بعد —
+ * انظر التعليق في `matrices.ts` بجوار مصفوفة هذا المكوّن.
+ */
 export function EmptyState({ kind, action, class: className }: EmptyStateProps): JSX.Element {
   const content = CONTENT[kind]
 
