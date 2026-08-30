@@ -176,11 +176,12 @@ describe('بوّابة الترميز', () => {
     expect(new Set(encodeSelectors.map((s) => s.message)).size).toBe(1)
   })
 
-  it('المستثنون ثلاثة بالاسم — بوّابة المحرر ومسارا الالتقاط والتجميع', () => {
+  it('المستثنون أربعة بالاسم — بوّابة المحرر ومسارا الالتقاط والتجميع ومُرمِّز المصغَّرات', () => {
     expect(ENCODE_ALLOWED).toEqual([
       'src/modules/editor/bake.ts',
       'src/background/image-ops.ts',
       'src/background/stitch.ts',
+      'src/pages/library/thumbnail-encoder.ts',
     ])
   })
 

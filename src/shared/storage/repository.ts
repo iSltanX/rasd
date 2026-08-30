@@ -92,6 +92,7 @@ export const references = repository('references')
 export const annotations = repository('annotations')
 export const guides = repository('guides')
 export const tags = repository('tags')
+export const thumbnails = repository('thumbnails')
 
 /**
  * يحفظ لقطة: الوصف في `captures` والبايتات في `blobs`، بمعاملة واحدة.
@@ -123,19 +124,22 @@ export async function putCaptureWithBlob(
 }
 
 /**
- * يحذف اللقطة وبايتاتها **ومشهد تعليقها** معًا.
+ * يحذف اللقطة وبايتاتها **ومشهد تعليقها ومصغَّرتها** معًا.
  *
  * الثالث أُضيف في المرحلة 15، وأثره أمني لا تنظيمي: مشهدُ تعليق يصف مواضع
  * الحجب («تغطية عند س,ص») يبقى بعد زوال صورته، فيصف ما كان حسّاسًا في لقطة
- * لم تعد موجودة. والسجلّ اليتيم لا يظهر في أي واجهة، فلا أحد يحذفه يدويًّا.
+ * لم تعد موجودة. والسجلّ اليتيم لا يظهر في أي واجهة، فلا أحد يحذفه يدويًّا —
+ * وينطبق المنطق نفسه حرفيًّا على المصغَّرة المضافة في المرحلة 18: مصغَّرة
+ * بلا لقطة أصلية بايتاتٌ ميتة لا يشير إليها شيء.
  */
 export async function deleteCaptureWithBlob(id: string): Promise<Result<null>> {
   return withDb(async (db) => {
-    const tx = db.transaction(['captures', 'blobs', 'annotations'], 'readwrite')
+    const tx = db.transaction(['captures', 'blobs', 'annotations', 'thumbnails'], 'readwrite')
     await Promise.all([
       tx.objectStore('captures').delete(id),
       tx.objectStore('blobs').delete(id),
       tx.objectStore('annotations').delete(id),
+      tx.objectStore('thumbnails').delete(id),
       tx.done,
     ])
     return null

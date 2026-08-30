@@ -55,6 +55,11 @@ export const MIGRATIONS: Readonly<Record<number, MigrationStep>> = {
 
     db.createObjectStore('tags', { keyPath: 'name' })
   },
+
+  // بلا فهارس — كأختها `blobs`: تُقرأ بمعرّف اللقطة نفسه فقط، ولا تُمسح أبدًا في استعلام.
+  2: (db) => {
+    db.createObjectStore('thumbnails', { keyPath: 'id' })
+  },
 }
 
 /** أعلى نسخة لها خطوة — يجب أن تساوي `DB_VERSION`. */

@@ -19,6 +19,7 @@ import {
   references,
   repository,
   tags,
+  thumbnails,
 } from '@/shared/storage/repository'
 import { DB_VERSION, STORE_NAMES } from '@/shared/storage/schema'
 
@@ -51,7 +52,7 @@ beforeEach(async () => {
 })
 
 describe('المخطّط', () => {
-  it('يُنشئ المخازن التسعة كلها', async () => {
+  it('يُنشئ المخازن العشرة كلها', async () => {
     const db = await database()
     expect([...db.objectStoreNames].sort()).toEqual([...STORE_NAMES].sort())
     expect(db.version).toBe(DB_VERSION)
@@ -68,6 +69,11 @@ describe('المخطّط', () => {
   it('blobs بلا فهارس — يُقرأ بالمعرّف فقط', async () => {
     const db = await database()
     expect([...db.transaction('blobs').store.indexNames]).toEqual([])
+  })
+
+  it('thumbnails بلا فهارس أيضًا — نفس منطق blobs (المرحلة 18)', async () => {
+    const db = await database()
+    expect([...db.transaction('thumbnails').store.indexNames]).toEqual([])
   })
 })
 
@@ -122,6 +128,10 @@ describe('CRUD على كل مخزن', () => {
         guides.put({ id: 'g1', title: 'دليل', projectId: null, captureIds: [], createdAt: 1 }),
     ],
     ['tags', async () => tags.put({ name: 'خطأ بصري', count: 3 })],
+    [
+      'thumbnails',
+      async () => thumbnails.put({ id: 'c1', blob: new Blob(['x']), width: 100, height: 60 }),
+    ],
   ]
 
   it.each(cases)('يكتب ويقرأ ويعدّ ويحذف في %s', async (name, write) => {
@@ -170,18 +180,20 @@ describe('اللقطة وبايتاتها ذرّيًا', () => {
     expect(bytes.ok && bytes.value.mime).toBe('image/png')
   })
 
-  it('الحذف لا يترك بايتات يتيمة', async () => {
+  it('الحذف لا يترك بايتات يتيمة — بما فيها المصغَّرة (المرحلة 18)', async () => {
     await putCaptureWithBlob(capture('x2'), new Blob(['abc']))
+    await thumbnails.put({ id: 'x2', blob: new Blob(['t']), width: 10, height: 10 })
     await deleteCaptureWithBlob('x2')
     expect((await captures.get('x2')).ok).toBe(false)
     expect((await blobs.get('x2')).ok).toBe(false)
+    expect((await thumbnails.get('x2')).ok).toBe(false)
   })
 
   it('clearAllStores يُفرِغ كل شيء', async () => {
     await putCaptureWithBlob(capture('x3'), new Blob(['abc']))
     await tags.put({ name: 'وسم', count: 1 })
     const result = await clearAllStores()
-    expect(result.ok && result.value).toBe(9)
+    expect(result.ok && result.value).toBe(10)
     const capturesLeft = await captures.count()
     const tagsLeft = await tags.count()
     expect(capturesLeft.ok && capturesLeft.value).toBe(0)
@@ -200,9 +212,9 @@ describe('الترحيل', () => {
     expect(migrationPath(2, 2)).toEqual([])
   })
 
-  it('الترقية من 0 إلى 1 تُنشئ البنية كاملة', async () => {
+  it('الترقية من 0 إلى DB_VERSION الحالية تُنشئ البنية كاملة', async () => {
     const db = await database()
-    expect(db.objectStoreNames.length).toBe(9)
+    expect(db.objectStoreNames.length).toBe(STORE_NAMES.length)
   })
 
   it('نسخة بلا خطوة تفشل بأمان بدل ترك القاعدة نصف مُرحَّلة', async () => {

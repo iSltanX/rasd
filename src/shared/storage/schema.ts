@@ -4,13 +4,15 @@
  * **قرار البنية:** الميتاداتا منفصلة عن الـBlobs. البحث والتصفية في المكتبة
  * (المرحلة 18) يمرّان على آلاف السجلّات؛ لو كانت الصورة داخل السجلّ لحمّل كل
  * استعلام مئات الميغابايت إلى الذاكرة. `captures` تحمل الوصف، و`blobs` تحمل
- * البايتات، والربط بالمعرّف نفسه.
+ * البايتات، والربط بالمعرّف نفسه. و`thumbnails` (النسخة 2) نفس المنطق
+ * درجةً أخرى: شبكة المكتبة لا تحمِّل `blobs` الكاملة لكل بطاقة، بل مصغَّرة
+ * مولَّدة كسولًا ومخزَّنة مرّة واحدة — انظر `ThumbnailRecord`.
  */
 
 import type { DBSchema } from 'idb'
 
 export const DB_NAME = 'rasd'
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 
 export type CaptureKind = 'area' | 'element' | 'viewport' | 'full-page' | 'window'
 export type CaptureStatus = 'ready' | 'processing' | 'failed'
@@ -122,6 +124,22 @@ export interface TagRecord {
   count: number
 }
 
+/**
+ * مصغَّرة مخزَّنة — لا مشتقَّة عند العرض (المرحلة 18).
+ *
+ * شبكة المكتبة تحمل آلاف اللقطات، واللقطة الكاملة قد تبلغ عشرات
+ * الميغابايتات (تجميع صفحة كاملة، المرحلة 10). تحميل كل بطاقة من `blobs`
+ * مباشرة يُحمِّل مئات الميغابايتات في كل تمرير — فالمصغَّرة تُولَّد **مرّة
+ * واحدة** كسولًا (عند أوّل عرض لعنصر يفتقدها) وتُخزَّن هنا بمفتاحها نفسه
+ * (`id` اللقطة)، منفصلة عن `blobs` بنفس منطق الفصل أعلاه.
+ */
+export interface ThumbnailRecord {
+  id: string
+  blob: Blob
+  width: number
+  height: number
+}
+
 export interface RasdDB extends DBSchema {
   captures: {
     key: string
@@ -150,6 +168,7 @@ export interface RasdDB extends DBSchema {
   annotations: { key: string; value: AnnotationRecord }
   guides: { key: string; value: GuideRecord; indexes: { projectId: string } }
   tags: { key: string; value: TagRecord }
+  thumbnails: { key: string; value: ThumbnailRecord }
 }
 
 /**
@@ -168,6 +187,7 @@ export const STORE_NAMES = [
   'annotations',
   'guides',
   'tags',
+  'thumbnails',
 ] as const
 
 export type StoreName = (typeof STORE_NAMES)[number]
