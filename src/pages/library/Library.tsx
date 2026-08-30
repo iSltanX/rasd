@@ -1,21 +1,20 @@
 /**
  * صفحة المكتبة — الحاوية الجذر.
  *
- * هذه الدفعة (السابعة) تُفعِّل التبويبات الأربعة الأخرى (§16): المراجع
- * والألوان واللوحات وأدلة الخطوات — فوق لوحة المشاريع (الدفعة السادسة)
- * وشريط الأدوات (الخامسة) والشبكة الافتراضية (الرابعة). واجهة الوسوم
- * وحالتا الأرشيف/المهملات المخصَّصتان ومؤشِّر الحصة دفعاتٌ لاحقة.
+ * هذه الدفعة (الثامنة) تُضيف الوسوم (§10.3) وعرضَي الأرشيف والمهملات
+ * ومؤشِّر الحصة — آخر محتوى المرحلة قبل دفعة الإغلاق. فوق التبويبات
+ * الخمسة (السابعة) ولوحة المشاريع (السادسة) وشريط الأدوات (الخامسة)
+ * والشبكة الافتراضية (الرابعة).
  *
- * **التحديد المتعدّد يبقى للقطات وحدها وظيفيًا**: البطاقات الأربعة الجديدة
- * تدعم مربّع اختيار بنيويًا (نفس مكوّن `Checkbox`)، لكن لا إجراء جماعي
- * (مفضّلة/أرشفة/مهملات/نقل مشروع) معرَّف لها بعد — تلك عمليات على
- * `CaptureRecord` تحديدًا. فشريط تحديدها هنا **عدّاد وإلغاء فقط**، لا
- * إجراءاتٌ وهمية تعد بأثر لا يقع.
+ * **مبدِّل العرض (نشِطة/الأرشيف/المهملات) والوسوم مقصوران على تبويب
+ * اللقطات**: `ARCHIVE_FILTERS`/`TRASH_FILTERS`/`tags` كلّها مبنيّة على
+ * `CaptureRecord` — نفس حدّ التصفية والترتيب من الدفعة الخامسة، الآن ممتدّ
+ * إلى العرض والوسوم بنفس التعليل بالضبط.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
-import { DEFAULT_LIBRARY_FILTERS, type LibraryFilters } from '@/modules/library/filters'
+import { ARCHIVE_FILTERS, DEFAULT_LIBRARY_FILTERS, TRASH_FILTERS } from '@/modules/library/filters'
 import { type LibraryTab } from '@/modules/library/search'
 import {
   DEFAULT_SORT_DIRECTION,
@@ -23,18 +22,21 @@ import {
   type LibrarySortKey,
   type SortDirection,
 } from '@/modules/library/sort'
+import { purgeCapture } from '@/modules/library/trash'
 import { send } from '@/shared/messaging'
 import { captures } from '@/shared/storage/repository'
 import { Banner } from '@/ui/components/Banner/Banner'
 import { Button } from '@/ui/components/Button/Button'
 import { EmptyState, type EmptyStateKind } from '@/ui/components/EmptyState/EmptyState'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
+import { SegmentedControl } from '@/ui/components/SegmentedControl/SegmentedControl'
 import { Skeleton } from '@/ui/components/Skeleton/Skeleton'
 import { Tabs, type TabItem } from '@/ui/components/Tabs/Tabs'
 
 import {
   loadCounts,
   loadProjectNames,
+  loadQuota,
   loadTab,
   purgeExpiredOnOpen,
   resolveThumbnailUrl,
@@ -46,9 +48,11 @@ import { Grid } from './parts/Grid'
 import { GuideCard } from './parts/GuideCard'
 import { PaletteCard } from './parts/PaletteCard'
 import { ProjectsPanel } from './parts/ProjectsPanel'
+import { QuotaIndicator } from './parts/QuotaIndicator'
 import { ReferenceCard } from './parts/ReferenceCard'
-import { SelectionBar } from './parts/SelectionBar'
+import { SelectionBar, type LibraryViewMode } from './parts/SelectionBar'
 import { SimpleGrid } from './parts/SimpleGrid'
+import { TagsPanel } from './parts/TagsPanel'
 import { Toolbar } from './parts/Toolbar'
 import {
   createProject,
@@ -58,8 +62,10 @@ import {
   renameProject,
   setProjectColor,
 } from './projects'
+import { addTagToCaptures, loadTagsWithCounts } from './tags'
 import { browserThumbnailEncoder } from './thumbnail-encoder'
 
+import type { QuotaState } from '@/shared/storage/quota'
 import type {
   CaptureRecord,
   ColorRecord,
@@ -67,6 +73,7 @@ import type {
   PaletteRecord,
   ProjectRecord,
   ReferenceRecord,
+  TagRecord,
 } from '@/shared/storage/schema'
 import type { JSX } from 'preact'
 
@@ -93,6 +100,12 @@ const EMPTY_KIND_FOR_TAB: Record<LibraryTab, EmptyStateKind> = {
   guides: 'no-guides',
 }
 
+const VIEW_MODE_OPTIONS: readonly { value: LibraryViewMode; label: string }[] = [
+  { value: 'live', label: 'نشِطة' },
+  { value: 'archived', label: 'الأرشيف' },
+  { value: 'trashed', label: 'المهملات' },
+]
+
 export function Library(): JSX.Element {
   const [activeTab, setActiveTab] = useState<LibraryTab>('captures')
   const [loadState, setLoadState] = useState<LoadState>('loading')
@@ -110,9 +123,16 @@ export function Library(): JSX.Element {
   const [sortKey, setSortKey] = useState<LibrarySortKey>(DEFAULT_SORT_KEY)
   const [sortDirection, setSortDirection] = useState<SortDirection>(DEFAULT_SORT_DIRECTION)
   const [favoriteOnly, setFavoriteOnly] = useState(false)
+  const [viewMode, setViewMode] = useState<LibraryViewMode>('live')
+  const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null)
 
   const [projects, setProjects] = useState<ProjectRecord[]>([])
   const [projectsPanelOpen, setProjectsPanelOpen] = useState(false)
+
+  const [tags, setTags] = useState<TagRecord[]>([])
+  const [tagsPanelOpen, setTagsPanelOpen] = useState(false)
+
+  const [quota, setQuota] = useState<QuotaState | null>(null)
 
   useEffect(() => {
     const goOnline = () => setOnline(true)
@@ -130,16 +150,24 @@ export function Library(): JSX.Element {
     void purgeExpiredOnOpen(Date.now())
   }, [])
 
-  const filters: LibraryFilters = favoriteOnly
-    ? { ...DEFAULT_LIBRARY_FILTERS, favorite: true }
-    : DEFAULT_LIBRARY_FILTERS
+  const baseFilters =
+    viewMode === 'archived'
+      ? ARCHIVE_FILTERS
+      : viewMode === 'trashed'
+        ? TRASH_FILTERS
+        : DEFAULT_LIBRARY_FILTERS
+  const filters = {
+    ...baseFilters,
+    ...(favoriteOnly ? { favorite: true } : {}),
+    ...(activeTagFilter ? { tag: activeTagFilter } : {}),
+  }
 
   const reload = useCallback(async () => {
     setLoadState('loading')
     const names = await loadProjectNames()
     setProjectNames(names)
 
-    const [result, counts] = await Promise.all([
+    const [result, counts, quotaState] = await Promise.all([
       loadTab({
         tab: activeTab,
         searchQuery,
@@ -147,8 +175,10 @@ export function Library(): JSX.Element {
         projectNameLookup: (id) => names[id] ?? '',
       }),
       loadCounts(),
+      loadQuota(),
     ])
 
+    setQuota(quotaState)
     if (result.ok) {
       setRecords(result.value)
       setLibraryHasAny(counts.ok ? counts.value.total > 0 : true)
@@ -156,20 +186,28 @@ export function Library(): JSX.Element {
     } else {
       setLoadState('error')
     }
-    // `filters` ليست في مصفوفة الاعتماديات لأنها مُشتقَّة من `favoriteOnly` في
-    // كل عرض بلا حالة خاصّة بها — اعتماديّتها الحقيقية `favoriteOnly` نفسها،
-    // وهي مذكورة.
-  }, [activeTab, searchQuery, sortKey, sortDirection, favoriteOnly])
+    // `filters` ليست في مصفوفة الاعتماديات لأنها مُشتقَّة من الحالات الأخرى
+    // في كل عرض بلا حالة خاصّة بها — اعتماديّاتها الحقيقية (viewMode،
+    // favoriteOnly، activeTagFilter) كلّها مذكورة.
+  }, [activeTab, searchQuery, sortKey, sortDirection, favoriteOnly, viewMode, activeTagFilter])
 
   useEffect(() => {
     void reload()
   }, [reload])
 
-  /** تبديل التبويب يُفرِغ التحديد — تحديدٌ من تبويب لا معنى لبقائه في آخر. */
+  /** تبديل التبويب يُفرِغ التحديد ويعيد العرض إلى «نشِطة» — تحديدٌ أو عرضٌ من تبويب لا معنى لبقائه في آخر. */
   const switchTab = useCallback((index: number) => {
     const tab = TAB_VALUES[index]
     if (!tab) return
     setActiveTab(tab)
+    setSelection(new Set())
+    setViewMode('live')
+  }, [])
+
+  const switchViewMode = useCallback((index: number) => {
+    const mode = VIEW_MODE_OPTIONS[index]?.value
+    if (!mode) return
+    setViewMode(mode)
     setSelection(new Set())
   }, [])
 
@@ -181,6 +219,15 @@ export function Library(): JSX.Element {
   useEffect(() => {
     void reloadProjects()
   }, [reloadProjects])
+
+  const reloadTags = useCallback(async () => {
+    const result = await loadTagsWithCounts()
+    if (result.ok) setTags(result.value)
+  }, [])
+
+  useEffect(() => {
+    void reloadTags()
+  }, [reloadTags])
 
   const onNeedThumbnail = useCallback((id: string) => {
     if (pendingThumbs.current.has(id)) return
@@ -246,10 +293,27 @@ export function Library(): JSX.Element {
     () => void applyToSelection((r) => ({ ...r, archived: true })),
     [applyToSelection],
   )
+  const onUnarchiveSelection = useCallback(
+    () => void applyToSelection((r) => ({ ...r, archived: false })),
+    [applyToSelection],
+  )
   const onTrashSelection = useCallback(
     () => void applyToSelection((r) => ({ ...r, trashedAt: Date.now() })),
     [applyToSelection],
   )
+  const onRestoreSelection = useCallback(
+    () => void applyToSelection((r) => ({ ...r, trashedAt: null })),
+    [applyToSelection],
+  )
+  /** حذف نهائي — لا معاملة `applyToSelection` البسيطة: `purgeCapture` يحذف من ثلاثة مخازن معًا. */
+  const onPurgeSelection = useCallback(() => {
+    void (async () => {
+      for (const id of selection) await purgeCapture(id)
+      clearSelection()
+      await reload()
+    })()
+  }, [selection, clearSelection, reload])
+
   const onMoveSelectionToProject = useCallback(
     (projectId: string | null) => {
       void moveCapturesToProject([...selection], projectId).then(() => {
@@ -258,6 +322,13 @@ export function Library(): JSX.Element {
       })
     },
     [selection, clearSelection, reload],
+  )
+  const onAddTagToSelection = useCallback(
+    (name: string) => {
+      // التحديد لا يُفرَّغ عمدًا: قد يضيف المستخدم أكثر من وسم على التوالي لنفس التحديد.
+      void addTagToCaptures([...selection], name).then(() => void reloadTags())
+    },
+    [selection, reloadTags],
   )
 
   // ── المشاريع ──────────────────────────────────────────────────
@@ -290,6 +361,14 @@ export function Library(): JSX.Element {
   )
 
   const tabIndex = useMemo(() => Math.max(0, TAB_VALUES.indexOf(activeTab)), [activeTab])
+  const viewModeIndex = useMemo(
+    () =>
+      Math.max(
+        0,
+        VIEW_MODE_OPTIONS.findIndex((o) => o.value === viewMode),
+      ),
+    [viewMode],
+  )
 
   return (
     <div class={styles.page}>
@@ -313,22 +392,44 @@ export function Library(): JSX.Element {
           onFavoriteOnlyChange={setFavoriteOnly}
           showSortAndFilter={activeTab === 'captures'}
         />
+        {activeTab === 'captures' ? (
+          <SegmentedControl
+            options={VIEW_MODE_OPTIONS}
+            selected={viewModeIndex}
+            onChange={switchViewMode}
+            aria-label="عرض المكتبة"
+          />
+        ) : null}
+        {activeTab === 'captures' ? (
+          <IconButton
+            icon="tag"
+            aria-label={tagsPanelOpen ? 'إغلاق لوحة الوسوم' : 'فتح لوحة الوسوم'}
+            variant={tagsPanelOpen ? 'solid' : 'ghost'}
+            onClick={() => setTagsPanelOpen((v) => !v)}
+          />
+        ) : null}
         <IconButton
           icon="folder"
           aria-label={projectsPanelOpen ? 'إغلاق لوحة المشاريع' : 'فتح لوحة المشاريع'}
           variant={projectsPanelOpen ? 'solid' : 'ghost'}
           onClick={() => setProjectsPanelOpen((v) => !v)}
         />
+        {quota ? <QuotaIndicator state={quota} /> : null}
       </div>
 
       {selection.size > 0 && activeTab === 'captures' ? (
         <SelectionBar
           count={selection.size}
+          viewMode={viewMode}
           projects={projects}
           onFavorite={onFavoriteSelection}
           onArchive={onArchiveSelection}
+          onUnarchive={onUnarchiveSelection}
           onTrash={onTrashSelection}
+          onRestore={onRestoreSelection}
+          onPurge={onPurgeSelection}
           onMoveToProject={onMoveSelectionToProject}
+          onAddTag={onAddTagToSelection}
           onClear={clearSelection}
         />
       ) : selection.size > 0 ? (
@@ -349,6 +450,15 @@ export function Library(): JSX.Element {
             onSetColor={onSetProjectColor}
             onDelete={onDeleteProject}
             onClose={() => setProjectsPanelOpen(false)}
+          />
+        ) : null}
+
+        {tagsPanelOpen ? (
+          <TagsPanel
+            tags={tags}
+            activeTag={activeTagFilter}
+            onSelectTag={setActiveTagFilter}
+            onClose={() => setTagsPanelOpen(false)}
           />
         ) : null}
 

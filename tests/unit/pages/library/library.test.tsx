@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { Library } from '@/pages/library/Library'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
-import { captures, colors, guides, palettes, references } from '@/shared/storage/repository'
+import { captures, colors, guides, palettes, references, tags } from '@/shared/storage/repository'
 
 import type { CaptureRecord } from '@/shared/storage/schema'
 
@@ -49,9 +49,9 @@ async function flush() {
  * ويعود فورًا **قبل** أن يبدأ التحميل حقًّا، لا بعده. الفحص المباشر لشرط
  * النهاية المطلوب يتفادى هذا السباق كليًّا.
  */
-async function waitFor(predicate: () => boolean, timeoutMs = 2000) {
+async function waitFor(predicate: () => boolean | Promise<boolean>, timeoutMs = 2000) {
   const start = Date.now()
-  while (!predicate()) {
+  while (!(await predicate())) {
     if (Date.now() - start > timeoutMs) {
       throw new Error('انتهت مهلة الانتظار — الشرط لم يتحقّق')
     }
@@ -261,6 +261,147 @@ describe('Library — التبويبات', () => {
     clickTab(root, 'اللوحات')
     await waitFor(() => root.querySelector('[data-palette-id="p1"]') !== null)
     expect(root.textContent).toContain('لوحة الترحيب')
+  })
+})
+
+describe('Library — الأرشيف والمهملات', () => {
+  function clickViewMode(root: HTMLElement, label: string) {
+    const options = [...root.querySelectorAll('[aria-label="عرض المكتبة"] [role="radio"]')]
+    const option = options.find((o) => o.textContent === label) as HTMLButtonElement
+    option.click()
+  }
+
+  it('العرض الافتراضي لا يعرض المؤرشَف ولا المهمَل', async () => {
+    await captures.put(capture('archived', { archived: true }))
+    await captures.put(capture('trashed', { trashedAt: NOW }))
+    const root = await mount()
+    expect(root.querySelectorAll('[data-capture-id]')).toHaveLength(0)
+  })
+
+  it('عرض الأرشيف يُظهر المؤرشَف وحده', async () => {
+    await captures.put(capture('live'))
+    await captures.put(capture('archived', { archived: true }))
+    const root = await mount()
+    clickViewMode(root, 'الأرشيف')
+    await waitFor(() => root.querySelector('[data-capture-id="archived"]') !== null)
+    expect(root.querySelector('[data-capture-id="live"]')).toBeFalsy()
+  })
+
+  it('عرض المهملات يُظهر المهمَل وحده، وشريط تحديده استعادة وحذف نهائي فقط', async () => {
+    // trashedAt بزمن حقيقي حديث لا بثابت NOW القديم — purgeExpiredOnOpen يقارن
+    // بـDate.now() الفعلي، وNOW (2023) صار "منتهيًا" منذ زمن التشغيل الحقيقي فيُطهَّر فورًا.
+    await captures.put(capture('trashed', { trashedAt: Date.now() }))
+    const root = await mount()
+    clickViewMode(root, 'المهملات')
+    await waitFor(() => root.querySelector('[data-capture-id="trashed"]') !== null)
+
+    const checkbox = root.querySelector(
+      '[data-capture-id="trashed"] input[type="checkbox"]',
+    ) as HTMLInputElement
+    checkbox.click()
+    await flush()
+
+    expect(root.querySelector('[aria-label="استعادة المحدَّد"]')).toBeTruthy()
+    expect(root.querySelector('[aria-label="تفضيل المحدَّد"]')).toBeFalsy()
+  })
+
+  it('الاستعادة من المهملات تُعيد اللقطة إلى العرض النشِط', async () => {
+    await captures.put(capture('trashed', { trashedAt: Date.now() }))
+    const root = await mount()
+    clickViewMode(root, 'المهملات')
+    await waitFor(() => root.querySelector('[data-capture-id="trashed"]') !== null)
+
+    const checkbox = root.querySelector(
+      '[data-capture-id="trashed"] input[type="checkbox"]',
+    ) as HTMLInputElement
+    checkbox.click()
+    await flush()
+    ;(root.querySelector('[aria-label="استعادة المحدَّد"]') as HTMLButtonElement).click()
+    await waitFor(() => root.querySelector('[data-capture-id="trashed"]') === null)
+
+    const stored = await captures.get('trashed')
+    expect(stored.ok && stored.value.trashedAt).toBeNull()
+  })
+
+  it('تبديل التبويب يعيد العرض إلى «نشِطة»', async () => {
+    await captures.put(capture('archived', { archived: true }))
+    const root = await mount()
+    clickViewMode(root, 'الأرشيف')
+    await waitFor(() => root.querySelector('[data-capture-id="archived"]') !== null)
+
+    const tabs = [...root.querySelectorAll('[role="tab"]')]
+    const colorsTab = tabs.find((t) => t.textContent === 'الألوان') as HTMLButtonElement
+    colorsTab.click()
+    const capturesTab = tabs.find((t) => t.textContent === 'اللقطات') as HTMLButtonElement
+    capturesTab.click()
+    await flush()
+
+    const active = root.querySelector('[aria-label="عرض المكتبة"] [aria-checked="true"]')
+    expect(active?.textContent).toBe('نشِطة')
+  })
+})
+
+describe('Library — الوسوم', () => {
+  it('لوحة الوسوم مغلقة افتراضيًا، وزرّها يفتحها', async () => {
+    const root = await mount()
+    expect(root.querySelector('[aria-label="الوسوم"]')).toBeFalsy()
+    ;(root.querySelector('[aria-label="فتح لوحة الوسوم"]') as HTMLButtonElement).click()
+    await flush()
+    expect(root.querySelector('[aria-label="الوسوم"]')).toBeTruthy()
+  })
+
+  it('إضافة وسم من شريط التحديد يظهر في لوحة الوسوم', async () => {
+    await captures.put(capture('a'))
+    const root = await mount()
+    const checkbox = root.querySelector(
+      '[data-capture-id="a"] input[type="checkbox"]',
+    ) as HTMLInputElement
+    checkbox.click()
+    await flush()
+
+    const input = root.querySelector('input[name="tag"]') as HTMLInputElement
+    input.value = 'خطأ بصري'
+    const form = input.closest('form') as HTMLFormElement
+    form.dispatchEvent(new Event('submit', { cancelable: true }))
+    await waitFor(async () => {
+      const found = await captures.get('a')
+      return found.ok && found.value.tags.includes('خطأ بصري')
+    })
+
+    ;(root.querySelector('[aria-label="فتح لوحة الوسوم"]') as HTMLButtonElement).click()
+    await waitFor(() => root.querySelector('[data-tag-name="خطأ بصري"]') !== null)
+  })
+
+  it('النقر على وسم في اللوحة يصفِّي الشبكة به', async () => {
+    // مخزن tags منفصل عن حقل tags في captures (عدّاد مُدار — انظر tags.ts)؛
+    // نزرعه هنا مباشرةً كي يظهر في اللوحة بصرف النظر عن مسار addTagToCaptures.
+    await captures.put(capture('a', { tags: ['مهمّ'] }))
+    await captures.put(capture('b', { tags: [] }))
+    await tags.put({ name: 'مهمّ', count: 1 })
+
+    const root = await mount()
+    ;(root.querySelector('[aria-label="فتح لوحة الوسوم"]') as HTMLButtonElement).click()
+    await waitFor(() => root.querySelector('[data-tag-name="مهمّ"]') !== null)
+
+    expect(root.querySelectorAll('[data-capture-id]')).toHaveLength(2)
+
+    ;(root.querySelector('[data-tag-name="مهمّ"]') as HTMLButtonElement).click()
+    await waitFor(() => root.querySelectorAll('[data-capture-id]').length === 1)
+
+    expect(root.querySelector('[data-capture-id="a"]')).toBeTruthy()
+    expect(root.querySelector('[data-capture-id="b"]')).toBeFalsy()
+  })
+})
+
+describe('Library — مؤشِّر الحصة', () => {
+  it('غياب navigator.storage.estimate الحقيقي في بيئة الاختبار لا يُسقط الصفحة', async () => {
+    // fake-indexeddb/happy-dom لا يوفّران navigator.storage.estimate حقيقيًا؛
+    // quotaState() تُعامل غيابه كحصّة مفتوحة (quotaBytes=0)، وQuotaIndicator
+    // لا يرسم شيئًا عندها — ذلك السلوك مُختبَر مباشرةً في quota-indicator.test.tsx.
+    // هنا نتحقّق فقط أن الصفحة تكتمل تحميلها بلا خطأ رغم ذلك.
+    const root = await mount()
+    expect(root.querySelector('[role="alert"]')).toBeFalsy()
+    expect(root.querySelectorAll('[aria-busy="true"]')).toHaveLength(0)
   })
 })
 

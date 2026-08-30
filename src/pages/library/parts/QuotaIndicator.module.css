@@ -1,0 +1,41 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  padding: var(--rasd-space-4) var(--rasd-space-8);
+  border-radius: var(--rasd-radius-md);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-secondary);
+}
+
+.bar {
+  inline-size: 5rem;
+  flex: none;
+}
+
+.text {
+  direction: ltr;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+
+.hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * `.bar` (`ProgressBar`) لا يُعاد تلوينه هنا عمدًا: تعبئته الداخلية
+ * (`.fill`) لون ثابت لا `currentColor` — مكوّن مشترك بلا تنويعة درجة
+ * (tone)، ولمسه خارج نطاقه يكرِّر مشكلة `Icon.tsx` (تعديل خاصّية لا تُنفَّذ
+ * فعليًا). حالتا التحذير والمنع تظهران بالنصّ فقط، وهو صادقٌ بذاته.
+ */
+.level-warn {
+  color: var(--rasd-status-warning-fg);
+}
+
+.level-block {
+  color: var(--rasd-status-danger-fg);
+}
