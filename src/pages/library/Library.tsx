@@ -1,16 +1,20 @@
 /**
  * صفحة المكتبة — الحاوية الجذر.
  *
- * هذه الدفعة تُسلِّم شبكة تبويب اللقطات وحالاتها الخمس المصمَّمة
- * (`grid`/`empty`/`loading`/`selection`/`offline`) فقط. التبويبات الأربعة
- * الأخرى وشريط البحث/التصفية/الترتيب ولوحة المشاريع والوسوم دفعاتٌ لاحقة —
- * `captureQuery` أدناه مُثبَّت على الافتراضي عمدًا حتى تصل.
+ * هذه الدفعة تُضيف شريط الأدوات (بحث، ترتيب، تفضيل) فوق ما بُني في الدفعة
+ * الرابعة. التبويبات الأربعة الأخرى ولوحة المشاريع وواجهة الوسوم دفعاتٌ
+ * لاحقة — تبويب اللقطات وحده مُفعَّل، والقيمة مُثبَّتة صراحةً لا صامتة.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
-import { DEFAULT_LIBRARY_FILTERS } from '@/modules/library/filters'
-import { DEFAULT_SORT_DIRECTION, DEFAULT_SORT_KEY } from '@/modules/library/sort'
+import { DEFAULT_LIBRARY_FILTERS, type LibraryFilters } from '@/modules/library/filters'
+import {
+  DEFAULT_SORT_DIRECTION,
+  DEFAULT_SORT_KEY,
+  type LibrarySortKey,
+  type SortDirection,
+} from '@/modules/library/sort'
 import { send } from '@/shared/messaging'
 import { captures } from '@/shared/storage/repository'
 import { Banner } from '@/ui/components/Banner/Banner'
@@ -18,10 +22,17 @@ import { Button } from '@/ui/components/Button/Button'
 import { EmptyState } from '@/ui/components/EmptyState/EmptyState'
 import { Skeleton } from '@/ui/components/Skeleton/Skeleton'
 
-import { loadProjectNames, loadTab, purgeExpiredOnOpen, resolveThumbnailUrl } from './context'
+import {
+  loadCounts,
+  loadProjectNames,
+  loadTab,
+  purgeExpiredOnOpen,
+  resolveThumbnailUrl,
+} from './context'
 import styles from './Library.module.css'
 import { Grid } from './parts/Grid'
 import { SelectionBar } from './parts/SelectionBar'
+import { Toolbar } from './parts/Toolbar'
 import { browserThumbnailEncoder } from './thumbnail-encoder'
 
 import type { CaptureRecord } from '@/shared/storage/schema'
@@ -34,6 +45,7 @@ const SKELETON_CARD_COUNT = 8
 export function Library(): JSX.Element {
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [records, setRecords] = useState<CaptureRecord[]>([])
+  const [libraryHasAny, setLibraryHasAny] = useState(true)
   const [projectNames, setProjectNames] = useState<Record<string, string>>({})
   const [selection, setSelection] = useState<ReadonlySet<string>>(new Set())
   const [online, setOnline] = useState(() =>
@@ -41,6 +53,11 @@ export function Library(): JSX.Element {
   )
   const [thumbnailUrls, setThumbnailUrls] = useState<Map<string, string | null>>(new Map())
   const pendingThumbs = useRef<Set<string>>(new Set())
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortKey, setSortKey] = useState<LibrarySortKey>(DEFAULT_SORT_KEY)
+  const [sortDirection, setSortDirection] = useState<SortDirection>(DEFAULT_SORT_DIRECTION)
+  const [favoriteOnly, setFavoriteOnly] = useState(false)
 
   useEffect(() => {
     const goOnline = () => setOnline(true)
@@ -53,31 +70,41 @@ export function Library(): JSX.Element {
     }
   }, [])
 
+  /** تطهير المهملات المنتهية — مرّة واحدة عند فتح الصفحة، لا عند كل بحث أو ترتيب. */
+  useEffect(() => {
+    void purgeExpiredOnOpen(Date.now())
+  }, [])
+
+  const filters: LibraryFilters = favoriteOnly
+    ? { ...DEFAULT_LIBRARY_FILTERS, favorite: true }
+    : DEFAULT_LIBRARY_FILTERS
+
   const reload = useCallback(async () => {
     setLoadState('loading')
     const names = await loadProjectNames()
     setProjectNames(names)
 
-    await purgeExpiredOnOpen(Date.now())
-
-    const result = await loadTab({
-      tab: 'captures',
-      searchQuery: '',
-      captureQuery: {
-        filters: DEFAULT_LIBRARY_FILTERS,
-        sortKey: DEFAULT_SORT_KEY,
-        sortDirection: DEFAULT_SORT_DIRECTION,
-      },
-      projectNameLookup: (id) => names[id] ?? '',
-    })
+    const [result, counts] = await Promise.all([
+      loadTab({
+        tab: 'captures',
+        searchQuery,
+        captureQuery: { filters, sortKey, sortDirection },
+        projectNameLookup: (id) => names[id] ?? '',
+      }),
+      loadCounts(),
+    ])
 
     if (result.ok) {
       setRecords(result.value as CaptureRecord[])
+      setLibraryHasAny(counts.ok ? counts.value.total > 0 : true)
       setLoadState('ready')
     } else {
       setLoadState('error')
     }
-  }, [])
+    // `filters` ليست في مصفوفة الاعتماديات لأنها مُشتقَّة من `favoriteOnly` في
+    // كل عرض بلا حالة خاصّة بها — اعتماديّتها الحقيقية `favoriteOnly` نفسها،
+    // وهي مذكورة.
+  }, [searchQuery, sortKey, sortDirection, favoriteOnly])
 
   useEffect(() => {
     void reload()
@@ -143,6 +170,17 @@ export function Library(): JSX.Element {
         </Banner>
       ) : null}
 
+      <Toolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        sortKey={sortKey}
+        onSortKeyChange={setSortKey}
+        sortDirection={sortDirection}
+        onSortDirectionChange={setSortDirection}
+        favoriteOnly={favoriteOnly}
+        onFavoriteOnlyChange={setFavoriteOnly}
+      />
+
       {selection.size > 0 ? (
         <SelectionBar
           count={selection.size}
@@ -167,7 +205,9 @@ export function Library(): JSX.Element {
           </Button>
         </div>
       ) : records.length === 0 ? (
-        <EmptyState kind="no-captures" />
+        // لا لقطة في المكتبة أصلًا تختلف عن لا نتيجة لهذا البحث/التصفية —
+        // الأولى تدعو للالتقاط، والثانية لتعديل الاستعلام؛ رسالتان مختلفتان.
+        <EmptyState kind={libraryHasAny ? 'no-results' : 'no-captures'} />
       ) : (
         <Grid
           records={records}

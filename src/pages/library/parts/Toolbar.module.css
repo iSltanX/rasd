@@ -1,0 +1,26 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-8) var(--rasd-space-12);
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  background: var(--rasd-surface-raised);
+}
+
+.search {
+  flex: 1 1 14rem;
+  min-inline-size: 10rem;
+}
+
+.favoriteToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-secondary);
+  cursor: pointer;
+  margin-inline-start: auto;
+}
