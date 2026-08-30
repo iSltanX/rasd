@@ -28,8 +28,20 @@
  * `shared/` طبقة قاعدية: لا تستورد من أي طبقة أعلى منها ولا تلمس `chrome.*`.
  */
 
-/** فضاء إحداثيات. */
-export type Space = 'viewport' | 'page' | 'device'
+/**
+ * فضاء إحداثيات.
+ *
+ * **`canvas` أُضيف في المرحلة 15**، وهو بكسلات CSS داخل عنصر المسرح في
+ * المحرر — لا بكسلات مخزن الرسم. أحداث المؤشِّر تصل بهذا الفضاء، وكثافة
+ * البكسل تُطبَّق بـ`setTransform` وحدها فلا تظهر في أي إحداثي. وهذا ما يجعل
+ * تسامح الإصابة 6px صحيحًا بلا قسمة على `dpr`.
+ *
+ * **ولا فضاء خامس لـ«الصورة»**: اللقطة تُحفَظ بدقّة الجهاز بلا إعادة تحجيم
+ * (`modules/capture/crop.ts`)، فبكسل الصورة **هو** بكسل الجهاز — و`image`
+ * كانت ستكون هوية بلا تحويل، تفرض فرعًا جديدًا على كل `switch` شامل مقابل
+ * صفر عمل.
+ */
+export type Space = 'viewport' | 'page' | 'device' | 'canvas'
 
 export interface Point<S extends Space = Space> {
   readonly space: S
@@ -48,16 +60,33 @@ export interface Rect<S extends Space = Space> {
 export type ViewportPoint = Point<'viewport'>
 export type PagePoint = Point<'page'>
 export type DevicePoint = Point<'device'>
+export type CanvasPoint = Point<'canvas'>
 export type ViewportRect = Rect<'viewport'>
 export type PageRect = Rect<'page'>
 export type DeviceRect = Rect<'device'>
+export type CanvasRect = Rect<'canvas'>
 
 // ─────────────────────────────────────────────────────────────────
 // بنّاؤون
 // ─────────────────────────────────────────────────────────────────
 
-const point = <S extends Space>(space: S, x: number, y: number): Point<S> => ({ space, x, y })
-const rect = <S extends Space>(
+/**
+ * بنّاءان معمَّمان — **مُصدَّران منذ المرحلة 15**.
+ *
+ * كانا خاصَّين حين كان كل مستهلك يعرف فضاءه وقت الكتابة. والمرحلة 15 فرضت
+ * الحاجة: هندسة التحديد (`modules/capture/selection.ts`) تخدم الآن أداتين
+ * في فضاءين — «تصوير منطقة» في `viewport` والاقتصاص في `device` — فيجب أن
+ * تُرجع الفضاء الذي **استقبلته** لا فضاءً تختاره هي. وبلا بنّاء معمَّم لا
+ * سبيل إلى ذلك إلّا ببناء الكائن يدويًّا في كل موضع، وهو ما يفتح باب خطأ
+ * الوسم الذي بُني الوسم المزدوج لإغلاقه.
+ */
+export const pointIn = <S extends Space>(space: S, x: number, y: number): Point<S> => ({
+  space,
+  x,
+  y,
+})
+
+export const rectIn = <S extends Space>(
   space: S,
   x: number,
   y: number,
@@ -65,9 +94,13 @@ const rect = <S extends Space>(
   height: number,
 ): Rect<S> => ({ space, x, y, width, height })
 
+const point = pointIn
+const rect = rectIn
+
 export const viewportPoint = (x: number, y: number): ViewportPoint => point('viewport', x, y)
 export const pagePoint = (x: number, y: number): PagePoint => point('page', x, y)
 export const devicePoint = (x: number, y: number): DevicePoint => point('device', x, y)
+export const canvasPoint = (x: number, y: number): CanvasPoint => point('canvas', x, y)
 
 export const viewportRect = (x: number, y: number, w: number, h: number): ViewportRect =>
   rect('viewport', x, y, w, h)
@@ -75,6 +108,8 @@ export const pageRect = (x: number, y: number, w: number, h: number): PageRect =
   rect('page', x, y, w, h)
 export const deviceRect = (x: number, y: number, w: number, h: number): DeviceRect =>
   rect('device', x, y, w, h)
+export const canvasRect = (x: number, y: number, w: number, h: number): CanvasRect =>
+  rect('canvas', x, y, w, h)
 
 /**
  * `DOMRect` → مستطيل نافذة.
@@ -242,7 +277,11 @@ export function contains<S extends Space>(r: Rect<S>, p: Point<NoInfer<S>>): boo
  */
 export type ViewportFit = 'contained' | 'off-screen' | 'oversized'
 
-export function viewportFit(r: ViewportRect, viewportWidth: number, viewportHeight: number): ViewportFit {
+export function viewportFit(
+  r: ViewportRect,
+  viewportWidth: number,
+  viewportHeight: number,
+): ViewportFit {
   if (r.height > viewportHeight || r.width > viewportWidth) return 'oversized'
   const withinX = r.x >= 0 && r.x + r.width <= viewportWidth
   const withinY = r.y >= 0 && r.y + r.height <= viewportHeight

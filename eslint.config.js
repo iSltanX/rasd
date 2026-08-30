@@ -27,7 +27,7 @@ export const architectureZones = [
    * خالص أن يعتمد على طبقة تشغيل. هذا ما دفع مفردات الإحداثيات من
    * `content/coords.ts` إلى `shared/geometry.ts`.
    */
-  ...['content', 'background', 'offscreen', 'pages', 'tokens'].map((layer) => ({
+  ...['content', 'background', 'offscreen', 'pages', 'tokens', 'workers'].map((layer) => ({
     target: './src/modules',
     from: `./src/${layer}`,
     message: `modules/ منطق خالص ولا يعتمد على طبقة تشغيل. انقل ما تحتاجه إلى shared/ بدل الاستيراد من ${layer}/.`,
@@ -38,11 +38,117 @@ export const architectureZones = [
     message: 'content/ يعمل داخل صفحة طرف ثالث ولا يجرّ حزمة صفحات الإضافة. استخدم shared/.',
   },
   // shared/ طبقة قاعدية: لا تستورد من أي طبقة أعلى منها.
-  ...['background', 'content', 'offscreen', 'pages', 'modules', 'ui', 'tokens'].map((layer) => ({
-    target: './src/shared',
+  ...['background', 'content', 'offscreen', 'pages', 'modules', 'ui', 'tokens', 'workers'].map(
+    (layer) => ({
+      target: './src/shared',
+      from: `./src/${layer}`,
+      message: `shared/ طبقة قاعدية ولا يستورد من ${layer}/ ولا من أي طبقة أعلى.`,
+    }),
+  ),
+  /*
+   * `workers/` طبقة تشغيل رابعة — تُفتح في المرحلة 15، لا في 14.
+   *
+   * ADR 0014 يفترض أن المرحلة 14 أوّل من ينشئ `src/workers/`، وترتيب
+   * ADR 0013 ينقضه: الترتيب المعتمد `13 ← 15 ← 18 ← 16 ← 17 ← 14`. فالمرحلة
+   * 15 هي الأولى، وترث التزاماته كاملةً — وأوّلها أن تُكتب القاعدة **قبل**
+   * أوّل ملفّ يسكنها لا بعده، وأن تُختبَر بشجرة عيّنات: «قاعدة حدود مكتوبة
+   * على طبقة فارغة غير مُختبَرة ادّعاء لا برهان».
+   *
+   * والـworker يستورد `modules/` و`shared/` وحدهما: لا واجهة ولا طبقة
+   * تشغيل أخرى. وهذا ما يجعله ناقلًا لخوارزمية خالصة لا مالكًا لها.
+   */
+  ...['ui', 'content', 'background', 'offscreen', 'pages', 'tokens'].map((layer) => ({
+    target: './src/workers',
     from: `./src/${layer}`,
-    message: `shared/ طبقة قاعدية ولا يستورد من ${layer}/ ولا من أي طبقة أعلى.`,
+    message: `workers/ يعمل في خيط بلا DOM ولا chrome.* — يستورد modules/ وshared/ وحدهما، لا ${layer}/.`,
   })),
+]
+
+/**
+ * محدِّدات `no-restricted-syntax` — **مصفوفة مُصدَّرة لا قائمة سطرية**.
+ *
+ * السابقة الوحيدة للاستثناء في هذا الملفّ كانت إطفاء القاعدة كاملةً على
+ * ملفّ (`src/shared/messaging/*.ts`)، وهي مقبولة هناك لأن ذلك الملفّ **هو**
+ * طبقة الرسائل. لكنها لا تصلح لمن يحتاج استثناء **محدِّد واحد**: إطفاء
+ * القاعدة على `background/image-ops.ts` يُفقده حراسة `chrome.runtime.*`
+ * والخصائص الفيزيائية و`formatHuman` معًا.
+ *
+ * فتُبنى القائمة من ثابتين: ما يسري على الجميع، ومحدِّد الترميز الذي
+ * يُستثنى منه ملفّان بعينهما. والاستخراج يجعل الاستثناء **طرحًا معلنًا** لا
+ * إطفاءً شاملًا، ويجعل `architecture-boundaries.test.ts` يفحص القاعدة
+ * المطبَّقة فعلًا لا نسخة منها.
+ */
+export const restrictedSyntax = [
+  {
+    selector: "NewExpression[callee.name='Function']",
+    message: 'ممنوع في MV3 — سياسة أمن المحتوى تمنع تنفيذ الشيفرة الديناميكية.',
+  },
+  {
+    selector:
+      "MemberExpression[object.object.name='chrome'][object.property.name='runtime'][property.name=/^(sendMessage|connect)$/]",
+    message:
+      'استخدم send() أو openChannel() من @/shared/messaging — النداء الخام بلا مهلة ويرمي عند غياب المستقبِل.',
+  },
+  {
+    selector:
+      "MemberExpression[object.object.name='chrome'][object.property.name='tabs'][property.name='sendMessage']",
+    message: 'استخدم sendToTab() من @/shared/messaging.',
+  },
+  {
+    selector:
+      "MemberExpression[object.object.name='chrome'][object.property.name='runtime'][property.name=/^(onMessage|onConnect)$/]",
+    message:
+      'استخدم onMessage() أو serveChannel() من @/shared/messaging — التسجيل المباشر يتجاوز تغليف الأخطاء.',
+  },
+  {
+    // خصائص CSS فيزيائية في الأنماط السطرية — واجهة RTL لا تحتملها.
+    selector:
+      'Property[key.name=/^(marginLeft|marginRight|paddingLeft|paddingRight|borderLeft|borderRight|left|right|borderTopLeftRadius|borderTopRightRadius|borderBottomLeftRadius|borderBottomRightRadius)$/]',
+    message:
+      'استخدم الخاصية المنطقية (marginInlineStart · insetInlineStart · borderStartStartRadius) — الواجهة عربية RTL.',
+  },
+  {
+    // `formatHuman` للعدّ البشري وحده؛ القياسات تمرّ من `formatMeasure`.
+    selector:
+      "CallExpression[callee.name='formatHuman'] > Identifier[name=/^(width|height|size|dpr|ratio|bytes|padding|margin|gap|radius|scale|offset)$/]",
+    message: 'هذا قياس لا عدّ بشري — استخدم formatMeasure().',
+  },
+  {
+    selector:
+      "CallExpression[callee.name='formatHuman'] > MemberExpression[property.name=/^(width|height|size|dpr|ratio|bytes|padding|margin|gap|radius|scale|offset)$/]",
+    message: 'هذا قياس لا عدّ بشري — استخدم formatMeasure().',
+  },
+]
+
+/**
+ * الترميز إلى بايتات — بوّابة خروج واحدة لا خمس.
+ *
+ * `toBlob`/`convertToBlob`/`toDataURL` هي المواضع الوحيدة التي تخرج فيها
+ * بكسلات من المنتج إلى ملفّ أو حافظة. وحدّ المرحلة 15 الأمني — «الحجب لا
+ * يمكن عكسه في الملفّ المصدَّر» — لا يكون قابلًا للفرض إلّا إذا مرّ كل خروج
+ * من دالّة واحدة تخبز الحجب قبل الترميز. ودرس قضية Manafort أن الطبقة
+ * المرسومة فوق المحتوى ليست حجبًا ما لم تُدمَّر البكسلات تحتها.
+ *
+ * فالقاعدة تحظر الترميز في كل مكان، وتُستثنى ثلاثة ملفّات بالاسم:
+ * `modules/editor/bake.ts` (بوّابة المحرر)، و`background/image-ops.ts`
+ * و`background/stitch.ts` (مسارا الالتقاط والتجميع — كلاهما **قبل** المحرر
+ * في الزمن، ينتجان الصورة المصدر ولا يمرّان بمشهد أصلًا).
+ *
+ * والثالث كشفته القاعدة نفسها أوّل تشغيل: وثيقة التصميم عدّت اثنين،
+ * و`stitch.ts:162` ثالث. وهذا بالضبط ما تُشترى به قاعدة اللنت — إحصاء
+ * مسارات الخروج بالعدّ الآلي لا بالذاكرة.
+ */
+export const encodeSelector = {
+  selector: 'CallExpression[callee.property.name=/^(toBlob|convertToBlob|toDataURL)$/]',
+  message:
+    'الترميز إلى بايتات يقع في modules/editor/bake.ts وحدها — هي التي تخبز الحجب قبل الترميز (ADR 0015).',
+}
+
+/** الملفّان المستثنيان من `encodeSelector` وحده، لا من بقيّة المحدِّدات. */
+export const ENCODE_ALLOWED = [
+  'src/modules/editor/bake.ts',
+  'src/background/image-ops.ts',
+  'src/background/stitch.ts',
 ]
 
 const importOrder = [
@@ -114,48 +220,7 @@ export default tseslint.config(
       // الرسائل الخام تمرّ من طبقة الرسائل وحدها — انظر ADR 0006.
       // تُكتب كمحدِّدات AST لا كـ`no-restricted-properties`: تلك القاعدة تطابق
       // المُعرِّف المباشر فقط، و`chrome.runtime.sendMessage` أعمق بمستوى.
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: "NewExpression[callee.name='Function']",
-          message: 'ممنوع في MV3 — سياسة أمن المحتوى تمنع تنفيذ الشيفرة الديناميكية.',
-        },
-        {
-          selector:
-            "MemberExpression[object.object.name='chrome'][object.property.name='runtime'][property.name=/^(sendMessage|connect)$/]",
-          message:
-            'استخدم send() أو openChannel() من @/shared/messaging — النداء الخام بلا مهلة ويرمي عند غياب المستقبِل.',
-        },
-        {
-          selector:
-            "MemberExpression[object.object.name='chrome'][object.property.name='tabs'][property.name='sendMessage']",
-          message: 'استخدم sendToTab() من @/shared/messaging.',
-        },
-        {
-          selector:
-            "MemberExpression[object.object.name='chrome'][object.property.name='runtime'][property.name=/^(onMessage|onConnect)$/]",
-          message:
-            'استخدم onMessage() أو serveChannel() من @/shared/messaging — التسجيل المباشر يتجاوز تغليف الأخطاء.',
-        },
-        {
-          // خصائص CSS فيزيائية في الأنماط السطرية — واجهة RTL لا تحتملها.
-          selector:
-            'Property[key.name=/^(marginLeft|marginRight|paddingLeft|paddingRight|borderLeft|borderRight|left|right|borderTopLeftRadius|borderTopRightRadius|borderBottomLeftRadius|borderBottomRightRadius)$/]',
-          message:
-            'استخدم الخاصية المنطقية (marginInlineStart · insetInlineStart · borderStartStartRadius) — الواجهة عربية RTL.',
-        },
-        {
-          // `formatHuman` للعدّ البشري وحده؛ القياسات تمرّ من `formatMeasure`.
-          selector:
-            "CallExpression[callee.name='formatHuman'] > Identifier[name=/^(width|height|size|dpr|ratio|bytes|padding|margin|gap|radius|scale|offset)$/]",
-          message: 'هذا قياس لا عدّ بشري — استخدم formatMeasure().',
-        },
-        {
-          selector:
-            "CallExpression[callee.name='formatHuman'] > MemberExpression[property.name=/^(width|height|size|dpr|ratio|bytes|padding|margin|gap|radius|scale|offset)$/]",
-          message: 'هذا قياس لا عدّ بشري — استخدم formatMeasure().',
-        },
-      ],
+      'no-restricted-syntax': ['error', ...restrictedSyntax, encodeSelector],
     },
   },
 
@@ -163,6 +228,37 @@ export default tseslint.config(
   {
     files: ['src/shared/messaging/*.ts'],
     rules: { 'no-restricted-syntax': 'off' },
+  },
+
+  /*
+   * بوّابتا الترميز — تُستثنيان من `encodeSelector` وحده.
+   *
+   * القاعدة تُعاد كاملةً ناقصةً محدِّدًا واحدًا، ولا تُطفأ: `image-ops.ts`
+   * يبقى محروسًا من النداءات الخام والخصائص الفيزيائية و`formatHuman`.
+   */
+  {
+    files: ENCODE_ALLOWED,
+    rules: { 'no-restricted-syntax': ['error', ...restrictedSyntax] },
+  },
+
+  /*
+   * ── طبقة الـworkers: خيط بلا مستند ────────────────────────────
+   *
+   * الكتلة العامّة تعطي `globals.browser` لكل `**` `/*.{ts,tsx}`، و`tsconfig`
+   * يحمل `DOM` في `lib`. فـ`document.createElement('canvas')` داخل worker
+   * **يمرّ من `tsc` ومن `eslint` معًا وينفجر وقت التشغيل** — وهو أسوأ صنف
+   * فشل، وصنف البندين 18 و31 في §6 نفسه. الحاجز الرابع يمنعه لنتًا.
+   */
+  {
+    files: ['src/workers/**/*.ts'],
+    languageOptions: { globals: { ...globals.worker } },
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        { name: 'document', message: 'لا مستند في خيط الـworker — مرِّر البيانات في الرسالة.' },
+        { name: 'window', message: 'لا نافذة في خيط الـworker — استعمل self.' },
+      ],
+    },
   },
 
   // ── سكربتات Node: JavaScript خالص، بلا لنت واعٍ بالأنواع ──────

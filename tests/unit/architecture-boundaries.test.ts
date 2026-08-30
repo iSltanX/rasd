@@ -6,6 +6,8 @@ import { fileURLToPath, URL } from 'node:url'
 import { ESLint } from 'eslint'
 import { describe, expect, it } from 'vitest'
 
+import { encodeSelector, ENCODE_ALLOWED, restrictedSyntax } from '../../eslint.config.js'
+
 /**
  * حدود المعمار ليست اتفاقًا شفويًا — هذا الاختبار يثبت أن `pnpm lint`
  * يسقط فعلًا عند الاستيراد الممنوع.
@@ -69,5 +71,94 @@ describe('حدود المعمار مفروضة آليًا', () => {
   it('يسمح لـmodules/ باستيراد shared/', async () => {
     const messages = await lintFixture('src/modules/allowed.ts')
     expect(messages.filter((m) => m.ruleId === RULE)).toHaveLength(0)
+  })
+})
+
+/**
+ * طبقة `workers/` — تُفتَح في المرحلة 15، وتُختبَر **قبل** أوّل ملفّ يسكنها.
+ *
+ * ADR 0014 يفرض ذلك بنصّه: «قاعدة حدود مكتوبة على طبقة فارغة غير مُختبَرة
+ * ادّعاء لا برهان» — وهي عين الثغرة التي سدّها ADR 0008. وهو يفترض أن
+ * المرحلة 14 أوّل من يبلغها؛ وترتيب ADR 0013 (`13 ← 15 ← 18 ← 16 ← 17 ← 14`)
+ * ينقض الافتراض، فورثتها المرحلة 15.
+ */
+describe('حدود طبقة الـworkers', () => {
+  it('يمنع workers/ من استيراد ui/', async () => {
+    const messages = await lintFixture('src/workers/violates-ui.ts')
+    const violation = messages.find((m) => m.ruleId === RULE)
+    expect(violation, 'كان يجب أن تُرفع مخالفة').toBeDefined()
+    expect(violation?.severity).toBe(2)
+    expect(violation?.message).toContain('workers/')
+  })
+
+  it('يمنع workers/ من استيراد pages/', async () => {
+    const messages = await lintFixture('src/workers/violates-pages.ts')
+    const violation = messages.find((m) => m.ruleId === RULE)
+    expect(violation, 'كان يجب أن تُرفع مخالفة').toBeDefined()
+    expect(violation?.severity).toBe(2)
+  })
+
+  it('يسمح لـworkers/ باستيراد shared/', async () => {
+    const messages = await lintFixture('src/workers/allowed.ts')
+    expect(messages.filter((m) => m.ruleId === RULE)).toHaveLength(0)
+  })
+
+  /*
+   * الاتجاه المعاكس مهمّ بقدر الأوّل: الـworker ناقلٌ لخوارزمية تعيش في
+   * `modules/`، فلو استوردت `modules/` منه لانقلبت التبعية وصار المنطق
+   * الخالص معتمدًا على خيط تنفيذ.
+   */
+  it('يمنع modules/ من استيراد workers/', async () => {
+    const messages = await lintFixture('src/modules/violates-workers.ts')
+    const violation = messages.find((m) => m.ruleId === RULE)
+    expect(violation, 'كان يجب أن تُرفع مخالفة').toBeDefined()
+    expect(violation?.message).toContain('modules/')
+  })
+
+  it('يمنع shared/ من استيراد workers/', async () => {
+    const messages = await lintFixture('src/shared/violates-workers.ts')
+    const violation = messages.find((m) => m.ruleId === RULE)
+    expect(violation, 'كان يجب أن تُرفع مخالفة').toBeDefined()
+    expect(violation?.message).toContain('shared/')
+  })
+})
+
+/**
+ * بوّابة الترميز — الحدّ الأمني للمرحلة 15 مفروضًا لنتًا.
+ *
+ * `toBlob`/`convertToBlob`/`toDataURL` هي كل مسارات خروج البكسلات من
+ * المنتج. وادّعاء «الحجب لا يمكن عكسه في الملفّ المصدَّر» لا يكون قابلًا
+ * للفرض إلّا إذا مرّ كل خروج من دالّة تخبز الحجب قبل الترميز.
+ *
+ * ويُفحَص هنا **شكل القاعدة المطبَّقة** لا سلوكها على عيّنة: الاستثناء
+ * طرحُ محدِّد واحد من مصفوفة، لا إطفاء القاعدة على ملفّ — والفرق بينهما هو
+ * بقاء `image-ops.ts` محروسًا من النداءات الخام والخصائص الفيزيائية.
+ */
+describe('بوّابة الترميز', () => {
+  it('محدِّد الترميز يمنع toBlob وconvertToBlob وtoDataURL', () => {
+    expect(encodeSelector.selector).toContain('toBlob')
+    expect(encodeSelector.selector).toContain('convertToBlob')
+    expect(encodeSelector.selector).toContain('toDataURL')
+  })
+
+  it('المستثنون ثلاثة بالاسم — بوّابة المحرر ومسارا الالتقاط والتجميع', () => {
+    expect(ENCODE_ALLOWED).toEqual([
+      'src/modules/editor/bake.ts',
+      'src/background/image-ops.ts',
+      'src/background/stitch.ts',
+    ])
+  })
+
+  /*
+   * هذا هو البند الذي يمنع الانحراف: لو أُطفئت القاعدة على المستثنين بدل
+   * طرح محدِّد واحد، لسقطت معها ستّ حراسات أخرى — وأوّلها أن `image-ops.ts`
+   * لا ينادي `chrome.runtime.sendMessage` خامًا.
+   */
+  it('الاستثناء يُبقي بقيّة المحدِّدات السبعة سارية', () => {
+    expect(restrictedSyntax).toHaveLength(7)
+    const selectors = restrictedSyntax.map((r) => r.selector).join(' ')
+    expect(selectors).toContain('chrome')
+    expect(selectors).toContain('formatHuman')
+    expect(selectors).not.toContain('toBlob')
   })
 })

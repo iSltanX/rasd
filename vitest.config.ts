@@ -16,10 +16,19 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: false,
+    /*
+     * أربعة أنماط لا ثلاثة.
+     *
+     * `tests/integration/**\/*.test.tsx` كان غائبًا حتى المرحلة 15: اختبار
+     * تكامل يركّب مكوّنًا **لا يُشغَّل ولا يُبلَّغ عنه** — يُكتَب ويُحفَظ
+     * ويمرّ البناء أخضر وهو لم يُنفَّذ قطّ. وهو صنف الفشل الذي يجعل تغطيةً
+     * مُدَّعاة أسوأ من تغطية غائبة.
+     */
     include: [
       'tests/unit/**/*.test.ts',
       'tests/unit/**/*.test.tsx',
       'tests/integration/**/*.test.ts',
+      'tests/integration/**/*.test.tsx',
     ],
     setupFiles: ['tests/setup.ts'],
     coverage: {

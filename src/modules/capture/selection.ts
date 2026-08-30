@@ -6,21 +6,31 @@
  * لا في متصفّح — وهو المطلوب: أخطاء القصّ تظهر متأخّرة وبانحراف صغير يصعب
  * ربطه بسببه.
  *
- * **الفضاء واحد طوال الملفّ.** كل الدوالّ تعمل في `viewport` (فضاء المؤشِّر
- * والرسم). التحويل إلى `device` للقصّ يحدث مرّة واحدة عند الالتقاط عبر
- * `viewportRectToDevice`، الذي يقرّب الحوافّ لا الأصل والمقاس — انظر
- * `content/coords.ts`. خلط الفضاءين هنا يعطي تحديدًا يبدو صحيحًا على الشاشة
- * ومقصوصًا خطأً في الملفّ.
+ * **الفضاء واحد داخل النداء، ومعمَّم عبر النداءات.** كل دالّة تعمل في فضاء
+ * واحد وتُرجعه كما استقبلته (`<S extends Space>`)، ولا تختار فضاءً بنفسها.
+ * أداة «تصوير منطقة» تستدعيها في `viewport` (فضاء المؤشِّر والرسم)،
+ * والتحويل إلى `device` للقصّ يحدث مرّة واحدة عند الالتقاط عبر
+ * `viewportRectToDevice`. خلط الفضاءين داخل نداء واحد يعطي تحديدًا يبدو
+ * صحيحًا على الشاشة ومقصوصًا خطأً في الملفّ — و`NoInfer` على المعامل الثاني
+ * هو ما يمنعه وقت الترجمة.
+ *
+ * **ولماذا عُمِّمت في المرحلة 15:** الاقتصاص في المحرر «بمقابض ونسب جاهزة»
+ * هو هذه الهندسة حرفًا بحرف — المقابض الثمانية، وتثبيت النسبة، والانقلاب،
+ * والحصر — لكن على مستطيل بفضاء **الجهاز** (اللقطة تُحفَظ بدقّة الجهاز بلا
+ * إعادة تحجيم). ونصّ المرحلة يمنع كتابة الهندسة مرّتين. والوسم مزدوج وقت
+ * التشغيل، فتمرير `DeviceRect` إلى توقيع مثبَّت على `viewport` **خطأ ترجمة
+ * لا تحذير** — أي أن التعميم شرط استعمال لا تحسين أسلوب.
  *
  * `modules/` لا يستورد من `ui/` — تُفرض آليًا.
  */
 
 import {
   normalizeRect,
-  viewportPoint,
-  viewportRect,
-  type ViewportPoint,
-  type ViewportRect,
+  pointIn,
+  rectIn,
+  type Point,
+  type Rect,
+  type Space,
 } from '@/shared/geometry'
 
 /**
@@ -84,7 +94,7 @@ interface Edges {
   y2: number
 }
 
-const toEdges = (r: ViewportRect): Edges => ({
+const toEdges = <S extends Space>(r: Rect<S>): Edges => ({
   x1: r.x,
   y1: r.y,
   x2: r.x + r.width,
@@ -98,8 +108,10 @@ const toEdges = (r: ViewportRect): Edges => ({
  * يجعل السلوك مطابقًا لأدوات التصميم: المستطيل ينقلب ويستمرّ السحب، ولا
  * «يلتصق» المقبض عند الصفر.
  */
-const fromEdges = (e: Edges): ViewportRect =>
-  viewportRect(
+const fromEdges = <S extends Space>(space: S, e: Edges): Rect<S> =>
+  rectIn(
+    space,
+
     Math.min(e.x1, e.x2),
     Math.min(e.y1, e.y2),
     Math.abs(e.x2 - e.x1),
@@ -107,17 +119,17 @@ const fromEdges = (e: Edges): ViewportRect =>
   )
 
 /** مركز مستطيل. */
-export function centerOf(r: ViewportRect): ViewportPoint {
-  return viewportPoint(r.x + r.width / 2, r.y + r.height / 2)
+export function centerOf<S extends Space>(r: Rect<S>): Point<S> {
+  return pointIn(r.space, r.x + r.width / 2, r.y + r.height / 2)
 }
 
 /** موضع مقبض بعينه على المستطيل — تستعمله الواجهة لرسم المقابض. */
-export function handlePoint(r: ViewportRect, handle: Handle): ViewportPoint {
+export function handlePoint<S extends Space>(r: Rect<S>, handle: Handle): Point<S> {
   const e = toEdges(r)
   const spec = HANDLE_EDGES[handle]
   const x = spec.x === 'x1' ? e.x1 : spec.x === 'x2' ? e.x2 : (e.x1 + e.x2) / 2
   const y = spec.y === 'y1' ? e.y1 : spec.y === 'y2' ? e.y2 : (e.y1 + e.y2) / 2
-  return viewportPoint(x, y)
+  return pointIn(r.space, x, y)
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -158,11 +170,12 @@ export interface DrawOptions {
  * الحرّة وحدها؛ مع النسبة يجب حساب المقاس أوّلًا ثم اشتقاق الأصل منه، وإلا
  * انزاح المستطيل عن المرساة عند السحب لأعلى أو لليسار.
  */
-export function drawRect(
-  anchor: ViewportPoint,
-  pointer: ViewportPoint,
+export function drawRect<S extends Space>(
+  anchor: Point<S>,
+  pointer: Point<NoInfer<S>>,
   options: DrawOptions = {},
-): ViewportRect {
+): Rect<S> {
+  const space = anchor.space
   const { ratio = null, fromCenter = false } = options
 
   const dx = pointer.x - anchor.x
@@ -173,7 +186,7 @@ export function drawRect(
     const half = ratio
       ? fitRatio(Math.abs(dx), Math.abs(dy), ratio)
       : { w: Math.abs(dx), h: Math.abs(dy) }
-    return viewportRect(anchor.x - half.w, anchor.y - half.h, half.w * 2, half.h * 2)
+    return rectIn(space, anchor.x - half.w, anchor.y - half.h, half.w * 2, half.h * 2)
   }
 
   if (!ratio) return normalizeRect(anchor, pointer)
@@ -183,7 +196,7 @@ export function drawRect(
   // كموجب: عرضه صفر أصلًا فلا فرق بصريًّا، والاتّساق أهمّ من الحالة الحدّية.
   const x = dx >= 0 ? anchor.x : anchor.x - w
   const y = dy >= 0 ? anchor.y : anchor.y - h
-  return viewportRect(x, y, w, h)
+  return rectIn(space, x, y, w, h)
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -202,12 +215,13 @@ export function drawRect(
  * الحافّة المقابلة: هذا سلوك أدوات التصميم، وبديله (النمو من ركن) يجعل
  * المستطيل يقفز جانبيًا عند أوّل تحريك.
  */
-export function resizeRect(
-  rect: ViewportRect,
+export function resizeRect<S extends Space>(
+  rect: Rect<S>,
   handle: Handle,
-  pointer: ViewportPoint,
+  pointer: Point<NoInfer<S>>,
   options: DrawOptions = {},
-): ViewportRect {
+): Rect<S> {
+  const space = rect.space
   const { ratio = null } = options
   const spec = HANDLE_EDGES[handle]
 
@@ -215,7 +229,7 @@ export function resizeRect(
     const e = toEdges(rect)
     if (spec.x) e[spec.x] = pointer.x
     if (spec.y) e[spec.y] = pointer.y
-    return fromEdges(e)
+    return fromEdges(space, e)
   }
 
   const anchor = handlePoint(rect, OPPOSITE[handle])
@@ -231,7 +245,7 @@ export function resizeRect(
     const h = w / ratio
     const cy = (e.y1 + e.y2) / 2
     const x = pointer.x >= anchor.x ? anchor.x : anchor.x - w
-    return viewportRect(x, cy - h / 2, w, h)
+    return rectIn(space, x, cy - h / 2, w, h)
   }
 
   // مقبض رأسي (`n`/`s`): بالعكس.
@@ -239,7 +253,7 @@ export function resizeRect(
   const w = h * ratio
   const cx = (e.x1 + e.x2) / 2
   const y = pointer.y >= anchor.y ? anchor.y : anchor.y - h
-  return viewportRect(cx - w / 2, y, w, h)
+  return rectIn(space, cx - w / 2, y, w, h)
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -247,8 +261,8 @@ export function resizeRect(
 // ─────────────────────────────────────────────────────────────────
 
 /** يزيح المستطيل بلا تغيير مقاسه. */
-export function moveRect(rect: ViewportRect, dx: number, dy: number): ViewportRect {
-  return viewportRect(rect.x + dx, rect.y + dy, rect.width, rect.height)
+export function moveRect<S extends Space>(rect: Rect<S>, dx: number, dy: number): Rect<S> {
+  return rectIn(rect.space, rect.x + dx, rect.y + dy, rect.width, rect.height)
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -256,8 +270,10 @@ export function moveRect(rect: ViewportRect, dx: number, dy: number): ViewportRe
 // ─────────────────────────────────────────────────────────────────
 
 /** يحصر نقطة داخل مستطيل. */
-function clampPoint(p: ViewportPoint, b: ViewportRect): ViewportPoint {
-  return viewportPoint(
+function clampPoint<S extends Space>(p: Point<S>, b: Rect<NoInfer<S>>): Point<S> {
+  return pointIn(
+    p.space,
+
     Math.min(Math.max(p.x, b.x), b.x + b.width),
     Math.min(Math.max(p.y, b.y), b.y + b.height),
   )
@@ -277,12 +293,13 @@ function clampPoint(p: ViewportPoint, b: ViewportRect): ViewportPoint {
  * من المرساة في اتجاه السحب، ثم يُصغَّر المقاس داخلها بمعامل واحد يحفظ
  * النسبة. المرساة لا تتحرّك أبدًا، فلا انزلاق ولا ارتجاف.
  */
-export function solveDrag(
-  anchor: ViewportPoint,
-  pointer: ViewportPoint,
-  bounds: ViewportRect,
+export function solveDrag<S extends Space>(
+  anchor: Point<S>,
+  pointer: Point<NoInfer<S>>,
+  bounds: Rect<NoInfer<S>>,
   options: DrawOptions = {},
-): ViewportRect {
+): Rect<S> {
+  const space = anchor.space
   const { ratio = null, fromCenter = false } = options
   const p = clampPoint(pointer, bounds)
   const solved = drawRect(anchor, p, options)
@@ -311,8 +328,8 @@ export function solveDrag(
   const w = solved.width * Math.max(0, scale)
   const h = ratio ? w / ratio : solved.height * Math.max(0, scale)
 
-  if (fromCenter) return viewportRect(anchor.x - w / 2, anchor.y - h / 2, w, h)
-  return viewportRect(dx >= 0 ? anchor.x : anchor.x - w, dy >= 0 ? anchor.y : anchor.y - h, w, h)
+  if (fromCenter) return rectIn(space, anchor.x - w / 2, anchor.y - h / 2, w, h)
+  return rectIn(space, dx >= 0 ? anchor.x : anchor.x - w, dy >= 0 ? anchor.y : anchor.y - h, w, h)
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -326,12 +343,13 @@ export function solveDrag(
  * يُقصّ إلا إن كان أكبر من الحدود أصلًا. القصّ أوّلًا يعني أن تحريك تحديد
  * إلى حافّة الشاشة يُنقصه تدريجيًا — وهو سلوك يفقد المستخدم عمله بلا سبب.
  */
-export function clampRect(rect: ViewportRect, bounds: ViewportRect): ViewportRect {
+export function clampRect<S extends Space>(rect: Rect<S>, bounds: Rect<NoInfer<S>>): Rect<S> {
   const width = Math.min(rect.width, bounds.width)
   const height = Math.min(rect.height, bounds.height)
   const maxX = bounds.x + bounds.width - width
   const maxY = bounds.y + bounds.height - height
-  return viewportRect(
+  return rectIn(
+    rect.space,
     Math.min(Math.max(rect.x, bounds.x), maxX),
     Math.min(Math.max(rect.y, bounds.y), maxY),
     width,
@@ -348,15 +366,16 @@ export function clampRect(rect: ViewportRect, bounds: ViewportRect): ViewportRec
  * **لا يُستعمل أثناء سحب حيّ** — انظر `solveDrag` وتعليقها: الزاوية العليا
  * ليست المرساة في نصف اتجاهات السحب.
  */
-export function clampRatioRect(
-  rect: ViewportRect,
-  bounds: ViewportRect,
+export function clampRatioRect<S extends Space>(
+  rect: Rect<S>,
+  bounds: Rect<NoInfer<S>>,
   ratio: number,
-): ViewportRect {
+): Rect<S> {
+  const space = rect.space
   const scale = Math.min(1, bounds.width / rect.width, bounds.height / rect.height)
   const width = rect.width * scale
   const height = width / ratio
-  const anchored = viewportRect(rect.x, rect.y, width, height)
+  const anchored = rectIn(space, rect.x, rect.y, width, height)
   return clampRect(anchored, bounds)
 }
 
@@ -365,7 +384,7 @@ export function clampRatioRect(
 // ─────────────────────────────────────────────────────────────────
 
 /** هل التحديد كبير بما يكفي ليُلتقَط؟ */
-export function isCapturable(rect: ViewportRect): boolean {
+export function isCapturable<S extends Space>(rect: Rect<S>): boolean {
   return rect.width >= MIN_SELECTION && rect.height >= MIN_SELECTION
 }
 
@@ -395,7 +414,7 @@ const MAX_RATIO_TERM = 40
  * والسقوط إلى العشري ليس تنازلًا بل صدق: تحديد حرّ نادرًا ما يختصر إلى
  * حدَّين صغيرين، وادّعاء نسبة أنيقة عليه كذب على المستخدم.
  */
-export function describeRatio(rect: ViewportRect): string {
+export function describeRatio<S extends Space>(rect: Rect<S>): string {
   if (rect.height === 0 || rect.width === 0) return '—'
 
   const w = Math.round(rect.width)

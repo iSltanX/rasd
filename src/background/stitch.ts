@@ -18,6 +18,7 @@
  * من الالتقاط إلى الترميز.
  */
 
+import { canvasAlive } from '@/shared/canvas-alive'
 import { withinCanvasLimits } from '@/shared/canvas-limits'
 import { errText, ok, type Result } from '@/shared/result'
 
@@ -34,28 +35,6 @@ export interface StitchedImage {
   readonly height: number
   /** عدد البلاطات المرسومة فعلًا. */
   readonly tiles: number
-}
-
-/**
- * يتحقّق أن القماش حيّ فعلًا لا فارغًا صامتًا.
- *
- * تجاوز الحدود **لا يرمي**: `getContext('2d')` يُرجع سياقًا صالحًا،
- * و`canvas.width` يبلّغ المقاس المطلوب، والرسم يُقبَل — ثم يخرج كل شيء
- * أصفارًا. الحارس قبل التخصيص لا يكفي وحده لأن الحدّ قد يتغيّر بين إصدارات
- * Chrome أو بين المنصّات؛ وقراءة بكسل واحد تكلّف لا شيء وتقطع الشكّ.
- */
-function canvasAlive(ctx: OffscreenCanvasRenderingContext2D): boolean {
-  try {
-    ctx.save()
-    ctx.fillStyle =
-      '#ffffff' /* rasd-allow-literal: بكسل فحص لا لون واجهة — يُرسَم ويُقرأ ثم يُغطّى */
-    ctx.fillRect(0, 0, 1, 1)
-    const probe = ctx.getImageData(0, 0, 1, 1).data
-    ctx.restore()
-    return probe[3] !== 0
-  } catch {
-    return false
-  }
 }
 
 /**
