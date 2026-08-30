@@ -1,0 +1,26 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-16);
+  block-size: 100vh;
+  box-sizing: border-box;
+}
+
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--rasd-space-12);
+  overflow: hidden;
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-16);
+  text-align: center;
+  color: var(--rasd-text-secondary);
+  font-family: var(--rasd-font-family-text);
+}

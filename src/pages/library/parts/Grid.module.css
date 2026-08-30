@@ -1,0 +1,21 @@
+.scroller {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-block-size: 0;
+  flex: 1;
+}
+
+/* الارتفاع الكامل — عمود تباعد (spacer) وحيد يعطي شريط تمرير صحيحًا بلا رسم كل الصفوف. */
+.spacer {
+  position: relative;
+}
+
+.window {
+  position: absolute;
+  inset-inline: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--rasd-space-12);
+  align-content: start;
+}
