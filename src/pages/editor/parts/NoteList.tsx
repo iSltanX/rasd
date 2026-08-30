@@ -43,7 +43,10 @@ export function NoteList(props: NoteListProps): JSX.Element {
   const counts = countByTag(all)
 
   /** جلسة تحرير لكل (عقدة، حقل) — تُنشأ عند أوّل حرف وتُغلَق عند فقد التركيز. */
-  const sessionFor = (id: NodeId, field: EditableField): ReturnType<typeof createTextEditSession> => {
+  const sessionFor = (
+    id: NodeId,
+    field: EditableField,
+  ): ReturnType<typeof createTextEditSession> => {
     const key = `${id}|${field}`
     const found = sessions.current.get(key)
     if (found) return found
@@ -59,7 +62,11 @@ export function NoteList(props: NoteListProps): JSX.Element {
     props.onChange()
   }
 
-  const onKeyDown = (e: JSX.TargetedKeyboardEvent<HTMLElement>, id: NodeId, field: EditableField): void => {
+  const onKeyDown = (
+    e: JSX.TargetedKeyboardEvent<HTMLElement>,
+    id: NodeId,
+    field: EditableField,
+  ): void => {
     const shortcut = isHistoryShortcut(e)
     if (!shortcut) return
     e.preventDefault()

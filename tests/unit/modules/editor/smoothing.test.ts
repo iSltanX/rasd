@@ -143,9 +143,12 @@ describe('**الإنهاء — السقف يُقاس على الناتج لا ا
     const jitter = (p: readonly number[]): number => {
       let sum = 0
       for (let i = 1; i < pointCount(p) - 1; i++) {
-        const ax = p[(i - 1) * 2]!, ay = p[(i - 1) * 2 + 1]!
-        const bx = p[i * 2]!, by = p[i * 2 + 1]!
-        const cx = p[(i + 1) * 2]!, cy = p[(i + 1) * 2 + 1]!
+        const ax = p[(i - 1) * 2]!,
+          ay = p[(i - 1) * 2 + 1]!
+        const bx = p[i * 2]!,
+          by = p[i * 2 + 1]!
+        const cx = p[(i + 1) * 2]!,
+          cy = p[(i + 1) * 2 + 1]!
         sum += Math.abs(Math.atan2(cy - by, cx - bx) - Math.atan2(by - ay, bx - ax))
       }
       return sum / Math.max(1, pointCount(p) - 2)

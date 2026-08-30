@@ -45,6 +45,21 @@ export interface DrawContext {
    * وغيابها يعني أن العقد النصّية تُتخطّى بدل أن تُرسم بأبعاد مقدَّرة.
    */
   readonly layout?: TextLayoutCache
+  /**
+   * رقعة الطمس الجاهزة لهذه العقدة، أو `null`.
+   *
+   * دالّة لا خريطة: البحث يقع لحظة الرسم بمفتاح يشمل التكبير ونسخة المشهد،
+   * وحسابه مسبقًا لكل عقدة في كل إطار يعني بناء المفاتيح كلّها لِما لا
+   * يُرسَم منها شيء.
+   */
+  readonly redactPatch?: (
+    node: RedactNode,
+  ) => { image: CanvasImageSource; plan: RedactPatchPlan } | null
+}
+
+/** ما يحتاجه الرسّام من خطّة الرقعة — الوجهة داخلها وحدها. */
+export interface RedactPatchPlan {
+  readonly dest: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }
 }
 
 /** يطبّق نمط الخطّ على السياق. يُستدعى داخل `save`/`restore` دائمًا. */
@@ -237,9 +252,13 @@ function drawPin(d: DrawContext, node: PinNode): void {
 /**
  * الحجب — **يقرأ من المصدر السليم لا من قماش العرض**.
  *
- * التغطية وحدها منفَّذة في هذه الدفعة؛ البكسلة والضبابي في الدفعة الخامسة مع
- * `pixel-ops`. وحتى ذلك الحين يُرسم الاثنان تغطيةً معتمة **لا معاينة كاذبة**:
- * إظهار طمس ضعيف لِما لم يُبنَ بعدُ وعدٌ لا يُوفى.
+ * **والرقعة تصل جاهزة أو لا تصل.** بناؤها غير متزامن وخارج هذه الدالّة
+ * (`pages/editor/redact-raster.ts`)، لأن أسوأ رقعة مقيسة تكلّف عشرات
+ * المللي ثانية — وحسابها داخل حلقة الرسم يوقف الواجهة.
+ *
+ * **وغيابها يعني تغطية معتمة، لا بكسلات خامًا.** الفرق بين الاتجاهين هو
+ * الفرق بين فشل مغلق وفشل مفتوح: التغطية تُظهر أقلّ ممّا سيُصدَّر، والبكسلات
+ * الخام تعرض المحتوى الحسّاس في اللحظة التي طلب فيها المستخدم إخفاءه.
  */
 function drawRedact(d: DrawContext, node: RedactNode): void {
   const r = normaliseBox(node.rect)
@@ -253,8 +272,20 @@ function drawRedact(d: DrawContext, node: RedactNode): void {
    */
   ctx.globalAlpha = 1
   ctx.filter = 'none'
-  ctx.fillStyle = d.style.palette[node.coverToken]
-  ctx.fillRect(r.x, r.y, r.width, r.height)
+
+  const patch = node.mode === 'cover' ? null : d.redactPatch?.(node)
+  if (patch) {
+    /*
+     * تُرسم **وجهة الرقعة وحدها** لا الرقعة كاملة: ما حولها هامش أُخذت منه
+     * العيّنة، ورسمه يمدّ الطمس خارج المستطيل الذي أعلنه المستخدم.
+     */
+    const { dest } = patch.plan
+    ctx.imageSmoothingEnabled = true
+    ctx.drawImage(patch.image, dest.x, dest.y, dest.w, dest.h, r.x, r.y, r.width, r.height)
+  } else {
+    ctx.fillStyle = d.style.palette[node.coverToken]
+    ctx.fillRect(r.x, r.y, r.width, r.height)
+  }
 
   // حدّ متقطّع يميّز الحجب عن مستطيل مرسوم — نصّ التصميم `128:133`.
   ctx.strokeStyle = d.style.redactOutlineHex

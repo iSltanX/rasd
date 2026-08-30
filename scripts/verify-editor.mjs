@@ -55,6 +55,34 @@ if (!chrome) {
   process.exit(1)
 }
 
+// ── قبل كروم: هل بُني الـworker أصلًا؟ ───────────────────────────
+/*
+ * فحصٌ يسبق إقلاع المتصفّح عمدًا: انحدارُ حزمٍ يسقط في مللي ثانية بدل أن
+ * يسقط بعد تحميل إضافة وفتح تبويب. والشكل الحرفي `new Worker(new URL(…))`
+ * هو ما يعرفه vite؛ ورفعُ الـ`URL` إلى متغيّر يُخرج ملفّ `.ts` خامًا.
+ */
+const bundlePreflight = []
+{
+  const { readdirSync } = await import('node:fs')
+  const assets = join(dist, 'assets')
+  const files = existsSync(assets) ? readdirSync(assets) : []
+  const workerFile = files.find((f) => /^blur\.worker-.*\.js$/.test(f))
+  bundlePreflight.push(
+    workerFile
+      ? { ok: true, text: `ملفّ الـworker في الحزمة: assets/${workerFile}` }
+      : { ok: false, text: 'لا ملفّ blur.worker في dist/assets — الشكل الحرفي انكسر' },
+  )
+  if (workerFile) {
+    const pages = files.filter((f) => f.endsWith('.js') && !f.startsWith('blur.worker'))
+    const referenced = pages.some((f) => readFileSync(join(assets, f), 'utf8').includes(workerFile))
+    bundlePreflight.push(
+      referenced
+        ? { ok: true, text: 'وموضع النداء يشير إليه بعنوان الحزمة لا بمسار المصدر' }
+        : { ok: false, text: 'لا موضع نداء يشير إلى ملفّ الـworker' },
+    )
+  }
+}
+
 // ── خادم العيّنات ────────────────────────────────────────────────
 const fixtures = spawn(process.execPath, [join(root, 'scripts', 'fixtures-serve.mjs')], {
   stdio: 'ignore',
@@ -156,6 +184,29 @@ if (!session) {
   process.exit(1)
 }
 const { ws, send } = session
+
+/*
+ * أخطاء الصفحة تُجمَع.
+ *
+ * وحدة بناء الرقع **تفشل صامتةً بالتصميم** — كل تعذّر يرسم تغطية معتمة —
+ * فاستثناءٌ فيها يبدو سياسةً أمنية. وبلا هذا الجمع كان التشخيص تخمينًا.
+ */
+const pageErrors = []
+ws.addEventListener('message', (event) => {
+  let msg
+  try {
+    msg = JSON.parse(event.data)
+  } catch {
+    return
+  }
+  if (msg.method === 'Runtime.exceptionThrown') {
+    const d = msg.params?.exceptionDetails
+    pageErrors.push(d?.exception?.description ?? d?.text ?? 'استثناء بلا وصف')
+  }
+  if (msg.method === 'Runtime.consoleAPICalled' && msg.params?.type === 'error') {
+    pageErrors.push((msg.params.args ?? []).map((a) => a.value ?? a.description ?? '?').join(' '))
+  }
+})
 
 const errors = []
 const lines = []
@@ -269,7 +320,9 @@ async function seedAndOpen(w, h, dpr) {
   let target = null
   for (let i = 0; i < 40; i++) {
     const { targetInfos } = await send('Target.getTargets')
-    const editors = targetInfos.filter((t) => t.type === 'page' && String(t.url).includes('/editor/'))
+    const editors = targetInfos.filter(
+      (t) => t.type === 'page' && String(t.url).includes('/editor/'),
+    )
     target = editors.at(-1) ?? null
     if (target) break
     await new Promise((r) => setTimeout(r, 200))
@@ -345,7 +398,15 @@ async function waitReady(sessionId) {
     ).catch(() => null)
     if (!raw) continue
     const s = JSON.parse(raw)
-    if (s.state === 'ready' && s.stage && s.base && s.base.w > 1) return s
+    /*
+     * `annotating` لا `ready`: الدفعة الخامسة أدخلت الحالات المسمّاة في
+     * الخطّة (`annotating` · `redact` · `exporting`)، والاسم القديم كان
+     * يصف «حُمِّلت» لا «أيّ حالة». ويُقبَل الاثنان كي لا يسقط الفحص على
+     * فرقٍ في التسمية وحده.
+     */
+    if ((s.state === 'annotating' || s.state === 'ready') && s.stage && s.base && s.base.w > 1) {
+      return s
+    }
   }
   return null
 }
@@ -554,14 +615,28 @@ if (extId && sw && granted) {
       // سحبةٌ تحدّد عرض اللفّ — نقرةٌ كانت ستعني «بلا لفّ».
       await send(
         'Input.dispatchMouseEvent',
-        { type: 'mousePressed', x: cx - 120, y: cy - 40, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        {
+          type: 'mousePressed',
+          x: cx - 120,
+          y: cy - 40,
+          button: 'left',
+          clickCount: 1,
+          pointerType: 'mouse',
+        },
         S,
       )
       await moveTo(S, cx - 40, cy - 20)
       await moveTo(S, cx + 30, cy)
       await send(
         'Input.dispatchMouseEvent',
-        { type: 'mouseReleased', x: cx + 30, y: cy, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        {
+          type: 'mouseReleased',
+          x: cx + 30,
+          y: cy,
+          button: 'left',
+          clickCount: 1,
+          pointerType: 'mouse',
+        },
         S,
       )
       await settle(S)
@@ -612,8 +687,16 @@ if (extId && sw && granted) {
       }
 
       // ⎋ يُنهي التحرير فتنتقل الصورة من الحقل إلى القماش.
-      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, S)
-      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, S)
+      await send(
+        'Input.dispatchKeyEvent',
+        { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 },
+        S,
+      )
+      await send(
+        'Input.dispatchKeyEvent',
+        { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 },
+        S,
+      )
       await settle(S)
       await new Promise((r) => setTimeout(r, 300))
 
@@ -628,12 +711,26 @@ if (extId && sw && granted) {
       await new Promise((r) => setTimeout(r, 120))
       await send(
         'Input.dispatchMouseEvent',
-        { type: 'mousePressed', x: cx - 260, y: cy + 200, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        {
+          type: 'mousePressed',
+          x: cx - 260,
+          y: cy + 200,
+          button: 'left',
+          clickCount: 1,
+          pointerType: 'mouse',
+        },
         S,
       )
       await send(
         'Input.dispatchMouseEvent',
-        { type: 'mouseReleased', x: cx - 260, y: cy + 200, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        {
+          type: 'mouseReleased',
+          x: cx - 260,
+          y: cy + 200,
+          button: 'left',
+          clickCount: 1,
+          pointerType: 'mouse',
+        },
         S,
       )
       await settle(S)
@@ -693,8 +790,16 @@ if (extId && sw && granted) {
 
       // ── 6) نوبة الكتابة على المكدّس: ⌘Z تمحو كلمة لا فقرة ───────
       const undoOnce = async () => {
-        await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'z', code: 'KeyZ', modifiers: 4, windowsVirtualKeyCode: 90 }, S)
-        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', modifiers: 4, windowsVirtualKeyCode: 90 }, S)
+        await send(
+          'Input.dispatchKeyEvent',
+          { type: 'rawKeyDown', key: 'z', code: 'KeyZ', modifiers: 4, windowsVirtualKeyCode: 90 },
+          S,
+        )
+        await send(
+          'Input.dispatchKeyEvent',
+          { type: 'keyUp', key: 'z', code: 'KeyZ', modifiers: 4, windowsVirtualKeyCode: 90 },
+          S,
+        )
         await settle(S)
         await new Promise((r) => setTimeout(r, 150))
       }
@@ -712,12 +817,26 @@ if (extId && sw && granted) {
        */
       await send(
         'Input.dispatchMouseEvent',
-        { type: 'mousePressed', x: cx - 60, y: cy - 26, button: 'left', clickCount: 2, pointerType: 'mouse' },
+        {
+          type: 'mousePressed',
+          x: cx - 60,
+          y: cy - 26,
+          button: 'left',
+          clickCount: 2,
+          pointerType: 'mouse',
+        },
         S,
       )
       await send(
         'Input.dispatchMouseEvent',
-        { type: 'mouseReleased', x: cx - 60, y: cy - 26, button: 'left', clickCount: 2, pointerType: 'mouse' },
+        {
+          type: 'mouseReleased',
+          x: cx - 60,
+          y: cy - 26,
+          button: 'left',
+          clickCount: 2,
+          pointerType: 'mouse',
+        },
         S,
       )
       await settle(S)
@@ -740,15 +859,21 @@ if (extId && sw && granted) {
       if (remaining === '\u0000') {
         note('تعذّر إعادة فتح النصّ بنقرة مزدوجة — يُكتفى بعدّ الضغطات أدناه')
       } else if (remaining !== '' && remaining.length < LINE.length && LINE.startsWith(remaining)) {
-        ok(
-          `**وما بقي «${remaining}»** — بادئةٌ صحيحة أقصر من السطر، لا فراغ ولا الفقرة كلّها`,
-        )
+        ok(`**وما بقي «${remaining}»** — بادئةٌ صحيحة أقصر من السطر، لا فراغ ولا الفقرة كلّها`)
       } else {
         fail(`ما بقي بعد ⌘Z واحدة «${remaining}» — ليس بادئةً أقصر من السطر`)
       }
 
-      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, S)
-      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, S)
+      await send(
+        'Input.dispatchKeyEvent',
+        { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 },
+        S,
+      )
+      await send(
+        'Input.dispatchKeyEvent',
+        { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 },
+        S,
+      )
       await settle(S)
 
       let presses = 1
@@ -767,6 +892,174 @@ if (extId && sw && granted) {
         )
       } else {
         fail(`محو السطر احتاج ${presses} ضغطة على ${LINE.length} محرفًا — خارج المدى المقبول`)
+      }
+
+      // ── 7) الحجب والطمس: البكسلات نفسها لا طبقة عرض ──────────────
+      for (const line of bundlePreflight) {
+        if (line.ok) ok(line.text)
+        else fail(line.text)
+      }
+
+      /** يقرأ بكسلات مستطيل من طبقة معلومة، ويُرجع تباينه وعدد ألوانه. */
+      const regionStats = async (layer, x, y, w, h) =>
+        JSON.parse(
+          await evalIn(
+            S,
+            `JSON.stringify((() => {
+              const c = document.querySelector('[data-stage-layer="${layer}"]')
+              const d = c.getContext('2d').getImageData(${x}, ${y}, ${w}, ${h}).data
+              let sum = 0, n = 0
+              const seen = new Set()
+              for (let i = 0; i < d.length; i += 4) {
+                sum += 77*d[i] + 150*d[i+1] + 29*d[i+2]
+                seen.add((d[i]<<24 | d[i+1]<<16 | d[i+2]<<8 | d[i+3]) >>> 0)
+                n++
+              }
+              const mean = sum / n
+              let acc = 0
+              for (let i = 0; i < d.length; i += 4) {
+                const v = 77*d[i] + 150*d[i+1] + 29*d[i+2] - mean
+                acc += v * v
+              }
+              return { variance: acc / n / 65536, colours: seen.size, n }
+            })())`,
+          ),
+        )
+
+      /*
+       * المنطقة تُرسم **على حدّ اللونين المزروعين**، أي على مركز الصورة
+       * حيث يلتقي الربع الأحمر بالخلفية. ومنطقةٌ داخل لون واحد كانت ستُعطي
+       * تباينًا صفرًا بعد الضباب كما قبله — فيمرّ الفحص على محرّك معطّل.
+       */
+      await evalIn(S, `document.querySelector('[data-tool="redact"]').click(), 1`)
+      await new Promise((r) => setTimeout(r, 120))
+
+      const rx = cx - 70
+      const ry = cy - 45
+      await send(
+        'Input.dispatchMouseEvent',
+        { type: 'mousePressed', x: rx, y: ry, button: 'left', clickCount: 1, pointerType: 'mouse' },
+        S,
+      )
+      await moveTo(S, rx + 70, ry + 45)
+      await moveTo(S, rx + 140, ry + 90)
+      await send(
+        'Input.dispatchMouseEvent',
+        {
+          type: 'mouseReleased',
+          x: rx + 140,
+          y: ry + 90,
+          button: 'left',
+          clickCount: 1,
+          pointerType: 'mouse',
+        },
+        S,
+      )
+      await settle(S)
+      await new Promise((r) => setTimeout(r, 300))
+
+      const frameBox = JSON.parse(
+        await evalIn(
+          S,
+          `JSON.stringify((() => {
+            const wrap = document.querySelector('[data-editor-stage]').getBoundingClientRect()
+            const c = document.querySelector('[data-stage-layer="annotations"]')
+            return { sx: c.width / wrap.width, x: wrap.x, y: wrap.y }
+          })())`,
+        ),
+      )
+      // مستطيل داخل منطقة الحجب، بفضاء مخزن القماش، بعيدًا عن حدّه المتقطّع.
+      const bx = Math.round((rx + 30 - frameBox.x) * frameBox.sx)
+      const by = Math.round((ry + 20 - frameBox.y) * frameBox.sx)
+      const bw = Math.round(80 * frameBox.sx)
+      const bh = Math.round(50 * frameBox.sx)
+
+      const covered = await regionStats('annotations', bx, by, bw, bh)
+      if (covered.variance === 0 && covered.colours === 1) {
+        ok('**التغطية تُسطّح المنطقة تمامًا** — تباين صفر ولونٌ واحد على القماش')
+      } else {
+        fail(`التغطية تركت تباينًا ${covered.variance.toFixed(3)} و${covered.colours} لونًا`)
+      }
+
+      // تُبدَّل إلى ضبابي من اللوحة — وهي المسار الذي يمرّ من العقدة والرقعة.
+      const switched = await evalIn(
+        S,
+        `(() => {
+          const b = document.querySelector('[data-redact-mode="blur"]')
+          if (!b) return 'no-panel'
+          b.click()
+          return 'ok'
+        })()`,
+      )
+      if (switched !== 'ok') {
+        fail('لوحة الحجب لم تُعرض — لا زرّ نمط')
+      } else {
+        // الرقعة تُبنى غير متزامنة؛ الإطار الأوّل تغطية. وحركةُ مؤشِّر
+        // تضمن إطارًا جديدًا بعد جهوزها.
+        await new Promise((r) => setTimeout(r, 600))
+        await moveTo(S, cx, cy)
+        await new Promise((r) => setTimeout(r, 900))
+        await settle(S)
+
+        const blurred = await regionStats('annotations', bx, by, bw, bh)
+        if (blurred.colours > 1 && blurred.variance > 0) {
+          ok(
+            `**والضباب يُعاين بالبكسلات فعلًا** — ${blurred.colours} لونًا وتباين ${blurred.variance.toFixed(1)} حيث كانت التغطية لونًا واحدًا`,
+          )
+        } else {
+          fail('التبديل إلى ضبابي أبقى المنطقة مسطّحة — المعاينة لم تُبنَ')
+        }
+
+        try {
+          const shot = await send('Page.captureScreenshot', { format: 'png' }, S)
+          writeFileSync(
+            join(root, 'artifacts', 'editor-redact.png'),
+            Buffer.from(shot.data, 'base64'),
+          )
+          note('لقطة للمراجعة البصرية: artifacts/editor-redact.png')
+        } catch (e) {
+          note(`تعذّرت لقطة الطمس: ${e}`)
+        }
+
+        const path = await evalIn(
+          S,
+          `(document.querySelector('[data-editor-stage]')?.dataset.blurPath ?? 'none')`,
+        )
+        if (path === 'worker') {
+          ok('**والحساب وقع على الـworker** — يُبنى بـCRXJS ويُحمَّل بلا انتهاك CSP')
+        } else if (path === 'main') {
+          fail('سقط الحساب إلى الخيط الرئيسي — الـworker لم يعمل داخل الإضافة')
+        } else {
+          fail('لم يُسجَّل مسار الحساب أصلًا')
+        }
+
+        // الشدّة المعروضة هي المطبَّقة: رفعُها يزيد التسطّح.
+        const strong = await evalIn(
+          S,
+          `(() => {
+            const s = document.querySelector('[data-redact-strength]')
+            if (!s) return 'none'
+            s.value = '40'
+            s.dispatchEvent(new Event('input', { bubbles: true }))
+            return s.value
+          })()`,
+        )
+        if (strong === '40') {
+          await new Promise((r) => setTimeout(r, 1200))
+          await settle(S)
+          const heavy = await regionStats('annotations', bx, by, bw, bh)
+          if (heavy.variance < blurred.variance) {
+            ok(
+              `**والشدّة المعروضة هي المطبَّقة** — التباين هبط من ${blurred.variance.toFixed(1)} إلى ${heavy.variance.toFixed(1)} برفع σ إلى 40`,
+            )
+          } else {
+            fail(
+              `رفع الشدّة لم يزد التنعيم (${blurred.variance.toFixed(1)} ← ${heavy.variance.toFixed(1)})`,
+            )
+          }
+        } else {
+          fail('شريط الشدّة غير معروض في وضع الضباب')
+        }
       }
 
       // ── 4) الذاكرة — البند الذي يعلنه ADR 0011 مفتوحًا ─────────
@@ -793,9 +1086,11 @@ if (extId && sw && granted) {
        * و**الذاكرة** — والحالة القصوى هي بالضبط ما يُقاس. فبقاء الأوّل
        * يُلوّث الرقم الذي تُبنى عليه ميزانية الخبز.
        */
-      await send('Target.closeTarget', { targetId: (await send('Target.getTargets')).targetInfos
-        .filter((t) => t.type === 'page' && String(t.url).includes('/editor/'))
-        .at(-1).targetId })
+      await send('Target.closeTarget', {
+        targetId: (await send('Target.getTargets')).targetInfos
+          .filter((t) => t.type === 'page' && String(t.url).includes('/editor/'))
+          .at(-1).targetId,
+      })
       await new Promise((r) => setTimeout(r, 400))
 
       // الحالة القصوى — الرقم الذي تُبنى عليه ميزانية الخبز.
@@ -848,6 +1143,8 @@ if (extId && sw && granted) {
     }
   }
 }
+
+for (const e of pageErrors.slice(0, 6)) fail(`استثناء في الصفحة: ${String(e).slice(0, 200)}`)
 
 // ── التقرير ─────────────────────────────────────────────────────
 console.log('\n── فحص محرّك التعليق في Chrome حقيقي ──\n')

@@ -27,7 +27,6 @@ import { snapToPixel, statsOf, type RenderPlan, type RenderStats } from './rende
 import type { AnnotationColor, NodeId, Scene, SceneNode } from './scene'
 import type { TextLayoutCache } from './text-layout'
 
-
 /**
  * أضيق واجهة رسم تكفي المحرر.
  *
@@ -124,6 +123,12 @@ export interface Frame {
   readonly measure?: MeasureBox
   /** ذاكرة تخطيط النصّ — بدونها تُتخطّى العقد النصّية. */
   readonly layout?: TextLayoutCache
+  /**
+   * رقعة الطمس الجاهزة لعقدة — بدونها تُرسم تغطية معتمة.
+   *
+   * وغيابها **ليس عطلًا**: التغطية أقلّ ممّا سيُصدَّر لا أكثر، فالفشل مغلق.
+   */
+  readonly redactPatch?: DrawContext['redactPatch']
   /** أثناء إيماءة حيّة — يمنع توليد المخابئ الغالية لإطار واحد. */
   readonly interacting: boolean
 }
@@ -205,6 +210,7 @@ export function paintAnnotations(
     source: src,
     interacting: frame.interacting,
     ...(frame.layout ? { layout: frame.layout } : {}),
+    ...(frame.redactPatch ? { redactPatch: frame.redactPatch } : {}),
   }
 
   for (const node of plan.nodes) drawNode(draw, node)

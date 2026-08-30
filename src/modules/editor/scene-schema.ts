@@ -171,7 +171,15 @@ const NodeSchema = v.variant('kind', [
     kind: v.literal('redact'),
     rect: DeviceRectSchema,
     mode: v.picklist(['cover', 'pixelate', 'blur']),
-    strength: v.pipe(finite, v.minValue(0)),
+    /*
+     * **السقف حارس ذاكرة لا ذوق.** الشدّة نصف قطر نواة: `strength = 5000`
+     * يعطي نصف قطر 14,097 بكسلًا، فرقعةٌ 100×100 تصير 28,294² ⇒ **3.2
+     * غيغابايت** لمخزن واحد. ومشهدٌ تالف أو محرَّر بيدٍ يمرّ من التحقّق ثمّ
+     * يُسقط التبويب عند أوّل رسم — عطلٌ بعيد عن سببه بمرحلتين.
+     *
+     * والحدّ 64 هو أكبر حدّي الواجهة (ضلع الخليّة)، فلا يقصّ استعمالًا مشروعًا.
+     */
+    strength: v.pipe(finite, v.minValue(0), v.maxValue(64)),
     coverToken: ColorSchema,
   }),
   v.object({

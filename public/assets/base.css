@@ -35,6 +35,49 @@ video {
   border-radius: var(--rasd-radius-xs);
 }
 
+/*
+ * الأيقونات — سلّم `icon/*` وحده، ولا مقاس حرّ.
+ *
+ * القواعد نفسها في `src/ui/icons/icon.css`، وتلك ورقة **الطبقة** داخل
+ * الجذر المغلق. وصفحات الإضافة تُحمّل `base.css` وحدها، فبدون هذه النسخة
+ * تُرسم كل أيقونة على صفحة إضافة بمقاسها الجوهري: قِيس أن أيقونة تحذير
+ * بمقاس `sm` خرجت أكبر من السطر الذي تسبقه أربع مرّات.
+ */
+.rasd-icon {
+  flex: none;
+  color: inherit;
+  stroke: currentColor;
+}
+.rasd-icon-xs {
+  inline-size: var(--rasd-icon-xs);
+  block-size: var(--rasd-icon-xs);
+}
+.rasd-icon-sm {
+  inline-size: var(--rasd-icon-sm);
+  block-size: var(--rasd-icon-sm);
+}
+.rasd-icon-md {
+  inline-size: var(--rasd-icon-md);
+  block-size: var(--rasd-icon-md);
+}
+.rasd-icon-lg {
+  inline-size: var(--rasd-icon-lg);
+  block-size: var(--rasd-icon-lg);
+}
+.rasd-icon-xl {
+  inline-size: var(--rasd-icon-xl);
+  block-size: var(--rasd-icon-xl);
+}
+.rasd-icon-2xl {
+  inline-size: var(--rasd-icon-2xl);
+  block-size: var(--rasd-icon-2xl);
+}
+
+/* الأيقونات الاتجاهية تُعكس في RTL؛ الباقي — الشعار والصحّ والوسائط — لا. */
+[dir='rtl'] .rasd-icon[data-mirror='true'] {
+  scale: -1 1;
+}
+
 .rasd-color-value {
   display: inline-flex;
   align-items: center;

@@ -167,7 +167,11 @@ export function chaikinPass(flat: readonly number[], closed: boolean): readonly 
 }
 
 /** يطبّق جولات شايكن المتتابعة. */
-export function smooth(flat: readonly number[], closed: boolean, passes = CHAIKIN_PASSES): readonly number[] {
+export function smooth(
+  flat: readonly number[],
+  closed: boolean,
+  passes = CHAIKIN_PASSES,
+): readonly number[] {
   let out = flat
   for (let i = 0; i < passes; i++) out = chaikinPass(out, closed)
   return out

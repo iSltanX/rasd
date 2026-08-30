@@ -19,7 +19,12 @@
  * لزجة: نداءٌ سابق ضبطها يُفسد كل قياس بعده.
  */
 
-import { estimateMetrics, type FontMetrics, type MeasureFont, type MeasureText } from '@/modules/editor/text-layout'
+import {
+  estimateMetrics,
+  type FontMetrics,
+  type MeasureFont,
+  type MeasureText,
+} from '@/modules/editor/text-layout'
 
 import type { FontSpec } from '@/modules/editor/scene'
 
@@ -39,16 +44,15 @@ export interface Measurer {
  * `ctx` يُحقن في الاختبار؛ وفي المتصفّح يُنشأ قماشٌ بمقاس 1×1 — القياس لا
  * يحتاج سطحًا، والمقاس الافتراضي 300×150 يخصّص 180 كيلوبايت بلا سبب.
  */
-export function createMeasurer(
-  family: string,
-  ctx?: CanvasRenderingContext2D | null,
-): Measurer {
-  const context =
-    ctx ?? document.createElement('canvas').getContext('2d')
+export function createMeasurer(family: string, ctx?: CanvasRenderingContext2D | null): Measurer {
+  const context = ctx ?? document.createElement('canvas').getContext('2d')
 
   if (!context) {
     // سياقٌ مرفوض (ذاكرة، أو بيئة بلا قماش): التقدير أفضل من الانهيار.
-    return { measure: (line, font) => line.length * font.sizePx * 0.55, measureFont: estimateMetrics }
+    return {
+      measure: (line, font) => line.length * font.sizePx * 0.55,
+      measureFont: estimateMetrics,
+    }
   }
 
   const measure: MeasureText = (line, font) => {

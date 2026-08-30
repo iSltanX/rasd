@@ -9,6 +9,7 @@
  * أنها **سياسة تطبيق** لا منطقًا خالصًا؛ والأشكال الناتجة وحدها هي البيانات.
  */
 
+import { defaultStrength } from '@/modules/editor/redact'
 import {
   cssToImage,
   asNodeId,
@@ -22,16 +23,7 @@ import { devicePoint, deviceRect, type DevicePoint } from '@/shared/geometry'
 
 /** الأدوات المبنيّة. القياس في الدفعة السابعة. */
 export type ToolName =
-  | 'select'
-  | 'arrow'
-  | 'line'
-  | 'rect'
-  | 'ellipse'
-  | 'freehand'
-  | 'pin'
-  | 'redact'
-  | 'text'
-  | 'note'
+  'select' | 'arrow' | 'line' | 'rect' | 'ellipse' | 'freehand' | 'pin' | 'redact' | 'text' | 'note'
 
 /** أدوات تُنشئ عقدة بالسحب — `select` ليست منها. */
 export const DRAW_TOOLS: readonly ToolName[] = [
@@ -48,6 +40,8 @@ export const DRAW_TOOLS: readonly ToolName[] = [
 
 export interface ToolSettings {
   readonly colorToken: AnnotationColor
+  /** لون التغطية — منفصل عن لون التعليق: أحدهما يُخفي والآخر يُشير. */
+  readonly coverToken: AnnotationColor
   /** بكسل CSS — يُضرب بكثافة اللقطة عند الإنشاء. */
   readonly strokeWidthCss: number
   readonly fontSizeCss: number
@@ -56,6 +50,7 @@ export interface ToolSettings {
 
 export const DEFAULT_TOOL_SETTINGS: ToolSettings = {
   colorToken: 'tool/annotate/solid',
+  coverToken: 'status/danger/solid',
   strokeWidthCss: 3,
   fontSizeCss: 16,
   pinShape: 'circle',
@@ -170,9 +165,13 @@ export function createNode(input: CreateInput): SceneNode | null {
             stroke,
             kind: 'redact',
             rect: box,
+            /*
+             * التغطية افتراضًا — **الوعد الوحيد الذي تفي به الأداة**. ومن
+             * أراد طمسًا بدّل النمط صراحةً وقرأ تحذيره.
+             */
             mode: 'cover',
-            strength: 0,
-            coverToken: 'status/danger/solid',
+            strength: defaultStrength('cover'),
+            coverToken: settings.coverToken,
           }
 
     case 'line':
@@ -288,7 +287,8 @@ export const TOOL_LABEL: Readonly<Record<ToolName, string>> = {
   ellipse: 'دائرة',
   freehand: 'تحديد حرّ',
   pin: 'دبّوس',
-  redact: 'حجب',
+  // الأداة واحدة والأنماط ثلاثة — والتسمية تشملها ولا تَعِد بأقواها.
+  redact: 'حجب وطمس',
   text: 'نصّ',
   note: 'ملاحظة',
 }

@@ -1,0 +1,110 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-10);
+  min-block-size: 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rasd-space-8);
+}
+
+.title {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  font-weight: 600;
+  color: var(--rasd-text-primary);
+  margin: 0;
+}
+
+.count {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-tertiary);
+}
+
+.empty,
+.hint {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-tertiary);
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+}
+
+.label {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-tertiary);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+}
+
+.value {
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-secondary);
+  min-inline-size: 3.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * الوعد والتحذير سطحان مختلفان بصريًّا لا نصًّا فقط: أحدهما يَعِد والآخر
+ * يحدّ، وقارئ الشاشة يميّزهما بالدور، والعين تميّزهما باللون والحدّ.
+ */
+.promise,
+.warning {
+  display: flex;
+  gap: var(--rasd-space-6);
+  align-items: flex-start;
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-xs);
+  line-height: 1.5;
+  margin: 0;
+  padding: var(--rasd-space-8);
+  border-radius: var(--rasd-radius-sm);
+  border-inline-start: var(--rasd-stroke-thick) solid transparent;
+}
+
+.promise {
+  color: var(--rasd-text-secondary);
+  background: var(--rasd-surface-raised);
+  border-inline-start-color: var(--rasd-status-success-solid);
+}
+
+.warning {
+  color: var(--rasd-text-secondary);
+  background: var(--rasd-surface-raised);
+  border-inline-start-color: var(--rasd-status-warning-solid);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-4);
+}
+
+.swatch {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  border-radius: var(--rasd-radius-full);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  cursor: pointer;
+  padding: 0;
+}
+.swatch[aria-pressed='true'] {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-space-2);
+}

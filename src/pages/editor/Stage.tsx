@@ -10,6 +10,7 @@ import {
   type Camera,
 } from '@/modules/editor/camera'
 import { applyPatches } from '@/modules/editor/commands'
+import { drawNode } from '@/modules/editor/draw/shapes'
 import { hitTest } from '@/modules/editor/hit-test'
 import { dirtyForChange, planFrame } from '@/modules/editor/render-plan'
 import {
@@ -22,12 +23,13 @@ import {
   type Layer,
   type RenderStyle,
 } from '@/modules/editor/renderer'
-import { cssToImage } from '@/modules/editor/scene'
+import { cssToImage, OBSCURE_LABEL } from '@/modules/editor/scene'
 import { addNode, deleteNodes, replaceNodes } from '@/modules/editor/scene-ops'
 import { createTextLayoutCache, noteBox, textBox } from '@/modules/editor/text-layout'
 import { canvasPoint, type DevicePoint } from '@/shared/geometry'
 
 import { createMeasurer } from './measure'
+import { createRedactRaster } from './redact-raster'
 import { createTextEditSession } from './text-editing'
 import { TextEditorOverlay } from './TextEditorOverlay'
 import {
@@ -38,6 +40,7 @@ import {
   type ToolName,
   type ToolSettings,
 } from './tools'
+import { createBlurClient } from './worker-client'
 
 import type { MeasureBox } from '@/modules/editor/bounds'
 import type { History } from '@/modules/editor/history'
@@ -120,6 +123,107 @@ export function Stage(props: StageProps): JSX.Element {
   )
 
   /*
+   * مسلسلٌ لكل كائن عقدة.
+   *
+   * **لا `scene.revision`**: هي تتصاعد مع كل **حفظ** ناجح لا مع كل تعديل،
+   * فمشهدٌ حُرِّر ولم يُحفَظ يبقى برقمه — وتبقى رقعة الحجب تعرض ما كان تحتها
+   * قبل التعديل. والعقد غير قابلة للتغيير وتُستبدَل بكائن جديد عند كل تعديل،
+   * فهوية الكائن **هي** علامة التغيير الدقيقة.
+   */
+  /** جسرٌ إلى `schedule` الحالية — لا إلى التي التقطتها ذاكرة دائمة. */
+  const scheduleRef = useRef<() => void>(() => undefined)
+
+  const serials = useRef({ map: new WeakMap<SceneNode, number>(), next: 1 })
+  const serialOf = (node: SceneNode): number => {
+    const s = serials.current
+    const hit = s.map.get(node)
+    if (hit !== undefined) return hit
+    const id = s.next++
+    s.map.set(node, id)
+    return id
+  }
+
+  /**
+   * بصمة ما تحت العقدة في ترتيب الرسم.
+   *
+   * تدخل مفتاح الرقعة، فتغيير سهمٍ تحت الحجب يُبطلها. وتغيير عقدة **فوقه**
+   * لا يمسّها — وهو ما يجعل السحب المعتاد لا يُعيد بناء الرقع.
+   */
+  const underlayEpoch = (node: SceneNode): string => {
+    const nodes = propsRef.current.history.state.scene.nodes
+    const index = nodes.findIndex((n) => n.id === node.id)
+    if (index <= 0) return '0'
+    let out = ''
+    for (let i = 0; i < index; i++) out += `${serialOf(nodes[i]!)},`
+    return out
+  }
+
+  /*
+   * خيط الطمس وذاكرة رقعه — عمرهما عمر المسرح.
+   *
+   * وإنشاؤهما مع كل تصيير كان سيُطلق خيطًا جديدًا في كل ضغطة مفتاح، ويُلقي
+   * كل رقعة بُنيت.
+   */
+  const redact = useMemo(() => {
+    const client = createBlurClient()
+    const raster = createRedactRaster({
+      source: props.source,
+      style: props.style,
+      client,
+      /*
+       * **عبر مرجع لا مباشرةً.** هذه الذاكرة تُبنى مرّة واحدة، فتلتقط
+       * `schedule` من **التصيير الأوّل** — وحلقة الرسم عندئذ تُغلق على
+       * `size` وقيمته صفر، فتخرج من `paint` فورًا. والنتيجة أن الرقعة تُبنى
+       * بنجاح ولا تُرسَم أبدًا: عطلٌ صامت لا يترك استثناءً ولا سجلًّا،
+       * وأثره الوحيد أن الطمس «لا يعمل». قِيس حيًّا: `built:worker` مسجَّل
+       * والمنطقة على القماش ما زالت تغطيةً مسطّحة.
+       */
+      onReady: () => scheduleRef.current(),
+      onDiag: (state) => wrapRef.current?.setAttribute('data-blur-state', state),
+      /*
+       * **ما تحت الحجب يُعاد رسمه داخل الرقعة.** الخبز يدمّر المركَّب عند
+       * تلك النقطة من ترتيب الرسم لا الصورة الخام، فسهمٌ رُسم تحت الحجب
+       * يُطمَس معه. ورقعةٌ تقرأ الصورة وحدها تُعاين شيئًا ويُصدَّر آخر.
+       */
+      paintUnderlay: (ctx, node, plan) => {
+        const scene = propsRef.current.history.state.scene
+        const index = scene.nodes.findIndex((n) => n.id === node.id)
+        if (index <= 0) return
+
+        ctx.save()
+        // فضاء الرقعة: أصلُه زاوية العيّنة، ومقياسه مقياسها.
+        ctx.scale(plan.scale, plan.scale)
+        ctx.translate(-plan.sample.x, -plan.sample.y)
+        for (let i = 0; i < index; i++) {
+          const under = scene.nodes[i]!
+          if (under.kind !== 'redact' && under.hidden) continue
+          drawNode(
+            {
+              ctx,
+              style: propsRef.current.style,
+              camera: { zoom: plan.scale, tx: 0, ty: 0 },
+              source: propsRef.current.source,
+              interacting: false,
+              layout,
+            },
+            under,
+          )
+        }
+        ctx.restore()
+      },
+    })
+    return { client, raster }
+  }, [props.source, props.style, layout])
+
+  useEffect(
+    () => () => {
+      redact.raster.dispose()
+      redact.client.dispose()
+    },
+    [redact],
+  )
+
+  /*
    * أوّل قياس قد يقع قبل جهوز `Cairo`، فيُجرى بخطّ احتياطي بمقاييس أخرى.
    * والنتيجة تخطيطٌ صحيح الشكل خاطئ الأبعاد **يُخلَّد** في الذاكرة.
    */
@@ -182,6 +286,8 @@ export function Stage(props: StageProps): JSX.Element {
     })
   }
 
+  scheduleRef.current = schedule
+
   const paint = (): void => {
     const p = propsRef.current
     const baseCanvas = baseRef.current
@@ -226,6 +332,7 @@ export function Stage(props: StageProps): JSX.Element {
       style: p.style,
       layout,
       measure: measureBox,
+      redactPatch: (node) => redact.raster.patchFor(node, camera.zoom, underlayEpoch(node)),
       interacting: gesture !== null,
     }
 
@@ -241,6 +348,17 @@ export function Stage(props: StageProps): JSX.Element {
     paintAnnotations(annoLayer, framePlan, frame, p.source)
     paintSelection(annoLayer, frame)
     dirtyRef.current = null
+
+    /*
+     * أي مسار حسب الطمس — يُكتب على العنصر لا في حالة تفاعلية.
+     *
+     * الكتابة في `useState` تُعيد تركيب الشجرة من داخل حلقة الرسم، وهذه
+     * قيمةٌ تشخيصية لا تُغيّر شيئًا مرئيًّا. وبدونها **لا سبيل لإثبات أن
+     * الـworker عمل فعلًا**: النتيجة نفسها على المسارين بالتصميم، فالنجاح
+     * وحده لا يميّز بينهما.
+     */
+    const path = redact.client.lastPath
+    if (path) wrapRef.current?.setAttribute('data-blur-path', path)
   }
 
   // ── إعادة الرسم عند تغيّر المشهد أو التحديد ────────────────────
@@ -251,7 +369,12 @@ export function Stage(props: StageProps): JSX.Element {
   // ── تحرير النصّ ───────────────────────────────────────────────
   const beginEdit = (id: NodeId): void => {
     sessionRef.current?.finish()
-    sessionRef.current = createTextEditSession(propsRef.current.history, id, 'text', TOOL_LABEL.text)
+    sessionRef.current = createTextEditSession(
+      propsRef.current.history,
+      id,
+      'text',
+      TOOL_LABEL.text,
+    )
     setEditing(id)
   }
 
@@ -409,9 +532,7 @@ export function Stage(props: StageProps): JSX.Element {
     const dragged = Math.hypot(at.x - gesture.from.x, at.y - gesture.from.y)
     if (p.tool === 'text' && dragged < cssToImage(MIN_DRAG_CSS, p.history.state.scene.source.dpr)) {
       const hit = hitTest(p.history.state.scene, at, { camera: cameraRef.current, measureBox })
-      const existing = hit
-        ? p.history.state.scene.nodes.find((n) => n.id === hit)
-        : undefined
+      const existing = hit ? p.history.state.scene.nodes.find((n) => n.id === hit) : undefined
       if (existing?.kind === 'text') {
         p.onSelectionChange(new Set([existing.id]))
         beginEdit(existing.id)
@@ -430,7 +551,12 @@ export function Stage(props: StageProps): JSX.Element {
     })
 
     if (node) {
-      p.history.mark(TOOL_LABEL[p.tool])
+      /*
+       * **علامة الحجب تحمل نمطه لا اسم أداته.** الأداة واحدة تُنتج ثلاثة
+       * أنماط، فـ«تراجع عن حجب» على ضبابٍ هو الوعد الزائد نفسه الذي يرفضه
+       * ADR 0015 — بنصّه هذه المرّة في قائمة التاريخ.
+       */
+      p.history.mark(node.kind === 'redact' ? OBSCURE_LABEL[node.mode] : TOOL_LABEL[p.tool])
       p.history.push(addNode(p.history.state.scene, node).patches)
       p.history.commit()
       p.onSelectionChange(new Set([node.id]))

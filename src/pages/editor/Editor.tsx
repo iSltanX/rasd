@@ -10,11 +10,10 @@ import {
   releaseContext,
   type EditorContext,
 } from './context'
-import { NoteList } from './parts/NoteList'
-import { PageMeta } from './parts/PageMeta'
-import { Stage } from './Stage'
-import { DEFAULT_TOOL_SETTINGS, DRAW_TOOLS, TOOL_LABEL, type ToolName } from './tools'
+import { DEFAULT_TOOL_SETTINGS, type ToolName } from './tools'
+import { Annotating } from './views/Annotating'
 import { NotFound } from './views/NotFound'
+import { RedactView } from './views/Redact'
 
 import type { BaseSource } from '@/modules/editor/renderer'
 import type { NodeId } from '@/modules/editor/scene'
@@ -144,64 +143,38 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
     return () => window.removeEventListener('keydown', onKey)
   }, [history])
 
+  /*
+   * الوضع يتبع الأداة، ولا يُدار بحالة ثانية.
+   *
+   * حالتان لشيء واحد تتباعدان: يختار المستخدم أداة الحجب من الشريط فتبقى
+   * اللوحة على الملاحظات، أو يفتح لوحة الحجب فتبقى الأداة على التحديد.
+   * والاشتقاق يجعل السؤال «هل نحن في وضع الحجب؟» بلا جوابين.
+   */
+  const mode = tool === 'redact' ? 'redact' : 'annotating'
+
   return (
-    <main data-editor-state="ready" style={{ display: 'flex', blockSize: '100vh' }}>
-      <div style={{ flex: 1, minInlineSize: 0 }}>
-        {source ? (
-          <Stage
+    <Annotating
+      context={context}
+      history={history}
+      source={source}
+      style={style}
+      tool={tool}
+      settings={DEFAULT_TOOL_SETTINGS}
+      selection={selection}
+      onTool={setTool}
+      onSelectionChange={setSelection}
+      onChange={() => bump((n) => n + 1)}
+      side={
+        mode === 'redact' ? (
+          <RedactView
             history={history}
-            source={source}
-            style={style}
-            tool={tool}
-            settings={DEFAULT_TOOL_SETTINGS}
             selection={selection}
-            onSelectionChange={setSelection}
-            onSceneChange={() => bump((n) => n + 1)}
+            palette={style.palette}
+            onChange={() => bump((n) => n + 1)}
+            onExit={() => setTool('select')}
           />
-        ) : (
-          <p data-editor-decoding>جارٍ فكّ الصورة…</p>
-        )}
-      </div>
-
-      <aside
-        style={{
-          inlineSize: '19rem',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem',
-          // اللوحة تمرّر محتواها وحدها — القائمة تطول والمسرح لا ينزلق معها.
-          minBlockSize: 0,
-          overflowY: 'auto',
-        }}
-        data-editor-side
-      >
-        <PageMeta capture={context.capture} />
-        {context.sceneError ? <p data-editor-scene-error>{context.sceneError}</p> : null}
-
-        <div data-editor-tools>
-          {(['select', ...DRAW_TOOLS] as ToolName[]).map((name) => (
-            <button
-              key={name}
-              type="button"
-              data-tool={name}
-              aria-pressed={tool === name}
-              onClick={() => setTool(name)}
-            >
-              {TOOL_LABEL[name]}
-            </button>
-          ))}
-        </div>
-
-        <NoteList
-          history={history}
-          selection={selection}
-          onSelect={(id) => setSelection(new Set([id]))}
-          onChange={() => bump((n) => n + 1)}
-        />
-
-        <p data-editor-nodes>{history.state.scene.nodes.length}</p>
-      </aside>
-    </main>
+        ) : null
+      }
+    />
   )
 }

@@ -13,10 +13,19 @@
  */
 
 import { unlinkPatchesFor, renumber } from './pins'
+import { clampStrength, defaultStrength } from './redact'
 import { MAX_SCENE_NODES } from './scene'
 
 import type { Patch } from './commands'
-import type { HideableNode, NodeId, PinNode, Scene, SceneNode } from './scene'
+import type {
+  HideableNode,
+  NodeId,
+  ObscureMode,
+  PinNode,
+  RedactNode,
+  Scene,
+  SceneNode,
+} from './scene'
 import type { DeviceRect } from '@/shared/geometry'
 
 /** سبب رفض عملية — يُعرض للمستخدم ولا يُبتلع. */
@@ -139,6 +148,34 @@ export function setCrop(scene: Scene, crop: DeviceRect | null): OpResult {
   const before = scene.meta.crop
   if (before === crop) return done([])
   return done([{ op: 'root', patch: { field: 'crop', before, after: crop } }])
+}
+
+/**
+ * يبدّل نمط الحجب — **ويحمل معه شدّةً صالحة للنمط الجديد**.
+ *
+ * الشدّة رقمان بالاسم نفسه ومعنيان مختلفان: انحرافٌ معياري للضباب، وضلعُ
+ * خليّة للبكسلة، ومُهمَلة للتغطية. ونقلُ الرقم كما هو بين نمطين يعطي أرقامًا
+ * بلا معنى؛ ونقلُ صفر التغطية إلى الضباب **أسوأ**: المستخدم يختار «ضبابي»،
+ * فلا يتغيّر شيء على الشاشة، فإمّا يظنّ الأداة معطّلة، وإمّا — وهو الأخطر —
+ * **يظنّها عملت** فيصدّر كلمة مرور غير مطموسة.
+ */
+export function setRedactMode(scene: Scene, node: RedactNode, mode: ObscureMode): OpResult {
+  const carried = node.mode === mode ? node.strength : defaultStrength(mode)
+  return replaceNode(scene, { ...node, mode, strength: clampStrength(mode, carried) })
+}
+
+/** يضبط شدّة الحجب — محصورةً في مدى نمطها. */
+export function setRedactStrength(scene: Scene, node: RedactNode, value: number): OpResult {
+  return replaceNode(scene, { ...node, strength: clampStrength(node.mode, value) })
+}
+
+/** يضبط لون التغطية. */
+export function setCoverToken(
+  scene: Scene,
+  node: RedactNode,
+  coverToken: RedactNode['coverToken'],
+): OpResult {
+  return replaceNode(scene, { ...node, coverToken })
 }
 
 /** يضبط شكل الدبابيس الافتراضي، ويُحدِّث القائم منها. */

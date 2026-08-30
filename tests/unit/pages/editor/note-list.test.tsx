@@ -2,12 +2,17 @@ import { options, render } from 'preact'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createHistory } from '@/modules/editor/history'
-import { asNodeId, type NoteNode, type PinNode, type Scene, type NodeId  } from '@/modules/editor/scene'
+import {
+  asNodeId,
+  type NoteNode,
+  type PinNode,
+  type Scene,
+  type NodeId,
+} from '@/modules/editor/scene'
 import { emptyScene } from '@/modules/editor/scene-schema'
 import { NoteList } from '@/pages/editor/parts/NoteList'
 import { createTextEditSession } from '@/pages/editor/text-editing'
 import { devicePoint } from '@/shared/geometry'
-
 
 const stroke = { colorToken: 'tool/annotate/solid', widthPx: 2, dash: [], opacity: 1 } as const
 const font = { family: 'ui', sizePx: 16, weight: 400, letterSpacingPx: 0 } as const
@@ -96,13 +101,13 @@ options.debounceRendering = (cb) => {
 }
 
 const q = (root: Element, sel: string): HTMLElement | null => root.querySelector(sel)
-const qa = (root: Element, sel: string): HTMLElement[] => [...root.querySelectorAll<HTMLElement>(sel)]
+const qa = (root: Element, sel: string): HTMLElement[] => [
+  ...root.querySelectorAll<HTMLElement>(sel),
+]
 
 describe('لوحة الملاحظات', () => {
   it('**ترتّب بأرقام الدبابيس وتعرضها بالهندية**', () => {
-    const { root } = mount(
-      sceneOf(note('n2'), note('n1'), pin('p2', 2, 'n2'), pin('p1', 1, 'n1')),
-    )
+    const { root } = mount(sceneOf(note('n2'), note('n1'), pin('p2', 2, 'n2'), pin('p1', 1, 'n1')))
     const ordinals = qa(root, '[data-note] > span').map((el) => el.textContent)
     expect(ordinals).toEqual(['١', '٢'])
   })

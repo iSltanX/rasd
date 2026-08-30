@@ -109,8 +109,12 @@ describe('اعتراض اختصارات التاريخ', () => {
   })
 
   it('وحرفٌ بلا مُعدِّل ليس اختصارًا', () => {
-    expect(isHistoryShortcut({ key: 'z', metaKey: false, ctrlKey: false, shiftKey: false })).toBeNull()
-    expect(isHistoryShortcut({ key: 'a', metaKey: true, ctrlKey: false, shiftKey: false })).toBeNull()
+    expect(
+      isHistoryShortcut({ key: 'z', metaKey: false, ctrlKey: false, shiftKey: false }),
+    ).toBeNull()
+    expect(
+      isHistoryShortcut({ key: 'a', metaKey: true, ctrlKey: false, shiftKey: false }),
+    ).toBeNull()
   })
 })
 
@@ -119,7 +123,10 @@ describe('اعتراض اختصارات التاريخ', () => {
  */
 describe('**نوبة كتابة حقيقية على مكدّس التاريخ**', () => {
   /** يكتب نصًّا محرفًا محرفًا بفاصل زمني، ويُدير العلامات بقرار `decide`. */
-  function type(text: string, gapMs: number): { history: ReturnType<typeof createHistory>; marks: number } {
+  function type(
+    text: string,
+    gapMs: number,
+  ): { history: ReturnType<typeof createHistory>; marks: number } {
     const scene = base()
     const history = createHistory(scene, { now: () => 0 })
     let state = idleTyping

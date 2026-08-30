@@ -291,7 +291,10 @@ describe('صندوق الملاحظة', () => {
     const cache = createTextLayoutCache(measure)
     const short = noteBox(noteNode({ body: 'قصير' }), cache)
     const long = noteBox(
-      noteNode({ id: asNodeId('n2'), body: 'متن طويل جدًّا يمتدّ على عدّة أسطر متتالية بلا انقطاع' }),
+      noteNode({
+        id: asNodeId('n2'),
+        body: 'متن طويل جدًّا يمتدّ على عدّة أسطر متتالية بلا انقطاع',
+      }),
       cache,
     )
     expect(long.height).toBeGreaterThan(short.height)

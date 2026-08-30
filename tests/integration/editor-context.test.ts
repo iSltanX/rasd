@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { applyPatches } from '@/modules/editor/commands'
+import { summariseRedaction } from '@/modules/editor/redact'
 import { asNodeId, SCENE_SCHEMA_VERSION, type RedactNode, type Scene } from '@/modules/editor/scene'
 import { addNode } from '@/modules/editor/scene-ops'
 import { emptyScene } from '@/modules/editor/scene-schema'
@@ -11,7 +12,6 @@ import {
   loadEditorContext,
   releaseContext,
   saveScene,
-  summariseRedaction,
 } from '@/pages/editor/context'
 import { deviceRect } from '@/shared/geometry'
 import {

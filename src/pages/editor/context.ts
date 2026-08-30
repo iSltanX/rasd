@@ -11,7 +11,8 @@
  * ورحلةُ رسالة لإعادة ما تملكه الصفحة أصلًا تزيد زمن الفتح بلا مقابل.
  */
 
-import { isIrreversible, SCENE_SCHEMA_VERSION, type Scene } from '@/modules/editor/scene'
+import { summariseRedaction } from '@/modules/editor/redact'
+import { SCENE_SCHEMA_VERSION, type Scene } from '@/modules/editor/scene'
 import { emptyScene, estimateSceneBytes, parseScene } from '@/modules/editor/scene-schema'
 import { errText, ok, type Result } from '@/shared/result'
 import { annotations, blobs, captures, putIfUnchanged } from '@/shared/storage/repository'
@@ -133,18 +134,6 @@ export async function loadEditorContext(
  */
 export function releaseContext(context: EditorContext, urls: ObjectUrls = browserUrls): void {
   urls.revoke(context.imageUrl)
-}
-
-/** ملخّص الحجب — يُحسب من المشهد ويُكتب بجواره كي يُقرأ بلا فكّه. */
-export function summariseRedaction(scene: Scene): { total: number; irreversible: number } {
-  let total = 0
-  let irreversible = 0
-  for (const node of scene.nodes) {
-    if (node.kind !== 'redact') continue
-    total += 1
-    if (isIrreversible(node.mode)) irreversible += 1
-  }
-  return { total, irreversible }
 }
 
 export type SaveOutcome =

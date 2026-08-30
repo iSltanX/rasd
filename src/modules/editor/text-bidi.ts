@@ -66,7 +66,10 @@ export const TECHNICAL_PATTERNS: readonly RegExp[] = [
 function nextTechnical(text: string, from: number): { start: number; end: number } | null {
   let best: { start: number; end: number } | null = null
   for (const pattern of TECHNICAL_PATTERNS) {
-    const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`)
+    const re = new RegExp(
+      pattern.source,
+      pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`,
+    )
     re.lastIndex = from
     const m = re.exec(text)
     if (!m) continue
@@ -134,7 +137,8 @@ export function isolateText(text: string): string {
  * صفرية غير قابلة للكسر في المصدر — لا تُرى في المحرر، ويقرأها كل من يفتح
  * الملفّ بعدُ نهايةَ مدًى مختلفة عمّا يظنّ.
  */
-const RTL_STRONG = /[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0780-\u07BF\u0860-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u
+const RTL_STRONG =
+  /[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0780-\u07BF\u0860-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u
 /** لاتيني ويوناني وسيريلي — اتجاه قويّ من اليسار. */
 const LTR_STRONG = /[A-Za-z\u00C0-\u02AF\u0370-\u058F]/u
 
