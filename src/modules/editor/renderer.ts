@@ -313,8 +313,21 @@ export function paintCrop(layer: Layer, frame: Frame): void {
   const size = CROP_HANDLE_CSS / frame.camera.zoom
   const thin = 1 / frame.camera.zoom
 
-  beginFrame(layer, frame.camera)
+  /*
+   * **لا `beginFrame` هنا.** هي تمسح الطبقة قبل أن تضع التحويل، وهذه
+   * الدالّة تُنادى **بعد** `paintAnnotations` و`paintSelection` — فمسحُها
+   * يمحو كل ما رُسم: دخولُ وضع الاقتصاص كان يُخفي التعليقات كلّها.
+   * والتحويل وحده هو ما تحتاجه.
+   */
   ctx.save()
+  ctx.setTransform(
+    frame.camera.zoom * layer.backingScale,
+    0,
+    0,
+    frame.camera.zoom * layer.backingScale,
+    frame.camera.tx * layer.backingScale,
+    frame.camera.ty * layer.backingScale,
+  )
   ctx.filter = 'none'
   ctx.globalAlpha = 1
 

@@ -4,7 +4,7 @@ import { ASPECT_PRESETS, clampRatioRect, type AspectPresetId } from '@/modules/c
 import { createAutosave, type SaveState } from '@/modules/editor/autosave'
 import { createHistory } from '@/modules/editor/history'
 import { normaliseBox } from '@/modules/editor/hit-test'
-import { setCrop } from '@/modules/editor/scene-ops'
+import { replaceNodes, setCrop } from '@/modules/editor/scene-ops'
 import { createTextLayoutCache } from '@/modules/editor/text-layout'
 import { isHistoryShortcut } from '@/modules/editor/typing'
 import { deviceRect } from '@/shared/geometry'
@@ -21,7 +21,14 @@ import {
 import { createMeasurer } from './measure'
 import { CropBar } from './parts/CropBar'
 import { SaveStatus } from './parts/SaveStatus'
-import { DEFAULT_TOOL_SETTINGS, type ToolName } from './tools'
+import { StyleBar } from './parts/StyleBar'
+import {
+  DEFAULT_TOOL_SETTINGS,
+  TOOL_LABEL,
+  translateNode,
+  type ToolName,
+  type ToolSettings,
+} from './tools'
 import { Annotating } from './views/Annotating'
 import { Exporting } from './views/Exporting'
 import { NotFound } from './views/NotFound'
@@ -104,6 +111,14 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
   /** دقّة التصدير الجارية، أو `null` — والحالة `exporting` مشتقّة منها. */
   const [exporting, setExporting] = useState<1 | 2 | null>(null)
   const [cropPreset, setCropPreset] = useState<AspectPresetId>('free')
+  /**
+   * إعدادات الأداة — **حالة لا ثابت**.
+   *
+   * كانت `DEFAULT_TOOL_SETTINGS` تُمرَّر مجمَّدة، فلا لون ولا سمك ولا حجم
+   * خطّ قابل للتغيير من الواجهة رغم أن نصّ المرحلة يشترطه. والأداة التي
+   * تُنتج شكلًا واحدًا بلون واحد ليست أداة تعليق.
+   */
+  const [settings, setSettings] = useState<ToolSettings>(DEFAULT_TOOL_SETTINGS)
   const [exported, setExported] = useState<{ report: BakeReport; url: string } | null>(null)
   const [saveState, setSaveState] = useState<SaveState>({
     outcome: 'idle',
@@ -159,6 +174,12 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
       if (!shortcut) return
       const target = e.target
       if (target instanceof HTMLElement && isEditable(target)) return
+      /*
+       * **ولا تراجع أثناء التصدير.** `Exporting` تعتمد على `scene`، فتراجعٌ
+       * خلف الحاجب يُبدّل المشهد ويُعيد تشغيل الخبز من أوّله — عملٌ مضاعف
+       * على ملفّ قد يبلغ مئات الميغابايتات، بلا أن يطلبه أحد.
+       */
+      if (exporting !== null) return
       e.preventDefault()
       if (shortcut === 'redo') history.redo()
       else history.undo()
@@ -172,6 +193,79 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [history])
+
+  /*
+   * ⎋ تُنهي وضع الاقتصاص.
+   *
+   * زرّ الشريط مكتوب عليه «إنهاء (⎋)» — ووعدُ مفتاحٍ لا يعمل أسوأ من غياب
+   * المفتاح: المستخدم يجرّبه، فلا يقع شيء، فيفقد ثقته بما يقرأ.
+   */
+  useEffect(() => {
+    if (tool !== 'crop') return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      const target = e.target
+      if (target instanceof HTMLElement && isEditable(target)) return
+      e.preventDefault()
+      setTool('select')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [tool])
+
+  /*
+   * **تحريك المحدَّد بالأسهم** — بند إتاحة لا رفاهية.
+   *
+   * الرسم والتحديد يقعان بالمؤشِّر، فمن لا يستعمل فأرة لا يملك سبيلًا إلى
+   * ضبط موضع شكل بعد وضعه. والسهم يمنحه دقّة بكسل واحد، و⇧ يقفز عشرة.
+   *
+   * **ويُتخطّى داخل الحقول**: سهمٌ في حقل نصّ يحرّك المؤشِّر لا الشكل —
+   * وهو الحارس نفسه الذي يمنع ⌘Z من التنازع.
+   */
+  useEffect(() => {
+    const STEP = 1
+    const JUMP = 10
+    const onKey = (e: KeyboardEvent) => {
+      const delta =
+        e.key === 'ArrowLeft'
+          ? [-1, 0]
+          : e.key === 'ArrowRight'
+            ? [1, 0]
+            : e.key === 'ArrowUp'
+              ? [0, -1]
+              : e.key === 'ArrowDown'
+                ? [0, 1]
+                : null
+      if (!delta || selection.size === 0) return
+      const target = e.target
+      if (target instanceof HTMLElement && isEditable(target)) return
+      e.preventDefault()
+
+      const scene = history.state.scene
+      const moved = scene.nodes
+        .filter((n) => selection.has(n.id) && !n.locked)
+        .map((n) =>
+          translateNode(
+            n,
+            delta[0]! * (e.shiftKey ? JUMP : STEP),
+            delta[1]! * (e.shiftKey ? JUMP : STEP),
+          ),
+        )
+      if (moved.length === 0) return
+
+      /*
+       * علامةٌ واحدة لكل ضغطة، **وتُدمَج بالتكرار التلقائي**: `coalesce`
+       * يدمج الفروق على العقدة نفسها، فإمساك السهم ثانيتين لا يُخلي مكدّسًا
+       * سعته خمسون.
+       */
+      history.mark(TOOL_LABEL.select)
+      history.push(replaceNodes(scene, moved).patches)
+      history.commit()
+      onSceneChanged()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   /*
    * الوضع يتبع الأداة، ولا يُدار بحالة ثانية.
@@ -263,13 +357,23 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
       source={source}
       style={style}
       tool={tool}
-      settings={DEFAULT_TOOL_SETTINGS}
+      settings={settings}
       cropRatio={ASPECT_PRESETS.find((p) => p.id === cropPreset)?.ratio ?? null}
       selection={selection}
       onTool={setTool}
       onSelectionChange={setSelection}
       onChange={onSceneChanged}
+      state={exporting !== null ? 'exporting' : mode}
       readOnly={context.readOnly}
+      styleBar={
+        <StyleBar
+          settings={settings}
+          onSettings={setSettings}
+          palette={style.palette}
+          history={history}
+          onChange={onSceneChanged}
+        />
+      }
       save={
         <SaveStatus
           state={saveState}

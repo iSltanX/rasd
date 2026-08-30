@@ -1444,6 +1444,339 @@ if (extId && sw && granted) {
         }
       }
 
+      // ── شجرة الإتاحة — خطُّ أساسٍ نصّي لا بكسليّ ──────────────────
+      /*
+       * ما يقرؤه قارئ الشاشة يُسجَّل نصًّا، لا صورةً.
+       *
+       * خطُّ الأساس البكسليّ يكشف انزياح بكسل ولا يكشف زرًّا بلا اسم؛
+       * والنصّي يكشف العكس. وهذا هو الذي يهمّ في واجهة عربية: تسمية مقروءة
+       * لكل عنصر تفاعلي، بلا نصٍّ لاتيني يتسرّب إلى ما يُقرأ.
+       */
+      const a11y = JSON.parse(
+        await evalIn(
+          S,
+          `JSON.stringify((() => {
+            const out = []
+            let unnamed = 0
+            for (const el of document.querySelectorAll('button, input, textarea, a[href], [role]')) {
+              /*
+               * الاسم يُحسَب كما يحسبه قارئ الشاشة لا كما يسهل قراءته:
+               * aria-labelledby ثمّ aria-label ثمّ label[for] ثمّ النصّ.
+               * وإغفال label[for] يجعل الفحص يتّهم حقلًا مسمّى تسميةً
+               * صحيحة — وهو خطأ في المقياس لا في الواجهة.
+               */
+              const labelled = el.getAttribute('aria-labelledby')
+              const byId = labelled
+                ? (document.getElementById(labelled)?.textContent ?? '').trim()
+                : ''
+              const forLabel = el.id
+                ? (document.querySelector('label[for="' + el.id + '"]')?.textContent ?? '').trim()
+                : ''
+              const name =
+                byId ||
+                el.getAttribute('aria-label') ||
+                forLabel ||
+                el.getAttribute('title') ||
+                (el.textContent ?? '').trim().slice(0, 40)
+              const role = el.getAttribute('role') ?? el.tagName.toLowerCase()
+              if (!name) unnamed++
+              out.push({ role, name, pressed: el.getAttribute('aria-pressed') })
+            }
+            return { total: out.length, unnamed, rows: out }
+          })())`,
+        ),
+      )
+
+      if (a11y.unnamed === 0) {
+        ok(`**كل عنصر تفاعلي له اسم مقروء** — ${a11y.total} عنصرًا، بلا واحدٍ صامت`)
+      } else {
+        fail(`${a11y.unnamed} عنصرًا تفاعليًّا بلا اسم من ${a11y.total}`)
+      }
+
+      try {
+        const lines = a11y.rows
+          .map((r) => `${r.role}${r.pressed === null ? '' : ` [pressed=${r.pressed}]`} — ${r.name}`)
+          .join('\n')
+        const dir = join(root, 'tests', 'visual-baselines', 'phase-15')
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+        writeFileSync(
+          join(dir, 'editor-a11y-tree.md'),
+          `# شجرة الإتاحة — حالة \`annotating\`\n\n` +
+            `مولَّدة بـ\`pnpm verify:editor\`. **تُقرأ بالعين ولا تُقارَن آليًّا**:\n` +
+            `التغيّر فيها متوقَّع مع كل إضافة، والمقصود أن يمرّ عليها قارئ حين\n` +
+            `يتغيّر شيء — لا أن تُسقط البناء.\n\n` +
+            `العناصر التفاعلية: ${a11y.total} · بلا اسم: ${a11y.unnamed}\n\n` +
+            '```\n' +
+            lines +
+            '\n```\n',
+        )
+        note('خطّ أساس الإتاحة: tests/visual-baselines/phase-15/editor-a11y-tree.md')
+      } catch (e) {
+        note(`تعذّر كتابة خطّ أساس الإتاحة: ${e}`)
+      }
+
+      // ── الحالات المسمّاة — بندٌ في نصّ المرحلة ────────────────────
+      /*
+       * «الحالات الثلاث منفَّذة» دعوى تحتاج سطحًا تُقاس عليه. والسطح
+       * `data-editor-state`؛ وقبل هذه الدفعة كان يقول `annotating` دائمًا
+       * مهما تغيّر الوضع.
+       */
+      const states = []
+      for (const [tool, expected] of [
+        ['select', 'annotating'],
+        ['redact', 'redact'],
+        ['crop', 'crop'],
+      ]) {
+        await evalIn(S, `document.querySelector('[data-tool="${tool}"]').click(), 1`)
+        await new Promise((r) => setTimeout(r, 150))
+        states.push(
+          await evalIn(
+            S,
+            `(document.querySelector('[data-editor-state]')?.dataset.editorState ?? 'none')`,
+          ),
+        )
+        if (states[states.length - 1] !== expected) break
+      }
+      await evalIn(S, `document.querySelector('[data-tool="select"]').click(), 1`)
+      await new Promise((r) => setTimeout(r, 120))
+
+      if (states.join(',') === 'annotating,redact,crop') {
+        ok('**والحالات المسمّاة تُعلَن على العنصر** — `annotating` ثمّ `redact` ثمّ `crop`')
+      } else {
+        fail(`الحالات المعلَنة: ${states.join('،') || 'لا شيء'}`)
+      }
+
+      // ── شريط النمط: اللون والسمك قابلان للتغيير ────────────────────
+      const styleBar = JSON.parse(
+        await evalIn(
+          S,
+          `JSON.stringify({
+            colours: document.querySelectorAll('[data-style-color]').length,
+            stroke: !!document.querySelector('[data-style-stroke]'),
+            font: !!document.querySelector('[data-style-font]'),
+            shapes: document.querySelectorAll('[data-pin-shape]').length,
+            start: !!document.querySelector('[data-pin-start]'),
+          })`,
+        ),
+      )
+      if (
+        styleBar.colours === 7 &&
+        styleBar.stroke &&
+        styleBar.font &&
+        styleBar.shapes === 3 &&
+        styleBar.start
+      ) {
+        ok('**واللون والسمك وحجم الخطّ وشكل الدبّوس ونقطة بدايته كلّها قابلة للتغيير**')
+      } else {
+        fail(`شريط النمط ناقص: ${JSON.stringify(styleBar)}`)
+      }
+
+      // ── 10) زمن الإطار — الرقم الأخير غير المقيس ─────────────────
+      /*
+       * معيار القبول: `p95 < 18.2ms`.
+       *
+       * والرقم مشتقّ لا اعتباطي: ستّون إطارًا في الثانية يعني 16.7مي للإطار،
+       * و18.2 هي تلك زائدَ تسامحٍ لعُشر إطار — أي «لا يسقط إطارٌ في كل عشرة».
+       *
+       * **ويُقاس على المسرح لا على حلقة صناعية.** تُدفَع أحداث مؤشِّر
+       * حقيقية عبر CDP، ويُقاس ما بين استدعاء `requestAnimationFrame`
+       * وانتهاء الرسم فيه — أي الزمن الذي يمنع الإطار التالي، لا زمن دالّة
+       * منعزلة.
+       *
+       * **وحدوده تُعلَن**: كثافة البكسل في الوضع بلا رأس واحد، والجهاز
+       * جهازُ تطوير لا أضعف ما يُشترى.
+       */
+      const FRAME_PROBE = `
+        (() => {
+          window.__rasdFrames = []
+          window.__rasdGaps = []
+          let last = null
+          const raf = window.requestAnimationFrame.bind(window)
+          window.requestAnimationFrame = (cb) =>
+            raf((t) => {
+              if (last !== null) window.__rasdGaps.push(t - last)
+              last = t
+              const started = performance.now()
+              cb(t)
+              window.__rasdFrames.push(performance.now() - started)
+            })
+          return 'armed'
+        })()`
+
+      const armed = await evalIn(S, FRAME_PROBE)
+      if (armed !== 'armed') {
+        fail('تعذّر تجهيز قياس الإطار')
+      } else {
+        // مشهدٌ فيه ما يكفي ليكون القياس ذا معنى: نصّ وحجب وأشكال.
+        await evalIn(S, `document.querySelector('[data-tool="rect"]').click(), 1`)
+        await new Promise((r) => setTimeout(r, 120))
+
+        for (let n = 0; n < 6; n++) {
+          const ox = cx - 200 + n * 30
+          await send(
+            'Input.dispatchMouseEvent',
+            {
+              type: 'mousePressed',
+              x: ox,
+              y: cy - 120,
+              button: 'left',
+              clickCount: 1,
+              pointerType: 'mouse',
+            },
+            S,
+          )
+          for (let step = 1; step <= 6; step++) {
+            await moveTo(S, ox + step * 8, cy - 120 + step * 6)
+          }
+          await send(
+            'Input.dispatchMouseEvent',
+            {
+              type: 'mouseReleased',
+              x: ox + 48,
+              y: cy - 84,
+              button: 'left',
+              clickCount: 1,
+              pointerType: 'mouse',
+            },
+            S,
+          )
+        }
+
+        // سحبةٌ طويلة بأداة التحديد فوق المشهد المكتمل — أثقل حالة معتادة.
+        await evalIn(S, `document.querySelector('[data-tool="select"]').click(), 1`)
+        await new Promise((r) => setTimeout(r, 120))
+        await send(
+          'Input.dispatchMouseEvent',
+          {
+            type: 'mousePressed',
+            x: cx - 180,
+            y: cy - 100,
+            button: 'left',
+            clickCount: 1,
+            pointerType: 'mouse',
+          },
+          S,
+        )
+        for (let step = 0; step < 40; step++) {
+          await moveTo(S, cx - 180 + step * 6, cy - 100 + step * 3)
+        }
+        await send(
+          'Input.dispatchMouseEvent',
+          {
+            type: 'mouseReleased',
+            x: cx + 60,
+            y: cy + 20,
+            button: 'left',
+            clickCount: 1,
+            pointerType: 'mouse',
+          },
+          S,
+        )
+
+        /*
+         * **وسحبةُ تحريك المشهد — أثقل حالة حقيقية.**
+         *
+         * طبقة الأساس تُعاد عند تغيّر الكاميرا وحدها؛ فسحبٌ عادي فوق
+         * التعليقات لا يمسّها، وقياسٌ يقتصر عليه يقيس أخفّ ما في المحرر
+         * ويسمّيه أثقله. والتحريك يُجبر `drawImage` على اللقطة كاملة في كل
+         * إطار — وهو ما يفعله المستخدم ليرى طرفًا آخر من الصفحة.
+         */
+        await send(
+          'Input.dispatchMouseEvent',
+          {
+            type: 'mousePressed',
+            x: cx,
+            y: cy,
+            button: 'left',
+            clickCount: 1,
+            pointerType: 'mouse',
+            modifiers: 8,
+          },
+          S,
+        )
+        for (let step = 0; step < 40; step++) {
+          await send(
+            'Input.dispatchMouseEvent',
+            { type: 'mouseMoved', x: cx + step * 5, y: cy + step * 2, modifiers: 8 },
+            S,
+          )
+        }
+        await send(
+          'Input.dispatchMouseEvent',
+          {
+            type: 'mouseReleased',
+            x: cx + 200,
+            y: cy + 80,
+            button: 'left',
+            clickCount: 1,
+            pointerType: 'mouse',
+            modifiers: 8,
+          },
+          S,
+        )
+        await settle(S)
+        await new Promise((r) => setTimeout(r, 400))
+
+        const frames = JSON.parse(
+          await evalIn(
+            S,
+            `JSON.stringify((() => {
+              const q = (arr, p) => {
+                const s = arr.slice().sort((a, b) => a - b)
+                return s.length ? +s[Math.min(s.length - 1, Math.floor(s.length * p))].toFixed(2) : 0
+              }
+              const f = window.__rasdFrames ?? []
+              const g = window.__rasdGaps ?? []
+              return {
+                count: f.length,
+                p50: q(f, 0.5),
+                p95: q(f, 0.95),
+                max: q(f, 1),
+                gapP50: q(g, 0.5),
+                gapP95: q(g, 0.95),
+                nodes: Number(document.querySelector('[data-editor-nodes]').textContent),
+              }
+            })())`,
+          ),
+        )
+
+        if (frames.count < 20) {
+          fail(`عيّنة الإطارات صغيرة (${frames.count}) — القياس بلا معنى`)
+        } else {
+          note(
+            `زمن الإطار على ${frames.nodes} عقدة: ${frames.count} إطارًا · شغل JS: p50 ${frames.p50}ms · p95 ${frames.p95}ms · الأقصى ${frames.max}ms`,
+          )
+          note(
+            `والفاصل بين الإطارات: p50 ${frames.gapP50}ms · p95 ${frames.gapP95}ms — يقيس الإيقاع لا الشغل`,
+          )
+          if (frames.p95 < 18.2) {
+            ok(`**p95 لشغل الخيط الرئيسي = ${frames.p95}ms دون 18.2** — الرسم لا يحجز الإطار`)
+          } else {
+            fail(`p95 = ${frames.p95}ms فوق 18.2 — الإطار يسقط تحت الحمل المعتاد`)
+          }
+
+          /*
+           * **الرقمان يقيسان شيئين، ويُعلَن أيّهما.**
+           *
+           * الأوّل شغل JS داخل نداء الإطار — وهو ما تملكه شيفرتنا. والثاني
+           * الفاصل بين نداءين، وهو إيقاع المُركِّب: يشمل رفع القماش إلى
+           * وحدة الرسوميات، ولا تملكه الصفحة.
+           *
+           * ونداءات Canvas 2D **تُجدوَل ولا تُنفَّذ فورًا**، فزمنُ الشغل لا
+           * يشمل زمن الوصول إلى البكسل. وهذا حدٌّ يُعلَن لا يُخفى: الرقم
+           * الأوّل يُثبت أن الخيط الرئيسي حرّ، ولا يُثبت وحده أن ستّين
+           * إطارًا تُعرَض على شاشة حقيقية.
+           */
+          if (frames.gapP95 > 0 && frames.gapP95 < 25) {
+            ok(`وإيقاع الإطارات منتظم — الفاصل p95 = ${frames.gapP95}ms`)
+          } else {
+            note(
+              `إيقاع الإطارات في الوضع بلا رأس لا يقابل شاشةً حقيقية (p95 = ${frames.gapP95}ms) — لا يُحتَجّ به`,
+            )
+          }
+        }
+      }
+
       // ── 4) الذاكرة — البند الذي يعلنه ADR 0011 مفتوحًا ─────────
       const mem = JSON.parse(
         await evalIn(

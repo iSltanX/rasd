@@ -8,6 +8,7 @@ import {
   MIN_SELECTION,
   type Handle,
 } from '@/modules/capture/selection'
+import { nodeBounds } from '@/modules/editor/bounds'
 import { planStageSurface } from '@/modules/editor/budget'
 import {
   canvasToImage,
@@ -40,6 +41,7 @@ import {
   canvasPoint,
   contains,
   devicePoint,
+  deviceRect,
   type DeviceRect,
   type DevicePoint,
 } from '@/shared/geometry'
@@ -62,6 +64,32 @@ import type { MeasureBox } from '@/modules/editor/bounds'
 import type { History } from '@/modules/editor/history'
 import type { NodeId, Scene, SceneNode, TextNode } from '@/modules/editor/scene'
 import type { JSX } from 'preact'
+
+/** الأصناف التي يصحّ تغيير حجمها بمقبض — ما يُوصَف بمستطيل. */
+const RESIZABLE = new Set<SceneNode['kind']>(['rect', 'ellipse', 'redact', 'measure'])
+
+/**
+ * يُطبّق مستطيلًا جديدًا على عقدة.
+ *
+ * `null` لصنفٍ لا يُوصَف بمستطيل — والحارس بالنوع لا بالإهمال: عقدةُ نصٍّ
+ * تُغيَّر بعرض لفّها لا بصندوقها، وسحبُ مقبضٍ عليها كان سيُنتج شيئًا لا
+ * يقصده أحد.
+ */
+function resizeNode(node: SceneNode, from: DeviceRect, to: DeviceRect): SceneNode | null {
+  if (node.kind === 'rect' || node.kind === 'ellipse' || node.kind === 'redact') {
+    return { ...node, rect: to }
+  }
+  if (node.kind === 'measure') {
+    // صندوق الحدود يشمل سمك الخطّ، فتُنقَل الإزاحة لا يُنسَخ الصندوق.
+    const dx = to.x - from.x
+    const dy = to.y - from.y
+    return {
+      ...node,
+      a: deviceRect(node.a.x + dx, node.a.y + dy, to.width, to.height),
+    }
+  }
+  return null
+}
 
 /** يحصر نقطة داخل حدود الصورة — مرساةُ السحب لا يحصرها `solveDrag`. */
 function clampPointToImage(p: DevicePoint, source: BaseSource): DevicePoint {
@@ -275,6 +303,7 @@ export function Stage(props: StageProps): JSX.Element {
   const cameraRef = useRef<Camera>({ zoom: 1, tx: 0, ty: 0 })
   const gestureRef = useRef<Gesture | null>(null)
   const cropRef = useRef<CropDrag | null>(null)
+  const resizeRef = useRef<{ node: SceneNode; handle: Handle; box: DeviceRect } | null>(null)
   /**
    * آخر اقتصاص رُسمت به طبقة الأساس.
    *
@@ -310,14 +339,25 @@ export function Stage(props: StageProps): JSX.Element {
     return () => ro.disconnect()
   }, [])
 
+  /** هل لوءم المشهد لهذه الصورة؟ الملاءمة مرّة واحدة لا مع كل تغيّر مقاس. */
+  const fittedRef = useRef<BaseSource | null>(null)
+
   // ── الملاءمة عند أوّل مقاس معلوم ───────────────────────────────
   useEffect(() => {
     if (size.cssWidth <= 1) return
+    /*
+     * **مرّةً واحدة لكل صورة، لا عند كل تغيّر مقاس.**
+     *
+     * `ResizeObserver` يُطلق عند تغيير مقاس النافذة وعند فتح لوحة جانبية
+     * وعند ظهور شريط تمرير — وإعادة الملاءمة عندها تُلغي تكبير المستخدم
+     * وتحريكه بلا أن يطلب. والمقاس الجديد لا يعني «أعد البدء».
+     */
+    if (fittedRef.current === props.source) return
+    fittedRef.current = props.source
     const stage = { ...size, dpr: window.devicePixelRatio || 1 }
     cameraRef.current = fitCamera(props.source, stage, 24)
     dirtyRef.current = 'base'
     schedule()
-    // الملاءمة مرّة عند تغيّر المقاس أو الصورة — لا مع كل تغيير مشهد.
   }, [size.cssWidth, size.cssHeight, props.source])
 
   // ── حلقة الرسم ────────────────────────────────────────────────
@@ -470,6 +510,12 @@ export function Stage(props: StageProps): JSX.Element {
     const at = toImage(e)
     const scene = p.history.state.scene
 
+    /*
+     * **الزرّ الأيسر وحده يرسم.** كان أي زرّ غير الأوسط يُنشئ عقدة، فنقرةٌ
+     * يمنى لفتح قائمة السياق تترك مستطيلًا في المشهد.
+     */
+    if (e.button !== 0 && e.button !== 1) return
+
     // المسافة أو الزرّ الأوسط ⇒ تحريك المشهد لا رسم.
     if (e.button === 1 || e.shiftKey) {
       gestureRef.current = {
@@ -512,6 +558,27 @@ export function Stage(props: StageProps): JSX.Element {
     }
 
     if (p.tool === 'select') {
+      /*
+       * **مقابض التغيير تعمل.**
+       *
+       * `paintSelection` كانت ترسم ثمانية مقابض حول المحدَّد ولا يستجيب
+       * أحدها — وهي أسوأ صنف من العطل: عرضٌ يَعِد بإمكانٍ غير موجود، فيسحب
+       * المستخدم مقبضًا فيتحرّك الشكل كلّه بدل أن يتغيّر حجمه.
+       *
+       * والهندسة `resizeRect` نفسها التي يستعملها الاقتصاص — لا صيغة ثانية
+       * يمكن أن تنحرف عن الأولى.
+       */
+      const selected = scene.nodes.find((n) => p.selection.has(n.id) && !n.locked)
+      if (selected && RESIZABLE.has(selected.kind)) {
+        const box = normaliseBox(nodeBounds(selected, measureBox))
+        const handle = hitHandle(box, selected.rotation, at, HANDLE_HIT_PX / cameraRef.current.zoom)
+        if (handle) {
+          resizeRef.current = { node: selected, handle, box }
+          p.history.mark(TOOL_LABEL.select)
+          return
+        }
+      }
+
       const hit = hitTest(scene, at, { camera: cameraRef.current, measureBox })
       const next = hit ? new Set([hit]) : new Set<NodeId>()
       p.onSelectionChange(next)
@@ -541,6 +608,18 @@ export function Stage(props: StageProps): JSX.Element {
 
   const onPointerMove = (e: PointerEvent): void => {
     const p = propsRef.current
+
+    const resize = resizeRef.current
+    if (resize) {
+      const at = toImage(e)
+      const next = resizeRect(resize.box, resize.handle, at)
+      const moved = resizeNode(resize.node, resize.box, next)
+      if (moved) {
+        p.history.push(replaceNodes(p.history.state.scene, [moved]).patches)
+        schedule()
+      }
+      return
+    }
 
     const crop = cropRef.current
     if (crop) {
@@ -612,6 +691,14 @@ export function Stage(props: StageProps): JSX.Element {
 
   const onPointerUp = (e: PointerEvent): void => {
     const p = propsRef.current
+
+    if (resizeRef.current) {
+      resizeRef.current = null
+      p.history.commit()
+      p.onSceneChange?.(p.history.state.scene)
+      schedule()
+      return
+    }
 
     const crop = cropRef.current
     if (crop) {

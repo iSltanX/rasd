@@ -28,6 +28,20 @@ export interface AnnotatingProps {
   readonly onChange: () => void
   /** شريط حالة الحفظ ولافتة التعارض — يُمرَّر لا يُبنى هنا. */
   readonly save: JSX.Element | null
+  /** شريط النمط: اللون والسمك وحجم الخطّ وشكل الدبّوس. */
+  readonly styleBar: JSX.Element | null
+  /**
+   * الحالة المعلَنة.
+   *
+   * الثلاث المنصوصة في الخطّة (`annotating` · `redact` · `exporting`)،
+   * ورابعةٌ لم تنصّ عليها هي `crop` — وضعٌ حقيقي بلوحته وسلوكه، وإخفاؤه
+   * تحت `annotating` كان سيجعل الحالة المعلَنة تكذب على من يقرؤها.
+   *
+   * **تُعلَن على العنصر لا تُشتقّ من الأداة وحدها.** الحالات الثلاث بندٌ في
+   * نصّ المرحلة، وأداةُ فحصٍ تقرأ `data-editor-state` كانت تجد `annotating`
+   * دائمًا — فتصير «الحالات الثلاث منفَّذة» دعوى بلا سطح تُقاس عليه.
+   */
+  readonly state: 'annotating' | 'redact' | 'exporting' | 'crop'
   /**
    * المشهد المخزَّن تالف: يُعرض ولا يُحفَظ.
    *
@@ -53,7 +67,7 @@ export interface AnnotatingProps {
  */
 export function Annotating(props: AnnotatingProps): JSX.Element {
   return (
-    <main data-editor-state="annotating" style={{ display: 'flex', blockSize: '100vh' }}>
+    <main data-editor-state={props.state} style={{ display: 'flex', blockSize: '100vh' }}>
       <div style={{ flex: 1, minInlineSize: 0 }}>
         {props.source ? (
           <Stage
@@ -122,6 +136,8 @@ export function Annotating(props: AnnotatingProps): JSX.Element {
         </div>
 
         {props.side}
+
+        {props.styleBar}
 
         <LayerList
           history={props.history}

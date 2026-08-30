@@ -1,7 +1,14 @@
 import { useRef, useState } from 'preact/hooks'
 
-import { NOTE_TAG_LABEL, type NodeId, type NoteNode, type NoteTag } from '@/modules/editor/scene'
-import { replaceNode } from '@/modules/editor/scene-ops'
+import { movePinOrdinal } from '@/modules/editor/pins'
+import {
+  NOTE_TAG_LABEL,
+  type NodeId,
+  type NoteNode,
+  type NoteTag,
+  type PinNode,
+} from '@/modules/editor/scene'
+import { replaceNode, replaceNodes } from '@/modules/editor/scene-ops'
 import { isHistoryShortcut } from '@/modules/editor/typing'
 import { formatHuman } from '@/shared/bidi'
 
@@ -77,6 +84,35 @@ export function NoteList(props: NoteListProps): JSX.Element {
     props.onChange()
   }
 
+  const pinCount = scene.nodes.filter((n) => n.kind === 'pin').length
+
+  /** الدبابيس التي لا ملاحظة لها — مرشَّحو الربط. */
+  const freePins = scene.nodes.filter((n): n is PinNode => n.kind === 'pin' && n.noteId === null)
+
+  /** يربط ملاحظةً بدبّوس — الطرفان يحملان هوية الآخر، فلا يوجد ربطٌ نصفيّ. */
+  const linkTo = (note: NoteNode, pin: PinNode): void => {
+    const next = replaceNodes(scene, [
+      { ...note, pinId: pin.id },
+      { ...pin, noteId: note.id },
+    ])
+    if (next.patches.length === 0) return
+    props.history.mark('ربط ملاحظة بدبّوس')
+    props.history.push(next.patches)
+    props.history.commit()
+    props.onChange()
+  }
+
+  /** ينقل رقم دبّوس موضعًا واحدًا — بلا مساس بترتيب الرسم. */
+  const movePin = (pin: PinNode, delta: number): void => {
+    const to = pin.ordinal - scene.meta.pinStart + delta
+    const patches = movePinOrdinal(scene, pin.id, to)
+    if (patches.length === 0) return
+    props.history.mark('ترقيم الدبابيس')
+    props.history.push(patches)
+    props.history.commit()
+    props.onChange()
+  }
+
   /** التصنيف تغييرٌ ذرّي — علامة كاملة لا نوبة كتابة. */
   const setTag = (note: NoteNode, tag: NoteTag): void => {
     const next: NoteNode = { ...note, tag: note.tag === tag ? null : tag }
@@ -134,6 +170,65 @@ export function NoteList(props: NoteListProps): JSX.Element {
               >
                 {pin ? formatHuman(pin.ordinal) : '—'}
               </span>
+
+              {/*
+                إعادة الترقيم **بأزرار لا بالسحب وحده**: السحب مريحٌ بالفأرة
+                وغير قابل للاستعمال بلوحة المفاتيح ولا بقارئ الشاشة، وقائمةٌ
+                لا تُرتَّب إلّا بالسحب تُخرج من الميزة كل من لا يستعمل الفأرة.
+                والترقيم محورٌ مستقلّ عن ترتيب الطبقات — يُنقل الرقم ولا
+                تتحرّك العقدة في الرسم.
+              */}
+              {pin ? (
+                <span class={styles.reorder}>
+                  <button
+                    type="button"
+                    data-pin-up={pin.id}
+                    disabled={pin.ordinal <= scene.meta.pinStart}
+                    aria-label={`أنقص رقم الدبّوس ${formatHuman(pin.ordinal)}`}
+                    title="رقمٌ أصغر"
+                    onClick={() => movePin(pin, -1)}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    data-pin-down={pin.id}
+                    disabled={pin.ordinal >= scene.meta.pinStart + pinCount - 1}
+                    aria-label={`زد رقم الدبّوس ${formatHuman(pin.ordinal)}`}
+                    title="رقمٌ أكبر"
+                    onClick={() => movePin(pin, 1)}
+                  >
+                    ›
+                  </button>
+                </span>
+              ) : (
+                /*
+                 * ربط الملاحظة بدبّوس — `§5.2` يشترطه، والربط **بالهوية لا
+                 * بالرقم**: احذف الدبّوس الثالث من خمسة فيصير الرابع ثالثًا،
+                 * ثمّ تراجَع — فتجد الملاحظة معلّقة على من صار ثالثًا.
+                 * ترقيمٌ صحيح شكلًا مخرَّب دلاليًّا، بلا خطأ ولا رسالة.
+                 */
+                <span class={styles.reorder}>
+                  <button
+                    type="button"
+                    data-note-link={note.id}
+                    disabled={freePins.length === 0}
+                    aria-label={
+                      freePins.length === 0
+                        ? 'لا دبّوس حرّ لربطها به'
+                        : `اربطها بالدبّوس ${formatHuman(freePins[0]!.ordinal)}`
+                    }
+                    title={
+                      freePins.length === 0
+                        ? 'لا دبّوس حرّ لربطها به'
+                        : `اربطها بالدبّوس ${formatHuman(freePins[0]!.ordinal)}`
+                    }
+                    onClick={() => linkTo(note, freePins[0]!)}
+                  >
+                    ⚭
+                  </button>
+                </span>
+              )}
 
               <div class={styles.body}>
                 <input

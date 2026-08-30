@@ -125,3 +125,25 @@
   color: var(--rasd-text-tertiary);
   margin: 0;
 }
+
+/* أزرار الترقيم — رفيعة كي لا تزاحم نصّ الملاحظة. */
+.reorder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-2);
+}
+.reorder button {
+  background: transparent;
+  border: none;
+  padding: 0 var(--rasd-space-2);
+  color: var(--rasd-text-tertiary);
+  cursor: pointer;
+  line-height: 1;
+}
+.reorder button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.reorder button:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+}

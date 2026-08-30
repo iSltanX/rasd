@@ -1,3 +1,5 @@
+import { useRef } from 'preact/hooks'
+
 import {
   BLUR_SIGMA_MAX,
   BLUR_SIGMA_MIN,
@@ -69,6 +71,8 @@ const COLOR_LABEL: Readonly<Record<AnnotationColor, string>> = {
  * **ولذلك درعٌ للتغطية وحدها، وتحذير للاثنين الآخرين — لا وعدٌ واحد لثلاثة.**
  */
 export function RedactPanel(props: RedactPanelProps): JSX.Element {
+  /** هل سحبةُ شدّة جارية؟ العلامة مفتوحة ما دامت. */
+  const dragging = useRef(false)
   const scene = props.history.state.scene
   const summary = summariseRedaction(scene)
 
@@ -193,12 +197,33 @@ export function RedactPanel(props: RedactPanelProps): JSX.Element {
                   step={1}
                   value={selected.strength}
                   aria-describedby="redact-promise"
-                  onInput={(e) =>
-                    commit(
-                      'شدّة الطمس',
-                      setRedactStrength(scene, selected, Number(e.currentTarget.value)).patches,
-                    )
-                  }
+                  /*
+                   * **علامة واحدة للسحبة كلّها.** `input` يقع عند كل حركة
+                   * إبهام، فسحبةٌ من 12 إلى 40 تدفع ثلاثين علامة وتُخلي
+                   * مكدّسًا سعته خمسون — فيضيع كل ما رُسم قبلها. فالفروق
+                   * تُدفَع داخل علامة مفتوحة و`coalesce` يدمجها، وتُغلَق
+                   * عند `change` أي عند ترك الإبهام.
+                   */
+                  onInput={(e) => {
+                    const patches = setRedactStrength(
+                      scene,
+                      selected,
+                      Number(e.currentTarget.value),
+                    ).patches
+                    if (patches.length === 0) return
+                    if (!dragging.current) {
+                      props.history.mark('شدّة الطمس')
+                      dragging.current = true
+                    }
+                    props.history.push(patches)
+                    props.onChange()
+                  }}
+                  onChange={() => {
+                    if (!dragging.current) return
+                    dragging.current = false
+                    props.history.commit()
+                    props.onChange()
+                  }}
                 />
                 {/* غربية لا هندية: قياسٌ يُنسَخ إلى تذكرة، لا عدٌّ بشري. */}
                 <span class={styles.value} data-strength-value>

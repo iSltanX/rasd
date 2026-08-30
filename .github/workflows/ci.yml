@@ -56,3 +56,54 @@ jobs:
           name: rasd-dist-${{ github.sha }}
           path: dist/
           retention-days: 14
+
+  # ── الفحص الحيّ في كروم حقيقي ─────────────────────────────────────
+  #
+  # وظيفةٌ مستقلّة لا خطوةٌ في الأولى: تحتاج متصفّحًا، وزمنها من رتبة
+  # دقيقتين، وفشلها يقول شيئًا مختلفًا — «الشيفرة صحيحة والسلوك ليس».
+  #
+  # وقبل هذه الوظيفة لم يكن أيّ `verify:*` يعمل في CI إطلاقًا: كل ما قيس
+  # في المراحل 6 إلى 15 كان يُقاس على جهاز المطوّر وحده، فانحدارٌ في سلوك
+  # المتصفّح كان يمرّ إلى `main` بلا أن يوقفه شيء.
+  live:
+    name: verify:editor · كروم حقيقي
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # الحزمة تُبنى هنا لا تُنزَّل من الوظيفة الأولى: الفحص يحمّل `dist/`
+      # في المتصفّح، وارتباطُه بوظيفة أخرى يجعله يسقط حين تسقط هي لسببٍ آخر.
+      - name: Build
+        run: pnpm run build
+
+      - name: Chrome version
+        run: google-chrome --version
+
+      - name: Editor engine in real Chrome
+        run: pnpm run verify:editor
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      # لقطات المراجعة البصرية — تُرفَع ولا تُقارَن آليًّا. المقارنة بالعين
+      # مقصودة: خطُّ أساسٍ بكسليّ على متصفّح يتغيّر شهريًّا يُنتج فشلًا
+      # كاذبًا أكثر ممّا يُنتج كشفًا.
+      - name: Upload visual review shots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rasd-editor-shots-${{ github.sha }}
+          path: artifacts/
+          retention-days: 14
+          if-no-files-found: ignore

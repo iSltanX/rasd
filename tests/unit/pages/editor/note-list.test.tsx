@@ -108,7 +108,9 @@ const qa = (root: Element, sel: string): HTMLElement[] => [
 describe('لوحة الملاحظات', () => {
   it('**ترتّب بأرقام الدبابيس وتعرضها بالهندية**', () => {
     const { root } = mount(sceneOf(note('n2'), note('n1'), pin('p2', 2, 'n2'), pin('p1', 1, 'n1')))
-    const ordinals = qa(root, '[data-note] > span').map((el) => el.textContent)
+    // المحدِّد على أوّل `span` وحده: صفّ الملاحظة صار يحمل أزرار الترقيم
+    // في `span` ثانٍ، فمحدِّدٌ عامّ يلتقط الاثنين.
+    const ordinals = qa(root, '[data-note] > span:first-of-type').map((el) => el.textContent)
     expect(ordinals).toEqual(['١', '٢'])
   })
 
