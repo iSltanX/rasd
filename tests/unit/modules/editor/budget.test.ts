@@ -5,6 +5,7 @@ import {
   BAKE_SLICE_BUDGET_BYTES,
   EDITOR_STAGE_BUDGET_BYTES,
   planExportSurface,
+  BAKE_SURFACE_BUDGET_BYTES,
   planStageSurface,
   sliceCountFor,
   sliceHeightFor,
@@ -95,5 +96,31 @@ describe('خطّة التصدير — الحارس بعد الضرب لا قبل
 
   it('الرفض يحمل سببًا معروضًا لا صمتًا', () => {
     expect(planExportSurface(2560, 28_672, 2).refusal).toBe('oversized')
+  })
+
+  it('**والسبب مفصَّل لا مجموع** — الحالة القصوى تُمسَك بالمساحة لا بالضلع', () => {
+    // 5120×57,344: الضلع 57,344 ≤ 65,535 فيمرّ، والمساحة 293.6M > 268.4M تمسك.
+    expect(planExportSurface(2560, 28_672, 2).bound).toBe('area')
+    expect(planExportSurface(2560, 28_672, 1).bound).toBe('none')
+  })
+
+  it('**وحدود المنصّة وحدها لا تكفي** — 8000×6000 عند 2× تمرّ منها وتُرفَض بالميزانية', () => {
+    const plan = planExportSurface(8000, 6000, 2)
+    // 16,000×12,000 = 192 مليون بكسل، تحت سقف المساحة (268 مليون)…
+    expect(plan.width * plan.height).toBeLessThan(268_435_456)
+    // …وسطحها 732 ميغابايت، أي ضِعف سقف المرحلة.
+    expect(plan.bytes).toBeGreaterThan(BAKE_SURFACE_BUDGET_BYTES)
+    expect(plan.bound).toBe('budget')
+  })
+
+  it('وضلعٌ فوق الحدّ يُمسَك بالضلع لا بالمساحة', () => {
+    // 70,000×10: المساحة 700 ألف فقط، والضلع وحده هو المانع.
+    expect(planExportSurface(70_000, 10, 1).bound).toBe('side')
+  })
+
+  it('والميزانية تسع الحالة القصوى عند 1× بالضبط', () => {
+    const plan = planExportSurface(2560, 28_672, 1)
+    expect(plan.bytes).toBe(BAKE_SURFACE_BUDGET_BYTES)
+    expect(plan.bound).toBe('none')
   })
 })

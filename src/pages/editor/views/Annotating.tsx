@@ -1,9 +1,12 @@
+import { formatHuman } from '@/shared/bidi'
+
 import { NoteList } from '../parts/NoteList'
 import { PageMeta } from '../parts/PageMeta'
 import { Stage } from '../Stage'
 import { DRAW_TOOLS, TOOL_LABEL, type ToolName, type ToolSettings } from '../tools'
 
 import type { EditorContext } from '../context'
+import type { BakeReport } from '@/modules/editor/bake'
 import type { History } from '@/modules/editor/history'
 import type { BaseSource, RenderStyle } from '@/modules/editor/renderer'
 import type { NodeId } from '@/modules/editor/scene'
@@ -21,6 +24,11 @@ export interface AnnotatingProps {
   readonly onSelectionChange: (next: ReadonlySet<NodeId>) => void
   readonly onChange: () => void
   readonly side: JSX.Element | null
+  /** طبقةٌ فوق كل شيء — التصدير، وهو نافذةٌ مشروطة لا حالةٌ بديلة. */
+  readonly overlay: JSX.Element | null
+  readonly onExport: (scale: 1 | 2) => void
+  /** آخر تصدير ناجح بتقريره وعنوان بايتاته، أو `null`. */
+  readonly exported: { readonly report: BakeReport; readonly url: string } | null
 }
 
 /**
@@ -92,8 +100,42 @@ export function Annotating(props: AnnotatingProps): JSX.Element {
           onChange={props.onChange}
         />
 
+        <div data-editor-export>
+          {([1, 2] as const).map((scale) => (
+            <button
+              key={scale}
+              type="button"
+              data-export-scale={scale}
+              onClick={() => props.onExport(scale)}
+            >
+              انسخ الصورة {scale}×
+            </button>
+          ))}
+        </div>
+
+        {props.exported ? (
+          <p data-export-done>
+            <a
+              href={props.exported.url}
+              download="rasd.png"
+              data-export-url={props.exported.url}
+              data-export-guaranteed={
+                props.exported.report.obscured.filter((o) => o.guaranteed).length
+              }
+              data-export-reencoded={props.exported.report.reencoded}
+            >
+              {/* غربية: قياسٌ يُنسَخ إلى تذكرة، لا عدٌّ بشري. */}
+              احفظ الصورة ({props.exported.report.width} × {props.exported.report.height})
+            </a>
+            {props.exported.report.obscured.length > 0
+              ? ` — ${formatHuman(props.exported.report.obscured.filter((o) => o.guaranteed).length)} منطقة محجوبة`
+              : ''}
+          </p>
+        ) : null}
+
         <p data-editor-nodes>{props.history.state.scene.nodes.length}</p>
       </aside>
+      {props.overlay}
     </main>
   )
 }

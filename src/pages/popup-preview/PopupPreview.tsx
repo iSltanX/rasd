@@ -51,6 +51,7 @@ const RECENT: RecentEntry[] = [
       trashedAt: null,
     } satisfies CaptureRecord,
     thumbUrl: null,
+    withheld: false,
   },
   {
     record: {
@@ -71,6 +72,7 @@ const RECENT: RecentEntry[] = [
       trashedAt: null,
     } satisfies CaptureRecord,
     thumbUrl: null,
+    withheld: false,
   },
 ]
 

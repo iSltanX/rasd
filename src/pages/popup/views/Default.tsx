@@ -126,12 +126,13 @@ export function Default({
             <span class={styles.groupLabel}>الأخيرة</span>
           </div>
           <div class={styles.recentRow}>
-            {recent.map(({ record, thumbUrl }) => (
+            {recent.map(({ record, thumbUrl, withheld }) => (
               <RecentThumb
                 key={record.id}
                 title={record.title || record.origin}
                 createdAt={record.createdAt}
                 thumbUrl={thumbUrl}
+                withheld={withheld}
                 onClick={() => onOpenRecent(record.id)}
               />
             ))}

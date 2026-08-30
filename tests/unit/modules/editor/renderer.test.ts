@@ -249,7 +249,7 @@ describe('طبقة التعليقات', () => {
     const ctx = createRecordingCtx()
     const scene = sceneWith([rect('a'), rect('b', deviceRect(200, 200, 50, 50))])
     const plan = planFrame({ scene, camera: identityCamera, stage })
-    const stats = paintAnnotations(layerOf(ctx), plan, frameOf(scene), src)
+    const stats = paintAnnotations(layerOf(ctx), plan, frameOf(scene))
     expect(stats.drawn).toBe(2)
     expect(ctx.calls.filter((c) => c.name === 'stroke').length).toBeGreaterThanOrEqual(2)
   })
@@ -264,7 +264,7 @@ describe('طبقة التعليقات', () => {
       dirty: [deviceRect(0, 0, 60, 60)],
     })
     expect(plan.mode).toBe('partial')
-    paintAnnotations(layerOf(ctx), plan, frameOf(scene), src)
+    paintAnnotations(layerOf(ctx), plan, frameOf(scene))
     expect(ctx.names()).toContain('clip')
     // القصّ محاط بـ`save`/`restore` وإلّا سرى على الإطار التالي.
     expect(ctx.names().filter((n) => n === 'save').length).toBeGreaterThanOrEqual(1)
@@ -275,7 +275,7 @@ describe('طبقة التعليقات', () => {
     const ctx = createRecordingCtx()
     const scene = sceneWith([rect('a')])
     const plan = planFrame({ scene, camera: identityCamera, stage })
-    paintAnnotations(layerOf(ctx), plan, frameOf(scene), src)
+    paintAnnotations(layerOf(ctx), plan, frameOf(scene))
     expect(ctx.names()).not.toContain('clip')
   })
 })
@@ -322,7 +322,7 @@ describe('**`filter` لا تُضبَط إلّا على `none`**', () => {
       },
     ])
     const plan = planFrame({ scene, camera: identityCamera, stage })
-    paintAnnotations(layerOf(ctx), plan, frameOf(scene), src)
+    paintAnnotations(layerOf(ctx), plan, frameOf(scene))
     expect(new Set(ctx.assigned('filter'))).toEqual(new Set(['none']))
   })
 })
@@ -333,7 +333,7 @@ describe('الحجب في العرض', () => {
     const node: RedactNode = { ...redact('r'), stroke: { ...stroke, opacity: 0.3 } }
     const scene = sceneWith([node])
     const plan = planFrame({ scene, camera: identityCamera, stage })
-    paintAnnotations(layerOf(ctx), plan, frameOf(scene), src)
+    paintAnnotations(layerOf(ctx), plan, frameOf(scene))
     // آخر قيمة أُسنِدت قبل التعبئة هي 1، لا 0.3.
     expect(ctx.assigned('globalAlpha')).toContain(1)
     expect(ctx.assigned('globalAlpha')).not.toContain(0.3)
@@ -343,7 +343,7 @@ describe('الحجب في العرض', () => {
     const ctx = createRecordingCtx()
     const scene = sceneWith([redact('r')])
     const plan = planFrame({ scene, camera: identityCamera, stage })
-    paintAnnotations(layerOf(ctx), plan, frameOf(scene), src)
+    paintAnnotations(layerOf(ctx), plan, frameOf(scene))
     const dashes = ctx.calls.filter((c) => c.name === 'setLineDash')
     expect(dashes.some((c) => Array.isArray(c.args[0]) && (c.args[0] as number[]).length > 0)).toBe(
       true,

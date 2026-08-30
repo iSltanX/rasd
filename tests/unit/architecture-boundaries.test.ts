@@ -6,7 +6,14 @@ import { fileURLToPath, URL } from 'node:url'
 import { ESLint } from 'eslint'
 import { describe, expect, it } from 'vitest'
 
-import { encodeSelector, ENCODE_ALLOWED, restrictedSyntax } from '../../eslint.config.js'
+import {
+  encodeComputedSelector,
+  encodeLiteralSelector,
+  encodeSelector,
+  encodeSelectors,
+  ENCODE_ALLOWED,
+  restrictedSyntax,
+} from '../../eslint.config.js'
 
 /**
  * حدود المعمار ليست اتفاقًا شفويًا — هذا الاختبار يثبت أن `pnpm lint`
@@ -139,6 +146,34 @@ describe('بوّابة الترميز', () => {
     expect(encodeSelector.selector).toContain('toBlob')
     expect(encodeSelector.selector).toContain('convertToBlob')
     expect(encodeSelector.selector).toContain('toDataURL')
+  })
+
+  /*
+   * **ثلاثة محدِّدات لا واحد — وهذا ما كشفه فحصٌ لا قراءة.**
+   *
+   * `callee.property.name` يطابق النداء بالنقطة وحده. وقِيس بتشغيل اللنت
+   * على ملفّ عيّنة داخل `pages/editor/`: `c.convertToBlob(…)` تُرفض،
+   * و`c['convertToBlob'](…)` **تمرّ**، و`const m = 'convertToBlob'; c[m](…)`
+   * **تمرّ**. أي أن أي ملفّ في المحرر كان يستطيع ترميز القماش بلا خبز،
+   * واللنت أخضر — عين الفشل الذي وُجدت البوّابة لمنعه.
+   */
+  it('**والوصول المحسوب يُمسَك كذلك** — لا بالنقطة وحدها', () => {
+    expect(encodeComputedSelector.selector).toContain('computed=true')
+    expect(encodeComputedSelector.selector).toContain('convertToBlob')
+  })
+
+  it('**والسلسلة نفسها تُمسَك أينما كُتبت** — فيُسدّ طريق المتغيّر الوسيط', () => {
+    expect(encodeLiteralSelector.selector).toContain('Literal')
+    expect(encodeLiteralSelector.selector).toContain('toDataURL')
+  })
+
+  it('والثلاثة تُطبَّق معًا لا فرادى', () => {
+    expect(encodeSelectors).toHaveLength(3)
+    expect(encodeSelectors).toContain(encodeSelector)
+    expect(encodeSelectors).toContain(encodeComputedSelector)
+    expect(encodeSelectors).toContain(encodeLiteralSelector)
+    // ورسالة واحدة للثلاثة: من يقرأها يجد المسار نفسه مهما كتب النداء.
+    expect(new Set(encodeSelectors.map((s) => s.message)).size).toBe(1)
   })
 
   it('المستثنون ثلاثة بالاسم — بوّابة المحرر ومسارا الالتقاط والتجميع', () => {

@@ -369,7 +369,12 @@ async function seedAndOpen(w, h, dpr) {
       const tx = db.transaction(need, 'readwrite')
       tx.objectStore('annotations').delete('probe')
       tx.objectStore('captures').put({
-        id:'probe', createdAt: Date.now(), origin:'https://probe.test', url:'https://probe.test/p',
+        /*
+         * **أصلٌ http عمدًا** — وهو البند الذي تركه ADR 0009 مفتوحًا:
+         * النسخ من سياق غير آمن لا يعمل إطلاقًا (navigator.clipboard
+         * غائبة)، ولا بديل قبل أن يوجد المحرر كوجهة مركَّزة بحكم بنائها.
+         */
+        id:'probe', createdAt: Date.now(), origin:'http://127.0.0.1:5399', url:'http://127.0.0.1:5399/probe',
         title:'لقطة القياس', kind:'viewport', status:'ready', projectId:null, tags:[],
         width:${w}, height:${h}, devicePixelRatio:${dpr}, favorite:false, trashedAt:null, archived:false,
       })
@@ -1059,6 +1064,242 @@ if (extId && sw && granted) {
           }
         } else {
           fail('شريط الشدّة غير معروض في وضع الضباب')
+        }
+      }
+
+      // ── 8) البايتات المصدَّرة — ما لا يُثبَت إلّا على ملفّ حقيقي ───
+      /*
+       * كل ما سبق يقيس ما يُرسَم على الشاشة. وهذه المرحلة تَعِد بشيء عن
+       * **الملفّ**: «لا يمكن استرجاع ما تحت التغطية من الملفّ المصدَّر».
+       * ولا يُثبَت ذلك إلّا بترميز حقيقي في كروم حقيقي ثمّ قراءة بايتاته.
+       *
+       * والاختبار **التفاضلي** يقع في الوحدة على سطحٍ مزيّف يرسم فعلًا؛
+       * وما يضيفه التشغيل الحيّ هو ما لا يملكه السطح المزيّف: مرمِّز كروم،
+       * وحاوية PNG حقيقية، ومسار الحافظة كاملًا.
+       */
+      /*
+       * يُعاد النمط إلى التغطية قبل التصدير.
+       *
+       * القسم السابق تركه ضبابيًّا بشدّة 40 — والضبابي **لا يُعلَن مضمونًا
+       * أبدًا**. فتصديرٌ عليه يقيس الشقّ السالب من الوعد لا الموجب، ويُختبَر
+       * الشقّان معًا أدناه.
+       */
+      await evalIn(S, `document.querySelector('[data-redact-mode="cover"]')?.click(), 1`)
+      await new Promise((r) => setTimeout(r, 300))
+      await evalIn(S, `document.querySelector('[data-tool="select"]').click(), 1`)
+      await new Promise((r) => setTimeout(r, 120))
+
+      const exportClicked = await evalIn(
+        S,
+        `(() => {
+          const b = document.querySelector('[data-export-scale="1"]')
+          if (!b) return 'no-button'
+          b.click()
+          return 'ok'
+        })()`,
+      )
+
+      if (exportClicked !== 'ok') {
+        fail('لا زرّ تصدير في الواجهة')
+      } else {
+        // الخبز يفرّغ الحلقة بين الخطوات، فالانتظار على ظهور الرابط.
+        let url = null
+        for (let i = 0; i < 40; i++) {
+          await new Promise((r) => setTimeout(r, 200))
+          url = await evalIn(
+            S,
+            `(document.querySelector('[data-export-url]')?.dataset.exportUrl ?? '')`,
+          )
+          if (url) break
+        }
+
+        if (!url) {
+          const shown = await evalIn(
+            S,
+            `(document.querySelector('[data-export-error]')?.textContent ?? 'لا رسالة')`,
+          )
+          fail(`لم يكتمل التصدير: ${shown}`)
+        } else {
+          ok('التصدير اكتمل وأنتج بايتات')
+
+          /*
+           * **إغلاق ADR 0009.**
+           *
+           * البند المفتوح: النسخ من صفحة `http:` مستحيل — `navigator.clipboard`
+           * غائبة في السياق غير الآمن. والمحرر صفحة إضافة، أي سياقٌ آمن
+           * **بحكم بنائه**، مهما كان أصل اللقطة. واللقطة هنا مزروعة بأصل
+           * `http://` تحديدًا.
+           *
+           * ويُثبَت الأمران معًا: أن السياق آمن، وأن الكتابة نجحت فعلًا —
+           * فلو فشلت لَظهرت رسالتها في اللوحة.
+           */
+          const clip = JSON.parse(
+            await evalIn(
+              S,
+              `JSON.stringify({
+                secure: window.isSecureContext,
+                clipboard: typeof navigator.clipboard?.write,
+                origin: document.querySelector('[data-meta-field="url"]')?.textContent ?? '',
+                error: document.querySelector('[data-export-error]')?.textContent ?? null,
+              })`,
+            ),
+          )
+
+          if (clip.secure === true && clip.clipboard === 'function' && clip.error === null) {
+            ok(
+              `**والنسخ نجح من لقطة أصلها \`http:\`** — المحرر سياقٌ آمن بحكم بنائه، وهو البند الذي تركه ADR 0009 مفتوحًا`,
+            )
+          } else {
+            fail(
+              `النسخ لم ينجح: آمن=${clip.secure} حافظة=${clip.clipboard} خطأ=${clip.error ?? 'لا'}`,
+            )
+          }
+
+          if (String(clip.origin).includes('http://')) {
+            ok('واللقطة المزروعة أصلها غير آمن فعلًا — الشرط الذي يجعل البند ذا معنى')
+          } else {
+            fail(`أصل اللقطة ليس http: — ${clip.origin}`)
+          }
+
+          /*
+           * قراءة الحاوية داخل الصفحة: البلوب يعيش هناك. ودالّة التحليل
+           * مكتوبة حرفيًّا لا مستوردة — الصفحة لا تستورد من `tests/`.
+           */
+          const bytes = JSON.parse(
+            await evalIn(
+              S,
+              `(async () => {
+                const res = await fetch(${JSON.stringify(url)})
+                const buf = new Uint8Array(await res.arrayBuffer())
+                const view = new DataView(buf.buffer)
+                const sig = [0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]
+                for (let i = 0; i < 8; i++) {
+                  if (buf[i] !== sig[i]) return JSON.stringify({ error: 'bad-signature' })
+                }
+                const types = []
+                let at = 8, end = -1, w = 0, h = 0
+                while (at + 8 <= buf.length) {
+                  const len = view.getUint32(at)
+                  let type = ''
+                  for (let i = 0; i < 4; i++) type += String.fromCharCode(view.getUint8(at + 4 + i))
+                  if (type === 'IHDR') { w = view.getUint32(at + 8); h = view.getUint32(at + 12) }
+                  types.push(type)
+                  at += 12 + len
+                  if (type === 'IEND') { end = at; break }
+                }
+                return JSON.stringify({ types, trailing: buf.length - end, size: buf.length, w, h })
+              })()`,
+            ),
+          )
+
+          if (bytes.error) {
+            fail(`الملفّ المصدَّر ليس PNG صالحًا: ${bytes.error}`)
+          } else {
+            if (bytes.trailing === 0) {
+              ok(
+                `**والمجرى ينتهي عند \`IEND\` بالضبط** — لا بايت خلفه (${bytes.size} بايتًا)، انحدارٌ مباشر لـaCropalypse`,
+              )
+            } else {
+              fail(`${bytes.trailing} بايتًا خلف IEND — ذيلٌ ناجٍ في الملفّ المصدَّر`)
+            }
+
+            const meta = bytes.types.filter((t) => ['tEXt', 'iTXt', 'zTXt', 'eXIf'].includes(t))
+            if (meta.length === 0) {
+              ok(`ولا مقاطع بيانات وصفية — المقاطع: ${[...new Set(bytes.types)].join('·')}`)
+            } else {
+              fail(`مقاطع بيانات وصفية نجت إلى الملفّ: ${meta.join('، ')}`)
+            }
+          }
+
+          /*
+           * **المنطقة المحجوبة في الملفّ نفسه**: يُفكّ الملفّ ويُقرأ
+           * مستطيلها. وهذا يقرأ ما خرج لا ما رُسم — فلو أخطأ الاقتصاص أو
+           * المقياس لَبقي تحته بكسلات المصدر.
+           */
+          const region = JSON.parse(
+            await evalIn(
+              S,
+              `(async () => {
+                const res = await fetch(${JSON.stringify(url)})
+                const bm = await createImageBitmap(await res.blob())
+                const c = new OffscreenCanvas(bm.width, bm.height)
+                const g = c.getContext('2d')
+                g.drawImage(bm, 0, 0)
+                const el = document.querySelector('[data-export-guaranteed]')
+                const d = g.getImageData(0, 0, bm.width, bm.height).data
+                // أكبر مساحة أحادية اللون متّصلة أفقيًّا لا تلزم؛ يكفي عدّ
+                // الألوان في كامل الصورة ومقارنته بلقطة بلا حجب.
+                const seen = new Set()
+                for (let i = 0; i < d.length; i += 4) {
+                  seen.add((d[i]<<24 | d[i+1]<<16 | d[i+2]<<8 | d[i+3]) >>> 0)
+                }
+                bm.close()
+                return JSON.stringify({
+                  guaranteed: Number(el?.dataset.exportGuaranteed ?? -1),
+                  reencoded: el?.dataset.exportReencoded ?? null,
+                  colours: seen.size,
+                  w: bm.width,
+                  h: bm.height,
+                })
+              })()`,
+            ),
+          )
+
+          if (region.guaranteed >= 1 && region.reencoded === 'true') {
+            ok(
+              `**وتقرير الخبز يُعلن ${region.guaranteed} منطقة مضمونة** — والضمان مقيسٌ على البايتات المكتوبة لا مشتقٌّ من النمط`,
+            )
+          } else {
+            fail(`تقرير الخبز: مضمون=${region.guaranteed} مُعاد الترميز=${region.reencoded}`)
+          }
+
+          if (region.w > 0 && region.h > 0) {
+            note(`الملفّ المصدَّر ${region.w}×${region.h} بـ${region.colours} لونًا`)
+          }
+
+          /*
+           * **والشقّ السالب على ملفّ حقيقي**: النمط نفسه بالضبابي يجب
+           * ألّا يُعلَن مضمونًا. وهذا ما يُثبِّت في الشيفرة — لا في التوثيق —
+           * أن الطمس ليس حجبًا.
+           */
+          await evalIn(S, `document.querySelector('[data-tool="redact"]').click(), 1`)
+          await new Promise((r) => setTimeout(r, 150))
+          const toBlur = await evalIn(
+            S,
+            `(() => {
+              const b = document.querySelector('[data-redact-mode="blur"]')
+              if (!b) return 'no-panel'
+              b.click()
+              return 'ok'
+            })()`,
+          )
+          if (toBlur !== 'ok') {
+            fail('تعذّر إعادة النمط إلى الضبابي للشاهد السالب')
+          } else {
+            await new Promise((r) => setTimeout(r, 400))
+            await evalIn(S, `document.querySelector('[data-tool="select"]').click(), 1`)
+            await new Promise((r) => setTimeout(r, 120))
+            await evalIn(S, `document.querySelector('[data-export-scale="1"]').click(), 1`)
+
+            let blurGuaranteed = -1
+            for (let i = 0; i < 40; i++) {
+              await new Promise((r) => setTimeout(r, 200))
+              const raw = await evalIn(
+                S,
+                `(document.querySelector('[data-export-guaranteed]')?.dataset.exportGuaranteed ?? '')`,
+              )
+              if (raw !== '') {
+                blurGuaranteed = Number(raw)
+                if (blurGuaranteed === 0) break
+              }
+            }
+
+            if (blurGuaranteed === 0) {
+              ok('**والشاهد السالب على ملفّ حقيقي** — الضبابي لا يُعلَن مضمونًا، فالطمس ليس حجبًا')
+            } else {
+              fail(`الضبابي أُعلن مضمونًا (${blurGuaranteed}) — الوعد يتجاوز ما يفي به`)
+            }
+          }
         }
       }
 

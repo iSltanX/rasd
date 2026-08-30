@@ -56,3 +56,22 @@
   block-size: 100%;
   object-fit: cover;
 }
+
+/*
+ * بديل المصغَّرة حين تُحجب.
+ *
+ * يشغل حيّز الصورة نفسه كي لا تقفز البطاقة، ويقول سببه — لأن مربّعًا فارغًا
+ * يُقرأ عطلًا لا قرارًا.
+ */
+.withheld {
+  display: grid;
+  place-items: center;
+  padding: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-sm);
+  border: var(--rasd-stroke-thin) dashed var(--rasd-border-subtle);
+  background: var(--rasd-surface-sunken);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-tertiary);
+  text-align: center;
+}

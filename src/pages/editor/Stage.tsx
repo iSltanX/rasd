@@ -202,7 +202,6 @@ export function Stage(props: StageProps): JSX.Element {
               ctx,
               style: propsRef.current.style,
               camera: { zoom: plan.scale, tx: 0, ty: 0 },
-              source: propsRef.current.source,
               interacting: false,
               layout,
             },
@@ -345,7 +344,7 @@ export function Stage(props: StageProps): JSX.Element {
       measure: measureBox,
       forceFull: true,
     })
-    paintAnnotations(annoLayer, framePlan, frame, p.source)
+    paintAnnotations(annoLayer, framePlan, frame)
     paintSelection(annoLayer, frame)
     dirtyRef.current = null
 

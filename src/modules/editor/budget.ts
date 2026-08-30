@@ -20,7 +20,7 @@
  * بقياس حيّ على 4000×3000 وعلى الحالة القصوى، ويُثبَّت ما تعطيه.
  */
 
-import { canvasBytes, withinCanvasLimits } from '@/shared/canvas-limits'
+import { canvasBytes, MAX_CANVAS_SIDE, withinCanvasLimits } from '@/shared/canvas-limits'
 
 /**
  * ميزانية الطبقة الواحدة على المسرح — 48MiB.
@@ -54,6 +54,22 @@ export const EDITOR_CACHE_BUDGET_BYTES = 64 * 1024 * 1024
  * **+378MB**، وعادت الذاكرة خلال **2.2 ثانية** بعد `close()`.
  */
 export const BAKE_SLICE_BUDGET_BYTES = 32 * 1024 * 1024
+
+/**
+ * سقف سطح الخبز الواحد — 280MiB.
+ *
+ * **حدود المنصّة وحدها لا تكفي حارسًا هنا.** مقيس: 8000×6000 عند 2× تعطي
+ * 16,000×12,000 ⇒ مساحة 192 مليون بكسل، وهي **تحت** `MAX_CANVAS_AREA`
+ * (268 مليون) فتمرّ من `withinCanvasLimits` — بينما سطحها **732 ميغابايت**،
+ * أي ضِعف سقف المرحلة. فيُخصَّص ما لا تحتمله الصفحة، وقد يُقبَل الرسم
+ * ويخرج أصفارًا: «نجح وبصمت أخطأ».
+ *
+ * والرقم 280MiB يسع الحالة القصوى عند 1× **بالضبط** (2560×28,672×4 =
+ * 293,601,280 = 280MiB)، وهو الرقم نفسه الذي اشتقّه ADR 0011 لقماش واحد.
+ * والذروة معه = السطح + شريحة (32MiB) + طبقتا المسرح (5.3MiB مقيسة في
+ * الدفعة الثالثة) ≈ 317MiB، دون سقف 400MB.
+ */
+export const BAKE_SURFACE_BUDGET_BYTES = 280 * 1024 * 1024
 
 /** أدنى كثافة نسمح بالهبوط إليها قبل أن نُعلن العجز بدل أن نصمت. */
 export const MIN_BACKING_SCALE = 1
@@ -123,11 +139,21 @@ export function sliceCountFor(width: number, height: number): number {
   return Math.max(1, Math.ceil(height / sliceHeightFor(width)))
 }
 
+/**
+ * لماذا رُفض التصدير — **ثلاثة أسباب لا واحد**.
+ *
+ * دمجها في «كبيرٌ جدًّا» يترك المستخدم بلا فعل: من رُفض بالضلع لا ينفعه
+ * تصغير المقياس (الضلع لا يتغيّر بالاقتصاص الأفقي)، ومن رُفض بالميزانية
+ * ينفعه 1× فورًا. والسبب الذي لا يُملي فعلًا ليس سببًا.
+ */
+export type ExportBound = 'none' | 'side' | 'area' | 'budget'
+
 export interface ExportPlan {
   readonly width: number
   readonly height: number
   readonly slices: number
   readonly bytes: number
+  readonly bound: ExportBound
   /** `null` يعني: يمكن التصدير. وإلّا فسببٌ **يُعرض للمستخدم** لا يُبتلع. */
   readonly refusal: 'oversized' | null
 }
@@ -148,12 +174,30 @@ export function planExportSurface(
 ): ExportPlan {
   const width = Math.round(imageWidth * scale)
   const height = Math.round(imageHeight * scale)
-  const ok = withinCanvasLimits(width, height)
+  const bytes = canvasBytes(width, height)
+
+  /*
+   * الترتيب مقصود: الضلع أوّلًا لأنه الحدّ الأصلب (لا يُخفَّف إلّا باقتصاص
+   * في ذلك المحور)، ثمّ المساحة، ثمّ الميزانية — وهي الوحيدة التي يكفي
+   * لتجاوزها خفضُ المقياس.
+   */
+  const bound: ExportBound =
+    width <= 0 || height <= 0
+      ? 'area'
+      : width > MAX_CANVAS_SIDE || height > MAX_CANVAS_SIDE
+        ? 'side'
+        : !withinCanvasLimits(width, height)
+          ? 'area'
+          : bytes > BAKE_SURFACE_BUDGET_BYTES
+            ? 'budget'
+            : 'none'
+
   return {
     width,
     height,
     slices: sliceCountFor(width, height),
-    bytes: canvasBytes(width, height),
-    refusal: ok ? null : 'oversized',
+    bytes,
+    bound,
+    refusal: bound === 'none' ? null : 'oversized',
   }
 }

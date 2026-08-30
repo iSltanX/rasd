@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 
 import { createHistory } from '@/modules/editor/history'
+import { createTextLayoutCache } from '@/modules/editor/text-layout'
 import { isHistoryShortcut } from '@/modules/editor/typing'
 
 import { buildRenderStyle } from './colors'
@@ -10,11 +11,15 @@ import {
   releaseContext,
   type EditorContext,
 } from './context'
+import { createMeasurer } from './measure'
 import { DEFAULT_TOOL_SETTINGS, type ToolName } from './tools'
 import { Annotating } from './views/Annotating'
+import { Exporting } from './views/Exporting'
 import { NotFound } from './views/NotFound'
 import { RedactView } from './views/Redact'
+import { createBlurClient } from './worker-client'
 
+import type { BakeReport } from '@/modules/editor/bake'
 import type { BaseSource } from '@/modules/editor/renderer'
 import type { NodeId } from '@/modules/editor/scene'
 import type { JSX } from 'preact'
@@ -87,6 +92,9 @@ export function Editor(): JSX.Element {
  */
 function Loaded({ context }: { context: EditorContext }): JSX.Element {
   const [tool, setTool] = useState<ToolName>('select')
+  /** دقّة التصدير الجارية، أو `null` — والحالة `exporting` مشتقّة منها. */
+  const [exporting, setExporting] = useState<1 | 2 | null>(null)
+  const [exported, setExported] = useState<{ report: BakeReport; url: string } | null>(null)
   const [selection, setSelection] = useState<ReadonlySet<NodeId>>(new Set())
   const [, bump] = useState(0)
 
@@ -152,6 +160,20 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
    */
   const mode = tool === 'redact' ? 'redact' : 'annotating'
 
+  /*
+   * خيط الطمس نفسه يخدم التصدير.
+   *
+   * وإنشاء ثانٍ له عند كل تصدير يعني خيطًا جديدًا ينتظر جهوزه بينما الأوّل
+   * جاهز — تأخيرٌ مجّاني على أثقل عملية في المحرر.
+   */
+  const client = useMemo(() => createBlurClient(), [])
+  useEffect(() => () => client.dispose(), [client])
+
+  const layout = useMemo(() => {
+    const m = createMeasurer(style.textFamily)
+    return createTextLayoutCache(m.measure, m.measureFont)
+  }, [style.textFamily])
+
   return (
     <Annotating
       context={context}
@@ -164,6 +186,35 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
       onTool={setTool}
       onSelectionChange={setSelection}
       onChange={() => bump((n) => n + 1)}
+      overlay={
+        exporting !== null ? (
+          <Exporting
+            scene={history.state.scene}
+            sourceBlob={context.sourceBlob}
+            scale={exporting}
+            style={style}
+            layout={layout}
+            client={client}
+            onDone={(report, blob) => {
+              /*
+               * عنوان الكائن يبقى حيًّا حتى التصدير التالي.
+               *
+               * هو ما يعرضه رابط «احفظ» ويقرؤه الفحص الحيّ. وتحريره فورًا
+               * يجعل الرابط ميّتًا لحظة ظهوره؛ وعدمُ تحريره أصلًا يُبقي
+               * ملفًّا بمئات الميغابايت في الذاكرة بعد كل تصدير.
+               */
+              setExported((prev) => {
+                if (prev) URL.revokeObjectURL(prev.url)
+                return { report, url: URL.createObjectURL(blob) }
+              })
+              setExporting(null)
+            }}
+            onClose={() => setExporting(null)}
+          />
+        ) : null
+      }
+      onExport={(scale) => setExporting(scale)}
+      exported={exported}
       side={
         mode === 'redact' ? (
           <RedactView

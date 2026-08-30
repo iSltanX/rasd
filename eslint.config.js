@@ -138,11 +138,40 @@ export const restrictedSyntax = [
  * و`stitch.ts:162` ثالث. وهذا بالضبط ما تُشترى به قاعدة اللنت — إحصاء
  * مسارات الخروج بالعدّ الآلي لا بالذاكرة.
  */
+const ENCODE_MESSAGE =
+  'الترميز إلى بايتات يقع في modules/editor/bake.ts وحدها — هي التي تخبز الحجب قبل الترميز (ADR 0015).'
+
+/**
+ * **ثلاثة محدِّدات لا واحد** — والثاني والثالث كشفهما فحصٌ لا قراءة.
+ *
+ * `callee.property.name` يطابق النداء **بالنقطة** وحده. وقِيس: كتابة
+ * `c['convertToBlob'](…)` أو `const m = 'convertToBlob'; c[m](…)` في ملفّ
+ * داخل `pages/` تمرّ من اللنت **خضراء** — أي أن أي ملفّ في المحرر كان
+ * يستطيع ترميز القماش إلى بايتات بلا المرور بالخبز، وبلا أن تفتح البوّابة
+ * فمها. وهذا عين الفشل الذي وُجدت لمنعه.
+ *
+ * فالمحدِّد الثاني يمسك الوصول المحسوب بسلسلة حرفية، والثالث يمسك السلسلة
+ * نفسها أينما كُتبت — فيسدّ طريق المتغيّر الوسيط. وهو **أوسع مما يلزم
+ * حرفيًّا**: سلسلة `'toBlob'` في تعليق نصّي تُرفض أيضًا. والسعة مقصودة —
+ * هذه أسماء لا تُكتب لغير غرضها، والاستثناء ملفّاته معدودة.
+ */
 export const encodeSelector = {
   selector: 'CallExpression[callee.property.name=/^(toBlob|convertToBlob|toDataURL)$/]',
-  message:
-    'الترميز إلى بايتات يقع في modules/editor/bake.ts وحدها — هي التي تخبز الحجب قبل الترميز (ADR 0015).',
+  message: ENCODE_MESSAGE,
 }
+
+export const encodeComputedSelector = {
+  selector: 'MemberExpression[computed=true][property.value=/^(toBlob|convertToBlob|toDataURL)$/]',
+  message: ENCODE_MESSAGE,
+}
+
+export const encodeLiteralSelector = {
+  selector: 'Literal[value=/^(toBlob|convertToBlob|toDataURL)$/]',
+  message: ENCODE_MESSAGE,
+}
+
+/** المحدِّدات الثلاثة معًا — لا يُستعمل أحدها وحده. */
+export const encodeSelectors = [encodeSelector, encodeComputedSelector, encodeLiteralSelector]
 
 /** الملفّان المستثنيان من `encodeSelector` وحده، لا من بقيّة المحدِّدات. */
 export const ENCODE_ALLOWED = [
@@ -220,14 +249,21 @@ export default tseslint.config(
       // الرسائل الخام تمرّ من طبقة الرسائل وحدها — انظر ADR 0006.
       // تُكتب كمحدِّدات AST لا كـ`no-restricted-properties`: تلك القاعدة تطابق
       // المُعرِّف المباشر فقط، و`chrome.runtime.sendMessage` أعمق بمستوى.
-      'no-restricted-syntax': ['error', ...restrictedSyntax, encodeSelector],
+      'no-restricted-syntax': ['error', ...restrictedSyntax, ...encodeSelectors],
     },
   },
 
-  // ── طبقة الرسائل هي الموضع الوحيد المسموح فيه بالنداءات الخام ─
+  /*
+   * ── طبقة الرسائل هي الموضع الوحيد المسموح فيه بالنداءات الخام ─
+   *
+   * **وتُستثنى من محدِّدات الرسائل وحدها، لا من بوّابة الترميز.** الإطفاء
+   * الكامل كان يُسقط `encodeSelectors` معها: قِيس أن `convertToBlob` داخل
+   * `src/shared/messaging/` تمرّ **بلا مخالفة واحدة**. وطبقةُ رسائل تُرمّز
+   * صورًا ليست فرضًا بعيدًا — هي المكان الطبيعي لمساعد «أرسل لقطة».
+   */
   {
     files: ['src/shared/messaging/*.ts'],
-    rules: { 'no-restricted-syntax': 'off' },
+    rules: { 'no-restricted-syntax': ['error', ...encodeSelectors] },
   },
 
   /*
@@ -239,6 +275,25 @@ export default tseslint.config(
   {
     files: ENCODE_ALLOWED,
     rules: { 'no-restricted-syntax': ['error', ...restrictedSyntax] },
+  },
+
+  /*
+   * واختبار الحدود يذكر أسماء الترميز **نصًّا** ليتحقّق من القاعدة نفسها.
+   *
+   * فيُستثنى من محدِّد السلسلة وحده — لا من محدِّدَي النداء. ذكرُ الاسم
+   * مسموح فيه، والنداء ليس. والاستثناء بملفّ واحد بالاسم لا بشجرة
+   * `tests/**` كلّها: توسيعه كان سيُطفئ الحارس عن كل اختبار.
+   */
+  {
+    files: ['tests/unit/architecture-boundaries.test.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...restrictedSyntax,
+        encodeSelector,
+        encodeComputedSelector,
+      ],
+    },
   },
 
   /*

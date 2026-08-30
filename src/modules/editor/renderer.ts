@@ -180,16 +180,13 @@ export function paintBase(layer: Layer, src: BaseSource, frame: Frame): void {
 /**
  * طبقة التعليقات.
  *
- * **`src` مُمرَّر لأن رسّام الحجب يقرأ من المصدر السليم حصرًا.** التوقيع نفسه
+ * **لا تستقبل المصدر.** رسّام الحجب صار يستقبل رقعةً جاهزة بدل أن يقرأ
+ * المصدر بنفسه (الدفعة الخامسة)، فبقي الوسيط بلا قارئ — ومجالٌ إلزامي لا
+ * يقرؤه أحد يُجبر كل مستدعٍ على اختلاق قيمة له، وأوّلهم `bake`. التوقيع نفسه
  * هو الثابت: لا سبيل بنيويًّا لقراءة قماش العرض، فتراكم الضباب عبر الإطارات
  * لا يمكن أن يقع — لا لأن أحدًا انتبه، بل لأن الدالّة لا تملك ما تقرأ منه.
  */
-export function paintAnnotations(
-  layer: Layer,
-  plan: RenderPlan,
-  frame: Frame,
-  src: BaseSource,
-): RenderStats {
+export function paintAnnotations(layer: Layer, plan: RenderPlan, frame: Frame): RenderStats {
   const { ctx } = layer
   beginFrame(layer, frame.camera)
 
@@ -207,7 +204,6 @@ export function paintAnnotations(
     ctx,
     style: frame.style,
     camera: frame.camera,
-    source: src,
     interacting: frame.interacting,
     ...(frame.layout ? { layout: frame.layout } : {}),
     ...(frame.redactPatch ? { redactPatch: frame.redactPatch } : {}),

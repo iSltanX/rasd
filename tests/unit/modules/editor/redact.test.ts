@@ -99,6 +99,20 @@ describe('**التحويل من فضاء المشهد إلى فضاء المخز
     expect(op.cover.a).toBe(255)
   })
 
+  it('**والمستطيل السالب يُسوّى** — وإلّا رُسمت تغطية ولم يُدمَّر شيء', () => {
+    // سحبةٌ من اليمين إلى اليسار: عرضٌ سالب. `drawRedact` تُسوّي فتُرسم
+    // التغطية على الشاشة؛ ولو لم تُسوَّ هنا لأعادت `clampToBuffer` عدمًا.
+    const flipped = redact({ rect: deviceRect(140, 80, -40, -20) })
+    const op = opForNode(flipped, IDENTITY_TRANSFORM, PALETTE)
+    expect(op.rect).toEqual({ x: 100, y: 60, w: 40, h: 20 })
+    expect(sampleRect(op, 400, 300)).not.toBeNull()
+  })
+
+  it('واقتصاصٌ سالب يُسوّى كذلك', () => {
+    const t: RedactTransform = { crop: deviceRect(280, 190, -200, -150), scale: 1 }
+    expect(opForNode(redact(), t, PALETTE).rect).toEqual({ x: 20, y: 20, w: 40, h: 20 })
+  })
+
   it('والترتيب محفوظ — ترتيب الرسم هو ترتيب التنفيذ', () => {
     const scene = sceneWith(
       redact({ id: asNodeId('a') }),

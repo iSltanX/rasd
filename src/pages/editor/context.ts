@@ -24,6 +24,14 @@ export interface EditorContext {
   readonly capture: CaptureRecord
   /** عنوان كائن للصورة. **يُبطَل عند تفكيك الصفحة** — انظر `releaseContext`. */
   readonly imageUrl: string
+  /**
+   * بايتات اللقطة **السليمة** — يقرأ منها التصدير شرائحه.
+   *
+   * تُحمَل مع السياق ولا تُعاد قراءتها عند كل تصدير: القراءة الثانية تُعطي
+   * مرجعًا ثانيًا للبلوب نفسه بلا فائدة، وتُدخل نافذةً يمكن أن تُحذَف
+   * اللقطة فيها بين القراءتين.
+   */
+  readonly sourceBlob: Blob
   readonly scene: Scene
   /**
    * `updatedAt` للسجلّ المقروء، أو `null` إن لم يوجد سجلّ.
@@ -119,6 +127,7 @@ export async function loadEditorContext(
   return ok({
     capture: record.value,
     imageUrl: urls.create(blob.value.blob),
+    sourceBlob: blob.value.blob,
     scene,
     baseUpdatedAt,
     sceneError,

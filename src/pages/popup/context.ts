@@ -11,7 +11,7 @@
 
 import { send } from '@/shared/messaging'
 import { checkInjectable } from '@/shared/restricted'
-import { blobs, captures } from '@/shared/storage/repository'
+import { annotations, blobs, captures } from '@/shared/storage/repository'
 
 import type { PopupContext } from '@/shared/popup-state'
 import type { CaptureRecord } from '@/shared/storage/schema'
@@ -20,9 +20,30 @@ import type { ActiveMode, SessionState } from '@/shared/storage/session'
 export interface RecentEntry {
   readonly record: CaptureRecord
   readonly thumbUrl: string | null
+  /**
+   * حُجبت المصغَّرة لأن اللقطة عُلِّق عليها بحجب غير قابل للعكس.
+   *
+   * تُميَّز عن `thumbUrl === null` الناتج عن بايتات مفقودة: الأولى قرارٌ
+   * أمني يُشرَح للمستخدم، والثانية عطل.
+   */
+  readonly withheld: boolean
 }
 
-/** يجلب أحدث لقطتين مع صورهما المصغَّرة — الأحدث أولًا. */
+/** يُعرَض بدل الأصل. */
+export const WITHHELD_LABEL = 'معلَّق عليها بحجب — افتح المحرر'
+
+/**
+ * يجلب أحدث لقطتين مع صورهما المصغَّرة — الأحدث أولًا.
+ *
+ * **ولقطةٌ حُجب فيها شيء لا تُعرض بأصلها.** النافذة كانت تعرض بلوب اللقطة
+ * **السليم كاملًا** لآخر لقطتين: يفتح المستخدم المحرر، ويغطّي كلمة مرور،
+ * ويحفظ — ثمّ تعرضها النافذة مكشوفة على شاشته وعلى أي شاشة يشاركها.
+ *
+ * والمرحلة 15 هي التي تخلق التوقّع («لا يمكن استرجاع ما تحتها»)، فهي التي
+ * تملك واجب إغلاق أوّل مسار حيّ ينقضه. والثمن قراءتان إضافيتان من قاعدة
+ * البيانات لصفّين — ويُقرآن من **حقل مسطَّح** لا بفكّ المشهد، وهو الفرق
+ * بين حارسٍ يعمل في كل مسار وحارسٍ غالٍ يُتخطّى.
+ */
 export async function loadRecent(): Promise<RecentEntry[]> {
   const list = await captures.byIndex('createdAt')
   if (!list.ok) return []
@@ -33,9 +54,16 @@ export async function loadRecent(): Promise<RecentEntry[]> {
 
   return Promise.all(
     latest.map(async (record) => {
+      const note = await annotations.get(record.id)
+      const withheld = note.ok && (note.value.redaction?.irreversible ?? 0) > 0
+      if (withheld) return { record, thumbUrl: null, withheld: true }
+
       const blob = await blobs.get(record.id)
-      const thumbUrl = blob.ok ? URL.createObjectURL(blob.value.blob) : null
-      return { record, thumbUrl }
+      return {
+        record,
+        thumbUrl: blob.ok ? URL.createObjectURL(blob.value.blob) : null,
+        withheld: false,
+      }
     }),
   )
 }

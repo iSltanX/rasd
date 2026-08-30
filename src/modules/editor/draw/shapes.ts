@@ -16,7 +16,7 @@ import { normaliseBox } from '../hit-test'
 import { drawNote, drawPinNumber, drawText } from './text'
 
 import type { Camera } from '../camera'
-import type { BaseSource, Ctx2D, RenderStyle } from '../renderer'
+import type { Ctx2D, RenderStyle } from '../renderer'
 import type {
   ArrowNode,
   EllipseNode,
@@ -34,8 +34,6 @@ export interface DrawContext {
   readonly ctx: Ctx2D
   readonly style: RenderStyle
   readonly camera: Camera
-  /** المصدر السليم — رسّام الحجب وحده يقرأ منه. */
-  readonly source: BaseSource
   readonly interacting: boolean
   /**
    * ذاكرة تخطيط النصّ.

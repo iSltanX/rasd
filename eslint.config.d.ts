@@ -26,6 +26,12 @@ export interface RestrictedSelector {
 export const architectureZones: ArchitectureZone[]
 export const restrictedSyntax: RestrictedSelector[]
 export const encodeSelector: RestrictedSelector
+/** الوصول المحسوب بسلسلة حرفية: `c['convertToBlob']()`. */
+export const encodeComputedSelector: RestrictedSelector
+/** السلسلة نفسها أينما كُتبت — تسدّ طريق المتغيّر الوسيط. */
+export const encodeLiteralSelector: RestrictedSelector
+/** الثلاثة معًا. لا يُستعمل أحدها وحده. */
+export const encodeSelectors: RestrictedSelector[]
 export const ENCODE_ALLOWED: string[]
 
 declare const config: unknown

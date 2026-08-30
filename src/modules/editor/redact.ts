@@ -14,6 +14,7 @@
  * `modules/` منطق خالص: لا DOM ولا `chrome.*`.
  */
 
+import { normaliseBox } from './hit-test'
 import {
   blurRegion,
   clampToBuffer,
@@ -54,20 +55,34 @@ function coverChannels(hex: string): { r: number; g: number; b: number; a: numbe
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: 255 }
 }
 
-/** يبني عملية بكسل من عقدة حجب. */
+/**
+ * يبني عملية بكسل من عقدة حجب.
+ *
+ * **المستطيلان يُسوَّيان أوّلًا — العقدة والاقتصاص معًا.**
+ * `drawRedact` و`nodeBounds` تُسوّيان، وهذه لم تكن: فمستطيلٌ بعرض سالب —
+ * وهو ما تُنتجه سحبةٌ من اليمين إلى اليسار قبل أن تُحفَظ — يجعل
+ * `clampToBuffer` تُرجع `null` فلا يُدمَّر شيء، **بينما تُرسَم التغطية على
+ * الشاشة**. أي أن المعاينة تَعِد والملفّ لا يفي: أسوأ اتّجاه للتباعد.
+ *
+ * والمخطَّط يمنع السالب في المحفوظ (`minValue(0)`)، فالخلل كامنٌ لا حيّ —
+ * لكن مقابض التغيير في الدفعة السابعة تُنتجه أثناء السحب، والتسوية هنا
+ * تُغلق الصنف كلّه بثلاثة أسطر بدل أن تنتظره.
+ */
 export function opForNode(
   node: RedactNode,
   t: RedactTransform,
   palette: Readonly<Record<AnnotationColor, string>>,
 ): ObscureOp {
-  const ox = t.crop?.x ?? 0
-  const oy = t.crop?.y ?? 0
+  const rect = normaliseBox(node.rect)
+  const crop = t.crop ? normaliseBox(t.crop) : null
+  const ox = crop?.x ?? 0
+  const oy = crop?.y ?? 0
   return {
     rect: {
-      x: (node.rect.x - ox) * t.scale,
-      y: (node.rect.y - oy) * t.scale,
-      w: node.rect.width * t.scale,
-      h: node.rect.height * t.scale,
+      x: (rect.x - ox) * t.scale,
+      y: (rect.y - oy) * t.scale,
+      w: rect.width * t.scale,
+      h: rect.height * t.scale,
     },
     mode: node.mode,
     strength: node.strength * t.scale,
