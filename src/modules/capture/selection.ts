@@ -372,8 +372,21 @@ export function clampRatioRect<S extends Space>(
   ratio: number,
 ): Rect<S> {
   const space = rect.space
-  const scale = Math.min(1, bounds.width / rect.width, bounds.height / rect.height)
-  const width = rect.width * scale
+  /*
+   * **الارتفاع يدخل الحساب، ولا يُترك للقصّ.**
+   *
+   * الصيغة السابقة كانت تشتقّ العرض من `rect.height` ثمّ تشتقّ الارتفاع من
+   * النسبة، ثمّ تترك `clampRect` تقصّ ما فاض — والقصّ يقصّ محورًا واحدًا،
+   * فتضيع النسبة نفسها التي جاءت الدالّة لحفظها.
+   *
+   * قِيس: مستطيل 2560×1440 داخل حدود 2560×1440 بنسبة 1:1 كان يخرج
+   * **2560×1440**، أي النسبة 1.778 لا 1. وهو أوّل ما يقع عليه المستخدم:
+   * يفتح الاقتصاص ويضغط «1:1» فلا يتغيّر شيء — والشريط يقول 1:1.
+   *
+   * والحدّ `bounds.height * ratio` هو ما يمنع ذلك: يُقيَّد العرض بما يسع
+   * ارتفاعه داخل الحدود، فلا يبقى للقصّ ما يقصّه.
+   */
+  const width = Math.min(rect.width, bounds.width, bounds.height * ratio)
   const height = width / ratio
   const anchored = rectIn(space, rect.x, rect.y, width, height)
   return clampRect(anchored, bounds)

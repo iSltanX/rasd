@@ -16,6 +16,7 @@
  * `modules/` منطق خالص: لا DOM ولا `chrome.*` ولا توكنز.
  */
 
+import { HANDLES } from '@/modules/capture/selection'
 import { deviceRect, type DeviceRect } from '@/shared/geometry'
 
 import { nodeBounds, type MeasureBox } from './bounds'
@@ -131,6 +132,8 @@ export interface Frame {
   readonly redactPatch?: DrawContext['redactPatch']
   /** أثناء إيماءة حيّة — يمنع توليد المخابئ الغالية لإطار واحد. */
   readonly interacting: boolean
+  /** وضع الاقتصاص فعّال — تُرسم حدوده ومقابضه فوق كل شيء. */
+  readonly cropActive?: boolean
 }
 
 export interface BaseSource {
@@ -204,6 +207,7 @@ export function paintAnnotations(layer: Layer, plan: RenderPlan, frame: Frame): 
     ctx,
     style: frame.style,
     camera: frame.camera,
+    dpr: frame.scene.source.dpr,
     interacting: frame.interacting,
     ...(frame.layout ? { layout: frame.layout } : {}),
     ...(frame.redactPatch ? { redactPatch: frame.redactPatch } : {}),
@@ -284,4 +288,67 @@ export function fullImageRect(src: BaseSource): DeviceRect {
 /** مستطيل الصورة بفضاء المسرح — لرسم إطار حول اللوحة الفنية. */
 export function artboardRect(src: BaseSource, camera: Camera) {
   return imageRectToCanvas(fullImageRect(src), camera)
+}
+
+/** مقاس مقبض الاقتصاص ببكسل شاشة — يقابل `HANDLE_CSS_PX` في التحديد. */
+const CROP_HANDLE_CSS = 9
+
+/**
+ * حدود الاقتصاص ومقابضه.
+ *
+ * **تُرسم في وضع الاقتصاص وحده، ولا تدخل الملفّ المصدَّر أبدًا**: `bake` لا
+ * تنادي هذه الدالّة ولا `paintSelection`. زخرفةُ الواجهة تتبع سمة المؤلّف،
+ * والمتلقّي لا يملكها.
+ *
+ * والمقابض من `handleAt` — الدالّة نفسها التي يستعملها التحديد والإصابة،
+ * فلا موضع ثانٍ يمكن أن ينحرف عن الأوّل.
+ */
+export function paintCrop(layer: Layer, frame: Frame): void {
+  if (!frame.cropActive) return
+  const crop = frame.scene.meta.crop
+  if (!crop) return
+
+  const box = normaliseBox(crop)
+  const { ctx } = layer
+  const size = CROP_HANDLE_CSS / frame.camera.zoom
+  const thin = 1 / frame.camera.zoom
+
+  beginFrame(layer, frame.camera)
+  ctx.save()
+  ctx.filter = 'none'
+  ctx.globalAlpha = 1
+
+  ctx.strokeStyle = frame.style.selectionHex
+  ctx.lineWidth = 2 * thin
+  ctx.setLineDash([])
+  ctx.beginPath()
+  ctx.rect(box.x, box.y, box.width, box.height)
+  ctx.stroke()
+
+  // أثلاثٌ خفيفة — قاعدة التأليف المعتادة، تُرى ولا تُزاحم.
+  ctx.globalAlpha = 0.35
+  ctx.lineWidth = thin
+  ctx.beginPath()
+  for (let i = 1; i < 3; i++) {
+    const x = box.x + (box.width * i) / 3
+    const y = box.y + (box.height * i) / 3
+    ctx.moveTo(x, box.y)
+    ctx.lineTo(x, box.y + box.height)
+    ctx.moveTo(box.x, y)
+    ctx.lineTo(box.x + box.width, y)
+  }
+  ctx.stroke()
+
+  ctx.globalAlpha = 1
+  ctx.fillStyle = frame.style.handleHex
+  ctx.strokeStyle = frame.style.selectionHex
+  ctx.lineWidth = thin
+  for (const handle of HANDLES) {
+    const at = handleAt(box, handle)
+    ctx.beginPath()
+    ctx.rect(at.x - size / 2, at.y - size / 2, size, size)
+    ctx.fill()
+    ctx.stroke()
+  }
+  ctx.restore()
 }

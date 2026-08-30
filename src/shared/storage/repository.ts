@@ -142,9 +142,16 @@ export async function deleteCaptureWithBlob(id: string): Promise<Result<null>> {
   })
 }
 
-/** نتيجة كتابة مشروطة — التمييز بين «كُتب» و«سبقني غيري» لا يُبتلع. */
+/**
+ * نتيجة كتابة مشروطة — التمييز بين «كُتب» و«سبقني غيري» لا يُبتلع.
+ *
+ * **والفشل يحمل ما وجده.** «سبقني غيري» بلا قيمةِ ذلك الغير لا يُملي فعلًا:
+ * من أراد الكتابة فوقه لا يعرف بماذا يشترط، فيمرّر `null` — وهو شرطُ «لا
+ * سجلّ»، فيفشل أبدًا. الحقل يحوّل بلاغًا إلى قرار قابل للتنفيذ.
+ */
 export type ConditionalWrite<K> =
-  { readonly written: true; readonly key: K } | { readonly written: false }
+  | { readonly written: true; readonly key: K }
+  | { readonly written: false; readonly actual: number | null }
 
 /**
  * كتابة مشروطة بأن السجلّ لم يتغيّر — **منعُ تعارض لا كشفُه**.
@@ -189,7 +196,7 @@ export async function putIfUnchanged<S extends StoreName>(
        */
       tx.abort()
       await tx.done.catch(() => undefined)
-      return { written: false } as const
+      return { written: false, actual } as const
     }
 
     const written = await tx.store.put(value)

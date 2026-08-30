@@ -301,6 +301,7 @@ export async function bake(
       ctx,
       style: req.style,
       camera: { zoom: scale, tx: 0, ty: 0 },
+      dpr: scene.source.dpr,
       interacting: false,
       layout: req.layout,
     }
@@ -311,12 +312,6 @@ export async function bake(
 
       // المخفيّ لا يُصدَّر. والحجب لا حقل إخفاء له بحكم النوع، فلا يُتخطّى.
       if (isHideable(node) && node.hidden) continue
-
-      if (node.kind === 'measure') {
-        // حدٌّ يُعلَن: القياس في الدفعة السابعة، ولا يُرسَم ناقصًا.
-        if (!warnings.includes(MEASURE_WARNING)) warnings.push(MEASURE_WARNING)
-        continue
-      }
 
       if (node.kind !== 'redact') {
         ctx.save()
@@ -407,5 +402,4 @@ export async function bake(
   }
 }
 
-const MEASURE_WARNING = 'عُقد القياس لا تُصدَّر بعد — لم تُرسَم في الملفّ.'
 const OUTSIDE_WARNING = 'منطقة حجب خارج نافذة التصدير — لم تُطبَّق.'

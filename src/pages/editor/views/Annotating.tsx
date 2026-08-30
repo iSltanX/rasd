@@ -1,5 +1,7 @@
 import { formatHuman } from '@/shared/bidi'
+import { isIncognitoContext } from '@/shared/env'
 
+import { LayerList } from '../parts/LayerList'
 import { NoteList } from '../parts/NoteList'
 import { PageMeta } from '../parts/PageMeta'
 import { Stage } from '../Stage'
@@ -19,10 +21,20 @@ export interface AnnotatingProps {
   readonly style: RenderStyle
   readonly tool: ToolName
   readonly settings: ToolSettings
+  readonly cropRatio: number | null
   readonly selection: ReadonlySet<NodeId>
   readonly onTool: (tool: ToolName) => void
   readonly onSelectionChange: (next: ReadonlySet<NodeId>) => void
   readonly onChange: () => void
+  /** شريط حالة الحفظ ولافتة التعارض — يُمرَّر لا يُبنى هنا. */
+  readonly save: JSX.Element | null
+  /**
+   * المشهد المخزَّن تالف: يُعرض ولا يُحفَظ.
+   *
+   * ويُقال للمستخدم صراحةً — محرّرٌ لا يحفظ بلا أن يخبر هو أسوأ من محرّر
+   * لا يفتح.
+   */
+  readonly readOnly: boolean
   readonly side: JSX.Element | null
   /** طبقةٌ فوق كل شيء — التصدير، وهو نافذةٌ مشروطة لا حالةٌ بديلة. */
   readonly overlay: JSX.Element | null
@@ -50,6 +62,7 @@ export function Annotating(props: AnnotatingProps): JSX.Element {
             style={props.style}
             tool={props.tool}
             settings={props.settings}
+            cropRatio={props.cropRatio}
             selection={props.selection}
             onSelectionChange={props.onSelectionChange}
             onSceneChange={props.onChange}
@@ -73,12 +86,29 @@ export function Annotating(props: AnnotatingProps): JSX.Element {
         data-editor-side
       >
         <PageMeta capture={props.context.capture} />
-        {props.context.sceneError ? (
-          <p data-editor-scene-error>{props.context.sceneError}</p>
+
+        {isIncognitoContext() ? (
+          /*
+           * **يُقال قبل العمل لا بعده.** الحفظ في التصفّح الخاص ممنوع
+           * بسياسة المشروع؛ ومعرفةُ ذلك بعد ساعة من التعليق تعني ساعةً
+           * ضائعة. واللافتة هنا لا تنتظر أوّل محاولة حفظ.
+           */
+          <p data-editor-incognito role="note">
+            تصفّحٌ خاص: لا يُحفَظ التعليق تلقائيًّا. صدّر الصورة قبل إغلاق التبويب.
+          </p>
         ) : null}
 
+        {props.readOnly ? (
+          <p data-editor-readonly role="alert">
+            تعذّرت قراءة التعليقات المحفوظة: {props.context.sceneError} — يُعرض المحرر فارغًا، ولا
+            يُحفَظ فوق المحفوظ حتى لا يضيع ما لم نفهمه.
+          </p>
+        ) : (
+          props.save
+        )}
+
         <div data-editor-tools>
-          {(['select', ...DRAW_TOOLS] as ToolName[]).map((name) => (
+          {(['select', ...DRAW_TOOLS, 'crop'] as ToolName[]).map((name) => (
             <button
               key={name}
               type="button"
@@ -92,6 +122,13 @@ export function Annotating(props: AnnotatingProps): JSX.Element {
         </div>
 
         {props.side}
+
+        <LayerList
+          history={props.history}
+          selection={props.selection}
+          onSelect={(id) => props.onSelectionChange(new Set([id]))}
+          onChange={props.onChange}
+        />
 
         <NoteList
           history={props.history}

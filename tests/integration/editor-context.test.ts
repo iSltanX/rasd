@@ -124,6 +124,7 @@ describe('تحميل السياق', () => {
     expect(loaded.value.scene.nodes).toHaveLength(0)
     expect(loaded.value.baseUpdatedAt).toBeNull()
     expect(loaded.value.sceneError).toBeNull()
+    expect(loaded.value.readOnly).toBe(false)
   })
 
   it('**كثافة البكسل من سجلّ اللقطة لا من الجهاز**', async () => {
@@ -156,6 +157,13 @@ describe('تحميل السياق', () => {
     expect(loaded.ok).toBe(true)
     if (!loaded.ok) return
     expect(loaded.value.sceneError).not.toBeNull()
+    /*
+     * **والحفظ ممنوع** — وهذا ما يجعل «لا تكتب فوق التالف» حقيقةً لا نيّة.
+     * بدونه يُقرأ الأساس من السجلّ التالف نفسه، فتنجح الكتابة المشروطة
+     * ويُكتب مشهدٌ فارغ فوق عمل المستخدم عند أوّل خطّ يرسمه.
+     */
+    expect(loaded.value.readOnly).toBe(true)
+    expect(loaded.value.baseUpdatedAt).not.toBeNull()
     expect(loaded.value.scene.nodes).toHaveLength(0)
     // والأصل التالف **لم يُكتب فوقه**.
     const still = await annotations.get(CAPTURE_ID)

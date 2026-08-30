@@ -21,9 +21,21 @@ import {
 import { finalizeStroke } from '@/modules/editor/smoothing'
 import { devicePoint, deviceRect, type DevicePoint } from '@/shared/geometry'
 
-/** الأدوات المبنيّة. القياس في الدفعة السابعة. */
+/** الأدوات المبنيّة. */
 export type ToolName =
-  'select' | 'arrow' | 'line' | 'rect' | 'ellipse' | 'freehand' | 'pin' | 'redact' | 'text' | 'note'
+  | 'select'
+  | 'arrow'
+  | 'line'
+  | 'rect'
+  | 'ellipse'
+  | 'freehand'
+  | 'pin'
+  | 'redact'
+  | 'text'
+  | 'note'
+  | 'measure'
+  /** وضعٌ لا أداة رسم: لا يُنشئ عقدة، بل يغيّر نافذة التصدير. */
+  | 'crop'
 
 /** أدوات تُنشئ عقدة بالسحب — `select` ليست منها. */
 export const DRAW_TOOLS: readonly ToolName[] = [
@@ -36,6 +48,7 @@ export const DRAW_TOOLS: readonly ToolName[] = [
   'redact',
   'text',
   'note',
+  'measure',
 ]
 
 export interface ToolSettings {
@@ -226,6 +239,26 @@ export function createNode(input: CreateInput): SceneNode | null {
         dir: 'auto',
       }
 
+    case 'crop':
+      // الاقتصاص وضعٌ لا أداة رسم: لا يُنشئ عقدة، بل يكتب في `meta.crop`.
+      return null
+
+    case 'measure':
+      return tiny
+        ? null
+        : {
+            ...base,
+            kind: 'measure',
+            a: box,
+            /*
+             * مستطيلٌ واحد أوّلًا — «كم مقاس هذا؟». والثاني يُضاف بسحبة
+             * ثانية فيصير السؤال «كم بينهما؟». وبدء المستخدم بسؤالين معًا
+             * يجعل أبسط قياسٍ يحتاج إيماءتين.
+             */
+            b: null,
+            show: 'size',
+          }
+
     case 'note':
       return {
         ...base,
@@ -291,4 +324,7 @@ export const TOOL_LABEL: Readonly<Record<ToolName, string>> = {
   redact: 'حجب وطمس',
   text: 'نصّ',
   note: 'ملاحظة',
+  measure: 'قياس',
+  // الاقتصاص وضعٌ لا أداة رسم — لا يُنشئ عقدة، بل يغيّر نافذة التصدير.
+  crop: 'اقتصاص',
 }

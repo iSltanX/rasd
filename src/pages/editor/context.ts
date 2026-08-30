@@ -48,6 +48,15 @@ export interface EditorContext {
    * الكتابة فوق ما لم نفهمه تُتلف عمله نهائيًّا.
    */
   readonly sceneError: string | null
+  /**
+   * الحفظ ممنوع — و**هذا ما يجعل الوعد أعلاه حقيقة لا نيّة**.
+   *
+   * بدونه كان `baseUpdatedAt` يُقرأ من السجلّ التالف نفسه، فتنجح الكتابة
+   * المشروطة (الأساس يطابق!) ويُكتب **مشهدٌ فارغ فوق عمل المستخدم** عند
+   * أوّل خطّ يرسمه. أي أن الحقل الذي وُجد ليحمي كان يفتح الباب: يفتح
+   * المحرر فارغًا، ويرسم المستخدم شيئًا، فيضيع كل ما كان — نهائيًّا.
+   */
+  readonly readOnly: boolean
 }
 
 /**
@@ -131,6 +140,7 @@ export async function loadEditorContext(
     scene,
     baseUpdatedAt,
     sceneError,
+    readOnly: sceneError !== null,
   })
 }
 
@@ -147,7 +157,8 @@ export function releaseContext(context: EditorContext, urls: ObjectUrls = browse
 
 export type SaveOutcome =
   | { readonly kind: 'saved'; readonly updatedAt: number }
-  | { readonly kind: 'conflict' }
+  /** `actual` ما وُجد في القاعدة — بدونه لا سبيل للكتابة فوقه لاحقًا. */
+  | { readonly kind: 'conflict'; readonly actual: number | null }
   | { readonly kind: 'failed'; readonly message: string }
 
 /**
@@ -180,6 +191,6 @@ export async function saveScene(
   )
 
   if (!written.ok) return { kind: 'failed', message: written.error.message }
-  if (!written.value.written) return { kind: 'conflict' }
+  if (!written.value.written) return { kind: 'conflict', actual: written.value.actual }
   return { kind: 'saved', updatedAt: now }
 }

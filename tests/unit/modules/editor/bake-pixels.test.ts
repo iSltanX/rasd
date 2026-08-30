@@ -261,7 +261,7 @@ describe('تقرير الخبز', () => {
     expect(r.warnings.join(' ')).toContain('خارج نافذة التصدير')
   })
 
-  it('وعقدة القياس تُعلَن حدًّا ولا تُبتلَع', async () => {
+  it('**وعقدة القياس تُرسَم الآن** — لم تعد حدًّا معلَنًا', async () => {
     const measure: SceneNode = {
       kind: 'measure',
       id: asNodeId('m'),
@@ -273,8 +273,11 @@ describe('تقرير الخبز', () => {
       b: null,
       show: 'size',
     }
-    const { report } = await bakeOn(patterned(), sceneWith(measure))
-    expect((report as { warnings: string[] }).warnings.join(' ')).toContain('القياس')
+    const withMeasure = await bakeOn(patterned(), sceneWith(measure))
+    const without = await bakeOn(patterned(), sceneWith())
+    expect((withMeasure.report as { warnings: string[] }).warnings).toHaveLength(0)
+    // ورسمُها يغيّر البكسلات — الحدّ الذي أعلنته الدفعة السادسة أُغلق.
+    expect(bytesEqual(asBuffer(withMeasure.bytes, W, H), asBuffer(without.bytes, W, H))).toBe(false)
   })
 })
 

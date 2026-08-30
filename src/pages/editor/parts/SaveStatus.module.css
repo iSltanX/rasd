@@ -1,0 +1,51 @@
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-tertiary);
+  margin: 0;
+}
+
+.dot {
+  inline-size: var(--rasd-space-6);
+  block-size: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-text-tertiary);
+  flex: none;
+}
+.status[data-outcome='saved'] .dot {
+  background: var(--rasd-status-success-solid);
+}
+.status[data-outcome='saving'] .dot {
+  background: var(--rasd-status-warning-solid);
+}
+.status[data-blocked='true'] .dot {
+  background: var(--rasd-status-danger-solid);
+}
+
+.banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+  padding: var(--rasd-space-10);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-surface-raised);
+  /* الحدّ عند بداية السطر — يمين في مستند عربي، بلا شيفرة اتجاه. */
+  border-inline-start: var(--rasd-stroke-thick) solid var(--rasd-status-danger-solid);
+}
+
+.bannerText {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-6);
+}

@@ -13,6 +13,7 @@
 
 import { normaliseBox } from '../hit-test'
 
+import { drawMeasure } from './measure'
 import { drawNote, drawPinNumber, drawText } from './text'
 
 import type { Camera } from '../camera'
@@ -34,6 +35,13 @@ export interface DrawContext {
   readonly ctx: Ctx2D
   readonly style: RenderStyle
   readonly camera: Camera
+  /**
+   * كثافة بكسل اللقطة.
+   *
+   * يحتاجها رسّام القياس وحده — وهو الوحيد الذي **يعرض رقمًا للإنسان**:
+   * فجوةُ 32 بكسل صورة على لقطة كثافتها 2 تُعرَض `16px`.
+   */
+  readonly dpr: number
   readonly interacting: boolean
   /**
    * ذاكرة تخطيط النصّ.
@@ -324,6 +332,6 @@ export function drawNode(d: DrawContext, node: SceneNode): void {
     case 'note':
       return d.layout ? drawNote(d, node, d.layout) : undefined
     case 'measure':
-      return
+      return drawMeasure(d, node)
   }
 }

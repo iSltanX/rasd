@@ -324,7 +324,15 @@ export function handleAt(box: DeviceRect, handle: Handle): DevicePoint {
   return devicePoint(x, y)
 }
 
-/** أي مقبض تُصيبه النقطة، أو `null`. يُفحَص **قبل** إصابة العقد. */
+/**
+ * أي مقبض تُصيبه النقطة، أو `null`. يُفحَص **قبل** إصابة العقد.
+ *
+ * **والتسامح محصورٌ بثلث أصغر ضلع.** التسامح يُقسَم على التكبير كي يبقى
+ * ثابتًا في اليد، فعند تكبير 0.05 يصير ثمانية بكسلات شاشة **مئةً وستّين**
+ * بكسل صورة. وقِيس عندها أن مركز مستطيل 300×200 يُصيب مقبض الشمال: أي أن
+ * كل نقطة في المستطيل تصير مقبضًا، فيستحيل تحريكه أصلًا — وهو التكبير
+ * الذي يختاره المستخدم ليرى لقطة صفحة كاملة.
+ */
 export function hitHandle(
   box: DeviceRect,
   rotation: number,
@@ -332,9 +340,10 @@ export function hitHandle(
   tolImagePx: number,
 ): Handle | null {
   const p = unrotate(point, centreOf(box), rotation)
+  const tol = Math.min(tolImagePx, Math.min(Math.abs(box.width), Math.abs(box.height)) / 3)
   for (const handle of HANDLES) {
     const at = handleAt(box, handle)
-    if (Math.hypot(p.x - at.x, p.y - at.y) <= tolImagePx) return handle
+    if (Math.hypot(p.x - at.x, p.y - at.y) <= tol) return handle
   }
   return null
 }

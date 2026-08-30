@@ -1,17 +1,26 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 
+import { ASPECT_PRESETS, clampRatioRect, type AspectPresetId } from '@/modules/capture/selection'
+import { createAutosave, type SaveState } from '@/modules/editor/autosave'
 import { createHistory } from '@/modules/editor/history'
+import { normaliseBox } from '@/modules/editor/hit-test'
+import { setCrop } from '@/modules/editor/scene-ops'
 import { createTextLayoutCache } from '@/modules/editor/text-layout'
 import { isHistoryShortcut } from '@/modules/editor/typing'
+import { deviceRect } from '@/shared/geometry'
+import { err, ok } from '@/shared/result'
 
 import { buildRenderStyle } from './colors'
 import {
   captureIdFromLocation,
   loadEditorContext,
   releaseContext,
+  saveScene,
   type EditorContext,
 } from './context'
 import { createMeasurer } from './measure'
+import { CropBar } from './parts/CropBar'
+import { SaveStatus } from './parts/SaveStatus'
 import { DEFAULT_TOOL_SETTINGS, type ToolName } from './tools'
 import { Annotating } from './views/Annotating'
 import { Exporting } from './views/Exporting'
@@ -94,7 +103,15 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
   const [tool, setTool] = useState<ToolName>('select')
   /** دقّة التصدير الجارية، أو `null` — والحالة `exporting` مشتقّة منها. */
   const [exporting, setExporting] = useState<1 | 2 | null>(null)
+  const [cropPreset, setCropPreset] = useState<AspectPresetId>('free')
   const [exported, setExported] = useState<{ report: BakeReport; url: string } | null>(null)
+  const [saveState, setSaveState] = useState<SaveState>({
+    outcome: 'idle',
+    baseUpdatedAt: context.baseUpdatedAt,
+    message: null,
+    dirty: false,
+  })
+  const [savedAt, setSavedAt] = useState<number | null>(null)
   const [selection, setSelection] = useState<ReadonlySet<NodeId>>(new Set())
   const [, bump] = useState(0)
 
@@ -145,7 +162,12 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
       e.preventDefault()
       if (shortcut === 'redo') history.redo()
       else history.undo()
-      bump((n) => n + 1)
+      /*
+       * **التراجع تعديلٌ يُحفَظ.** بدونه: يرسم المستخدم شكلًا فيُحفَظ بعد
+       * ثمانمئة مللي، ثمّ يتراجع عنه، ثمّ يُغلق — فيعود الشكل الذي حذفه
+       * عند الفتح التالي.
+       */
+      onSceneChanged()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -158,7 +180,10 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
    * اللوحة على الملاحظات، أو يفتح لوحة الحجب فتبقى الأداة على التحديد.
    * والاشتقاق يجعل السؤال «هل نحن في وضع الحجب؟» بلا جوابين.
    */
-  const mode = tool === 'redact' ? 'redact' : 'annotating'
+  const mode = tool === 'redact' ? 'redact' : tool === 'crop' ? 'crop' : 'annotating'
+
+  /** حدود الصورة بفضاء الجهاز — من سجلّ اللقطة لا من البتماب المفكوكة. */
+  const imageBounds = deviceRect(0, 0, context.capture.width, context.capture.height)
 
   /*
    * خيط الطمس نفسه يخدم التصدير.
@@ -168,6 +193,63 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
    */
   const client = useMemo(() => createBlurClient(), [])
   useEffect(() => () => client.dispose(), [client])
+
+  /*
+   * الحفظ التلقائي — **ولا يُنشأ أصلًا حين يكون المشهد المخزَّن تالفًا**.
+   *
+   * `readOnly` يعني أن `parseScene` فشلت وأن المحرر فُتح على مشهد فارغ.
+   * وأساس الكتابة المشروطة مقروءٌ من ذلك السجلّ نفسه، فالكتابة **تنجح** —
+   * ويُمحى عمل المستخدم بمشهدٍ فارغ عند أوّل خطّ يرسمه.
+   */
+  const autosave = useMemo(() => {
+    if (context.readOnly) return null
+    return createAutosave({
+      write: async (payload, _bytes, expected) => {
+        const outcome = await saveScene(payload.scene, expected)
+        if (outcome.kind === 'saved') {
+          return ok({ written: true as const, updatedAt: outcome.updatedAt })
+        }
+        if (outcome.kind === 'conflict') {
+          return ok({ written: false as const, actual: outcome.actual })
+        }
+        return err({ code: 'handler-failed' as const, message: outcome.message })
+      },
+      now: () => Date.now(),
+      schedule: (fn, ms) => {
+        const id = setTimeout(fn, ms)
+        return () => clearTimeout(id)
+      },
+      baseUpdatedAt: context.baseUpdatedAt,
+      onState: (next) => {
+        setSaveState(next)
+        if (next.outcome === 'saved') setSavedAt(Date.now())
+      },
+    })
+  }, [context.readOnly, context.baseUpdatedAt])
+
+  useEffect(() => () => autosave?.dispose(), [autosave])
+
+  /*
+   * **الإغلاق يُفرغ ما لم يُكتب.**
+   *
+   * `visibilitychange` لا `beforeunload`: الثاني لا يحتمل عملًا غير متزامن
+   * أصلًا، والأوّل يقع قبله ويترك للكتابة فرصةً حقيقية. ونافذة التهدئة
+   * ثمانمئة مللي ثانية — أي أن إغلاقًا بعد آخر ضربة قلم مباشرةً كان يخسرها.
+   */
+  useEffect(() => {
+    if (!autosave) return
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') void autosave.flush()
+    }
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [autosave])
+
+  /** يُستدعى بعد كل تغيير في المشهد — من المسرح ومن اللوحات ومن التاريخ. */
+  const onSceneChanged = () => {
+    bump((n) => n + 1)
+    autosave?.push(history.state.scene)
+  }
 
   const layout = useMemo(() => {
     const m = createMeasurer(style.textFamily)
@@ -182,10 +264,21 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
       style={style}
       tool={tool}
       settings={DEFAULT_TOOL_SETTINGS}
+      cropRatio={ASPECT_PRESETS.find((p) => p.id === cropPreset)?.ratio ?? null}
       selection={selection}
       onTool={setTool}
       onSelectionChange={setSelection}
-      onChange={() => bump((n) => n + 1)}
+      onChange={onSceneChanged}
+      readOnly={context.readOnly}
+      save={
+        <SaveStatus
+          state={saveState}
+          savedAt={savedAt}
+          onKeepMine={() => void autosave?.overwrite()}
+          onTakeTheirs={() => window.location.reload()}
+          onRetry={() => void autosave?.flush()}
+        />
+      }
       overlay={
         exporting !== null ? (
           <Exporting
@@ -216,7 +309,40 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
       onExport={(scale) => setExporting(scale)}
       exported={exported}
       side={
-        mode === 'redact' ? (
+        mode === 'crop' ? (
+          <CropBar
+            crop={history.state.scene.meta.crop}
+            preset={cropPreset}
+            onPreset={(id) => {
+              setCropPreset(id)
+              const ratio = ASPECT_PRESETS.find((p) => p.id === id)?.ratio ?? null
+              const current = history.state.scene.meta.crop
+              if (ratio === null || !current) return
+              /*
+               * تطبيق النسبة على اقتصاصٍ قائم — بـ`clampRatioRect` وحدها.
+               * ولا تُطبَّق على «لا اقتصاص»: نسبةٌ على الصورة كاملة تعني
+               * اقتصاصًا لم يطلبه أحد.
+               */
+              history.mark('نسبة الاقتصاص')
+              history.push(
+                setCrop(
+                  history.state.scene,
+                  clampRatioRect(normaliseBox(current), imageBounds, ratio),
+                ).patches,
+              )
+              history.commit()
+              onSceneChanged()
+            }}
+            onApply={() => setTool('select')}
+            onReset={() => {
+              history.mark('إلغاء الاقتصاص')
+              history.push(setCrop(history.state.scene, null).patches)
+              history.commit()
+              onSceneChanged()
+            }}
+            onCancel={() => setTool('select')}
+          />
+        ) : mode === 'redact' ? (
           <RedactView
             history={history}
             selection={selection}

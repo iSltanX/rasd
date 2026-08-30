@@ -1303,6 +1303,147 @@ if (extId && sw && granted) {
         }
       }
 
+      // ── 9) الاقتصاص والحفظ — الدفعة السابعة ───────────────────────
+      /*
+       * ثلاث دعاوى لا يثبتها اختبار وحدة: أن الاقتصاص يصل نافذةَ التصدير
+       * فعلًا، وأن ما حُفظ يعود بعد إعادة التحميل، وأن تبويبًا ثانيًا لا
+       * يمحو الأوّل.
+       */
+      await evalIn(S, `document.querySelector('[data-tool="crop"]').click(), 1`)
+      await new Promise((r) => setTimeout(r, 150))
+
+      const cropBar = await evalIn(S, `(document.querySelector('[data-crop-bar]') ? 'ok' : 'none')`)
+      if (cropBar !== 'ok') {
+        fail('شريط الاقتصاص لا يظهر في وضع الاقتصاص')
+      } else {
+        // سحبة اقتصاص في وسط اللقطة.
+        await send(
+          'Input.dispatchMouseEvent',
+          {
+            type: 'mousePressed',
+            x: cx - 120,
+            y: cy - 90,
+            button: 'left',
+            clickCount: 1,
+            pointerType: 'mouse',
+          },
+          S,
+        )
+        await moveTo(S, cx - 40, cy - 30)
+        await moveTo(S, cx + 120, cy + 90)
+        await send(
+          'Input.dispatchMouseEvent',
+          {
+            type: 'mouseReleased',
+            x: cx + 120,
+            y: cy + 90,
+            button: 'left',
+            clickCount: 1,
+            pointerType: 'mouse',
+          },
+          S,
+        )
+        await settle(S)
+        await new Promise((r) => setTimeout(r, 300))
+
+        const readout = await evalIn(
+          S,
+          `(document.querySelector('[data-crop-readout]')?.textContent ?? '')`,
+        )
+        if (/\d/.test(readout) && !readout.includes('كاملة')) {
+          ok(`**الاقتصاص يُرسَم ويُقرأ** — ${readout.trim()}`)
+        } else {
+          fail(`الاقتصاص لم يُثبَّت — القراءة «${readout.trim()}»`)
+        }
+
+        // نسبة 1:1 على اقتصاصٍ قائم — العيب الذي كان يُبقي النسبة كما هي.
+        await evalIn(S, `document.querySelector('[data-crop-preset="1:1"]').click(), 1`)
+        await new Promise((r) => setTimeout(r, 300))
+        try {
+          const shot = await send('Page.captureScreenshot', { format: 'png' }, S)
+          writeFileSync(
+            join(root, 'artifacts', 'editor-crop.png'),
+            Buffer.from(shot.data, 'base64'),
+          )
+          note('لقطة للمراجعة البصرية: artifacts/editor-crop.png')
+        } catch (e) {
+          note(`تعذّرت لقطة الاقتصاص: ${e}`)
+        }
+
+        const square = await evalIn(
+          S,
+          `(document.querySelector('[data-crop-readout]')?.textContent ?? '')`,
+        )
+        if (square.includes('1 : 1')) {
+          ok(`**ونسبة 1:1 تُطبَّق فعلًا** — ${square.trim()}`)
+        } else {
+          fail(`النسبة لم تُطبَّق — «${square.trim()}»`)
+        }
+
+        // والتصدير يتبع نافذة الاقتصاص.
+        await evalIn(S, `document.querySelector('[data-tool="select"]').click(), 1`)
+        await new Promise((r) => setTimeout(r, 150))
+        await evalIn(S, `document.querySelector('[data-export-scale="1"]').click(), 1`)
+
+        let cropped = null
+        for (let i = 0; i < 40; i++) {
+          await new Promise((r) => setTimeout(r, 200))
+          cropped = await evalIn(
+            S,
+            `(document.querySelector('[data-export-url]')?.textContent ?? '')`,
+          )
+          if (cropped && /\d/.test(cropped)) break
+        }
+        if (cropped && /\d+\s*×\s*\d+/.test(cropped)) {
+          const [w, h] = cropped
+            .match(/(\d+)\s*×\s*(\d+)/)
+            .slice(1)
+            .map(Number)
+          if (w === h && w < 1200) {
+            ok(`**والتصدير يتبع نافذة الاقتصاص** — ${w}×${h} لا 1200×900`)
+          } else {
+            fail(`مقاس التصدير ${w}×${h} لا يطابق الاقتصاص المربّع`)
+          }
+        } else {
+          fail('لم يظهر مقاس التصدير بعد الاقتصاص')
+        }
+      }
+
+      // ── الحفظ التلقائي: ما حُفظ يعود ──────────────────────────────
+      const beforeReload = await nodeCount(S)
+      const savedLabel = await evalIn(
+        S,
+        `(document.querySelector('[data-save-status]')?.dataset.saveStatus ?? 'none')`,
+      )
+      note(`حالة الحفظ قبل إعادة التحميل: ${savedLabel} · العقد ${beforeReload}`)
+
+      await send('Page.reload', {}, S)
+      const readyAgain = await waitReady(S)
+      if (!readyAgain) {
+        fail('المحرر لم يعد بعد إعادة التحميل')
+      } else {
+        await new Promise((r) => setTimeout(r, 500))
+        const afterReload = await nodeCount(S)
+        if (afterReload === beforeReload && afterReload > 0) {
+          ok(`**والاستعادة بعد الإغلاق تعمل** — ${afterReload} عقدة عادت كما كانت`)
+        } else {
+          fail(`بعد إعادة التحميل ${afterReload} عقدة بدل ${beforeReload}`)
+        }
+
+        const keptCrop = await evalIn(
+          S,
+          `JSON.stringify((() => {
+            const el = document.querySelector('[data-export-scale="1"]')
+            return { hasExport: !!el }
+          })())`,
+        )
+        if (JSON.parse(keptCrop).hasExport) {
+          ok('والمحرر يعود كاملًا بأدواته بعد إعادة التحميل')
+        } else {
+          fail('المحرر عاد ناقصًا بعد إعادة التحميل')
+        }
+      }
+
       // ── 4) الذاكرة — البند الذي يعلنه ADR 0011 مفتوحًا ─────────
       const mem = JSON.parse(
         await evalIn(

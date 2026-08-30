@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import {
+  clampRect,
+  moveRect,
+  resizeRect,
+  solveDrag,
+  MIN_SELECTION,
+  type Handle,
+} from '@/modules/capture/selection'
 import { planStageSurface } from '@/modules/editor/budget'
 import {
   canvasToImage,
@@ -11,11 +19,12 @@ import {
 } from '@/modules/editor/camera'
 import { applyPatches } from '@/modules/editor/commands'
 import { drawNode } from '@/modules/editor/draw/shapes'
-import { hitTest } from '@/modules/editor/hit-test'
+import { hitTest, HANDLE_HIT_PX, hitHandle, normaliseBox } from '@/modules/editor/hit-test'
 import { dirtyForChange, planFrame } from '@/modules/editor/render-plan'
 import {
   paintAnnotations,
   paintBase,
+  paintCrop,
   paintSelection,
   type BaseSource,
   type Ctx2D,
@@ -23,10 +32,17 @@ import {
   type Layer,
   type RenderStyle,
 } from '@/modules/editor/renderer'
+import { fullImageRect } from '@/modules/editor/renderer'
 import { cssToImage, OBSCURE_LABEL } from '@/modules/editor/scene'
-import { addNode, deleteNodes, replaceNodes } from '@/modules/editor/scene-ops'
+import { addNode, deleteNodes, replaceNodes, setCrop } from '@/modules/editor/scene-ops'
 import { createTextLayoutCache, noteBox, textBox } from '@/modules/editor/text-layout'
-import { canvasPoint, type DevicePoint } from '@/shared/geometry'
+import {
+  canvasPoint,
+  contains,
+  devicePoint,
+  type DeviceRect,
+  type DevicePoint,
+} from '@/shared/geometry'
 
 import { createMeasurer } from './measure'
 import { createRedactRaster } from './redact-raster'
@@ -47,6 +63,21 @@ import type { History } from '@/modules/editor/history'
 import type { NodeId, Scene, SceneNode, TextNode } from '@/modules/editor/scene'
 import type { JSX } from 'preact'
 
+/** يحصر نقطة داخل حدود الصورة — مرساةُ السحب لا يحصرها `solveDrag`. */
+function clampPointToImage(p: DevicePoint, source: BaseSource): DevicePoint {
+  return devicePoint(
+    Math.min(Math.max(p.x, 0), source.width),
+    Math.min(Math.max(p.y, 0), source.height),
+  )
+}
+
+/** حالة إيماءة اقتصاص جارية. */
+interface CropDrag {
+  readonly kind: 'draw' | 'move' | Handle
+  readonly from: DevicePoint
+  readonly startCrop: DeviceRect | null
+}
+
 export interface StageProps {
   readonly history: History
   readonly source: BaseSource
@@ -55,8 +86,10 @@ export interface StageProps {
   readonly settings: ToolSettings
   readonly selection: ReadonlySet<NodeId>
   readonly onSelectionChange: (next: ReadonlySet<NodeId>) => void
-  /** يُستدعى بعد كل تغيير في المشهد — للحفظ التلقائي في الدفعة السابعة. */
+  /** يُستدعى بعد كل تغيير في المشهد. */
   readonly onSceneChange?: (scene: Scene) => void
+  /** نسبة الاقتصاص المختارة — `null` يعني حرًّا. */
+  readonly cropRatio?: number | null
 }
 
 /** حالة إيماءة جارية — خارج الحالة التفاعلية عمدًا، تتغيّر مع كل حركة. */
@@ -202,6 +235,7 @@ export function Stage(props: StageProps): JSX.Element {
               ctx,
               style: propsRef.current.style,
               camera: { zoom: plan.scale, tx: 0, ty: 0 },
+              dpr: propsRef.current.history.state.scene.source.dpr,
               interacting: false,
               layout,
             },
@@ -240,6 +274,16 @@ export function Stage(props: StageProps): JSX.Element {
 
   const cameraRef = useRef<Camera>({ zoom: 1, tx: 0, ty: 0 })
   const gestureRef = useRef<Gesture | null>(null)
+  const cropRef = useRef<CropDrag | null>(null)
+  /**
+   * آخر اقتصاص رُسمت به طبقة الأساس.
+   *
+   * `paintBase` تُعاد عند تغيّر الكاميرا وحدها، والاقتصاص يغيّر **ما تعرضه**
+   * — فتغييره من خارج المسرح (زرّ نسبة، تراجع، إلغاء) كان يترك الطبقة على
+   * نافذتها القديمة. قِيس بصريًّا: صندوق الاقتصاص صار مربّعًا والصورة تحته
+   * بقيت مستطيلة، فظهر ربعه أسود.
+   */
+  const paintedCropRef = useRef<DeviceRect | null | undefined>(undefined)
   const sessionRef = useRef<ReturnType<typeof createTextEditSession> | null>(null)
   const dirtyRef = useRef<'base' | 'anno' | null>('base')
   // تُقرأ داخل حلقة الرسم، فتلزم مرجعًا لا حالةً — الحلقة لا تُعاد بالتصيير.
@@ -306,6 +350,11 @@ export function Stage(props: StageProps): JSX.Element {
     if (!baseCtx || !annoCtx) return
 
     const camera = cameraRef.current
+    const crop = p.history.state.scene.meta.crop
+    if (paintedCropRef.current !== crop) {
+      paintedCropRef.current = crop
+      dirtyRef.current = 'base'
+    }
     const baseLayer: Layer = { ctx: baseCtx, ...size, backingScale: plan.backingScale }
     const annoLayer: Layer = { ctx: annoCtx, ...size, backingScale: plan.backingScale }
 
@@ -333,6 +382,7 @@ export function Stage(props: StageProps): JSX.Element {
       measure: measureBox,
       redactPatch: (node) => redact.raster.patchFor(node, camera.zoom, underlayEpoch(node)),
       interacting: gesture !== null,
+      cropActive: p.tool === 'crop',
     }
 
     if (dirtyRef.current === 'base') paintBase(baseLayer, p.source, frame)
@@ -346,6 +396,7 @@ export function Stage(props: StageProps): JSX.Element {
     })
     paintAnnotations(annoLayer, framePlan, frame)
     paintSelection(annoLayer, frame)
+    paintCrop(annoLayer, frame)
     dirtyRef.current = null
 
     /*
@@ -433,6 +484,33 @@ export function Stage(props: StageProps): JSX.Element {
       return
     }
 
+    /*
+     * **الاقتصاص كلّه بدوالّ `selection.ts` المعمَّمة** — بلا سطر هندسة
+     * جديد. عُمِّمت على الفضاءات في الدفعة الأولى لهذا الغرض بعينه، وتُستدعى
+     * هنا بفضاء `device`.
+     */
+    if (p.tool === 'crop') {
+      const crop = scene.meta.crop
+      const tol = HANDLE_HIT_PX / cameraRef.current.zoom
+      const handle = crop ? hitHandle(normaliseBox(crop), 0, at, tol) : null
+      const inside = crop ? contains(normaliseBox(crop), at) : false
+      cropRef.current = {
+        kind: handle ?? (inside ? 'move' : 'draw'),
+        /*
+         * **المرساة تُحصَر داخل الصورة.**
+         *
+         * `solveDrag` تحصر المؤشِّر ولا تحصر المرساة، والمسرح أوسع من
+         * اللوحة — فسحبةٌ تبدأ في هامش المسرح تُنتج نافذة تصدير معلّقة خارج
+         * المصدر. قِيس بصريًّا: ربع الاقتصاص السفلي خرج أسود تحت حافّة
+         * الصورة، ثمّ يطلب الخبز شرائح لبكسلات لا وجود لها.
+         */
+        from: clampPointToImage(at, p.source),
+        startCrop: crop,
+      }
+      p.history.mark(TOOL_LABEL.crop)
+      return
+    }
+
     if (p.tool === 'select') {
       const hit = hitTest(scene, at, { camera: cameraRef.current, measureBox })
       const next = hit ? new Set([hit]) : new Set<NodeId>()
@@ -462,9 +540,37 @@ export function Stage(props: StageProps): JSX.Element {
   }
 
   const onPointerMove = (e: PointerEvent): void => {
+    const p = propsRef.current
+
+    const crop = cropRef.current
+    if (crop) {
+      const at = toImage(e)
+      const bounds = fullImageRect(p.source)
+      const options = { ratio: p.cropRatio ?? null }
+      const next =
+        crop.kind === 'draw'
+          ? solveDrag(crop.from, clampPointToImage(at, p.source), bounds, options)
+          : crop.kind === 'move' && crop.startCrop
+            ? clampRect(
+                moveRect(normaliseBox(crop.startCrop), at.x - crop.from.x, at.y - crop.from.y),
+                bounds,
+              )
+            : crop.startCrop
+              ? clampRect(
+                  resizeRect(normaliseBox(crop.startCrop), crop.kind as Handle, at, options),
+                  bounds,
+                )
+              : null
+      if (next) {
+        p.history.push(setCrop(p.history.state.scene, next).patches)
+        dirtyRef.current = 'base'
+        schedule()
+      }
+      return
+    }
+
     const gesture = gestureRef.current
     if (!gesture) return
-    const p = propsRef.current
     const at = toImage(e)
     gesture.moved = true
 
@@ -505,10 +611,30 @@ export function Stage(props: StageProps): JSX.Element {
   }
 
   const onPointerUp = (e: PointerEvent): void => {
+    const p = propsRef.current
+
+    const crop = cropRef.current
+    if (crop) {
+      cropRef.current = null
+      const now = p.history.state.scene.meta.crop
+      const dpr = p.history.state.scene.source.dpr
+      const min = cssToImage(MIN_SELECTION, dpr)
+      /*
+       * سحبةٌ أصغر من الحدّ الأدنى تُلغى ولا تُثبَّت: نافذة تصدير بمقاس
+       * ثمانية بكسلات ليست قصدًا، والفرق بينها وبين نقرةٍ عابرة لا يراه
+       * المستخدم. و`cancel` تعكس ما دُفع داخل العلامة وتُغلقها بلا إدراج.
+       */
+      if (!now || now.width < min || now.height < min) p.history.cancel()
+      else p.history.commit()
+      p.onSceneChange?.(p.history.state.scene)
+      dirtyRef.current = 'base'
+      schedule()
+      return
+    }
+
     const gesture = gestureRef.current
     gestureRef.current = null
     if (!gesture) return
-    const p = propsRef.current
 
     if (gesture.kind === 'pan') return
     if (gesture.kind === 'move') {
