@@ -36,6 +36,7 @@ import {
   stepFullPage,
 } from './tools/full-page'
 import { createInspect } from './tools/inspect'
+import { createMeasure, type MeasureTool } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
 
@@ -98,6 +99,7 @@ export async function startOverlay(
       // تأخذ لقطة إحداثيات مستقلّة عن هذه فتتناقضان داخل الإطار الواحد.
       elementTool?.frame(reasons)
       inspectTool?.frame(reasons)
+      measureTool?.frame(reasons)
       options.onFrame?.(space)
     },
   })
@@ -105,6 +107,7 @@ export async function startOverlay(
   // تُسنَد بعد إنشاء الأدوات: الحلقة تبدأ قبلها، وهي تحتاج `host`.
   let elementTool: ElementHoverTool | null = null
   let inspectTool: ReturnType<typeof createInspect> | null = null
+  let measureTool: MeasureTool | null = null
 
   const stopDpr = watchDpr(() => sync.invalidate('dpr'), win)
 
@@ -250,8 +253,26 @@ export async function startOverlay(
     onReport: (snapshot) => void send('inspect/report', { snapshot }),
   })
 
+  /**
+   * أداة القياس (المرحلة 12).
+   *
+   * **الدرع مرفوع كاملًا** كما في المنطقة والعنصر لا الفحص: نقرة تثبّت
+   * مرجعًا أو تبدأ سحبًا حرًّا، وبلا الدرع تملك الصفحة تلك النقرة (رابط
+   * يُغادَر، عنصر يتفاعل) قبل أن نقرأها.
+   */
+  const measure = createMeasure({
+    doc,
+    skip: host.hostEl,
+    onCancel: () => modes.escape(),
+    onBusy: (busy) => {
+      modes.busy.value = busy
+    },
+    onInvalidate: () => sync.invalidate('pointer'),
+  })
+
   elementTool = element
   inspectTool = inspect
+  measureTool = measure
 
   /**
    * ينسخ مخرَج الفحص إلى الحافظة.
@@ -283,6 +304,7 @@ export async function startOverlay(
     area,
     element,
     inspect,
+    measure,
     onCopyInspect: (kind) => copyInspect(inspect, kind),
     fullPage,
     onCancelFullPage: () => void send('fullpage/cancel', undefined),
@@ -313,13 +335,22 @@ export async function startOverlay(
    * `pointer-events: auto` لنفسها في `overlay.css` — وهو نمط
    * `.rasd-ov-place` القائم منذ المرحلة 9.
    */
-  const INTERACTIVE_MODES = new Set<Mode>(['area', 'element'])
+  /*
+   * **وضع القياس معهما لا مع الفحص.**
+   *
+   * التثبيت بنقرة والسحب الحرّ يحتاجان الحدث قبل الصفحة، للسبب نفسه
+   * المذكور لوضع العنصر: نقرة بلا درع تُنفِّذ ما تحتها (رابط، زرّ) قبل أن
+   * نستهلكها مرجعًا. القياس لا يقرأ `:hover` الصفحة كما يفعل الفحص، فلا
+   * ثمن لرفع الدرع هنا.
+   */
+  const INTERACTIVE_MODES = new Set<Mode>(['area', 'element', 'measure'])
 
   const unsubscribeInteractive = modes.subscribe((mode) => {
     host.setInteractive(INTERACTIVE_MODES.has(mode))
     if (mode !== 'area') area.reset()
     if (mode !== 'element') element.reset()
     if (mode !== 'inspect') inspect.reset()
+    if (mode !== 'measure') measure.reset()
   })
   host.setInteractive(INTERACTIVE_MODES.has(modes.mode.value))
 
@@ -458,6 +489,7 @@ export async function startOverlay(
     area,
     element,
     inspect,
+    measure,
     lastCapture: () => lastCapture,
     teardown,
   })

@@ -225,3 +225,26 @@ export function normalizeRect<S extends Space>(a: Point<S>, b: Point<NoInfer<S>>
 export function contains<S extends Space>(r: Rect<S>, p: Point<NoInfer<S>>): boolean {
   return p.x >= r.x && p.y >= r.y && p.x <= r.x + r.width && p.y <= r.y + r.height
 }
+
+/**
+ * هل يسع مستطيلٌ نافذةً بمقاسها، وهل هو داخلها الآن؟
+ *
+ * ثلاث حالات لا حالتان، لأنّ «غير مرئي كاملًا» يتفرّع بحسب ما يصلحه التمرير:
+ *
+ * - `'contained'`: مرئي كاملًا الآن — لا فعل مطلوب.
+ * - `'off-screen'`: يسع النافذة (لا يتجاوز ارتفاعها ولا عرضها) لكنه خارج
+ *   حدودها جزئيًا أو كليًا — تمرير واحد يحلّه.
+ * - `'oversized'`: أطول من النافذة أو أعرض منها — **لا تمرير يجعله مرئيًا
+ *   كاملًا دفعة واحدة**. هذا هو الشرط الذي يُحيل إلى مسار التقاط مختلف
+ *   (البند 51 في `Rasd_Plan.md §6`؛ الإحالة نفسها مؤجَّلة إلى المرحلة 22).
+ *
+ * القياس بفضاء `viewport` وحده منطقي: هو الفضاء الذي تُقاس فيه النافذة.
+ */
+export type ViewportFit = 'contained' | 'off-screen' | 'oversized'
+
+export function viewportFit(r: ViewportRect, viewportWidth: number, viewportHeight: number): ViewportFit {
+  if (r.height > viewportHeight || r.width > viewportWidth) return 'oversized'
+  const withinX = r.x >= 0 && r.x + r.width <= viewportWidth
+  const withinY = r.y >= 0 && r.y + r.height <= viewportHeight
+  return withinX && withinY ? 'contained' : 'off-screen'
+}

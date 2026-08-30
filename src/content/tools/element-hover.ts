@@ -23,7 +23,7 @@ import {
   type BoxEdges,
 } from '@/modules/dom-picker/inspect'
 import { buildSelector, shortLabel } from '@/modules/dom-picker/selector'
-import { viewportRect, type ViewportRect } from '@/shared/geometry'
+import { viewportFit, viewportRect, type ViewportRect } from '@/shared/geometry'
 
 import type { SyncReason } from '../sync'
 
@@ -189,11 +189,42 @@ export function createElementHover(options: ElementHoverOptions): ElementHoverTo
     }
   }
 
-  /** ينتقل إلى عنصر بعينه (المشي في الشجرة) — يثبّت الهدف. */
+  /**
+   * يمرّر الهدف إلى الرؤية إن لم يكن مرئيًا كاملًا — `instant` دائمًا.
+   *
+   * `behavior: 'instant'` يتفوّق على `scroll-behavior: smooth` في CSS
+   * الصفحة بلا حاجة إلى مسّه (الأثر نفسه المقيس في `scrollToInstant` عبر
+   * `scrollTo`، والآلية واحدة في المواصفة). و`scrollIntoView` وحدها تحلّ
+   * حاويات التمرير المتداخلة — وهو ما لا تفعله `scroller.ts` المبنيّة
+   * لحاوية الصفحة الواحدة في المرحلة 10، فليست بديلًا هنا.
+   *
+   * **لا تُستدعى إن كان الهدف `oversized`**: لا تمرير يجعل عنصرًا أطول من
+   * النافذة مرئيًا كاملًا دفعة واحدة — انظر `viewportFit`.
+   */
+  const scrollIfOffscreen = (el: Element, rect: ViewportRect): void => {
+    if (!win) return
+    if (viewportFit(rect, win.innerWidth, win.innerHeight) !== 'off-screen') return
+    el.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'nearest' })
+  }
+
+  /**
+   * ينتقل إلى عنصر بعينه (المشي في الشجرة) — يثبّت الهدف ويمرّر إليه.
+   *
+   * **البند 51 في `Rasd_Plan.md §6`** (بأثر رجعي من المرحلة 9): التمرير
+   * التلقائي هنا لا في التتبّع العادي — المستخدم طلب هذا العنصر صراحةً
+   * بالسهم، وعدم إظهاره يجعل المشي بلا فائدة.
+   */
   const adoptElement = (el: Element | null): boolean => {
     if (!el) return false
     adopt({ el, frames, opaqueFrame: opaque })
-    state.rect.value = currentRect()
+    let rect = currentRect()
+    if (rect) {
+      // `scrollIntoView` على العنصر نفسه يمرّر إطاره الداخلي ثم النافذة
+      // الأعلى إن لزم — سلسلة واحدة، لا فرق بين هدف في الصفحة وهدف في إطار.
+      scrollIfOffscreen(el, rect)
+      rect = currentRect()
+    }
+    state.rect.value = rect
     if (!pinAt && px >= 0) pinAt = { x: px, y: py }
     state.phase.value = 'pinned'
     options.onInvalidate?.()
@@ -252,10 +283,32 @@ export function createElementHover(options: ElementHoverOptions): ElementHoverTo
     return adoptElement(direction === 'up' ? walkUp(target) : walkDown(target))
   }
 
+  /**
+   * التقاط الهدف — يمرّر إليه أوّلًا إن كان `off-screen` فقط.
+   *
+   * **البند 51 في `Rasd_Plan.md §6`، الفرع الأوّل** («التمرير ثم الالتقاط»):
+   * `captureVisibleTab` يلتقط ما هو مرئي وحده، فهدف خارج النافذة يُقصّ إلى
+   * صفر بصمت لولا هذا. التمرير `instant` فتقرأ `currentRect()` طازجة —
+   * لا حاجة لإطار انتظار: موضع التمرير يُطبَّق فورًا وقراءة الهندسة بعده
+   * مباشرة تعكسه (خلاف الرسم المرئي الذي ينتظر الإطار التالي).
+   *
+   * **الفرع الثاني (`oversized` — الإحالة لمسار المرحلة 10) مؤجَّل صراحةً
+   * إلى المرحلة 22**: يحتاج عقد رسائل جديدًا يُقيَّد بارتفاع عنصر لا
+   * الصفحة كاملة، وهو عمل مستقلّ لا تعديل سطرين. حتى يُبنى، يلتقط هذا
+   * المسار ما هو مرئي من العنصر الطويل — نفس السلوك القائم قبل هذه
+   * المرحلة، غير منكوس.
+   */
   const commit = (): void => {
-    const rect = state.rect.peek()
+    let rect = state.rect.peek()
     const info = state.info.peek()
     if (!rect || !info || state.phase.peek() === 'capturing') return
+
+    if (target && win && viewportFit(rect, win.innerWidth, win.innerHeight) === 'off-screen') {
+      target.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'nearest' })
+      rect = currentRect() ?? rect
+      state.rect.value = rect
+    }
+
     state.phase.value = 'capturing'
     options.onBusy(true)
     options.onCommit(rect, info)

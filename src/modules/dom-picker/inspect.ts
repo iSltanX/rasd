@@ -118,6 +118,27 @@ export function boxEdges(el: Element, win: Window = globalThis.window): BoxEdges
   }
 }
 
+/** فجوة الحاوية بين أبنائها المباشرين — `flex`/`grid` وحدهما يملكانها. */
+export interface Gap {
+  readonly row: number
+  readonly column: number
+}
+
+/**
+ * `row-gap`/`column-gap` للعنصر كحاوية — لا لصندوقه هو.
+ *
+ * **صفر لا `null` على غير الحاويات.** `getComputedStyle` يُرجع `normal` لأي
+ * عنصر بصرف النظر عن `display`، فالسؤال «هل هذا العنصر حاوية أصلًا؟» يُحسم
+ * من `display` صراحةً — وإلا ظهرت فجوة وهمية على عنصر عادي قيمتها المحسوبة
+ * صدفةً `0px` لا لأنه حاوية بل لأن `normal` يُرجَم إلى صفر افتراضيًا.
+ */
+export function boxGap(el: Element, win: Window = globalThis.window): Gap {
+  const style = win.getComputedStyle(el)
+  const display = style.display
+  if (!/^(flex|grid|inline-flex|inline-grid)$/.test(display)) return { row: 0, column: 0 }
+  return { row: px(style, 'row-gap'), column: px(style, 'column-gap') }
+}
+
 /** مستطيل الهامش — أوسع الصناديق، وهو ما يرسمه `BoxModel`. */
 export function marginRect(rect: ViewportRect, margin: Edges): ViewportRect {
   return {

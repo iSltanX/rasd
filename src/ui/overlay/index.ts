@@ -13,6 +13,8 @@ export { ElementHover, type ElementHoverProps, type QuickAction } from './Elemen
 export { Dimension, type DimensionProps } from './Dimension'
 export { DimensionVertical, type DimensionVerticalProps } from './DimensionVertical'
 export { BoxModel, type BoxModelProps, type Edges } from './BoxModel'
+export { MeasureGap, type MeasureGapProps } from './MeasureGap'
+export { AlignGuide, type AlignGuideProps } from './AlignGuide'
 export { Toolbar, type ToolbarProps, type ToolbarItem } from './Toolbar'
 export { Crosshair, type CrosshairProps } from './Crosshair'
 export { FrameBlocked, type FrameBlockedProps } from './FrameBlocked'

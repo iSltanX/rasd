@@ -104,6 +104,38 @@
         height: 4px;
         background: #ddd;
       }
+
+      /*
+       * البند 51 في `Rasd_Plan.md §6` — التمرير التلقائي في المشي بالشجرة.
+       * الأب أوسع من الابن ويحويه قرب حافّته السفلية بعمد، لا مصادفة: عند
+       * تمرير الصفحة بحيث يصير الابن قريبًا من أعلى النافذة، يبقى الأب
+       * (الأصغر من ارتفاع أي نافذة حقيقية) ممتدًّا فوق حافّتها العلوية.
+       * `#scroll-sentinel` يضمن أن الصفحة قابلة للتمرير إلى هذا الموضع
+       * أيًّا كان ارتفاع نافذة المتصفّح الفعلي.
+       */
+      #offscreen-parent {
+        position: absolute;
+        left: 600px;
+        top: 1400px;
+        width: 250px;
+        height: 300px;
+        background: #fed7d7;
+      }
+      #offscreen-child {
+        position: absolute;
+        left: 20px;
+        top: 270px;
+        width: 80px;
+        height: 20px;
+        background: #742a2a;
+      }
+      #scroll-sentinel {
+        position: absolute;
+        left: 0;
+        top: 3000px;
+        width: 1px;
+        height: 1px;
+      }
     </style>
   </head>
   <body>
@@ -118,6 +150,9 @@
     <iframe id="frame" src="/picker/frame.html"></iframe>
 
     <div id="stress"></div>
+
+    <div id="offscreen-parent"><div id="offscreen-child">off-screen parent</div></div>
+    <div id="scroll-sentinel"></div>
 
     <script>
       // ظلّ مفتوح بمستويين — اختراق متعشّش

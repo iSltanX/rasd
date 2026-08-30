@@ -14,6 +14,7 @@ import {
   pageToDevice,
   pageToViewport,
   readSpace,
+  viewportFit,
   viewportPoint,
   viewportRect,
   viewportRectToDevice,
@@ -266,5 +267,51 @@ describe('watchDpr', () => {
   it('لا ينهار حين تغيب `matchMedia`', () => {
     const win = { devicePixelRatio: 1 } as unknown as Window
     expect(() => watchDpr(() => undefined, win)()).not.toThrow()
+  })
+})
+
+/**
+ * البند الافتتاحي الموروث من المرحلة 9 (البند 51 في §6): قبل أن يقرّر
+ * الالتقاط ما يفعله، عليه أن يعرف أيّ الحالات الثلاث هو فيها.
+ */
+describe('viewportFit', () => {
+  const VP_W = 1280
+  const VP_H = 720
+
+  it('عنصر داخل النافذة كاملًا: contained', () => {
+    expect(viewportFit(viewportRect(100, 100, 300, 200), VP_W, VP_H)).toBe('contained')
+  })
+
+  it('عنصر يلامس الحواف الأربعة تمامًا: لا يزال contained', () => {
+    expect(viewportFit(viewportRect(0, 0, VP_W, VP_H), VP_W, VP_H)).toBe('contained')
+  })
+
+  it('عنصر أسفل الحدّ السفلي: off-screen', () => {
+    expect(viewportFit(viewportRect(100, VP_H + 50, 300, 200), VP_W, VP_H)).toBe('off-screen')
+  })
+
+  it('عنصر يسبق الحدّ العلوي (تمرير للأسفل تجاوزه): off-screen', () => {
+    expect(viewportFit(viewportRect(100, -400, 300, 200), VP_W, VP_H)).toBe('off-screen')
+  })
+
+  it('عنصر يتجاوز الحافة اليمنى: off-screen', () => {
+    expect(viewportFit(viewportRect(VP_W - 50, 100, 300, 200), VP_W, VP_H)).toBe('off-screen')
+  })
+
+  it('عنصر أطول من النافذة، حتى لو مرّرنا إليه: oversized', () => {
+    expect(viewportFit(viewportRect(100, -50, 300, VP_H + 200), VP_W, VP_H)).toBe('oversized')
+  })
+
+  it('عنصر أعرض من النافذة: oversized حتى لو ارتفاعه صغيرًا', () => {
+    expect(viewportFit(viewportRect(-50, 100, VP_W + 200, 50), VP_W, VP_H)).toBe('oversized')
+  })
+
+  it('oversized تسبق off-screen في الحكم — عنصر أطول ومُزاح معًا', () => {
+    // لو حُكم بالإزاحة أوّلًا لقالت off-screen، وهو خطأ: لا تمرير يصلحه.
+    expect(viewportFit(viewportRect(100, 5000, 300, VP_H + 1), VP_W, VP_H)).toBe('oversized')
+  })
+
+  it('عنصر بحجم النافذة نفسه لكن مُزاحًا نقطة واحدة: off-screen لا oversized', () => {
+    expect(viewportFit(viewportRect(1, 0, VP_W, VP_H), VP_W, VP_H)).toBe('off-screen')
   })
 })

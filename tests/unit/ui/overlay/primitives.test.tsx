@@ -3,12 +3,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { MODES, MODE_META, TOOL_MODES, isMode } from '@/shared/modes'
 import {
+  AlignGuide,
   BoxModel,
   Crosshair,
   Dimension,
   DimensionVertical,
   FrameBlocked,
   Marquee,
+  MeasureGap,
   NodeLabel,
   Toolbar,
   at,
@@ -78,6 +80,8 @@ describe('كل بدائيّة تُصيَّر بلا رمي', () => {
     ['Toolbar', <Toolbar origin={RECT} items={[{ mode: 'area' }]} active="area" />],
     ['Crosshair', <Crosshair point={RECT} />],
     ['FrameBlocked', <FrameBlocked rect={RECT} />],
+    ['MeasureGap', <MeasureGap rect={RECT} orientation="horizontal" value={40} />],
+    ['AlignGuide', <AlignGuide orientation="horizontal" position={60} from={0} to={300} />],
   ]
 
   for (const [name, ui] of cases) {
@@ -167,6 +171,41 @@ describe('Dimension', () => {
   it('الرأسي يستعمل الارتفاع لا العرض', () => {
     const el = mount(<DimensionVertical rect={RECT} />)
     expect(el.textContent).toBe('120px')
+  })
+})
+
+describe('MeasureGap', () => {
+  it('يعرض القيمة مقرَّبة بوحدتها', () => {
+    const el = mount(<MeasureGap rect={RECT} orientation="horizontal" value={39.6} />)
+    expect(el.textContent).toBe('40px')
+  })
+
+  it('الوحدة قابلة للتبديل كما في Dimension', () => {
+    const el = mount(<MeasureGap rect={RECT} orientation="vertical" value={1.5} unit="rem" />)
+    expect(el.textContent).toBe('2rem') // Math.round(1.5) = 2 — نفس تقريب Dimension
+  })
+
+  it('data-emphasis يعكس الاتجاه الأقرب', () => {
+    const el = mount(<MeasureGap rect={RECT} orientation="horizontal" value={40} emphasis />)
+    expect(el.querySelector('[data-rasd-ov="measure-gap"]')?.getAttribute('data-emphasis')).toBe('true')
+  })
+})
+
+describe('AlignGuide', () => {
+  it('بلا شارة حين لا انحراف (delta الافتراضية صفر)', () => {
+    const el = mount(<AlignGuide orientation="horizontal" position={60} from={0} to={300} />)
+    expect(el.querySelector('.rasd-ov-align-delta')).toBeNull()
+  })
+
+  it('شارة Δ تظهر وتُقاس حين يوجد انحراف', () => {
+    const el = mount(<AlignGuide orientation="vertical" position={60} from={0} to={300} delta={1.6} />)
+    expect(el.textContent).toBe('Δ 2px')
+  })
+
+  it('الطول هو الفارق المطلق بين from وto بصرف النظر عن ترتيبهما', () => {
+    const host1 = mount(<AlignGuide orientation="horizontal" position={0} from={300} to={100} />)
+    const guide = host1.querySelector('[data-rasd-ov="align-guide"]') as HTMLElement
+    expect(guide.style.getPropertyValue('--rasd-ov-w')).toBe('200px')
   })
 })
 

@@ -1199,3 +1199,116 @@
   margin: 0;
   color: var(--rasd-text-secondary);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   المرحلة 12 — محرك القياس
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── الإبراز: هدف التتبّع والمرجع المثبَّت — لون الأداة نفسه، تمييز بالنمط ── */
+
+.rasd-ov-mshl {
+  inline-size: var(--rasd-ov-w);
+  block-size: var(--rasd-ov-h);
+  border-radius: var(--rasd-radius-xs);
+  box-sizing: border-box;
+}
+
+/* هدف التتبّع الحيّ: حدّ متقطِّع خفيف — لم يُختَر بعد، لا يستحقّ ثقلًا بصريًّا. */
+.rasd-ov-mshl[data-role='hover'] {
+  border: var(--rasd-stroke-medium) dashed var(--rasd-tool-measure-fg);
+  background: transparent;
+}
+
+/* المرجع المثبَّت: حدّ صلب وامتلاء خفيف — قرار اتُّخذ، كالتحديد في المنطقة. */
+.rasd-ov-mshl[data-role='reference'] {
+  border: var(--rasd-stroke-thick) solid var(--rasd-tool-measure-fg);
+  background: var(--rasd-overlay-marquee-fill);
+}
+
+/* ── Measure / Gap — خطّ متقطِّع بين حافّتين ──────────────────────── */
+
+.rasd-ov-gap-h {
+  inline-size: var(--rasd-ov-w);
+  block-size: var(--rasd-space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rasd-ov-gap-h::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  border-block-start: var(--rasd-stroke-medium) dashed var(--rasd-tool-measure-fg);
+}
+
+.rasd-ov-gap-v {
+  inline-size: var(--rasd-space-4);
+  block-size: var(--rasd-ov-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rasd-ov-gap-v::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 50%;
+  border-inline-start: var(--rasd-stroke-medium) dashed var(--rasd-tool-measure-fg);
+}
+
+.rasd-ov-gap-value {
+  position: relative;
+  background: var(--rasd-tool-measure-solid);
+  color: var(--rasd-text-inverse);
+}
+
+/* الاتجاه الأقرب فعليًّا — أثقل قليلًا كي يتميّز بين الأربعة المحتملة. */
+[data-emphasis='true'].rasd-ov-gap-h::before,
+[data-emphasis='true'].rasd-ov-gap-v::before {
+  border-width: var(--rasd-stroke-thick);
+}
+[data-emphasis='true'] .rasd-ov-gap-value {
+  font-weight: 700;
+}
+
+/* ── Measure / Align Guide — خطّ محاذاة كامل الامتداد ────────────── */
+
+.rasd-ov-align-h {
+  inline-size: var(--rasd-ov-w);
+  block-size: 0;
+}
+.rasd-ov-align-h::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  border-block-start: var(--rasd-stroke-thin) dashed var(--rasd-tool-measure-fg);
+  opacity: 0.75;
+}
+
+.rasd-ov-align-v {
+  inline-size: 0;
+  block-size: var(--rasd-ov-h);
+}
+.rasd-ov-align-v::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-inline-start: var(--rasd-stroke-thin) dashed var(--rasd-tool-measure-fg);
+  opacity: 0.75;
+}
+
+/* شارة الانحراف القريب — تظهر فقط حين `delta` ليست صفرًا (`AlignGuide`). */
+.rasd-ov-align-delta {
+  position: absolute;
+  inset-block-start: var(--rasd-space-6);
+  inset-inline-start: var(--rasd-space-6);
+  background: var(--rasd-status-warning-solid);
+  color: var(--rasd-text-inverse);
+  font-size: var(--rasd-font-size-2xs);
+  padding-block: var(--rasd-space-2);
+  padding-inline: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-sm);
+}

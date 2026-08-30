@@ -432,6 +432,56 @@ if (extId && sw && granted) {
       if (rectNear(down, before)) ok('↓ عاد إلى نقطة البدء — التنقّل انعكاسي')
       else fail(`↓ أعطى ${JSON.stringify(down)} بينما البدء ${JSON.stringify(before)}`)
 
+      // ── 6.5) البند 51 — التمرير التلقائي في المشي إلى أب خارج النافذة ──
+      // الهدف: تمرير الصفحة إلى موضع يُبقي `#offscreen-child` مرئيًا قرب
+      // أعلى النافذة بينما `#offscreen-parent` الأوسع يبدأ فوق حافّتها —
+      // يُحسَب من مستطيلي الصفحة الفعليَّين لا رقمًا ثابتًا، فلا ينكسر
+      // باختلاف ارتفاع نافذة المتصفّح الفعلي.
+      const vh = await inPage(tabId, `() => window.innerHeight`)
+      const childPage = await pageRect(tabId, '#offscreen-child')
+      const scrollTarget = childPage.y - 20
+      await send(
+        'Runtime.evaluate',
+        { expression: `window.scrollTo(0, ${scrollTarget})` },
+        pageSession,
+      )
+      const actualScroll = await inPage(tabId, `() => window.scrollY`)
+      await moveTo(pageSession, childPage.x + childPage.w / 2, childPage.y - actualScroll + childPage.h / 2)
+      const childOv = (await readOverlay(tabId)).rect
+      if (childOv && childOv.y < vh && childOv.y >= 0) {
+        ok(`الابن مرئي بعد تمرير الصفحة يدويًا (y=${childOv.y})`)
+        const parentBefore = await pageRect(tabId, '#offscreen-parent')
+        const parentBeforeViewportY = parentBefore.y - actualScroll
+        if (parentBeforeViewportY >= 0) {
+          fail(`الإعداد فاسد: الأب مرئيّ أصلًا (y=${parentBeforeViewportY}) — لا يختبر شيئًا`)
+        } else {
+          await send(
+            'Input.dispatchKeyEvent',
+            { type: 'rawKeyDown', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 },
+            pageSession,
+          )
+          await send(
+            'Runtime.evaluate',
+            {
+              expression: 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))',
+              awaitPromise: true,
+            },
+            pageSession,
+          )
+          const parentOv = (await readOverlay(tabId)).rect
+          if (parentOv && parentOv.y >= 0 && parentOv.y + parentOv.h <= vh) {
+            ok(`↑ إلى أب خارج النافذة مرّر الصفحة تلقائيًا — صار كاملًا مرئيًا (y=${parentOv.y}, h=${parentOv.h})`)
+          } else {
+            fail(
+              `التمرير التلقائي لم يقع: الأب بعد المشي ${JSON.stringify(parentOv)} والنافذة ${vh}px — كان قبل المشي ${JSON.stringify(parentBefore)}`,
+            )
+          }
+        }
+      } else {
+        fail(`تعذّر تهيئة الاختبار: الابن بعد تمرير الصفحة ${JSON.stringify(childOv)}`)
+      }
+      await send('Runtime.evaluate', { expression: 'window.scrollTo(0, 0)' }, pageSession)
+
       // ── 7) الأداء فوق منطقة الضغط ─────────────────────────────
       const perf = await send(
         'Runtime.evaluate',

@@ -15,23 +15,33 @@ import { render } from 'preact'
 import { useEffect } from 'preact/hooks'
 
 import { describeRatio, HANDLES, handlePoint } from '@/modules/capture/selection'
+import { pxToRem } from '@/modules/measure/units'
+import { formatUnit } from '@/shared/bidi'
 import { viewportRect, viewportRectToDevice, type CoordSpace } from '@/shared/geometry'
 import { send } from '@/shared/messaging'
 import {
+  AlignGuide,
+  BoxModel,
+  Dimension,
+  DimensionVertical,
   ElementHover,
   FullPageStatus,
   InspectIdle,
   InspectPanel,
+  Marquee,
+  MeasureGap,
   type QuickAction,
 } from '@/ui/overlay'
 import { AreaSelect, Countdown, type HandleSpot } from '@/ui/overlay/AreaSelect'
 import { at, box } from '@/ui/overlay/geometry'
 
 import { buildGroups } from './inspect-view'
+import { measureRootFontSize } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
 import type { ElementHoverTool } from './tools/element-hover'
 import type { InspectTool } from './tools/inspect'
+import type { MeasureTarget, MeasureTool } from './tools/measure'
 import type { Mode } from '@/shared/modes'
 import type { CaptureKind } from '@/shared/storage/schema'
 import type { Signal } from '@preact/signals'
@@ -63,6 +73,7 @@ export interface OverlayAppProps {
   area: AreaSelectTool
   element: ElementHoverTool
   inspect: InspectTool
+  measure: MeasureTool
   /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة الفحص. */
   onCopyInspect?: (kind: 'css' | 'tailwind' | 'json') => void
   /**
@@ -93,7 +104,7 @@ function AreaLayer({
   onCapture,
 }: Omit<
   OverlayAppProps,
-  'mode' | 'element' | 'inspect' | 'onCopyInspect' | 'fullPage' | 'onCancelFullPage'
+  'mode' | 'element' | 'inspect' | 'measure' | 'onCopyInspect' | 'fullPage' | 'onCancelFullPage'
 >) {
   const countdown = useSignal<number | null>(null)
 
@@ -269,6 +280,117 @@ function ElementLayer({
   )
 }
 
+/** المحور المشترك بين مستطيلين — منتصف التقاطع إن تقاطعا، وإلا منتصف المسافة بين مركزيهما. */
+function overlapMid(aStart: number, aLen: number, bStart: number, bLen: number): number {
+  const lo = Math.max(aStart, bStart)
+  const hi = Math.min(aStart + aLen, bStart + bLen)
+  if (hi > lo) return (lo + hi) / 2
+  return (aStart + aLen / 2 + (bStart + bLen / 2)) / 2
+}
+
+/** هامش امتداد خطّ المحاذاة خارج حدود الهدفين — نفَس بصري لا التصاق بالحافّة. */
+const ALIGN_MARGIN = 24
+
+function MeasureLayer({ measure, space, unit }: { measure: MeasureTool; space: Signal<CoordSpace>; unit: string }) {
+  const hover = measure.state.hover.value
+  const reference = measure.state.reference.value
+  const comparison = measure.state.comparison.value
+  const freeRect = measure.state.freeRect.value
+  const cursor = measure.state.cursor.value
+  const s = space.value
+  const root = measureRootFontSize()
+
+  const fmt = (px: number): string =>
+    unit === 'rem' ? formatUnit(Math.round(pxToRem(px, root) * 100) / 100, 'rem') : formatUnit(Math.round(px), 'px')
+
+  const sameTarget = !!(hover && reference && hover.rect.x === reference.rect.x && hover.rect.y === reference.rect.y && hover.rect.width === reference.rect.width && hover.rect.height === reference.rect.height)
+
+  const targetBox = (t: MeasureTarget, role: 'hover' | 'reference') => (
+    <>
+      <div class="rasd-ov-place rasd-ov-mshl" data-role={role} style={box(t.rect)} data-rasd-ov="measure-highlight" />
+      <BoxModel rect={t.rect} margin={t.edges.margin} padding={t.edges.padding} />
+      <Dimension rect={{ x: t.rect.x, y: t.rect.y - 20, width: t.rect.width, height: 0 }} value={t.rect.width} />
+      <DimensionVertical
+        rect={{ x: t.rect.x + t.rect.width + 12, y: t.rect.y, width: 0, height: t.rect.height }}
+        value={t.rect.height}
+      />
+    </>
+  )
+
+  return (
+    <>
+      {freeRect ? <Marquee rect={freeRect} /> : null}
+
+      {!freeRect && reference ? targetBox(reference, 'reference') : null}
+      {!freeRect && hover && !sameTarget ? targetBox(hover, 'hover') : null}
+
+      {!freeRect && reference && hover && !sameTarget && comparison
+        ? (['top', 'right', 'bottom', 'left'] as const).map((dir) => {
+            const value = comparison.gap[dir]
+            if (value < 0) return null
+            const emphasis = comparison.gap.nearest === dir
+            if (dir === 'right' || dir === 'left') {
+              const y = overlapMid(reference.rect.y, reference.rect.height, hover.rect.y, hover.rect.height)
+              const x = dir === 'right' ? reference.rect.x + reference.rect.width : hover.rect.x + hover.rect.width
+              return (
+                <MeasureGap
+                  key={dir}
+                  orientation="horizontal"
+                  rect={{ x, y, width: value, height: 0 }}
+                  value={value}
+                  emphasis={emphasis}
+                />
+              )
+            }
+            const x = overlapMid(reference.rect.x, reference.rect.width, hover.rect.x, hover.rect.width)
+            const y = dir === 'bottom' ? reference.rect.y + reference.rect.height : hover.rect.y + hover.rect.height
+            return (
+              <MeasureGap
+                key={dir}
+                orientation="vertical"
+                rect={{ x, y, width: 0, height: value }}
+                value={value}
+                emphasis={emphasis}
+              />
+            )
+          })
+        : null}
+
+      {!freeRect && reference && hover && !sameTarget && comparison
+        ? comparison.alignment.map((m) => {
+            const vertical = m.axis === 'left' || m.axis === 'right' || m.axis === 'centerX'
+            if (vertical) {
+              const from = Math.min(reference.rect.y, hover.rect.y) - ALIGN_MARGIN
+              const to = Math.max(reference.rect.y + reference.rect.height, hover.rect.y + hover.rect.height) + ALIGN_MARGIN
+              return (
+                <AlignGuide key={m.axis} orientation="vertical" position={m.a} from={from} to={to} delta={m.delta} />
+              )
+            }
+            const from = Math.min(reference.rect.x, hover.rect.x) - ALIGN_MARGIN
+            const to = Math.max(reference.rect.x + reference.rect.width, hover.rect.x + hover.rect.width) + ALIGN_MARGIN
+            return <AlignGuide key={m.axis} orientation="horizontal" position={m.a} from={from} to={to} delta={m.delta} />
+          })
+        : null}
+
+      {/* قراءة الإحداثيات — بلا هدف ولا سحب: مجرّد مؤشِّر فوق خلفية الصفحة. */}
+      {!freeRect && !hover && !reference && cursor ? (
+        <div
+          class="rasd-ov-place"
+          style={at({ x: cursor.x + 16, y: cursor.y + 16 })}
+          data-rasd-ov="measure-cursor"
+        >
+          <span class="rasd-ov-badge">
+            {fmt(cursor.x)}، {fmt(cursor.y)}
+          </span>
+        </div>
+      ) : null}
+
+      {/* الإحداثيات المطلقة تبقى غربية دائمًا كما يفرض §3.5، والتحويل px↔rem يقرأه المستهلك أعلاه. */}
+      <span hidden data-w={s.layoutWidth} />
+    </>
+  )
+}
+
 function FullPageLayer({
   state,
   space,
@@ -388,6 +510,13 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         {job}
       </>
     )
+  if (mode === 'measure')
+    return (
+      <>
+        <MeasureLayer measure={props.measure} space={props.space} unit={props.measure.state.unit.value} />
+        {job}
+      </>
+    )
   if (mode !== 'area') return job
   return (
     <>
@@ -429,15 +558,32 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
       if (onBackground(e)) props.element.onPointerMove(e)
       return
     }
+    if (props.mode.value === 'measure') {
+      if (onBackground(e)) props.measure.onPointerMove(e)
+      return
+    }
     props.area.handlers.onPointerMove(e)
   }
   const onUp = (e: PointerEvent) => {
     if (props.mode.value === 'element') return
+    if (props.mode.value === 'measure') {
+      props.measure.onPointerUp()
+      return
+    }
     props.area.handlers.onPointerUp(e)
   }
   const onDown = (e: PointerEvent) => {
     if (props.mode.value === 'element') {
       if (onBackground(e)) props.element.onPointerDown(e)
+      return
+    }
+    if (props.mode.value === 'measure') {
+      // بلا `onBackground`: نقرة على أحد بدائيّاتنا (إبراز، خطّ قياس) تعني
+      // أن المستخدم يهدف إلى عنصر الصفحة **تحتها** — `pickAt` يستهدف
+      // بالإحداثيات لا بهدف الحدث، فيصيب العنصر الصحيح رغم أن الحدث وقع
+      // على طبقتنا. البدائيّات كلّها `pointer-events: none` أصلًا فلن يصلها
+      // الحدث فعليًّا، والحارس هنا زيادة أمان لا حاجة فعلية.
+      props.measure.onPointerDown(e)
       return
     }
     // نقرة على خلفية الطبقة (لا على مقبض ولا على جسم التحديد) تبدأ سحبًا
