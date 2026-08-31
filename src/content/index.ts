@@ -12,11 +12,17 @@
 import { signal } from '@preact/signals'
 
 import { captureKindFor, type CaptureSource } from '@/modules/capture/kind'
+import {
+  assignCaptureAsReference,
+  assignImageAsReference,
+  findReferenceForPage,
+} from '@/modules/compare/reference'
 import { toCss, toJson, toTailwindText } from '@/modules/style-export/css'
 import { onMessage, send } from '@/shared/messaging'
 import { isMode, type Mode } from '@/shared/modes'
 import { errWith, ok, type RasdError, type Result } from '@/shared/result'
 import { getSettings } from '@/shared/settings'
+import { blobs } from '@/shared/storage/repository'
 
 import { copyCaptureToClipboard } from './clipboard'
 import { readSpace, viewportRect, watchDpr, type CoordSpace } from './coords'
@@ -29,6 +35,7 @@ import { startPersistence, type Persistence } from './persistence'
 import { installShortcuts, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
+import { createCompare, type CompareTool, type ReferenceImage } from './tools/compare'
 import { createElementHover, type ElementHoverTool } from './tools/element-hover'
 import { createEyedropper, type EyedropperTool } from './tools/eyedropper'
 import {
@@ -41,6 +48,7 @@ import { createInspect } from './tools/inspect'
 import { createMeasure, type MeasureTool } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
+import type { PageKey } from '@/modules/compare/reference'
 
 export interface OverlaySession {
   readonly host: OverlayHost
@@ -103,6 +111,7 @@ export async function startOverlay(
       inspectTool?.frame(reasons)
       measureTool?.frame(reasons)
       colourTool?.frame(reasons)
+      compareTool?.frame(reasons)
       options.onFrame?.(space)
     },
   })
@@ -112,6 +121,7 @@ export async function startOverlay(
   let inspectTool: ReturnType<typeof createInspect> | null = null
   let measureTool: MeasureTool | null = null
   let colourTool: EyedropperTool | null = null
+  let compareTool: CompareTool | null = null
 
   const stopDpr = watchDpr(() => sync.invalidate('dpr'), win)
 
@@ -302,10 +312,146 @@ export async function startOverlay(
     onInvalidate: () => sync.invalidate('pointer'),
   })
 
+  /**
+   * أداة المقارنة (المرحلة 16).
+   *
+   * **الدرع مرفوع**: السحب والعجلة يحتاجان الحدث قبل الصفحة، لنفس سبب
+   * القياس واللون — نقرة بلا درع تُنفِّذ ما تحتها أوّلًا.
+   */
+  const compare = createCompare({
+    win,
+    onBusy: (busy) => {
+      modes.busy.value = busy
+    },
+    onInvalidate: () => sync.invalidate('pointer'),
+  })
+
   elementTool = element
   inspectTool = inspect
   measureTool = measure
   colourTool = colour
+  compareTool = compare
+
+  /**
+   * مفتاح الصفحة الحالية لتخزين مرجع المقارنة واستدعائه — `origin + path`
+   * من `location` مباشرةً، بلا معامِلات بحث ولا جزء تجزئة: كلاهما لا يغيّر
+   * الشكل المرئي عادةً، وتفريق المرجع بهما يجزّئ صفحة واحدة إلى مراجع
+   * زائفة متعدّدة.
+   *
+   * **`viewport` ثابت على `'custom'` مؤقّتًا**: تصنيف المقاس الحيّ إلى إحدى
+   * الفئات الأربع (`desktop`/`tablet`/`phone`/`custom`) يحتاج حدودًا لا
+   * مصدر لها بعد — لا `Rasd_Plan.md` ولا `Rasd_Ar.md` يذكران أرقامًا، وصفحة
+   * `compare / viewports` (`127:315`، دفعة لاحقة) هي من تبني محاكاة
+   * الأجهزة المسمّاة الثلاثة وعندها فقط يُعرف المقياس الصحيح. حتى ذلك
+   * الحين: مرجعٌ واحد لكل صفحة بفئة واحدة، لا أربعة.
+   */
+  const pageKey = (): PageKey => ({
+    origin: win.location.origin,
+    path: win.location.pathname,
+    viewport: 'custom',
+  })
+
+  /** عنوان الكائن الحيّ للمرجع المعروض — يُحرَّر صراحةً قبل أيّ استبدال أو عند التفكيك. */
+  let referenceObjectUrl: string | null = null
+
+  /**
+   * جيل تحليل المرجع — يُزاد عند مغادرة وضع المقارنة (`modes.subscribe` أدناه)
+   * وعند التفكيك، وعند بدء أي محاولة تحميل/تعيين جديدة.
+   *
+   * فحص `modes.mode.peek() !== 'compare'` وحده بعد أوّل `await` **لا يكفي**:
+   * تنقّل داخل الصفحة (SPA) يمرّ عبر `modes.escape()` فيعيد الوضع `idle` ثم
+   * قد يعود المستخدم إلى `compare` على صفحة مختلفة — فيجتاز ذلك الفحص بنجاح
+   * رغم أن النتيجة المعلَّقة تخصّ صفحة غادرها المستخدم فعلًا. والمحاولتان
+   * (الاستدعاء والتعيين اليدوي) قد تتداخلان أيضًا بلا مغادرة وضع أصلًا —
+   * لصقُ صورة وهو الاستدعاء التلقائي لا يزال معلَّقًا مثلًا. جيلٌ واحد
+   * يُبطل كل ما هو أقدم من آخر محاولة، أيًّا كان سببها.
+   */
+  let referenceEpoch = 0
+
+  /** يقرأ أبعاد الصورة الطبيعية — `matchWidth` يحتاجها ولا سبيل لمعرفتها بلا فكّ البايتات. */
+  const loadReferenceImage = (blob: Blob): Promise<ReferenceImage> =>
+    new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob)
+      const img = new Image()
+      img.onload = () =>
+        resolve({ url, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight })
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        reject(new Error('تعذّر فكّ صورة المرجع.'))
+      }
+      img.src = url
+    })
+
+  /** يُحمِّل صورة مرجع في الأداة ويحرِّر عنوان الكائن السابق — لا تسريب عبر استبدالات متتالية. */
+  const setCompareReference = (image: ReferenceImage | null): void => {
+    const previous = referenceObjectUrl
+    referenceObjectUrl = image?.url ?? null
+    compare.setReference(image)
+    if (previous && previous !== referenceObjectUrl) URL.revokeObjectURL(previous)
+  }
+
+  /**
+   * يستدعي مرجع هذه الصفحة المحفوظ عند دخول وضع المقارنة.
+   *
+   * يعمل بلا صلاحية مضيف: قراءة IndexedDB من سكربت محتوى يعمل فعلًا على
+   * الصفحة نفس أصلها دومًا، لا طلب عابر أصل. الصلاحية الاختيارية (دفعة
+   * لاحقة) تلزم للبقاء عبر **تنقّل** (تحميل صفحة جديد) لا عبر إعادة دخول
+   * الوضع نفسه في نفس الجلسة.
+   */
+  const loadStoredReference = (): void => {
+    if (compare.state.reference.peek()) return
+    const myEpoch = ++referenceEpoch
+    void (async () => {
+      const found = await findReferenceForPage(pageKey())
+      if (!found.ok || !found.value) return
+      if (referenceEpoch !== myEpoch) return
+      const blob = await blobs.get(found.value.blobId)
+      if (!blob.ok) return
+      try {
+        const image = await loadReferenceImage(blob.value.blob)
+        // الفحص النهائي **بعد كل انتظار** — محاولة أحدث (تنقّل، مغادرة
+        // الوضع، أو تعيين يدوي جديد) سبقت هذه النتيجة فلا تُطبَّق، ويُحرَّر
+        // عنوان الكائن الذي أُنشئ للتوّ كي لا يتسرَّب.
+        if (referenceEpoch !== myEpoch) {
+          URL.revokeObjectURL(image.url)
+          return
+        }
+        setCompareReference(image)
+      } catch (e) {
+        console.warn(`[رصد] ${e instanceof Error ? e.message : String(e)}`)
+      }
+    })()
+  }
+
+  /** يعيّن لقطة أو صورة مرفوعة مرجعًا: يحفظها في `references` ثم يُحمِّلها حيًّا فورًا. */
+  const setCompareReferenceFromBlob = (source: { captureId: string } | { image: Blob }): void => {
+    const myEpoch = ++referenceEpoch
+    void (async () => {
+      const key = pageKey()
+      const written =
+        'captureId' in source
+          ? await assignCaptureAsReference(source.captureId, key, null)
+          : await assignImageAsReference(source.image, key, null)
+      if (!written.ok) {
+        console.warn(`[رصد] تعذّر حفظ المرجع: ${written.error.message}`)
+        return
+      }
+      if (referenceEpoch !== myEpoch) return
+      const blob = await blobs.get(written.value.blobId)
+      if (!blob.ok) return
+      try {
+        const image = await loadReferenceImage(blob.value.blob)
+        // نفس الحارس النهائي أعلاه — انظر تعليق `loadStoredReference`.
+        if (referenceEpoch !== myEpoch) {
+          URL.revokeObjectURL(image.url)
+          return
+        }
+        setCompareReference(image)
+      } catch (e) {
+        console.warn(`[رصد] ${e instanceof Error ? e.message : String(e)}`)
+      }
+    })()
+  }
 
   /**
    * ينسخ مخرَج الفحص إلى الحافظة.
@@ -339,6 +485,7 @@ export async function startOverlay(
     inspect,
     measure,
     colour,
+    compare,
     onCopyInspect: (kind) => copyInspect(inspect, kind),
     onCopyColour: (value: string) => {
       void navigator.clipboard?.writeText(value).catch(() => {
@@ -363,6 +510,11 @@ export async function startOverlay(
         source: pinned.source,
       })
     },
+    onCompareUseLastCapture: () => {
+      if (lastCapture) setCompareReferenceFromBlob({ captureId: lastCapture.id })
+    },
+    onCompareDropImage: (file) => setCompareReferenceFromBlob({ image: file }),
+    onComparePasteImage: (file) => setCompareReferenceFromBlob({ image: file }),
     fullPage,
     onCancelFullPage: () => void send('fullpage/cancel', undefined),
     space: spaceSignal,
@@ -400,7 +552,7 @@ export async function startOverlay(
    * نستهلكها مرجعًا. القياس لا يقرأ `:hover` الصفحة كما يفعل الفحص، فلا
    * ثمن لرفع الدرع هنا.
    */
-  const INTERACTIVE_MODES = new Set<Mode>(['area', 'element', 'measure', 'colour'])
+  const INTERACTIVE_MODES = new Set<Mode>(['area', 'element', 'measure', 'colour', 'compare'])
 
   const unsubscribeInteractive = modes.subscribe((mode) => {
     host.setInteractive(INTERACTIVE_MODES.has(mode))
@@ -409,6 +561,20 @@ export async function startOverlay(
     if (mode !== 'inspect') inspect.reset()
     if (mode !== 'measure') measure.reset()
     if (mode !== 'colour') colour.reset()
+    if (mode !== 'compare') {
+      // يُبطل أي تحميل/تعيين مرجع معلَّق — انظر تعليق `referenceEpoch` أعلاه.
+      // هذا ما يقطع سباق التنقّل داخل الصفحة أيضًا: `onRouteChange` أدناه
+      // يمرّ دومًا عبر `modes.escape()`، فيصل هذا الفرع قبل أي دخول لاحق.
+      referenceEpoch++
+      compare.reset()
+      // `reset()` يمسح الإشارة بلا معرفة بعنوان الكائن — التحرير هنا لا هناك.
+      if (referenceObjectUrl) {
+        URL.revokeObjectURL(referenceObjectUrl)
+        referenceObjectUrl = null
+      }
+    } else {
+      loadStoredReference()
+    }
   })
   host.setInteractive(INTERACTIVE_MODES.has(modes.mode.value))
 
@@ -510,6 +676,9 @@ export async function startOverlay(
   const teardown = () => {
     if (torn) return
     torn = true
+    // يُبطل أي تحميل/تعيين مرجع معلَّق قبل أي شيء آخر — وإلا استقرّت نتيجته
+    // بعد أن أزال هذا التفكيك نفسه مستمع `modes.subscribe` الذي كان سيُبطلها.
+    referenceEpoch++
     // الترتيب معكوس ترتيب التركيب: المستمعات ومراقب البقاء أوّلًا، وإلا
     // رأى المراقبُ المضيفَ يختفي فأعاد إلحاقه في اللحظة نفسها.
     removeShortcuts()
@@ -526,6 +695,9 @@ export async function startOverlay(
     // اللقطة المفكوكة تُحرَّر صراحةً: `ImageBitmap` لا يُجمَع بجمع القمامة
     // وحده، وحجمها بحجم النافذة كاملةً بأربعة بايتات للبكسل.
     colour.dispose()
+    compare.dispose()
+    // عنوان كائن صورة المرجع — نفس سبب تحرير `colour` أعلاه، ولو بلا `ImageBitmap`.
+    if (referenceObjectUrl) URL.revokeObjectURL(referenceObjectUrl)
     // الحلّال ملك هذه الجلسة لا الأدوات — فتُحرّره هي.
     cssResolver.dispose()
     stopDpr()

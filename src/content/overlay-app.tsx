@@ -15,13 +15,16 @@ import { render } from 'preact'
 import { useEffect } from 'preact/hooks'
 
 import { describeRatio, HANDLES, handlePoint } from '@/modules/capture/selection'
+import { NUDGE_STEP_FAST_PX, NUDGE_STEP_PX } from '@/modules/compare/overlay'
 import { pxToRem } from '@/modules/measure/units'
-import { formatUnit } from '@/shared/bidi'
+import { formatDimensions, formatUnit } from '@/shared/bidi'
 import { viewportRect, viewportRectToDevice, type CoordSpace } from '@/shared/geometry'
 import { send } from '@/shared/messaging'
 import {
   AlignGuide,
   BoxModel,
+  ComparePanel,
+  CompareIdle,
   Dimension,
   DimensionVertical,
   ElementHover,
@@ -30,6 +33,7 @@ import {
   InspectPanel,
   Marquee,
   MeasureGap,
+  ReferenceOverlay,
   type QuickAction,
 } from '@/ui/overlay'
 import { AreaSelect, Countdown, type HandleSpot } from '@/ui/overlay/AreaSelect'
@@ -44,6 +48,7 @@ import { LOUPE_CELLS } from './sampler'
 import { measureRootFontSize } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
+import type { CompareTool } from './tools/compare'
 import type { ElementHoverTool } from './tools/element-hover'
 import type { EyedropperTool } from './tools/eyedropper'
 import type { InspectTool } from './tools/inspect'
@@ -81,12 +86,19 @@ export interface OverlayAppProps {
   inspect: InspectTool
   measure: MeasureTool
   colour: EyedropperTool
+  compare: CompareTool
   /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة الفحص. */
   onCopyInspect?: (kind: 'css' | 'tailwind' | 'json') => void
   /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة اللون. */
   onCopyColour?: (value: string, label: string) => void
   /** يُطلَب حين يحفظ المستخدم لونًا في المكتبة (`§6.15`). */
   onSaveColour?: () => void
+  /** يُطلَب حين يضغط المستخدم «استخدم آخر لقطة» في حالة المقارنة الفارغة. */
+  onCompareUseLastCapture?: () => void
+  /** يُطلَب حين يُفلِت المستخدم صورة في منطقة إفلات المقارنة. */
+  onCompareDropImage?: (file: File) => void
+  /** يُطلَب حين يلصق المستخدم صورة من الحافظة أثناء وضع المقارنة. */
+  onComparePasteImage?: (file: File) => void
   /**
    * تقدّم الالتقاط الكامل — `null` يعني لا مهمّة.
    *
@@ -120,9 +132,13 @@ function AreaLayer({
   | 'inspect'
   | 'measure'
   | 'colour'
+  | 'compare'
   | 'onCopyInspect'
   | 'onCopyColour'
   | 'onSaveColour'
+  | 'onCompareUseLastCapture'
+  | 'onCompareDropImage'
+  | 'onComparePasteImage'
   | 'fullPage'
   | 'onCancelFullPage'
 >) {
@@ -559,6 +575,116 @@ function hexOfPixel(p: { r: number; g: number; b: number }): string {
   return `#${two(p.r)}${two(p.g)}${two(p.b)}`
 }
 
+/**
+ * طبقة المقارنة (المرحلة 16) — صورة المرجع العائمة ولوحتها المرساة.
+ *
+ * السحب والعجلة يُوصَلان في `mountOverlayApp` كبقيّة أحداث المؤشِّر لا هنا —
+ * نفس تقسيم العمل المتّبع للأوضاع الأخرى (هذا المكوّن عرضٌ فقط). لوحة
+ * المفاتيح استثناء: كلّ `*Layer` يملك مستمعه الخاصّ المشروط بحياة المكوّن،
+ * تمامًا مثل `AreaLayer`.
+ *
+ * **بلا مقبض تقسيم قابل للسحب بعد**: `Figma 69:2` يُظهر خطًّا ومقبضًا على
+ * حدّ التقسيم، لكن منزلق «موضع الفاصل» في اللوحة يمنح تحكّمًا رقميًا كاملًا
+ * بالفعل، والقصّ المرئي في `ReferenceOverlay` يرسم حدّ الفاصل حيًّا أصلًا.
+ * سحب الخطّ مباشرةً تفاعلٌ إضافي مؤجَّل لا ناقصٌ، ولا يُعرَض مقبضه هنا حتى
+ * يُبنى فعلًا — نفس انضباط `ElementLayer` («تُحذَف حتى يوجد محرّكها»).
+ *
+ * **«اختر من المكتبة» بلا معاودة بعد**: يحتاج قناة رسالة وواجهة اختيار من
+ * المكتبة غير موجودتين اليوم — فجوة معلَنة، والزرّ يُعرض بلا أثر حتى تُبنيا.
+ */
+function CompareLayer({
+  compare,
+  space,
+  onUseLastCapture,
+  onDropImage,
+}: {
+  compare: CompareTool
+  space: Signal<CoordSpace>
+  onUseLastCapture?: () => void
+  onDropImage?: (file: File) => void
+}) {
+  const reference = compare.state.reference.value
+  const transform = compare.state.transform.value
+  const displayMode = compare.state.displayMode.value
+  const blendMode = compare.state.blendMode.value
+  const opacity = compare.state.opacity.value
+  const splitPosition = compare.state.splitPosition.value
+  const splitAxis = compare.state.splitAxis.value
+  const blinkShowingLive = compare.state.blinkShowingLive.value
+  const s = space.value
+
+  /**
+   * ⇧+سهم = 10px، سهم وحده = 1px (`§8.3`) — نفس نمط `AreaLayer` بالضبط.
+   *
+   * **الحارس `state.reference.peek()` لازم قبل `preventDefault`**، لا بعده
+   * كحال `nudge` الداخلي وحده: بلا مرجع (`compare / no-reference`) يجب أن
+   * تُمرَّر الأسهم للصفحة كتمرير عادي — ابتلاعها بلا أثر مرئي يكسر تمرير
+   * صفحة طويلة بالأسهم بينما وضع المقارنة نشط دون مرجع بعد.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!compare.state.reference.peek()) return
+      const step = event.shiftKey ? NUDGE_STEP_FAST_PX : NUDGE_STEP_PX
+      const moves: Record<string, [number, number]> = {
+        ArrowUp: [0, -step],
+        ArrowDown: [0, step],
+        ArrowLeft: [-step, 0],
+        ArrowRight: [step, 0],
+      }
+      const delta = moves[event.key]
+      if (delta) {
+        event.preventDefault()
+        compare.nudge(delta[0], delta[1])
+      }
+    }
+    window.addEventListener('keydown', onKey, { capture: true })
+    return () => window.removeEventListener('keydown', onKey, { capture: true })
+  }, [compare])
+
+  return (
+    <>
+      {reference ? (
+        <ReferenceOverlay
+          imageUrl={reference.url}
+          transform={transform}
+          displayMode={displayMode}
+          blendMode={blendMode}
+          opacity={opacity}
+          splitPosition={splitPosition}
+          splitAxis={splitAxis}
+          blinkShowingLive={blinkShowingLive}
+        />
+      ) : null}
+
+      <div
+        class="rasd-ov-place"
+        style={at({ x: PANEL_INSET, y: PANEL_TOP })}
+        data-rasd-ov="compare-dock"
+      >
+        {reference ? (
+          <ComparePanel
+            displayMode={displayMode}
+            opacity={opacity}
+            splitPosition={splitPosition}
+            viewportLabel={formatDimensions(Math.round(s.layoutWidth), Math.round(s.layoutHeight))}
+            onSetDisplayMode={(next) => compare.setDisplayMode(next)}
+            onOpacityChange={(percent) => compare.setOpacity(percent)}
+            onSplitPositionChange={(percent) => compare.setSplitPosition(percent)}
+            onClose={() => compare.setReference(null)}
+          />
+        ) : (
+          <CompareIdle
+            {...(onUseLastCapture ? { onUseLastCapture } : {})}
+            {...(onDropImage ? { onDropImage } : {})}
+          />
+        )}
+      </div>
+
+      <span hidden data-w={s.layoutWidth} />
+    </>
+  )
+}
+
 function FullPageLayer({
   state,
   space,
@@ -704,6 +830,20 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         {job}
       </>
     )
+  if (mode === 'compare')
+    return (
+      <>
+        <CompareLayer
+          compare={props.compare}
+          space={props.space}
+          {...(props.onCompareUseLastCapture
+            ? { onUseLastCapture: props.onCompareUseLastCapture }
+            : {})}
+          {...(props.onCompareDropImage ? { onDropImage: props.onCompareDropImage } : {})}
+        />
+        {job}
+      </>
+    )
   if (mode !== 'area') return job
   return (
     <>
@@ -738,7 +878,7 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
    * الطبقة نفسها ما لم يقع على سطح التقاط صريح (مقبض، زرّ). وهذا الشرط هو
    * ما يميّز «المؤشِّر فوق الصفحة» من «المؤشِّر فوق واجهتنا».
    */
-  const onBackground = (e: PointerEvent) => e.target === layer
+  const onBackground = (e: Event) => e.target === layer
 
   const onMove = (e: PointerEvent) => {
     if (props.mode.value === 'element') {
@@ -756,6 +896,13 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
       if (onBackground(e)) props.colour.onPointerMove(e)
       return
     }
+    if (props.mode.value === 'compare') {
+      // بلا `onBackground` كذلك: سحبٌ جارٍ (بدأ فوق الخلفية) يجب أن يتابع
+      // حتى لو عبر المؤشِّر فوق اللوحة منتصف الحركة — نفس اعتبار `measure`
+      // بالضبط. والأداة تتجاهل الحركة أصلًا حين لا سحب جارٍ (`!dragStart`).
+      props.compare.onPointerMove(e)
+      return
+    }
     props.area.handlers.onPointerMove(e)
   }
   const onUp = (e: PointerEvent) => {
@@ -768,11 +915,21 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
       if (onBackground(e)) props.colour.onPointerUp(e)
       return
     }
+    if (props.mode.value === 'compare') {
+      props.compare.onPointerUp()
+      return
+    }
     props.area.handlers.onPointerUp(e)
   }
   const onDown = (e: PointerEvent) => {
     if (props.mode.value === 'element') {
       if (onBackground(e)) props.element.onPointerDown(e)
+      return
+    }
+    if (props.mode.value === 'compare') {
+      // بعكس الحركة والإفلات: الضغط هو ما *يبدأ* السحب، فنقرة على اللوحة
+      // (مقبض منزلق، زرّ إغلاق) يجب ألّا تبدأ سحب مرجع تحتها.
+      if (onBackground(e)) props.compare.onPointerDown(e)
       return
     }
     if (props.mode.value === 'measure') {
@@ -803,6 +960,39 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
   layer.addEventListener('pointermove', onMove)
   layer.addEventListener('pointerup', onUp)
   layer.addEventListener('pointercancel', onUp)
+
+  /**
+   * عجلة الفأرة — وضع المقارنة وحده يقرؤها اليوم؛ لا مستمع عجلة سابق في
+   * هذا الملفّ. `passive: false` لازم: `compare.onWheel` يستدعي
+   * `preventDefault()` داخليًا كي لا تُمرِّر الصفحة تحتها.
+   */
+  const onWheel = (e: WheelEvent) => {
+    if (props.mode.value !== 'compare') return
+    if (!onBackground(e)) return
+    props.compare.onWheel(e)
+  }
+  layer.addEventListener('wheel', onWheel, { passive: false })
+
+  /**
+   * لصق صورة من الحافظة — وضع المقارنة وحده، على المستند لا على الطبقة:
+   * حدث `paste` لا يقع إلا على العنصر ذي التركيز، وطبقتنا `pointer-events:
+   * none` جزئيًا فلا تُركَّز أبدًا. انظر تعليق الفجوة المعلَنة في
+   * `ComparePanel.tsx` — هذا هو سلكها الموعود.
+   *
+   * `capture: true` **لازم** كبقيّة مستمعي المستند/النافذة في هذا الملفّ:
+   * بلاه، مستمع الصفحة نفسها (محرِّر نصوص غنيّ يستدعي `stopPropagation`
+   * على `paste` — نمط شائع) يُنفَّذ أوّلًا في طور الفقاعة ويقطع الحدث قبل
+   * وصوله إلينا، فيبتلع اللصق بلا أثر رغم أن وضع المقارنة نشط.
+   */
+  const onPaste = (e: ClipboardEvent) => {
+    if (props.mode.value !== 'compare') return
+    const item = [...(e.clipboardData?.items ?? [])].find((it) => it.type.startsWith('image/'))
+    const file = item?.getAsFile()
+    if (!file) return
+    e.preventDefault()
+    props.onComparePasteImage?.(file)
+  }
+  layer.ownerDocument.addEventListener('paste', onPaste, { capture: true })
 
   /*
    * ── وضع الفحص: مستمعات على `window` لا على الطبقة ──────────────
@@ -867,6 +1057,8 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
       layer.removeEventListener('pointermove', onMove)
       layer.removeEventListener('pointerup', onUp)
       layer.removeEventListener('pointercancel', onUp)
+      layer.removeEventListener('wheel', onWheel)
+      layer.ownerDocument.removeEventListener('paste', onPaste, { capture: true })
       win?.removeEventListener('pointermove', winMove, { capture: true })
       win?.removeEventListener('pointerup', winUp, { capture: true })
       for (const type of SUPPRESSED) win?.removeEventListener(type, suppress, { capture: true })
