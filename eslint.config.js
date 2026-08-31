@@ -37,6 +37,20 @@ export const architectureZones = [
     from: './src/pages',
     message: 'content/ يعمل داخل صفحة طرف ثالث ولا يجرّ حزمة صفحات الإضافة. استخدم shared/.',
   },
+  /*
+   * `ui/` بدائيّات عرض — لا تعرف طبقة تشغيل استدعتها، ومنها `content/`
+   * تحديدًا. كانت فجوة حقيقية لا قاعدة مفقودة سهوًا: `ReferenceOverlay.tsx`
+   * (المرحلة 16) استورد نوعًا من `content/tools/compare.ts` فمرّ اللنت بلا
+   * اعتراض رغم أن تعليق `shared/geometry.ts` يُسمّي الاتجاه نفسه «عكسًا
+   * لاتجاه الاعتماد الصحيح» منذ المرحلة 8 — الأنواع نُقلت إلى
+   * `modules/compare/overlay.ts` والقاعدة هنا أُضيفت معًا كي لا يتكرّر
+   * تمريرها آليًا ثانيةً.
+   */
+  {
+    target: './src/ui',
+    from: './src/content',
+    message: 'ui/ بدائيّات عرض ولا تعرف طبقة تشغيل. انقل الأنواع المشتركة إلى modules/ أو shared/.',
+  },
   // shared/ طبقة قاعدية: لا تستورد من أي طبقة أعلى منها.
   ...['background', 'content', 'offscreen', 'pages', 'modules', 'ui', 'tokens', 'workers'].map(
     (layer) => ({

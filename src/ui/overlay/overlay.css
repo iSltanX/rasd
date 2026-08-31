@@ -1713,3 +1713,22 @@
   background: var(--rasd-surface-raised);
   border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
 }
+
+/* ── صورة المرجع — المرحلة 16 ─────────────────────────────────────── */
+
+/*
+ * `.rasd-ov-place` يمنح `translate` من `--rasd-ov-x`/`--rasd-ov-y` مجّانًا
+ * (تعريفها أعلاه في «الجذر»). هنا فقط ما يخصّ التحجيم والدوران الحرّين —
+ * `transform-origin: 0 0` **إلزامي**: رياضيات `modules/compare/overlay.ts`
+ * كلّها مبنيّة على أن التحجيم والدوران يدوران حول أصل فضاء المرجع (0,0)
+ * لا مركز الصورة (افتراض `transform-origin` القياسي 50% 50%) — بلا هذا
+ * السطر تنحرف الصورة المعروضة عن حساب `scaleAt`/`rotateAt` بمجرّد أوّل
+ * تكبير أو دوران غير محايد.
+ */
+.rasd-ov-reference {
+  transform-origin: 0 0;
+  rotate: var(--rasd-ov-rotate, 0deg);
+  scale: var(--rasd-ov-scale, 1);
+  max-width: none; /* لا `max-width: 100%` موروثة تمنع مقاسًا طبيعيًا أكبر من الطبقة. */
+  user-select: none;
+}

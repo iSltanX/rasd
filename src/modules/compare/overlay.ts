@@ -30,6 +30,22 @@ import {
   type ViewportPoint,
 } from '@/shared/geometry'
 
+/**
+ * أنماط العرض والمزج ومحور التقسيم — أنواع بيانات محضة لا حالة، **هنا لا
+ * في `content/tools/compare.ts`** رغم أن ذلك الملفّ مالكها الفعلي منطقيًا:
+ * `ui/overlay/compare/ReferenceOverlay.tsx` يحتاجها لكتابة أنواع خصائصه.
+ * `eslint.config.js` (`architectureZones`) لا يمنع `ui/` من استيراد
+ * `content/` صراحةً بعد — فجوة في القاعدة لا إذنًا — لكن تعليق
+ * `shared/geometry.ts` نفسه يُسمّي هذا الاتجاه «عكس اتجاه الاعتماد
+ * الصحيح» حين نُقلت مفردات الأوضاع من `content/coords.ts` لهذا السبب
+ * تحديدًا؛ فلا يُكرَّر هنا ولو مرّ من البوّابة الآلية بلا اعتراض.
+ * `content/tools/compare.ts` يعيد تصديرها بلا تكرار — نفس نمط `export {
+ * pxToRem, SNAP_THRESHOLD_PX }` في `content/tools/measure.ts`.
+ */
+export type CompareDisplayMode = 'blink' | 'opacity' | 'blend' | 'split'
+export type CompareBlendMode = 'difference' | 'multiply' | 'overlay'
+export type SplitAxis = 'vertical' | 'horizontal'
+
 export interface OverlayTransform {
   readonly scale: number
   readonly tx: number

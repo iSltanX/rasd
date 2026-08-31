@@ -29,15 +29,19 @@ import {
   referenceToViewport,
   scaleAt,
   translate,
+  type CompareBlendMode,
+  type CompareDisplayMode,
   type OverlayTransform,
+  type SplitAxis,
 } from '@/modules/compare/overlay'
 import { referencePoint, viewportPoint, type ViewportPoint } from '@/shared/geometry'
 
 import type { SyncReason } from '../sync'
 
-export type CompareDisplayMode = 'blink' | 'opacity' | 'blend' | 'split'
-export type CompareBlendMode = 'difference' | 'multiply' | 'overlay'
-export type SplitAxis = 'vertical' | 'horizontal'
+// `ui/` يحتاج الأنواع الثلاثة أيضًا (خصائص `ReferenceOverlay.tsx`) — تعيش في
+// modules/compare/overlay.ts لا هنا، انظر تعليق تعريفها هناك. تُعاد هنا بلا
+// تكرار، نفس نمط `export { pxToRem, SNAP_THRESHOLD_PX }` في measure.ts.
+export type { CompareBlendMode, CompareDisplayMode, SplitAxis }
 
 export interface ReferenceImage {
   /** عنوان كائن أو data URL للعرض — لا بايتات خام هنا، انظر `resolveReferenceImage`. */

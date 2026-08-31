@@ -36,3 +36,5 @@ export type {
   InspectGroupView,
   InspectTabId,
 } from './inspect/InspectPanel'
+export { ReferenceOverlay } from './compare/ReferenceOverlay'
+export type { ReferenceOverlayProps } from './compare/ReferenceOverlay'
