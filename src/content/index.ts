@@ -12,6 +12,7 @@
 import { signal } from '@preact/signals'
 
 import { captureKindFor, type CaptureSource } from '@/modules/capture/kind'
+import { classifyViewport, VIEWPORT_ORDER } from '@/modules/compare/viewport'
 import { toCss, toJson, toTailwindText } from '@/modules/style-export/css'
 import { base64ToBlob, blobToBase64 } from '@/shared/base64'
 import { onMessage, send } from '@/shared/messaging'
@@ -43,6 +44,8 @@ import { createInspect } from './tools/inspect'
 import { createMeasure, type MeasureTool } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
+import type { Viewport } from '@/shared/storage/schema'
+import type { ViewportGalleryCard } from '@/ui/overlay'
 
 export interface OverlaySession {
   readonly host: OverlayHost
@@ -378,13 +381,14 @@ async function bootOverlay(
    * `colour/save`). أمّا المقاس فمعرفةُ الصفحة وحدها ولا سبيل لاشتقاقه
    * من `tabId`، فيُرسَل صراحةً — نفس منطق `dpr` في `capture/run`.
    *
-   * **ثابت على `'custom'` مؤقّتًا**: تصنيف المقاس الحيّ إلى الفئات الأربع
-   * (`desktop`/`tablet`/`phone`/`custom`) يحتاج حدودًا لا مصدر لها بعد —
-   * لا `Rasd_Plan.md` ولا `Rasd_Ar.md` يذكران أرقامًا، وصفحة
-   * `compare / viewports` (`127:315`) هي من تبني محاكاة الأجهزة المسمّاة
-   * وعندها فقط يُعرف المقياس الصحيح. حتى ذلك الحين: مرجعٌ واحد لكل صفحة.
+   * **مصنَّف حيًّا من عرض الصفحة الفعلي، لا ثابتًا بعد الآن** —
+   * `classifyViewport` (`modules/compare/viewport.ts`، حدودها موثَّقة هناك
+   * من إطار `compare / viewports` نفسه `127:315`). يُعاد الحساب في كل
+   * استدعاء لا مرّة عند الإقلاع: تغيير حجم النافذة أثناء وضع المقارنة
+   * نشطًا ينقل المرجع المستهدَف من مقاس إلى آخر، وهو المقصود بـ«تبديل
+   * المقاس عبر تغيير حجم النافذة» في `Rasd_Plan.md §8.6`.
    */
-  const referenceViewport = 'custom' as const
+  const currentViewport = (): Viewport => classifyViewport(space.layoutWidth)
 
   /** عنوان الكائن الحيّ للمرجع المعروض — يُحرَّر صراحةً قبل أيّ استبدال أو عند التفكيك. */
   let referenceObjectUrl: string | null = null
@@ -436,7 +440,7 @@ async function bootOverlay(
     if (compare.state.reference.peek()) return
     const myEpoch = ++referenceEpoch
     void (async () => {
-      const found = await send('reference/load', { viewport: referenceViewport })
+      const found = await send('reference/load', { viewport: currentViewport() })
       if (!found.ok || !found.value) return
       if (referenceEpoch !== myEpoch) return
       try {
@@ -461,6 +465,9 @@ async function bootOverlay(
    */
   const setCompareReferenceFromBlob = (source: { captureId: string } | { image: Blob }): void => {
     const myEpoch = ++referenceEpoch
+    // يُحسَب مرّة عند الاستدعاء لا بعد كل `await` — المقاس المستهدَف هو
+    // مقاس الصفحة **لحظة الفعل** (الإفلات أو اللصق)، لا لحظة وصول الردّ.
+    const viewport = currentViewport()
     void (async () => {
       const payload =
         'captureId' in source
@@ -472,10 +479,7 @@ async function bootOverlay(
             } as const)
       if (referenceEpoch !== myEpoch) return
 
-      const written = await send('reference/set', {
-        viewport: referenceViewport,
-        source: payload,
-      })
+      const written = await send('reference/set', { viewport, source: payload })
       if (!written.ok) {
         console.warn(`[رصد] تعذّر حفظ المرجع: ${written.error.message}`)
         return
@@ -498,6 +502,106 @@ async function bootOverlay(
   }
 
   /**
+   * ── معرض المقاسات — `compare / viewports` (`127:315`، `Rasd_Plan.md
+   * §8.6`) ─────────────────────────────────────────────────────────
+   *
+   * حالة مستقلّة عن المرجع الحيّ الواحد أعلاه عمدًا، بجيل خاصّ بها
+   * (`galleryEpoch` لا `referenceEpoch`): أربعة تحميلات متوازية (لكل
+   * مقاس) لا تتسابق مع تحميل/تعيين المرجع النشط ولا يُبطلها إلغاء غير
+   * متعلّق بها.
+   */
+  const viewportGallery = signal<readonly ViewportGalleryCard[] | null>(null)
+  let galleryObjectUrls: string[] = []
+  let galleryEpoch = 0
+
+  const revokeGalleryUrls = (): void => {
+    for (const url of galleryObjectUrls) URL.revokeObjectURL(url)
+    galleryObjectUrls = []
+  }
+
+  const closeViewportGallery = (): void => {
+    galleryEpoch++
+    revokeGalleryUrls()
+    viewportGallery.value = null
+  }
+
+  /** يحمِّل المراجع الأربعة دفعة واحدة — نداء مستقلّ لكل مقاس، متوازيةً لا متتالية. */
+  const openViewportGallery = (): void => {
+    const myEpoch = ++galleryEpoch
+    void (async () => {
+      const cards = await Promise.all(
+        VIEWPORT_ORDER.map(async (viewport): Promise<ViewportGalleryCard> => {
+          const found = await send('reference/load', { viewport })
+          if (!found.ok || !found.value) return { viewport, image: null }
+          try {
+            const image = await loadReferenceImage(
+              base64ToBlob(found.value.base64, found.value.mime),
+            )
+            return { viewport, image }
+          } catch {
+            return { viewport, image: null }
+          }
+        }),
+      )
+      if (galleryEpoch !== myEpoch) {
+        for (const card of cards) if (card.image) URL.revokeObjectURL(card.image.url)
+        return
+      }
+      galleryObjectUrls = cards.flatMap((c) => (c.image ? [c.image.url] : []))
+      viewportGallery.value = cards
+    })()
+  }
+
+  /**
+   * يعيّن مرجعًا لمقاس بعينه من داخل المعرض — قد يخالف مقاس الصفحة الحيّ
+   * الآن (بطاقة «هاتف» تُملأ ولو كانت النافذة بعرض سطح مكتب حاليًا).
+   *
+   * **يُزامَن مع العرض الحيّ حين يتطابق المقاسان فقط** — إفلاتٌ على بطاقة
+   * لا تطابق المقاس الحالي يُحدِّث تلك البطاقة وحدها، ولا يستبدل ما تعرضه
+   * `ComparePanel` الآن (مرجع مقاسٍ آخر، أو لا شيء).
+   */
+  const setGalleryReference = (
+    viewport: Viewport,
+    source: { captureId: string } | { image: Blob },
+  ): void => {
+    const myEpoch = galleryEpoch
+    void (async () => {
+      const payload =
+        'captureId' in source
+          ? ({ kind: 'capture', captureId: source.captureId } as const)
+          : ({
+              kind: 'image',
+              base64: await blobToBase64(source.image),
+              mime: source.image.type,
+            } as const)
+      const written = await send('reference/set', { viewport, source: payload })
+      if (!written.ok) {
+        console.warn(`[رصد] تعذّر حفظ المرجع: ${written.error.message}`)
+        return
+      }
+      if (galleryEpoch !== myEpoch) return
+      try {
+        const image = await loadReferenceImage(
+          base64ToBlob(written.value.base64, written.value.mime),
+        )
+        if (galleryEpoch !== myEpoch) {
+          URL.revokeObjectURL(image.url)
+          return
+        }
+        galleryObjectUrls.push(image.url)
+        const existing =
+          viewportGallery.peek() ?? VIEWPORT_ORDER.map((v) => ({ viewport: v, image: null }))
+        viewportGallery.value = existing.map((c) =>
+          c.viewport === viewport ? { viewport, image } : c,
+        )
+        if (viewport === currentViewport()) setCompareReference(image)
+      } catch (e) {
+        console.warn(`[رصد] ${e instanceof Error ? e.message : String(e)}`)
+      }
+    })()
+  }
+
+  /**
    * استئناف تلقائي لوضع المقارنة بعد تنقّل — من `background/resume.ts`،
    * بعد إقلاعٍ جديد على صفحة أعاد المستخدم تحميلها.
    *
@@ -507,9 +611,13 @@ async function bootOverlay(
    * لتحميل الصورة هنا: `modes.set('compare')` يُشغِّل `loadStoredReference`
    * تلقائيًّا عبر `modes.subscribe` أدناه — فحصٌ إضافي رخيص (قراءة IndexedDB
    * واحدة) أبسط من ازدواج منطق التحميل هنا.
+   *
+   * **`currentViewport()` لا مقاسًا ثابتًا**: الاستئناف يقع بعد إعادة
+   * تحميل حقيقية، وقد تغيّر عرض النافذة منذ آخر مرّة — نفس التصنيف الذي
+   * سيستعمله `loadStoredReference` بعد سطرين.
    */
   const unregisterCompareResume = onMessage('compare/resume', async () => {
-    const found = await send('reference/load', { viewport: referenceViewport })
+    const found = await send('reference/load', { viewport: currentViewport() })
     if (found.ok && found.value) modes.set('compare')
     return { ok: true }
   })
@@ -596,6 +704,10 @@ async function bootOverlay(
     },
     onCompareDropImage: (file) => setCompareReferenceFromBlob({ image: file }),
     onComparePasteImage: (file) => setCompareReferenceFromBlob({ image: file }),
+    viewportGallery,
+    onOpenViewportGallery: openViewportGallery,
+    onCloseViewportGallery: closeViewportGallery,
+    onViewportGalleryDropImage: (viewport, file) => setGalleryReference(viewport, { image: file }),
     fullPage,
     onCancelFullPage: () => void send('fullpage/cancel', undefined),
     space: spaceSignal,
@@ -653,6 +765,9 @@ async function bootOverlay(
         URL.revokeObjectURL(referenceObjectUrl)
         referenceObjectUrl = null
       }
+      // معرض المقاسات مرتبط بوضع المقارنة نفسه — لا معنى لبقائه مفتوحًا
+      // بعد مغادرته، ومغادرته هنا تشمل تنقّل SPA (نفس تعليق `referenceEpoch` أعلاه).
+      closeViewportGallery()
     } else {
       loadStoredReference()
     }
@@ -783,6 +898,8 @@ async function bootOverlay(
     compare.dispose()
     // عنوان كائن صورة المرجع — نفس سبب تحرير `colour` أعلاه، ولو بلا `ImageBitmap`.
     if (referenceObjectUrl) URL.revokeObjectURL(referenceObjectUrl)
+    // عناوين صور معرض المقاسات الأربعة — نفس السبب.
+    revokeGalleryUrls()
     // الحلّال ملك هذه الجلسة لا الأدوات — فتُحرّره هي.
     cssResolver.dispose()
     stopDpr()

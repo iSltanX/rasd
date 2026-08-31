@@ -154,6 +154,18 @@ describe('loadPopupContext — permissionNeeded', () => {
     expect(partial.permissionNeeded).toBeNull()
   })
 
+  it('مرجع محفوظ بمقاس «هاتف» لا «مخصّص» يُشغِّل الطلب أيضًا — الأربعة تُفحَص لا واحد', async () => {
+    installPermissionsApi(false)
+    await assignImageAsReference(
+      new Blob(['x'], { type: 'image/png' }),
+      { origin: 'https://example.com', path: '/', viewport: 'phone' },
+      null,
+    )
+
+    const partial = await loadPopupContext(1, 'https://example.com/')
+    expect(partial.permissionNeeded).toEqual({ origin: 'https://example.com' })
+  })
+
   it('صفحة مقيّدة لا تُشغِّل الطلب حتى مع مرجع محفوظ', async () => {
     installPermissionsApi(false)
     await assignImageAsReference(

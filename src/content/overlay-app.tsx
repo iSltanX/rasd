@@ -34,7 +34,9 @@ import {
   Marquee,
   MeasureGap,
   ReferenceOverlay,
+  ViewportGallery,
   type QuickAction,
+  type ViewportGalleryCard,
 } from '@/ui/overlay'
 import { AreaSelect, Countdown, type HandleSpot } from '@/ui/overlay/AreaSelect'
 import { ColourIdle, ColourPanel } from '@/ui/overlay/colour/ColourPanel'
@@ -54,7 +56,7 @@ import type { EyedropperTool } from './tools/eyedropper'
 import type { InspectTool } from './tools/inspect'
 import type { MeasureTarget, MeasureTool } from './tools/measure'
 import type { Mode } from '@/shared/modes'
-import type { CaptureKind } from '@/shared/storage/schema'
+import type { CaptureKind, Viewport } from '@/shared/storage/schema'
 import type { Signal } from '@preact/signals'
 import type { JSX } from 'preact'
 
@@ -100,6 +102,18 @@ export interface OverlayAppProps {
   /** يُطلَب حين يلصق المستخدم صورة من الحافظة أثناء وضع المقارنة. */
   onComparePasteImage?: (file: File) => void
   /**
+   * بطاقات معرض المقاسات — `compare / viewports` (`127:315`). `null` يعني
+   * المعرض مغلقًا؛ المصفوفة تصل جاهزة (صورًا مفكوكة أو `null` لكل مقاس لا
+   * مرجع له بعد) — هذا المكوّن يعرض ولا يحمِّل، كبقيّة حالات `compare/*`.
+   */
+  viewportGallery: Signal<readonly ViewportGalleryCard[] | null>
+  /** يُطلَب حين يفتح المستخدم المعرض من زرّ «المقاس الحالي» في لوحة المقارنة. */
+  onOpenViewportGallery?: () => void
+  /** يُطلَب حين يغلق المستخدم المعرض. */
+  onCloseViewportGallery?: () => void
+  /** يُطلَب حين يُفلِت المستخدم صورة على بطاقة مقاس بعينه داخل المعرض. */
+  onViewportGalleryDropImage?: (viewport: Viewport, file: File) => void
+  /**
    * تقدّم الالتقاط الكامل — `null` يعني لا مهمّة.
    *
    * **لا يمرّ عبر `mode`**: الالتقاط الكامل مهمّة لا أداة يوجّهها المستخدم،
@@ -141,6 +155,10 @@ function AreaLayer({
   | 'onComparePasteImage'
   | 'fullPage'
   | 'onCancelFullPage'
+  | 'viewportGallery'
+  | 'onOpenViewportGallery'
+  | 'onCloseViewportGallery'
+  | 'onViewportGalleryDropImage'
 >) {
   const countdown = useSignal<number | null>(null)
 
@@ -597,11 +615,19 @@ function CompareLayer({
   space,
   onUseLastCapture,
   onDropImage,
+  viewportGallery,
+  onOpenViewportGallery,
+  onCloseViewportGallery,
+  onViewportGalleryDropImage,
 }: {
   compare: CompareTool
   space: Signal<CoordSpace>
   onUseLastCapture?: () => void
   onDropImage?: (file: File) => void
+  viewportGallery: readonly ViewportGalleryCard[] | null
+  onOpenViewportGallery?: () => void
+  onCloseViewportGallery?: () => void
+  onViewportGalleryDropImage?: (viewport: Viewport, file: File) => void
 }) {
   const reference = compare.state.reference.value
   const transform = compare.state.transform.value
@@ -671,6 +697,7 @@ function CompareLayer({
             onOpacityChange={(percent) => compare.setOpacity(percent)}
             onSplitPositionChange={(percent) => compare.setSplitPosition(percent)}
             onClose={() => compare.setReference(null)}
+            {...(onOpenViewportGallery ? { onOpenViewportPicker: onOpenViewportGallery } : {})}
           />
         ) : (
           <CompareIdle
@@ -679,6 +706,25 @@ function CompareLayer({
           />
         )}
       </div>
+
+      {viewportGallery ? (
+        <div
+          class="rasd-ov-place rasd-ov-vpg-scrim"
+          style={box(viewportRect(0, 0, s.layoutWidth, s.layoutHeight))}
+          data-rasd-ov="viewport-gallery-scrim"
+          onClick={(e) => {
+            // إغلاق بنقرة الخلفية وحدها — `target === currentTarget` يستبعد
+            // أي نقرة وقعت على المعرض نفسه أو ما فيه (لوحة غير شفّافة تملأ الحاوية).
+            if (e.target === e.currentTarget) onCloseViewportGallery?.()
+          }}
+        >
+          <ViewportGallery
+            cards={viewportGallery}
+            {...(onCloseViewportGallery ? { onClose: onCloseViewportGallery } : {})}
+            {...(onViewportGalleryDropImage ? { onDropImage: onViewportGalleryDropImage } : {})}
+          />
+        </div>
+      ) : null}
 
       <span hidden data-w={s.layoutWidth} />
     </>
@@ -836,10 +882,20 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         <CompareLayer
           compare={props.compare}
           space={props.space}
+          viewportGallery={props.viewportGallery.value}
           {...(props.onCompareUseLastCapture
             ? { onUseLastCapture: props.onCompareUseLastCapture }
             : {})}
           {...(props.onCompareDropImage ? { onDropImage: props.onCompareDropImage } : {})}
+          {...(props.onOpenViewportGallery
+            ? { onOpenViewportGallery: props.onOpenViewportGallery }
+            : {})}
+          {...(props.onCloseViewportGallery
+            ? { onCloseViewportGallery: props.onCloseViewportGallery }
+            : {})}
+          {...(props.onViewportGalleryDropImage
+            ? { onViewportGalleryDropImage: props.onViewportGalleryDropImage }
+            : {})}
         />
         {job}
       </>

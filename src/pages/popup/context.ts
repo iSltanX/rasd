@@ -10,6 +10,7 @@
  */
 
 import { findReferenceForPage } from '@/modules/compare/reference'
+import { VIEWPORT_ORDER } from '@/modules/compare/viewport'
 import { send } from '@/shared/messaging'
 import { hasHostPermission, originPatternFor } from '@/shared/permissions'
 import { checkInjectable } from '@/shared/restricted'
@@ -124,8 +125,13 @@ export async function loadPopupContext(
  * بين مُرسِل من أصلنا وآخر). فتُقرأ `references` مباشرةً هنا، مثلما تقرأ
  * `loadRecent` أعلاه `captures` مباشرةً — النافذة صفحة إضافة بحقّها.
  *
- * **`viewport` ثابت على `'custom'`** — نفس القيد المؤقّت في `content/index.ts`
- * حتى تُبنى صفحة `compare / viewports` وتصنيف المقاس الحقيقي.
+ * **الأربعة مقاسات تُفحَص لا `'custom'` وحدها** — النافذة لا تعرف عرض
+ * التبويب المستهدَف الحيّ (`chrome.tabs.Tab` لا يحمل أبعاد واجهة العرض)،
+ * فلا سبيل لتصنيفه هنا كما يفعل `content/index.ts` (`classifyViewport`
+ * على `window.innerWidth`). البديل الصحيح: مرجعٌ محفوظ لهذه الصفحة على
+ * **أيّ** من المقاسات الأربعة يكفي لتبرير طلب الصلاحية — البقاء عبر
+ * التنقّل يخدم كل مرجع لا مقاسًا بعينه، وأربع قراءات محلّية من `references`
+ * أرخص كثيرًا من رحلة رسالة واحدة (ميزانية الـ100ms أعلاه).
  *
  * **بلا حالة «رُفض من قبل» محفوظة**: تُعاد المطالبة في كل فتح للنافذة ما
  * دام المرجع قائمًا والإذن غير ممنوح — نفس نمط ميزة اختيارية لم تُمنَح
@@ -140,16 +146,15 @@ async function findPermissionNeed(
   if (await hasHostPermission(pattern)) return null
 
   try {
-    const key = {
-      origin: new URL(url).origin,
-      path: new URL(url).pathname,
-      viewport: 'custom' as const,
-    }
-    const found = await findReferenceForPage(key)
-    if (!found.ok || !found.value) return null
+    const origin = new URL(url).origin
+    const path = new URL(url).pathname
+    // متوازية لا متتالية — نفس منطق `Promise.all` في `loadPopupContext`
+    // أعلاه، لنفس سبب ميزانية الـ100ms.
+    const results = await Promise.all(
+      VIEWPORT_ORDER.map((viewport) => findReferenceForPage({ origin, path, viewport })),
+    )
+    return results.some((r) => r.ok && r.value) ? { origin } : null
   } catch {
     return null
   }
-
-  return { origin: new URL(url).origin }
 }

@@ -598,6 +598,122 @@ if (extId && sw && granted) {
         }
       }
 
+      // ── 8.5) معرض المقاسات — `compare / viewports` (`127:315`، المرحلة 16) ──
+      // زرّ «المقاس الحالي» في اللوحة يفتح المعرض؛ المقاس الحيّ الآن مصنَّف
+      // `desktop` (عرض النافذة المقيس أعلاه = 1280، داخل حدّي `classifyViewport`).
+      const galleryBtnPresent = await inOverlay(
+        tabId,
+        `() => !!globalThis.__rasdCompare.host.layer.querySelector('.rasd-ov-cmp-vp-btn')`,
+      )
+      if (!galleryBtnPresent) {
+        fail('زرّ فتح معرض المقاسات غائب من اللوحة.')
+      } else {
+        const btnRect = await inOverlay(
+          tabId,
+          `() => {
+            const el = globalThis.__rasdCompare.host.layer.querySelector('.rasd-ov-cmp-vp-btn')
+            const r = el.getBoundingClientRect()
+            return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+          }`,
+        )
+        await clickAt(pageSession, btnRect.x, btnRect.y)
+        await settleAsync(400)
+
+        const galleryOpen = await inOverlay(
+          tabId,
+          `() => {
+            const layer = globalThis.__rasdCompare.host.layer
+            const cards = [...layer.querySelectorAll('[data-rasd-ov="viewport-card"]')]
+            return {
+              present: !!layer.querySelector('[data-rasd-ov="viewport-gallery"]'),
+              cardCount: cards.length,
+              filledCount: cards.filter((c) => c.querySelector('img')).length,
+            }
+          }`,
+        )
+        if (galleryOpen.present && galleryOpen.cardCount === 4 && galleryOpen.filledCount === 1) {
+          ok(`المعرض فُتح بأربع بطاقات، واحدة مملوءة (مقاس الصفحة الحيّ — ${vw}×${vh})`)
+        } else {
+          fail(`المعرض غير مطابق للمتوقَّع: ${JSON.stringify(galleryOpen)}`)
+        }
+
+        // إفلات صورة على بطاقة «هاتف» الفارغة — مقاس يخالف المقاس الحيّ الآن.
+        const referenceUrlBeforeGalleryDrop = (await readDrawn(tabId)).referenceImg
+        const galleryDropped = await inOverlay(
+          tabId,
+          `() => (async () => {
+            const blob = await (await fetch(${JSON.stringify(TEST_PNG_DATA_URL)})).blob()
+            const file = new File([blob], 'phone-ref.png', { type: 'image/png' })
+            const dt = new DataTransfer()
+            dt.items.add(file)
+            const zone = [...globalThis.__rasdCompare.host.layer.querySelectorAll('[data-rasd-ov="viewport-card"]')]
+              .find((c) => c.getAttribute('aria-label') === 'هاتف')
+              ?.querySelector('.rasd-ov-vpg-thumb-empty')
+            if (!zone) return 'no-zone'
+            const ev = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt })
+            zone.dispatchEvent(ev)
+            return 'dispatched'
+          })()`,
+        )
+        await settleAsync(500)
+        const filledAfterGalleryDrop = await inOverlay(
+          tabId,
+          `() => [...globalThis.__rasdCompare.host.layer.querySelectorAll('[data-rasd-ov="viewport-card"]')]
+            .filter((c) => c.querySelector('img')).length`,
+        )
+        const referenceUrlAfterGalleryDrop = (await readDrawn(tabId)).referenceImg
+        if (
+          galleryDropped === 'dispatched' &&
+          filledAfterGalleryDrop === 2 &&
+          referenceUrlAfterGalleryDrop === referenceUrlBeforeGalleryDrop
+        ) {
+          ok('إفلات على بطاقة «هاتف» عيّن مرجعها وحده — اللوحة الحيّة (سطح المكتب) لم تتأثّر')
+        } else {
+          fail(
+            `إفلات المعرض لم يتصرّف كما يجب: dropped=${galleryDropped} filled=${filledAfterGalleryDrop} refBefore=${referenceUrlBeforeGalleryDrop} refAfter=${referenceUrlAfterGalleryDrop}`,
+          )
+        }
+
+        // نفس الحدّ غير المتماثل أعلاه — بطاقة «هاتف» كُتبت من الصفحة، فتُقرأ من أصل الإضافة.
+        const phoneRefCount = await inSW(`(async () => {
+          const db = await new Promise((res, rej) => {
+            const q = indexedDB.open('rasd')
+            q.onsuccess = () => res(q.result)
+            q.onerror = () => rej(q.error)
+          })
+          const all = await new Promise((res) => {
+            const r = db.transaction('references', 'readonly').objectStore('references').getAll()
+            r.onsuccess = () => res(r.result)
+            r.onerror = () => res([])
+          })
+          return all.filter((r) => r.viewport === 'phone').length
+        })()`)
+        if (phoneRefCount > 0) {
+          ok(`مرجع «هاتف» أيضًا في قاعدة الإضافة — ${phoneRefCount} سجلًّا`)
+        } else {
+          fail('مرجع «هاتف» غائب عن قاعدة الإضافة.')
+        }
+
+        // زرّ الإغلاق يطوي المعرض.
+        const closeBtnRect = await inOverlay(
+          tabId,
+          `() => {
+            const el = globalThis.__rasdCompare.host.layer.querySelector('.rasd-ov-vpg-icon')
+            if (!el) return null
+            const r = el.getBoundingClientRect()
+            return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+          }`,
+        )
+        if (closeBtnRect) await clickAt(pageSession, closeBtnRect.x, closeBtnRect.y)
+        await settleAsync(200)
+        const galleryClosed = await inOverlay(
+          tabId,
+          `() => !globalThis.__rasdCompare.host.layer.querySelector('[data-rasd-ov="viewport-gallery"]')`,
+        )
+        if (galleryClosed) ok('زرّ الإغلاق يطوي المعرض')
+        else fail('المعرض بقي مفتوحًا بعد نقر زرّ الإغلاق.')
+      }
+
       // ── 9) مغادرة الوضع تمسح الحيّ، وإعادة الدخول تستدعي المحفوظ ──
       await setMode(tabId, 'idle')
       st = await readCompareState(tabId)
