@@ -11,10 +11,11 @@ import {
   broadcastChannel,
   CHANNELS,
   sendToTab,
+  type ActivationFailure,
   type ChannelDown,
   type ToolName,
 } from '@/shared/messaging'
-import { checkInjectable, type RestrictionReason } from '@/shared/restricted'
+import { checkInjectable } from '@/shared/restricted'
 
 import { saveFullPage } from './capture-service'
 import { startFullPage } from './full-page-job'
@@ -43,13 +44,51 @@ function toolToMode(tool: ToolName): ActiveMode | null {
 }
 
 export type ActivateResult =
-  { started: true; mode: ActiveMode | null } | { started: false; reason: RestrictionReason }
+  { started: true; mode: ActiveMode | null } | { started: false; reason: ActivationFailure }
 
 /**
- * يحقن الطبقة إن غابت، ثم يبدّل وضعها.
+ * يُقلع الطبقة في الصفحة بعد حقن ملفّها.
  *
- * الحقن آمن التكرار — `host.ts` يعيد تنشيط الجلسة القائمة بدل بناء ثانية،
- * فاستدعاء هذه الدالّة على تبويب مفعَّل أصلًا لا يكسر شيئًا.
+ * **الحقن وحده لا يُشغّل شيئًا.** `content.js` يُبنى حزمةً IIFE تُصدِّر
+ * `startOverlay` على `globalThis.__rasdContent` ولا تستدعيه (انظر
+ * `vite.content.config.ts`) — وهو قرار سليم: الحقن قد يقع في إطار داخلي أو
+ * صفحة لا نريد الرسم فيها. لكن **لا أحد كان يستدعيه في الإنتاج**، فكانت كل
+ * نقطة دخول للمستخدم تحقن الملفّ ثم ترسل رسالةً إلى مستقبِلات لا وجود لها،
+ * وتردّ «نجح» — قِيس حيًّا: `Receiving end does not exist` بعد إعادة
+ * المحاولة، مع `hostCount = 0` في الصفحة. يحرسه الآن
+ * `scripts/verify-activate.mjs` من تبويب بارد بلا أي إقلاع يدوي.
+ *
+ * الإقلاع آمن التكرار: `startOverlay` يحرس جلسته بعلامة على `window`
+ * فيعيد القائمة بدل بناء ثانية (انظر `SESSION_FLAG` في `content/index.ts`).
+ */
+async function bootOverlay(tabId: number): Promise<boolean> {
+  try {
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: async () => {
+        // النوع غير متاح هنا: هذه الدالّة تُسلسَل وتُنفَّذ في سياق الصفحة،
+        // لا في وحدة الخلفية التي تعرف أنواع الطبقة.
+        const api = (
+          globalThis as unknown as {
+            __rasdContent?: { startOverlay: () => Promise<{ ok: boolean }> }
+          }
+        ).__rasdContent
+        if (!api) return false
+        return (await api.startOverlay()).ok
+      },
+    })
+    return injection?.result === true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * يحقن الطبقة ويُقلعها إن غابت، ثم يبدّل وضعها.
+ *
+ * آمن التكرار في الطبقتين: `host.ts` يعيد المضيف القائم، و`startOverlay`
+ * يعيد الجلسة القائمة — فاستدعاء هذه الدالّة على تبويب مفعَّل أصلًا يبدّل
+ * وضعه ولا يبني شيئًا ثانيًا.
  */
 export async function activateTool(tabId: number, tool: ToolName): Promise<ActivateResult> {
   const tab = await chrome.tabs.get(tabId)
@@ -58,16 +97,23 @@ export async function activateTool(tabId: number, tool: ToolName): Promise<Activ
 
   await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] })
 
+  // **يُنتظَر قبل أي رسالة**: المستقبِلات كلّها تُسجَّل داخل `startOverlay`،
+  // فإرسالٌ قبل تمامه إرسالٌ إلى فراغ.
+  if (!(await bootOverlay(tabId))) return { started: false, reason: 'boot-failed' }
+
   const mode = toolToMode(tool)
 
-  // لا ينتظر تركيب الجلسة قبل الإرسال: `startOverlay` يسجّل مستقبِلاته قبل
-  // أن يُرجع، والرسالة الأولى — إن سبقته — تُعاد بمهلة قصيرة عبر إعادة
-  // محاولة واحدة، لا تعليقًا صامتًا.
-  const retryOnce = async (deliver: () => Promise<{ ok: boolean }>) => {
-    const first = await deliver()
-    if (first.ok) return
+  /**
+   * إعادة محاولة واحدة **ونتيجتها تُعاد لا تُهمَل**.
+   *
+   * الإقلاع صار مضمونًا قبل هذه النقطة، فبقاء المحاولة الثانية احتياطٌ
+   * لسباقٍ نادر لا شرطٌ للعمل. وكان الإهمال يُنتج أسوأ الأعطال: فشلٌ صامت
+   * يُبلَّغ عنه نجاحًا.
+   */
+  const deliverTwice = async (deliver: () => Promise<{ ok: boolean }>): Promise<boolean> => {
+    if ((await deliver()).ok) return true
     await new Promise((r) => setTimeout(r, 60))
-    await deliver()
+    return (await deliver()).ok
   }
 
   if (tool === 'full-page') {
@@ -92,9 +138,13 @@ export async function activateTool(tabId: number, tool: ToolName): Promise<Activ
   } else if (isInstant(tool)) {
     // التقاط فوري: يمرّ من الصفحة لا من الخلفية مباشرةً، لأن عدّاد التأجيل
     // يجب أن يُعرَض ويُلغى فيها، وكثافة البكسل الحيّة لا تُقرأ إلا منها.
-    await retryOnce(() => sendToTab({ tabId }, 'capture/start', { kind: tool }))
+    const delivered = await deliverTwice(() =>
+      sendToTab({ tabId }, 'capture/start', { kind: tool }),
+    )
+    if (!delivered) return { started: false, reason: 'no-receiver' }
   } else {
-    await retryOnce(() => sendToTab({ tabId }, 'mode/set', { mode: tool }))
+    const delivered = await deliverTwice(() => sendToTab({ tabId }, 'mode/set', { mode: tool }))
+    if (!delivered) return { started: false, reason: 'no-receiver' }
   }
 
   return { started: true, mode }

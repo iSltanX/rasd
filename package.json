@@ -45,6 +45,7 @@
     "verify:popup": "node scripts/verify-popup.mjs",
     "verify:capture": "node scripts/verify-capture.mjs",
     "verify:compare": "node scripts/verify-compare.mjs",
+    "verify:activate": "node scripts/verify-activate.mjs",
     "zip": "node scripts/zip.mjs",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run tokens:check && pnpm run verify:tokens && pnpm run test"
   },

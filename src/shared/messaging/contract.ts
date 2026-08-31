@@ -18,6 +18,16 @@ import type { ActiveMode } from '../storage/session'
 /** أدوات القائمة الرئيسية: أوضاع الطبقة الستّة القابلة للتفعيل، زائد نوعا الالتقاط الفوري. */
 export type ToolName = Exclude<ActiveMode, 'idle'> | 'viewport' | 'full-page'
 
+/**
+ * سبب تعذّر التفعيل — قيدُ عنوانٍ يُكتشَف **قبل** الحقن، أو فشلٌ بعده.
+ *
+ * السببان الأخيران جديدان: كان التفعيل يردّ `started: true` دائمًا ما دام
+ * العنوان قابلًا للحقن، فيُبلَّغ المستخدم بنجاحٍ لم يقع. `boot-failed` يعني
+ * أن الطبقة لم تُقلِع في الصفحة، و`no-receiver` أن الإقلاع تمّ ولم تصل
+ * الرسالة التالية إلى مستقبِل — حالتان مختلفتان في التشخيص فلا تُدمجان.
+ */
+export type ActivationFailure = RestrictionReason | 'boot-failed' | 'no-receiver'
+
 // ─────────────────────────────────────────────────────────────────
 // الطلبات — رسالة واحدة، ردّ واحد
 // ─────────────────────────────────────────────────────────────────
@@ -205,7 +215,7 @@ export interface ResponseMap {
   'mode/report': { ok: true }
   'mode/set': { ok: true }
   'tool/activate':
-    { started: true; mode: ActiveMode | null } | { started: false; reason: RestrictionReason }
+    { started: true; mode: ActiveMode | null } | { started: false; reason: ActivationFailure }
   /** الأبعاد بالبكسل الفيزيائي — ما حُفظ فعلًا لا ما طُلب. */
   'capture/run': { id: string; width: number; height: number }
   'capture/start': { started: boolean }

@@ -48,6 +48,8 @@ export function Popup(): JSX.Element | null {
     null,
   )
   const [liveProgress, setLiveProgress] = useState<{ done: number; total: number } | null>(null)
+  /** فشل تفعيل مُبلَّغ عنه — يبقي النافذة مفتوحة ويستبدل سطر الحالة. */
+  const [activationError, setActivationError] = useState<string | null>(null)
   const [online, setOnline] = useState(navigator.onLine)
 
   useEffect(() => {
@@ -128,10 +130,33 @@ export function Popup(): JSX.Element | null {
   if (!loaded || !context) return <div class={styles.shell} />
 
   const stateName: PopupStateName = success ? 'default' : selectPopupState(context)
-  const status = success ? 'حُفظت اللقطة' : STATUS_BY_STATE[stateName]({ ...loaded, context })
+  const status =
+    activationError ??
+    (success ? 'حُفظت اللقطة' : STATUS_BY_STATE[stateName]({ ...loaded, context }))
 
+  /**
+   * **لا تُغلق النافذة إلا على نجاح مؤكَّد.**
+   *
+   * كانت تُغلق على أي ردٍّ أيًّا كان — والتفعيل كان يردّ `started: true`
+   * دائمًا، فأي فشل يختفي بلا أثر: تُغلق النافذة ولا يقع شيء. الردّ صار
+   * صادقًا (`boot-failed`/`no-receiver`)، وهذا هو الطرف الذي يُظهره.
+   *
+   * الرسالة تُعرض في سطر الحالة القائم لا في شاشة جديدة: `13 — Extension
+   * Popup` لا يحوي شاشة «تعذّر التفعيل»، واختراع واحدة هنا وعدٌ بتصميم لا
+   * وجود له.
+   */
   const runTool = (tool: ToolName) => {
-    void send('tool/activate', { tool, tabId: loaded.tabId }).then(() => window.close())
+    void send('tool/activate', { tool, tabId: loaded.tabId }).then((reply) => {
+      if (reply.ok && reply.value.started) {
+        window.close()
+        return
+      }
+      setActivationError(
+        reply.ok && !reply.value.started && reply.value.reason === 'no-receiver'
+          ? 'تعذّر بدء الأداة — أعد تحميل الصفحة ثم حاول.'
+          : 'تعذّر تشغيل رصد في هذه الصفحة.',
+      )
+    })
   }
 
   const exitLiveMode = () => {

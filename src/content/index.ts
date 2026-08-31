@@ -75,10 +75,34 @@ export interface StartOptions {
 }
 
 /**
- * يشغّل الطبقة في هذا المستند.
+ * مفتاح الجلسة الحيّة على `window`.
  *
- * الإطارات غير العليا **لا ترسم**: نسخة الشيفرة تعمل فيها (الحقن
- * `allFrames: true`) لكنها تبقى صامتة، وإلا ظهرت طبقة داخل كل إطار.
+ * **على `window` لا في مجال الوحدة**: `chrome.scripting.executeScript`
+ * **يعيد تنفيذ** `content.js` كاملًا عند كل تفعيل، فكل حقن يبني إغلاق
+ * IIFE جديدًا بمتغيّراته الخاصّة — وحارسٌ في مجال الوحدة لا يرى الجلسة
+ * التي بناها حقنٌ سابق فيبني ثانيةً فوقها. نفس علّة `FLAG` في `host.ts`
+ * وحلّها نفسه.
+ *
+ * ويحمل **الوعد** لا النتيجة: تفعيلان متسارعان قد يبدآن قبل أن ينتهي
+ * `mountHost` غير المتزامن، فلو خُزِّنت النتيجة وحدها لعبَر الثاني الحارس
+ * وبنى جلسة موازية. تخزين الوعد يجعل الثاني ينتظر الأوّل ويعيده.
+ */
+const SESSION_FLAG = '__rasdSession'
+
+declare global {
+  interface Window {
+    [SESSION_FLAG]?: Promise<Result<OverlaySession, RasdError>>
+  }
+}
+
+/**
+ * يشغّل الطبقة في هذا المستند، أو يعيد الجلسة القائمة.
+ *
+ * **آمن التكرار**: `mountHost` يعيد المضيف القائم بدل بناء ثانٍ (منذ
+ * المرحلة 6)، لكن ذلك وحده لا يكفي — الجلسة نفسها (الأدوات، ومستقبِلات
+ * الرسائل، والمستمعات، وحلقة المزامنة) كانت تُبنى مرّة أخرى فوق المضيف
+ * الواحد: مستقبِلان لكل رسالة، ومراقبا بقاء متسابقان. فالحارس هنا على
+ * مستوى الجلسة لا المضيف.
  */
 export async function startOverlay(
   options: StartOptions = {},
@@ -87,6 +111,26 @@ export async function startOverlay(
   const win = doc.defaultView
   if (!win) return errWith('unknown', 'لا نافذة لهذا المستند')
 
+  const running = win[SESSION_FLAG]
+  if (running) return running
+
+  const booting = bootOverlay(doc, win, options)
+  win[SESSION_FLAG] = booting
+  const result = await booting
+  // إقلاعٌ فاشل لا يجوز أن يسدّ محاولة تالية — الحارس للجلسة الحيّة وحدها.
+  if (!result.ok && win[SESSION_FLAG] === booting) delete win[SESSION_FLAG]
+  return result
+}
+
+/**
+ * الإطارات غير العليا **لا ترسم**: نسخة الشيفرة تعمل فيها (الحقن
+ * `allFrames: true`) لكنها تبقى صامتة، وإلا ظهرت طبقة داخل كل إطار.
+ */
+async function bootOverlay(
+  doc: Document,
+  win: Window,
+  options: StartOptions,
+): Promise<Result<OverlaySession, RasdError>> {
   if (!isTopFrame(win)) {
     return errWith('cancelled', 'إطار داخلي — الرسم للإطار الأعلى وحده')
   }
@@ -676,6 +720,9 @@ export async function startOverlay(
   const teardown = () => {
     if (torn) return
     torn = true
+    // الحارس يُرفَع أوّلًا: تفعيلٌ يصل أثناء التفكيك يجب أن يبني جلسة جديدة
+    // لا أن يستلم هذه المنهارة.
+    delete win[SESSION_FLAG]
     // يُبطل أي تحميل/تعيين مرجع معلَّق قبل أي شيء آخر — وإلا استقرّت نتيجته
     // بعد أن أزال هذا التفكيك نفسه مستمع `modes.subscribe` الذي كان سيُبطلها.
     referenceEpoch++
