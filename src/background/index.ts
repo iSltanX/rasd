@@ -4,6 +4,7 @@ import { checkInjectable } from '@/shared/restricted'
 import { activateTool, COMMAND_TOOL } from './commands'
 import { registerContextMenus } from './context-menus'
 import { registerLifecycle } from './lifecycle'
+import { registerResume } from './resume'
 
 /**
  * Service Worker — نقطة الإقلاع.
@@ -19,6 +20,7 @@ const log = (message: string) => {
 
 registerLifecycle()
 registerContextMenus()
+registerResume()
 
 chrome.runtime.onInstalled.addListener((details) => {
   log(`onInstalled: ${details.reason} — v${VERSION}${isIncognitoContext() ? ' (خاص)' : ''}`)

@@ -60,17 +60,18 @@
 **الرسائل ليست كلّها نقاط دخول مستخدم**؛ منها ما هو داخليّ بين أجزاء الإضافة. الجرد يفرزها
 صراحةً كي لا يُقرأ غيابُ أمرِ تحقّقٍ لرسالةٍ داخلية إغفالًا:
 
-| المجموعة          | الرسائل                                                                                                 | التصنيف                 | أمر التحقّق                      |
-| ----------------- | ------------------------------------------------------------------------------------------------------- | ----------------------- | -------------------------------- |
-| التفعيل           | `tool/activate` · `mode/set` · `mode/report`                                                            | نقطة دخول               | `pnpm verify:activate`           |
-| الالتقاط          | `capture/run` · `capture/start` · `capture/blob` · `capture/hide-overlay` · `capture/show-overlay`      | داخلية (يقودها التفعيل) | `pnpm verify:capture`            |
-| الالتقاط الكامل   | `fullpage/prepare` · `fullpage/step` · `fullpage/finish` · `fullpage/cancel`                            | داخلية                  | `pnpm verify:fullpage`           |
-| اللون             | `colour/frame` · `colour/save`                                                                          | داخلية                  | `pnpm verify:colour`             |
-| المقارنة          | `reference/load` · `reference/set` · `capture/latest`                                                   | داخلية                  | `pnpm verify:compare`            |
-| الفحص             | `inspect/report` · `inspect/get`                                                                        | داخلية                  | `pnpm verify:inspect`            |
-| الصفحات           | `page/open`                                                                                             | نقطة دخول               | `pnpm verify:popup`              |
-| الحالة والإعدادات | `session/get` · `session/patch` · `settings/get` · `settings/patch` · `settings/reset`                  | داخلية                  | `pnpm test` (وحدات)              |
-| التشخيص والبنية   | `diagnostics/ping` · `diagnostics/storage` · `tab/can-operate` · `offscreen/ensure` · `offscreen/close` | داخلية                  | `pnpm verify:load` · `pnpm test` |
+| المجموعة          | الرسائل                                                                                                 | التصنيف                   | أمر التحقّق                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------- | ------------------------- | -------------------------------------------- |
+| التفعيل           | `tool/activate` · `mode/set` · `mode/report`                                                            | نقطة دخول                 | `pnpm verify:activate`                       |
+| الالتقاط          | `capture/run` · `capture/start` · `capture/blob` · `capture/hide-overlay` · `capture/show-overlay`      | داخلية (يقودها التفعيل)   | `pnpm verify:capture`                        |
+| الالتقاط الكامل   | `fullpage/prepare` · `fullpage/step` · `fullpage/finish` · `fullpage/cancel`                            | داخلية                    | `pnpm verify:fullpage`                       |
+| اللون             | `colour/frame` · `colour/save`                                                                          | داخلية                    | `pnpm verify:colour`                         |
+| المقارنة          | `reference/load` · `reference/set` · `capture/latest`                                                   | داخلية                    | `pnpm verify:compare`                        |
+| استئناف المقارنة  | `compare/resume`                                                                                        | مدفوعة بالخلفية — انظر §6 | `pnpm verify:activate` · `pnpm test` (وحدات) |
+| الفحص             | `inspect/report` · `inspect/get`                                                                        | داخلية                    | `pnpm verify:inspect`                        |
+| الصفحات           | `page/open`                                                                                             | نقطة دخول                 | `pnpm verify:popup`                          |
+| الحالة والإعدادات | `session/get` · `session/patch` · `settings/get` · `settings/patch` · `settings/reset`                  | داخلية                    | `pnpm test` (وحدات)                          |
+| التشخيص والبنية   | `diagnostics/ping` · `diagnostics/storage` · `tab/can-operate` · `offscreen/ensure` · `offscreen/close` | داخلية                    | `pnpm verify:load` · `pnpm test`             |
 
 ---
 
@@ -84,3 +85,24 @@
 | `⌥⇧I/M/C/D`     | تبديل الوضع داخل الصفحة | [بلا أمر: تركيب المستمعات يثبته `pnpm verify:activate` ضمنًا بنجاح الجلسة؛ وإطلاق التركيبة نفسها آليًّا غير ممكن — نفس حدّ `chrome.commands`] |
 | `Esc`           | العودة إلى `idle`       | `pnpm verify:overlay`                                                                                                                         |
 | `⌘K` / `Ctrl+K` | **لا شيء — ولا يُبتلع** | `grep -n "action: { kind: 'palette' }" -A0 src/content/shortcuts.ts` (يجب أن يكون `swallow: false` حتى تُبنى اللوحة)                          |
+
+---
+
+## 6. استئناف المقارنة — مدفوعة بالخلفية لا بإيماءة
+
+المصدر: `chrome.tabs.onUpdated` في `src/background/resume.ts`. **ليست إيماءة مستخدم**
+— حدثُ تصفّح يُطلقها — فتُجرَد هنا لنفس السبب الذي جرَدت له أوامر `chrome.commands`:
+كودٌ إنتاجي حقيقي ينفَّذ خارج نطاق أي زرّ يُنقَر.
+
+| نقطة الدخول                                                       | المسار الإنتاجي                                                                                    | الأثر النهائي                                                                    | أمر التحقّق                                                                                         |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| تنقّل مكتمل على أصل ممنوح الصلاحية، **بلا مرجع محفوظ**            | `onUpdated(complete)` ← `permissions.contains` ← `activateResume` ← حقن + إقلاع + `compare/resume` | الطبقة تُقلَع (`hostCount=1`) **بلا** فرض وضع `compare` — `reference/load` فارغة | `pnpm verify:activate` (الفحص الأوّل) · `pnpm exec vitest run tests/unit/background/resume.test.ts` |
+| تنقّل مكتمل على أصل ممنوح الصلاحية، **مع مرجع محفوظ للمسار نفسه** | نفسه، وينتهي بـ`modes.set('compare')` داخل مستقبِل `compare/resume`                                | وضع `compare` يعود تلقائيًّا **بعد `chrome.tabs.reload` حقيقية**، والمرجع معه    | `pnpm verify:activate` (الفحص الأخير — يمهِّد مرجعًا، يعيد التحميل فعليًّا، يقيس الاستعادة)         |
+| تنقّل على أصل غير ممنوح، أو صفحة مقيّدة، أو حدث ليس `complete`    | يتوقّف عند أوّل فحص فاشل                                                                           | لا حقن ولا أثر                                                                   | `pnpm exec vitest run tests/unit/background/resume.test.ts`                                         |
+
+> `verify-activate.mjs` يمنح الصلاحية عبر `manifest.host_permissions` المرحلي في الحزمة
+> المؤقّتة لا عبر إيماءة داخل CDP — وهذا يكفي لأن الحارس الحقيقي المُختبَر هو
+> `chrome.permissions.contains` وقت التشغيل، لا آلية المنح نفسها (تلك تحرسها
+> `verify-load.mjs`/`verify-dist.mjs`). فالفحص حيّ فعلًا: تبويبٌ بارد، صلاحية حقيقية،
+> إعادة تحميل حقيقية بـ`chrome.tabs.reload`، ومرجعٌ يُقاس عبر `window.__rasdSession` —
+> لا محاكاة في أيّ خطوة.

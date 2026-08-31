@@ -1,10 +1,23 @@
-import { fakeBrowser } from '@webext-core/fake-browser'
-import { beforeEach, describe, expect, it } from 'vitest'
+import 'fake-indexeddb/auto'
 
+import { fakeBrowser } from '@webext-core/fake-browser'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { assignImageAsReference } from '@/modules/compare/reference'
 import { loadPopupContext } from '@/pages/popup/context'
 import { onMessage, resetHandlers } from '@/shared/messaging'
 import { selectPopupState, type PopupContext } from '@/shared/popup-state'
+import { closeDatabase } from '@/shared/storage/db'
 import { getSession, setTabMode } from '@/shared/storage/session'
+
+type PermissionsApi = { contains: ReturnType<typeof vi.fn> }
+
+/** يموِّه `chrome.permissions.contains` وحدها — `fake-browser` لا يطبّقها. */
+function installPermissionsApi(granted: boolean): PermissionsApi {
+  const api: PermissionsApi = { contains: vi.fn().mockResolvedValue(granted) }
+  Object.assign(globalThis.chrome, { permissions: api })
+  return api
+}
 
 /**
  * تحميل سياق النافذة عبر رسائل حقيقية (لا اختلاق) — `session/get` و
@@ -21,9 +34,13 @@ function toContext(
   return { ...partial, online }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   fakeBrowser.reset()
   resetHandlers()
+  // `references` تعيش عبر الملفّ كلّه في `fake-indexeddb` بلا هذا — مرجعٌ
+  // كتبه اختبارٌ سابق يبقى مرئيًّا لتاليه، فيُصدَّق طلب صلاحية لم يعد سببه قائمًا.
+  await closeDatabase()
+  indexedDB.deleteDatabase('rasd')
   onMessage('settings/get', () => ({ onboarding: { completed: true, completedAt: 1 } }))
   onMessage('session/get', async () => (await getSession()) as unknown as Record<string, unknown>)
 })
@@ -85,5 +102,67 @@ describe('loadPopupContext — الجولة الأولى والوضع الحيّ
     await setTabMode(7, 'inspect')
     const partial = await loadPopupContext(8, 'https://example.com/')
     expect(partial.liveMode).toBeNull()
+  })
+})
+
+/**
+ * `permissionNeeded` — الميزة الوحيدة التي تشترط صلاحية مضيف اليوم
+ * («البقاء عبر التنقّل»، المرحلة 16). ثلاث حالات فقط تُنتج الطلب: مرجعٌ
+ * محفوظ لهذه الصفحة تحديدًا، **و** الصلاحية غير ممنوحة بعد.
+ */
+describe('loadPopupContext — permissionNeeded', () => {
+  it('مرجع محفوظ + صلاحية غير ممنوحة ⇒ الطلب يظهر', async () => {
+    installPermissionsApi(false)
+    await assignImageAsReference(
+      new Blob(['x'], { type: 'image/png' }),
+      { origin: 'https://example.com', path: '/', viewport: 'custom' },
+      null,
+    )
+
+    const partial = await loadPopupContext(1, 'https://example.com/')
+    expect(partial.permissionNeeded).toEqual({ origin: 'https://example.com' })
+    expect(selectPopupState(toContext(partial, true))).toBe('permission')
+  })
+
+  it('مرجع محفوظ + صلاحية ممنوحة ⇒ لا طلب', async () => {
+    installPermissionsApi(true)
+    await assignImageAsReference(
+      new Blob(['x'], { type: 'image/png' }),
+      { origin: 'https://example.com', path: '/', viewport: 'custom' },
+      null,
+    )
+
+    const partial = await loadPopupContext(1, 'https://example.com/')
+    expect(partial.permissionNeeded).toBeNull()
+  })
+
+  it('لا مرجع محفوظ لهذه الصفحة ⇒ لا طلب رغم غياب الصلاحية', async () => {
+    installPermissionsApi(false)
+    const partial = await loadPopupContext(1, 'https://example.com/')
+    expect(partial.permissionNeeded).toBeNull()
+  })
+
+  it('مرجع محفوظ لمسار آخر على الأصل نفسه لا يُشغِّل الطلب', async () => {
+    installPermissionsApi(false)
+    await assignImageAsReference(
+      new Blob(['x'], { type: 'image/png' }),
+      { origin: 'https://example.com', path: '/other', viewport: 'custom' },
+      null,
+    )
+
+    const partial = await loadPopupContext(1, 'https://example.com/')
+    expect(partial.permissionNeeded).toBeNull()
+  })
+
+  it('صفحة مقيّدة لا تُشغِّل الطلب حتى مع مرجع محفوظ', async () => {
+    installPermissionsApi(false)
+    await assignImageAsReference(
+      new Blob(['x'], { type: 'image/png' }),
+      { origin: 'chrome://settings', path: '/', viewport: 'custom' },
+      null,
+    )
+
+    const partial = await loadPopupContext(1, 'chrome://settings')
+    expect(partial.permissionNeeded).toBeNull()
   })
 })

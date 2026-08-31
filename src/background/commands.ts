@@ -149,3 +149,30 @@ export async function activateTool(tabId: number, tool: ToolName): Promise<Activ
 
   return { started: true, mode }
 }
+
+/**
+ * يستأنف وضع المقارنة تلقائيًّا بعد تنقّل — **بلا إيماءة مستخدم**.
+ *
+ * لا تستدعيها إلا `background/resume.ts`، وهي وحدها تتحقّق أوّلًا من
+ * صلاحية مضيف ممنوحة لأصل التبويب — ADR 0005 يحصر الحقن بلا إيماءة في
+ * هذه الحالة تحديدًا («البقاء عبر التنقّل يحتاج صلاحية مضيف اختيارية»).
+ *
+ * تحقن وتُقلع كما تفعل `activateTool`، ثم ترسل `compare/resume` بدل
+ * `mode/set` — الصفحة هي من تقرّر دخول وضع المقارنة، بعد أن تتحقّق من
+ * وجود مرجع محفوظ لمسارها تحديدًا (لا لأصلها كلّه). فتنقّلٌ إلى صفحة أخرى
+ * على نفس الأصل المصرَّح له لا يقحم المستخدم في وضع لم يطلبه.
+ *
+ * **بلا `deliverTwice` ولا نتيجة مُعادة**: هذا مسار خلفي صامت — فشله
+ * يعني «لا شيء يُستأنَف»، لا خطأً يُبلَّغ عنه أحد.
+ */
+export async function activateResume(tabId: number): Promise<void> {
+  const tab = await chrome.tabs.get(tabId)
+  if (!checkInjectable(tab.url).injectable) return
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] })
+  } catch {
+    return
+  }
+  if (!(await bootOverlay(tabId))) return
+  await sendToTab({ tabId }, 'compare/resume', undefined)
+}

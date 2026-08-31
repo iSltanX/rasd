@@ -63,9 +63,14 @@ const stagedManifest = join(stage, 'manifest.json')
 const manifest = JSON.parse(readFileSync(stagedManifest, 'utf8'))
 /*
  * `<all_urls>` لا أصل العيّنات وحده — كما في `verify-fullpage.mjs`:
- * `captureVisibleTab` لا يقنع بصلاحية مضيف ضيّقة، يطلب `<all_urls>` أو
- * `activeTab` الممنوحة بإيماءة. وهذا الفحص يقيس **مسار التفعيل** لا سياسة
- * الصلاحيات (تلك يقيسها `verify-load.mjs` و`verify-dist.mjs`).
+ * `captureVisibleTab` لا يقنع بصلاحية مضيف ضيّقة (قِيس: أصلٌ مطابق تمامًا
+ * لأصل العيّنات لا يكفيه، يردّ `permission-denied`)، يطلب `<all_urls>` أو
+ * `activeTab` الممنوحة بإيماءة.
+ *
+ * **وهذا يُفعِّل ميزة الاستئناف التلقائي** (`background/resume.ts`) على كل
+ * تبويب هنا — صلاحية حقيقية، فتصرّف حقيقي، لا مصادفة اختبار. لذلك «تبويب
+ * بارد» في هذا الفحص يعني «بلا وضع مفروض»، لا «بلا طبقة مطلقًا» — انظر
+ * التعليق عند أوّل تأكيد أدناه.
  */
 manifest.host_permissions = ['<all_urls>']
 writeFileSync(stagedManifest, JSON.stringify(manifest, null, 2))
@@ -284,6 +289,19 @@ const readPage = (tabId) =>
     },
   }).then(r => r[0].result)`)
 
+/**
+ * ينفّذ في العالم المعزول لتبويب — حيث يعيش `window.__rasdSession` مهما
+ * كان مصدر الجلسة (تفعيل صريح أو استئناف تلقائي)، خلافًا لـ`inPage`
+ * (`world: 'MAIN'`) التي لا ترى شيئًا من سكربت المحتوى.
+ */
+async function inOverlay(tabId, fnSource) {
+  return inSW(`chrome.scripting.executeScript({
+    target: { tabId: ${tabId} },
+    world: 'ISOLATED',
+    func: ${fnSource},
+  }).then(r => r[0].result)`)
+}
+
 /** الوضع المبلَّغ عنه في `chrome.storage.session` — يكتبه `mode/report` من الصفحة. */
 const reportedMode = (tabId) =>
   inSW(
@@ -291,6 +309,10 @@ const reportedMode = (tabId) =>
   )
 
 const settle = (ms = 400) => new Promise((r) => setTimeout(r, ms))
+
+/** ملفّ صورة PNG صالح ١×١ — بلا حاجة لعيّنة خارجية (نفس ثابت `verify-compare.mjs`). */
+const TEST_PNG_DATA_URL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
 
 // ── الجولة ──────────────────────────────────────────────────────
 if (extId && sw && granted) {
@@ -308,9 +330,26 @@ if (extId && sw && granted) {
   const driver = await attachToPage('src/pages/library/')
   if (!driver) fail('تعذّر فتح صفحة الإضافة القائدة.')
 
+  /*
+   * **«بارد» يعني «بلا وضع مفروض» لا «بلا طبقة مطلقًا».**
+   *
+   * الصلاحية الممنوحة هنا (أصل العيّنات) تُشغِّل ميزة الاستئناف التلقائي
+   * (`background/resume.ts`) على هذا التبويب بالذات بمجرّد اكتمال تحميله —
+   * وهذا صحيحٌ ومقصود، لا تسرّبًا: `chrome.tabs.onUpdated` لا يميّز تبويب
+   * فحصٍ عن تبويب مستخدم حقيقي، والصلاحية الممنوحة صلاحية حقيقية. فقد
+   * تكون الطبقة **مُقلَعة فعلًا** الآن دون أن يمرّ التفعيل الحقيقي بعد —
+   * والدليل الصحيح على «بلا تحضير يدوي» هو غياب **الوضع**، لا غياب المضيف.
+   */
+  await settle(500)
   const before = await readPage(tabId)
-  if (before.hostCount === 0) ok('تبويب بارد: لا طبقة قبل التفعيل')
-  else fail(`الطبقة موجودة قبل التفعيل — التبويب ليس باردًا: ${JSON.stringify(before)}`)
+  const modeBefore = await reportedMode(tabId)
+  if (modeBefore === null) {
+    ok(
+      `لا وضع مفروض قبل التفعيل الصريح (hostCount=${before.hostCount} — الاستئناف التلقائي لا يقحم وضعًا بلا مرجع محفوظ)`,
+    )
+  } else {
+    fail(`وضعٌ مفروض قبل أي تفعيل صريح: ${modeBefore}`)
+  }
 
   const act = await activate(driver, tabId, 'measure')
   await settle(600)
@@ -460,6 +499,79 @@ if (extId && sw && granted) {
     fail(`الالتقاط الكامل لم يُحسم خلال 60 ثانية — ردّ التفعيل ${JSON.stringify(fpResult.act)}`)
   } else {
     fail(`ردّ غير متوقَّع من الالتقاط الكامل: ${JSON.stringify(fpResult)}`)
+  }
+
+  /*
+   * ── 4) الاستئناف التلقائي: مرجعٌ يعيش عبر إعادة تحميل حقيقية ─────
+   *
+   * الوعد المركزي لهذه الميزة («البقاء عبر التنقّل»، Rasd_Plan.md §8)
+   * غير مُثبَت حيًّا بعد — الفحص الأوّل أعلاه أثبت **الجانب السلبي فقط**
+   * (لا وضع يُفرَض بلا مرجع). هذا يُثبت الجانب الإيجابي: مرجعٌ محفوظ فعلًا
+   * يعود بعد `chrome.tabs.reload` حقيقية — لا محاكاة، لا حقن يدوي.
+   *
+   * `window.__rasdSession` (`SESSION_FLAG` في `content/index.ts`) هو
+   * المدخل الوحيد لجلسة بُنيت بمسار حقيقي (تفعيل أو استئناف) لا بـ
+   * `startOverlay()` يدوية — هذا السكربت لا يستدعيها بيده، فهو ما يميّزه.
+   */
+  const resumeTab = await openTab('/picker/')
+  await settle(500) // فرصة للاستئناف كي يُقلع الطبقة أوّلًا إن أراد.
+
+  await activate(driver, resumeTab, 'compare')
+  await settle(500)
+
+  const dropped = await inOverlay(
+    resumeTab,
+    `() => (async () => {
+      const session = await window.__rasdSession
+      if (!session?.ok) return 'no-session'
+      const blob = await (await fetch(${JSON.stringify(TEST_PNG_DATA_URL)})).blob()
+      const file = new File([blob], 'ref.png', { type: 'image/png' })
+      const dt = new DataTransfer()
+      dt.items.add(file)
+      const zone = session.value.host.layer.querySelector('.rasd-ov-cmp-dropzone')
+      if (!zone) return 'no-dropzone'
+      zone.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+      return 'dispatched'
+    })()`,
+  )
+  await settle(600)
+
+  const referenceSet = await inOverlay(
+    resumeTab,
+    `() => window.__rasdSession.then(s => s.ok ? !!s.value.compare.state.reference.peek() : false)`,
+  )
+  if (dropped === 'dispatched' && referenceSet) {
+    ok('مرجع عُيِّن قبل إعادة التحميل — تمهيدٌ للفحص الحقيقي')
+  } else {
+    fail(`تعذّر تمهيد المرجع قبل الاستئناف: dropped=${dropped} referenceSet=${referenceSet}`)
+  }
+
+  // مغادرة الوضع أوّلًا — نفس ما يفعله المستخدم قبل تنقّل حقيقي، ويثبت أن
+  // الاستئناف لا يعتمد على بقاء الوضع نشِطًا بل على المرجع المحفوظ وحده.
+  await inOverlay(
+    resumeTab,
+    `() => window.__rasdSession.then(s => { if (s.ok) s.value.modes.set('idle') })`,
+  )
+  await settle(300)
+
+  await inSW(`chrome.tabs.reload(${resumeTab}).then(() => 1)`)
+  await inSW(`new Promise(res => {
+    const check = () => chrome.tabs.get(${resumeTab}).then(t => t.status === 'complete' ? res(1) : setTimeout(check, 100))
+    check()
+  })`)
+  await settle(1200) // onUpdated ← permissions.contains ← activateResume ← reference/load — كلّها غير متزامنة.
+
+  const modeAfterReload = await reportedMode(resumeTab)
+  const referenceAfterReload = await inOverlay(
+    resumeTab,
+    `() => window.__rasdSession ? window.__rasdSession.then(s => s.ok ? !!s.value.compare.state.reference.peek() : false) : false`,
+  )
+  if (modeAfterReload === 'compare' && referenceAfterReload) {
+    ok('الاستئناف التلقائي أعاد وضع المقارنة ومرجعها بعد إعادة تحميل حقيقية — بلا أي إيماءة')
+  } else {
+    fail(
+      `الاستئناف لم يستعد الحالة: الوضع بعد التحميل=${JSON.stringify(modeAfterReload)} مرجع=${referenceAfterReload}`,
+    )
   }
 }
 

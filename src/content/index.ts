@@ -498,6 +498,23 @@ async function bootOverlay(
   }
 
   /**
+   * استئناف تلقائي لوضع المقارنة بعد تنقّل — من `background/resume.ts`،
+   * بعد إقلاعٍ جديد على صفحة أعاد المستخدم تحميلها.
+   *
+   * **الصفحة تقرِّر لا الخلفية**: تتحقّق أوّلًا من وجود مرجع لهذا المسار
+   * تحديدًا (`reference/load` نفسها) قبل الدخول في وضع `compare` — وإلا
+   * لأقحمت كل صفحة على أصل مصرَّح له المستخدمَ في وضعٍ لم يطلبه. لا حاجة
+   * لتحميل الصورة هنا: `modes.set('compare')` يُشغِّل `loadStoredReference`
+   * تلقائيًّا عبر `modes.subscribe` أدناه — فحصٌ إضافي رخيص (قراءة IndexedDB
+   * واحدة) أبسط من ازدواج منطق التحميل هنا.
+   */
+  const unregisterCompareResume = onMessage('compare/resume', async () => {
+    const found = await send('reference/load', { viewport: referenceViewport })
+    if (found.ok && found.value) modes.set('compare')
+    return { ok: true }
+  })
+
+  /**
    * ينسخ مخرَج الفحص إلى الحافظة.
    *
    * الحدود تُكتب في النصّ المنسوخ نفسه لا في اللوحة وحدها: المستخدم يلصقه
@@ -750,6 +767,7 @@ async function bootOverlay(
     // رأى المراقبُ المضيفَ يختفي فأعاد إلحاقه في اللحظة نفسها.
     removeShortcuts()
     unregisterModeSet()
+    unregisterCompareResume()
     unregisterPrepare()
     unregisterStep()
     unregisterFinish()

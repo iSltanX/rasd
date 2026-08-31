@@ -9,7 +9,9 @@
  * من 100ms).
  */
 
+import { findReferenceForPage } from '@/modules/compare/reference'
 import { send } from '@/shared/messaging'
+import { hasHostPermission, originPatternFor } from '@/shared/permissions'
 import { checkInjectable } from '@/shared/restricted'
 import { annotations, blobs, captures } from '@/shared/storage/repository'
 
@@ -85,9 +87,10 @@ export async function loadPopupContext(
 
   // متوازيتان لا متتاليتان: لا تعتمد إحداهما على نتيجة الأخرى، وكل رحلة
   // رسالة إضافية قبل أول عرض تُحتسَب على ميزانية الـ100ms.
-  const [sessionReply, settingsReply] = await Promise.all([
+  const [sessionReply, settingsReply, permissionNeeded] = await Promise.all([
     send('session/get', undefined),
     send('settings/get', undefined),
+    findPermissionNeed(restriction.injectable ? url : undefined),
   ])
 
   const session = (sessionReply.ok ? sessionReply.value : {}) as Partial<SessionState>
@@ -102,9 +105,51 @@ export async function loadPopupContext(
   return {
     restriction,
     firstRun: restriction.injectable && !onboardingCompleted,
-    // لا ميزة في هذه المرحلة تشترط صلاحية مضيف — انظر `Permission.tsx`.
-    permissionNeeded: null,
+    permissionNeeded,
     job,
     liveMode,
   }
+}
+
+/**
+ * هل لهذه الصفحة مرجع مقارنة محفوظ، بلا صلاحية مضيف تُبقيه عبر التنقّل؟
+ *
+ * **ميزةٌ واحدة تشترط الإذن اليوم**: المقارنة («البقاء عبر التنقّل»،
+ * `Rasd_Plan.md §8`) — وترويسة `Permission.tsx` القديمة («لا مسار يطلبها
+ * تلقائيًا») لم تعد صحيحة؛ هذا هو ذلك المسار.
+ *
+ * **بلا رسالة `reference/load`**: تلك تعتمد `context.tabId` (مُرسِلٌ من
+ * تبويب)، والنافذة صفحة إضافة بلا تبويب خاصّ بها — تحقن `tabId` التبويب
+ * *المستهدَف* في الحمولة، لا تشتقّه من نفسها (نفس تمييز `capture/run`
+ * بين مُرسِل من أصلنا وآخر). فتُقرأ `references` مباشرةً هنا، مثلما تقرأ
+ * `loadRecent` أعلاه `captures` مباشرةً — النافذة صفحة إضافة بحقّها.
+ *
+ * **`viewport` ثابت على `'custom'`** — نفس القيد المؤقّت في `content/index.ts`
+ * حتى تُبنى صفحة `compare / viewports` وتصنيف المقاس الحقيقي.
+ *
+ * **بلا حالة «رُفض من قبل» محفوظة**: تُعاد المطالبة في كل فتح للنافذة ما
+ * دام المرجع قائمًا والإذن غير ممنوح — نفس نمط ميزة اختيارية لم تُمنَح
+ * بعد، وزرّ «اسمح مرّة واحدة» في `Permission.tsx` هو مخرج الرفض الصريح.
+ */
+async function findPermissionNeed(
+  url: string | undefined,
+): Promise<PopupContext['permissionNeeded']> {
+  if (!url) return null
+  const pattern = originPatternFor(url)
+  if (!pattern) return null
+  if (await hasHostPermission(pattern)) return null
+
+  try {
+    const key = {
+      origin: new URL(url).origin,
+      path: new URL(url).pathname,
+      viewport: 'custom' as const,
+    }
+    const found = await findReferenceForPage(key)
+    if (!found.ok || !found.value) return null
+  } catch {
+    return null
+  }
+
+  return { origin: new URL(url).origin }
 }

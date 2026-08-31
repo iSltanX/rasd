@@ -105,6 +105,16 @@ export interface RequestMap {
     source: { kind: 'capture'; captureId: string } | { kind: 'image'; base64: string; mime: string }
   }
   /**
+   * استئنافٌ تلقائي لوضع المقارنة بعد تنقّل — من `background/resume.ts`
+   * وحدها، بعد تحقّقها من صلاحية مضيف ممنوحة لأصل الصفحة («البقاء عبر
+   * التنقّل» في `Rasd_Plan.md §8`، تنفيذ المرحلة 16).
+   *
+   * **الصفحة تقرِّر لا الخلفية**: المستقبِل يستدعي `reference/load` أوّلًا
+   * ولا يدخل وضع `compare` إلا إن وجد مرجعًا لمساره تحديدًا — وإلا لأقحمت
+   * كل صفحة على أصلٍ مصرَّح له المستخدمَ في وضعٍ لم يطلبه.
+   */
+  'compare/resume': void
+  /**
    * ينفّذ التقاطًا **من الخلفية**: هي وحدها تملك `chrome.tabs.captureVisibleTab`.
    *
    * `rect` بفضاء **الجهاز** لا النافذة — التحويل يحدث في الصفحة مرّة واحدة
@@ -259,6 +269,7 @@ export interface ResponseMap {
   /** بايتات المرجع مُرمَّزة — `null` يعني: لا مرجع محفوظ لهذه الصفحة (نتيجة سليمة لا خطأ). */
   'reference/load': { base64: string; mime: string; bytes: number } | null
   'reference/set': { base64: string; mime: string; bytes: number }
+  'compare/resume': { ok: true }
   'capture/latest': { id: string; width: number; height: number } | null
   /** الأبعاد بالبكسل الفيزيائي — ما حُفظ فعلًا لا ما طُلب. */
   'capture/run': { id: string; width: number; height: number }
