@@ -726,6 +726,7 @@ export async function startOverlay(
     inspect,
     measure,
     colour,
+    compare,
     lastCapture: () => lastCapture,
     teardown,
   })
