@@ -388,6 +388,14 @@ if (extId && sw && granted) {
       const vw = await inPage(tabId, `() => window.innerWidth`)
       const vh = await inPage(tabId, `() => window.innerHeight`)
       note(`أبعاد النافذة الفعلية: ${vw}×${vh}`)
+      // `classifyViewport` (المعرض أدناه) يُصنِّف من `documentElement.clientWidth`
+      // لا `window.innerWidth` — الفرق شريط تمرير، وهو ما يشرح لماذا لا تُطبَع
+      // هنا قيمة "desktop" ثابتة رغم أن `vw` قد تقع داخل حدّه: قِيس هنا 1265
+      // مقابل `vw=1280`، أي `tablet` فعليًّا (768–1279) لا `desktop` (١٢٨٠+).
+      const clientW = await inPage(tabId, `() => document.documentElement.clientWidth`)
+      note(
+        `عرض محتوى الصفحة (documentElement.clientWidth): ${clientW} — هذا ما يقرأه classifyViewport`,
+      )
       // خارج مربّع اللوحة تمامًا (40,64)–(~380,~563) — أسفل يمين الشاشة.
       const bg = { x: vw - 80, y: vh - 80 }
 
@@ -684,8 +692,12 @@ if (extId && sw && granted) {
       }
 
       // ── 8.5) معرض المقاسات — `compare / viewports` (`127:315`، المرحلة 16) ──
-      // زرّ «المقاس الحالي» في اللوحة يفتح المعرض؛ المقاس الحيّ الآن مصنَّف
-      // `desktop` (عرض النافذة المقيس أعلاه = 1280، داخل حدّي `classifyViewport`).
+      // زرّ «المقاس الحالي» في اللوحة يفتح المعرض. **المقاس الحيّ يُصنَّف من
+      // `documentElement.clientWidth` لا `window.innerWidth`** — الفرق بينهما
+      // شريط تمرير (~15px هنا)، فعرض 1280 المقيس أعلاه لا يعني `desktop`
+      // بالضرورة: قِيس مباشرةً أن `clientWidth` هنا 1265، أي `tablet` فعليًّا
+      // (حدّا `classifyViewport`: 768–1279). لا افتراض بالاسم — البطاقة
+      // الممتلئة تُحدَّد بالعدّ لا بتخمين اسم التصنيف.
       const galleryBtnPresent = await inOverlay(
         tabId,
         `() => !!globalThis.__rasdCompare.host.layer.querySelector('.rasd-ov-cmp-vp-btn')`,
@@ -717,7 +729,7 @@ if (extId && sw && granted) {
           }`,
         )
         if (galleryOpen.present && galleryOpen.cardCount === 4 && galleryOpen.filledCount === 1) {
-          ok(`المعرض فُتح بأربع بطاقات، واحدة مملوءة (مقاس الصفحة الحيّ — ${vw}×${vh})`)
+          ok(`المعرض فُتح بأربع بطاقات، واحدة مملوءة (عرض محتوى الصفحة الحيّ — ${clientW}px)`)
         } else {
           fail(`المعرض غير مطابق للمتوقَّع: ${JSON.stringify(galleryOpen)}`)
         }
@@ -752,7 +764,7 @@ if (extId && sw && granted) {
           filledAfterGalleryDrop === 2 &&
           referenceUrlAfterGalleryDrop === referenceUrlBeforeGalleryDrop
         ) {
-          ok('إفلات على بطاقة «هاتف» عيّن مرجعها وحده — اللوحة الحيّة (سطح المكتب) لم تتأثّر')
+          ok('إفلات على بطاقة «هاتف» عيّن مرجعها وحده — اللوحة الحيّة (مقاسها الآخر) لم تتأثّر')
         } else {
           fail(
             `إفلات المعرض لم يتصرّف كما يجب: dropped=${galleryDropped} filled=${filledAfterGalleryDrop} refBefore=${referenceUrlBeforeGalleryDrop} refAfter=${referenceUrlAfterGalleryDrop}`,

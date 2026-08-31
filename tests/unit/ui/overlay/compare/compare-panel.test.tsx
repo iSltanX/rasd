@@ -71,9 +71,15 @@ describe('ComparePanel — يُصيَّر بلا رمي', () => {
     expect(splitSlider.disabled).toBe(false)
   })
 
-  it('العدّاد المئوي هنديّ — عدّ بشري لا قياس تقني', () => {
+  // كانت `formatHuman` (أرقام هندية) — الاسم الحالي يصف القرار المصحَّح
+  // لا الأصلي: كل عدّاد مئوي آخر في المستودع (`Capturing`/`QuotaIndicator`/
+  // `ExportProgress`) يمرّ من `formatPercent` (أرقام غربية)، وكانت هذه
+  // اللوحة الاستثناء الوحيد بلا سبب مسجَّل — وCSS نفسه (`direction: ltr`
+  // + `unicode-bidi: isolate` + خطّ أحادي المسافة في `.rasd-ov-cmp-slider-value`)
+  // يفترض قياسًا تقنيًّا أصلًا لا عدًّا بشريًّا. صُحِّح بالمراجعة، §6 صفّ 87.
+  it('العدّاد المئوي غربيّ — قياسٌ تقني كبقيّة عدّادات المستودع', () => {
     const el = mount(<ComparePanel {...panelProps({ opacity: 52 })} />)
-    expect(el.textContent).toContain('٥٢٪')
+    expect(el.textContent).toContain('52%')
   })
 
   it('زرّ الإغلاق يستدعي onClose', () => {

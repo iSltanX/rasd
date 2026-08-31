@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks'
 
-import { formatHuman } from '@/shared/bidi'
+import { formatPercent } from '@/shared/bidi'
 import { Icon } from '@/ui/icons/Icon'
 
 import type { CompareDisplayMode } from '@/modules/compare/overlay'
@@ -111,7 +111,7 @@ export function ComparePanel({
       <div class="rasd-ov-cmp-sliders">
         <label class="rasd-ov-cmp-slider">
           <span class="rasd-ov-cmp-slider-row">
-            <span class="rasd-ov-cmp-slider-value">{formatHuman(Math.round(opacity))}٪</span>
+            <span class="rasd-ov-cmp-slider-value">{formatPercent(opacity / 100)}</span>
             <span class="rasd-ov-cmp-slider-label">شفافية المرجع</span>
           </span>
           <input
@@ -126,7 +126,7 @@ export function ComparePanel({
 
         <label class="rasd-ov-cmp-slider" data-inactive={displayMode !== 'split'}>
           <span class="rasd-ov-cmp-slider-row">
-            <span class="rasd-ov-cmp-slider-value">{formatHuman(Math.round(splitPosition))}٪</span>
+            <span class="rasd-ov-cmp-slider-value">{formatPercent(splitPosition / 100)}</span>
             <span class="rasd-ov-cmp-slider-label">موضع الفاصل</span>
           </span>
           <input
@@ -149,7 +149,7 @@ export function ComparePanel({
           aria-label={`المقاس الحالي: ${viewportLabel}`}
         >
           <Icon name="chevron-down" size="xs" />
-          <span>{viewportLabel}</span>
+          <span class="rasd-ov-cmp-vp-dim">{viewportLabel}</span>
         </button>
         <span class="rasd-ov-cmp-vp-note">المرجع لـ</span>
       </div>
