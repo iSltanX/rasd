@@ -27,6 +27,7 @@
     "tokens:sync": "node scripts/tokens-sync.mjs",
     "fonts:sync": "node scripts/fonts-sync.mjs",
     "icons:sync": "node scripts/icons-sync.mjs",
+    "icons:brand": "node scripts/brand-icons.mjs",
     "tokens:check": "node scripts/tokens-sync.mjs --check",
     "verify:tokens": "node scripts/verify-tokens.mjs",
     "fixtures:serve": "node scripts/fixtures-serve.mjs",
