@@ -12,7 +12,7 @@ import type { DeviceRect } from '../geometry'
 import type { InspectSnapshot } from '../inspect-schema'
 import type { PageName } from '../page-paths'
 import type { RestrictionReason } from '../restricted'
-import type { CaptureKind, ColorSource } from '../storage/schema'
+import type { CaptureKind, ColorSource, Viewport } from '../storage/schema'
 import type { ActiveMode } from '../storage/session'
 
 /** أدوات القائمة الرئيسية: أوضاع الطبقة الستّة القابلة للتفعيل، زائد نوعا الالتقاط الفوري. */
@@ -64,6 +64,46 @@ export interface RequestMap {
    * لا تحمل `sender.tab` إطلاقًا.
    */
   'tool/activate': { tool: ToolName; tabId: number }
+  /**
+   * يقرأ مرجع المقارنة المحفوظ لهذه الصفحة، إن وُجد (§8.1).
+   *
+   * **من الخلفية لا من الصفحة**: سكربت المحتوى يعمل بأصل الصفحة المزارة لا
+   * أصل الإضافة، فـ`indexedDB` عنده قاعدة **الموقع** لا قاعدة رصد. قِيس
+   * مباشرةً: `location.origin` هناك هو الموقع، و`indexedDB.databases()`
+   * فارغة، ولا ترى ما كتبه الـservice worker. نفس علّة `capture/blob`
+   * ([ADR 0009](../../../Docs/ADR/0009-capture-in-service-worker.md))
+   * والصفّ 78 في `Rasd_Plan.md §6`.
+   *
+   * **الأصل والمسار من التبويب لا من الحمولة** — نفس قاعدة `colour/save`:
+   * المصدر الموثوق ما يعرفه المتصفّح. وخلافًا لها يُرمى عند تعذّر القراءة
+   * لا يُترَك `null`: هنا مفتاح السجلّ نفسه لا حقل وصفي، ومفتاح خاطئ
+   * يُطابق سجلّ موقعٍ آخر أو يستبدله.
+   *
+   * **`viewport` من الحمولة**: تصنيف المقاس الحيّ معرفةُ الصفحة وحدها ولا
+   * سبيل لاشتقاقه من `tabId` — نفس منطق `dpr` في `capture/run`.
+   */
+  'reference/load': { viewport: Viewport }
+  /**
+   * يعيّن مرجعًا لهذه الصفحة: من لقطة محفوظة، أو من صورة وصلت من الصفحة
+   * (إفلات · لصق) مُرمَّزة base64 لأن الرسائل لا تحمل `Blob`.
+   *
+   * والردّ يحمل بايتات المرجع المكتوب توًّا — فلا نداء قراءة ثانٍ بعده.
+   */
+  /**
+   * أحدث لقطة محفوظة غير محذوفة — `null` إن لم تُلتقَط لقطة بعد.
+   *
+   * **من الخلفية لأن الصفحة لا تصل إلى مخزن الإضافة** (نفس علّة
+   * `reference/load`). وهي ما يجعل «استخدم آخر لقطة» تعمل بعد التقاطٍ
+   * كامل قادته الخلفية: ذاك المسار لا يمرّ بالصفحة أصلًا فلا يترك فيها
+   * أثرًا، وكان الزرّ يقرأ متغيّرًا محليًّا يبقى فارغًا دومًا في تلك الحالة.
+   *
+   * `trashedAt` يُصفّى هنا لا عند العرض — نفس منطق `loadRecent` في النافذة.
+   */
+  'capture/latest': void
+  'reference/set': {
+    viewport: Viewport
+    source: { kind: 'capture'; captureId: string } | { kind: 'image'; base64: string; mime: string }
+  }
   /**
    * ينفّذ التقاطًا **من الخلفية**: هي وحدها تملك `chrome.tabs.captureVisibleTab`.
    *
@@ -216,6 +256,10 @@ export interface ResponseMap {
   'mode/set': { ok: true }
   'tool/activate':
     { started: true; mode: ActiveMode | null } | { started: false; reason: ActivationFailure }
+  /** بايتات المرجع مُرمَّزة — `null` يعني: لا مرجع محفوظ لهذه الصفحة (نتيجة سليمة لا خطأ). */
+  'reference/load': { base64: string; mime: string; bytes: number } | null
+  'reference/set': { base64: string; mime: string; bytes: number }
+  'capture/latest': { id: string; width: number; height: number } | null
   /** الأبعاد بالبكسل الفيزيائي — ما حُفظ فعلًا لا ما طُلب. */
   'capture/run': { id: string; width: number; height: number }
   'capture/start': { started: boolean }

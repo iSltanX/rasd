@@ -261,6 +261,42 @@ leaked.length === 0
 const totalBytes = files.reduce((n, f) => n + statSync(f).size, 0)
 ok(`حجم الحزمة: ${(totalBytes / 1024).toFixed(1)} KB عبر ${files.length} ملفًا`)
 
+// ═══ قدرات محظورة لكل حزمة ═════════════════════════════════════════
+group('قدرات محظورة لكل حزمة')
+
+/**
+ * عقدٌ مدوَّن: ما لا يجوز أن يصل حزمةً بعينها مهما التوى مسار الاستيراد.
+ *
+ * **حارس ناتج لا حارس مصدر**: `architectureZones` في `eslint.config.js`
+ * يمنع الاستيراد المباشر ويُنذر مبكرًا، لكنه **أعمى عن العبور** — العطل
+ * الحقيقي كان `content ← modules/compare/reference ← shared/storage`، وكل
+ * حلقة فيه مشروعة منفردةً (`modules/library/search.ts` يستورد التخزين بحقّ
+ * لأنه يعمل في صفحة إضافة). الحزمة المبنية وحدها تُظهر ما وصل فعلًا.
+ * القسم 2 من `Docs/Constitution.md`.
+ */
+const BUNDLE_BANS = [
+  {
+    file: 'content.js',
+    pattern: /\bindexedDB\b/,
+    capability: 'نفاذ IndexedDB',
+    why: 'سكربت المحتوى يعمل بأصل الصفحة المزارة، فقاعدته قاعدة الموقع لا قاعدة رصد — كل كتابة «تنجح» في المكان الخطأ (الصفّ 78 في §6). التخزين تملكه الخلفية، والطريق رسالة في contract.ts.',
+  },
+]
+
+for (const ban of BUNDLE_BANS) {
+  const path = join(dist, ban.file)
+  if (!existsSync(path)) {
+    fail(`${ban.file} غير موجود — تعذّر فحص القدرات المحظورة عليه`)
+    continue
+  }
+  const source = readFileSync(path, 'utf8')
+  if (ban.pattern.test(source)) {
+    fail(`${ban.file} يحوي ${ban.capability} — ${ban.why}`)
+  } else {
+    ok(`${ban.file} بلا ${ban.capability}`)
+  }
+}
+
 console.log('\nفحص الحزمة:')
 console.log(lines.join('\n'))
 

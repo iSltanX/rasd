@@ -12,6 +12,12 @@
 
 import { captureTile, runCapture } from '@/background/capture-service'
 import { activateTool } from '@/background/commands'
+import {
+  assignCaptureAsReference,
+  assignImageAsReference,
+  findReferenceForPage,
+} from '@/modules/compare/reference'
+import { base64ToBlob, blobToBase64 } from '@/shared/base64'
 import { isIncognitoContext, VERSION } from '@/shared/env'
 import {
   broadcastChannel,
@@ -27,12 +33,14 @@ import { getSettings, patchSettings, resetSettings } from '@/shared/settings'
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
 import { closeOffscreen, ensureOffscreen } from '@/shared/storage/offscreen'
 import { quotaState } from '@/shared/storage/quota'
-import { blobs, colors } from '@/shared/storage/repository'
+import { blobs, captures, colors } from '@/shared/storage/repository'
 import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
 import { cancelFullPage } from './full-page-job'
 
+import type { PageKey } from '@/modules/compare/reference'
 import type { InspectSnapshot } from '@/shared/inspect-schema'
+import type { Viewport } from '@/shared/storage/schema'
 
 /** اسم منبّه الحارس. */
 const WATCHDOG_ALARM = 'rasd:watchdog'
@@ -56,6 +64,25 @@ export function registerLifecycle() {
 async function syncIncognitoPolicy() {
   const settings = await getSettings()
   setIncognitoWritePolicy(settings.privacy.blockIncognitoWrites)
+}
+
+/**
+ * يبني مفتاح صفحةٍ **موثوقًا** لمرجع المقارنة.
+ *
+ * الأصل والمسار من التبويب لا من الحمولة — نفس قاعدة `colour/save`. وخلافًا
+ * لها **يُرمى عند تعذّر القراءة** ولا يُترَك فارغًا: هناك حقلٌ وصفي غيابه
+ * يعني «مصدر مجهول»، وهنا **مفتاح السجلّ نفسه** — مفتاحٌ خاطئ يُطابق سجلّ
+ * موقعٍ آخر أو يستبدله، وذلك أسوأ من فشلٍ معلَن.
+ *
+ * بلا معامِلات بحث ولا جزء تجزئة: كلاهما لا يغيّر الشكل المرئي عادةً،
+ * وتفريق المرجع بهما يجزّئ صفحةً واحدة إلى مراجع زائفة متعدّدة.
+ */
+async function pageKeyFromTab(tabId: number | undefined, viewport: Viewport): Promise<PageKey> {
+  if (tabId === undefined) throw new Error('لا تبويب مستهدَف لمرجع المقارنة.')
+  const tab = await chrome.tabs.get(tabId)
+  if (!tab.url) throw new Error('تعذّرت قراءة عنوان التبويب — لا مفتاح موثوق للمرجع.')
+  const url = new URL(tab.url)
+  return { origin: url.origin, path: url.pathname, viewport }
 }
 
 function registerRequestHandlers() {
@@ -221,6 +248,63 @@ function registerRequestHandlers() {
     const saved = await colors.put(record)
     if (!saved.ok) throw new RasdThrow(saved.error)
     return { id: record.id }
+  })
+
+  /**
+   * مرجع المقارنة — قراءةً وكتابةً **من الخلفية وحدها**.
+   *
+   * الصفحة لا تصل إلى IndexedDB الخاصة بالإضافة إطلاقًا (نفس علّة
+   * `capture/blob`)، فكان `modules/compare/reference.ts` — حين كان يُستدعى
+   * من سكربت المحتوى — يكتب في قاعدة **الموقع المزار**: مراجع لا تصل
+   * المكتبة أبدًا، و«استخدم آخر لقطة» تُخفق دومًا، وبايتات صور تُخزَّن في
+   * مساحة موقعٍ لا نملكها. الصفّ 78 في `Rasd_Plan.md §6`.
+   *
+   * المنطق نفسه لم يتغيّر — **موضع ندائه هو ما تغيّر**.
+   */
+  /** أحدث لقطة غير محذوفة — انظر تعليل `capture/latest` في `contract.ts`. */
+  onMessage('capture/latest', async () => {
+    const list = await captures.byIndex('createdAt')
+    if (!list.ok) throw new RasdThrow(list.error)
+    const latest = list.value.filter((r) => r.trashedAt === null).at(-1)
+    if (!latest) return null
+    return { id: latest.id, width: latest.width, height: latest.height }
+  })
+
+  onMessage('reference/load', async ({ viewport }, { tabId }) => {
+    const key = await pageKeyFromTab(tabId, viewport)
+    const found = await findReferenceForPage(key)
+    if (!found.ok) throw new RasdThrow(found.error)
+    if (!found.value) return null
+    const blob = await blobs.get(found.value.blobId)
+    // سجلّ يتيم (مرجع بلا بايتات) يُقرأ «لا مرجع» لا خطأً — نفس تساهل
+    // المسار السابق، فلا تُعطَّل الأداة بسبب سجلّ تالف واحد.
+    if (!blob.ok) return null
+    return {
+      base64: await blobToBase64(blob.value.blob),
+      mime: blob.value.mime,
+      bytes: blob.value.bytes,
+    }
+  })
+
+  /**
+   * `projectId` يبقى `null` هنا — نفس تعليل `colour/save`: الربط بمشروع
+   * قرارٌ يقع في المكتبة لا في لحظة التعيين، وإسناده تلقائيًّا تخمين.
+   */
+  onMessage('reference/set', async ({ viewport, source }, { tabId }) => {
+    const key = await pageKeyFromTab(tabId, viewport)
+    const written =
+      source.kind === 'capture'
+        ? await assignCaptureAsReference(source.captureId, key, null)
+        : await assignImageAsReference(base64ToBlob(source.base64, source.mime), key, null)
+    if (!written.ok) throw new RasdThrow(written.error)
+
+    const blob = await blobs.get(written.value.blobId)
+    if (!blob.ok) throw new RasdThrow(blob.error)
+    return {
+      base64: await blobToBase64(blob.value.blob),
+      mime: blob.value.mime,
+      bytes: blob.value.bytes,
+    }
   })
 
   onMessage('page/open', async ({ page, active, params }) => {

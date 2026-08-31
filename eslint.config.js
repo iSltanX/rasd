@@ -51,6 +51,25 @@ export const architectureZones = [
     from: './src/content',
     message: 'ui/ بدائيّات عرض ولا تعرف طبقة تشغيل. انقل الأنواع المشتركة إلى modules/ أو shared/.',
   },
+  /*
+   * **ملكية التخزين الدائم: الخلفية وصفحات الإضافة وحدها.**
+   *
+   * سكربت المحتوى يعمل بأصل الصفحة المزارة، فـ`indexedDB` عنده قاعدة
+   * **الموقع** لا قاعدة رصد. قِيس: `location.origin` هناك هو الموقع،
+   * و`indexedDB.databases()` فارغة. فكل كتابة «تنجح» في المكان الخطأ —
+   * وهو ما وقع فعلًا للمراجع (الصفّ 78 في `Rasd_Plan.md §6`).
+   *
+   * **وهذا حارس النيّة لا حارس الواقع**: يمسك الاستيراد المباشر وحده،
+   * وكان العطل عابرًا (`content ← modules/compare/reference ← storage`)
+   * فمرّ من كل حلقة مشروعة منفردةً. حارسه الحقيقي فحصُ الحزمة المبنية في
+   * `scripts/verify-dist.mjs` — والاثنان معًا كما يفرض القسم 2 من الدستور.
+   */
+  ...['db', 'repository', 'migrations', 'quota'].map((module) => ({
+    target: './src/content',
+    from: `./src/shared/storage/${module}.ts`,
+    message:
+      'التخزين الدائم تملكه الخلفية وحدها — سكربت المحتوى يرى قاعدة الموقع المزار لا قاعدة رصد. مرّ عبر رسالة في contract.ts.',
+  })),
   // shared/ طبقة قاعدية: لا تستورد من أي طبقة أعلى منها.
   ...['background', 'content', 'offscreen', 'pages', 'modules', 'ui', 'tokens', 'workers'].map(
     (layer) => ({

@@ -454,6 +454,42 @@ if (extId && sw && granted) {
       if (drawn.panel) ok('لوحة المقارنة النشطة ظهرت بعد تعيين المرجع')
       else fail('لوحة المقارنة لم تظهر رغم وجود مرجع')
 
+      /*
+       * ── الحدّ غير المتماثل: كُتب من الصفحة، فيُقرأ من **أصل الإضافة** ──
+       *
+       * كل ما سبق كتب وقرأ من الطرف نفسه، فينجح **حتى لو كان المخزن
+       * خاطئًا** — وهذا بالضبط ما وقع: نجحت هذه الفحوص كاملةً بينما
+       * المراجع تُكتب في قاعدة بيانات الموقع المزار لا قاعدة رصد (الصفّ
+       * 78). خطأٌ متماثل الاتجاهين لا يكشفه اختبارٌ متماثل الاتجاهين.
+       *
+       * فالقراءة هنا من الـservice worker: أصلٌ آخر، وقاعدةٌ أخرى — إن
+       * وُجد السجلّ فيها فالكتابة وقعت حيث يجب.
+       */
+      const inExtensionDb = await inSW(`(async () => {
+        const db = await new Promise((res, rej) => {
+          const q = indexedDB.open('rasd')
+          q.onsuccess = () => res(q.result)
+          q.onerror = () => rej(q.error)
+        })
+        if (![...db.objectStoreNames].includes('references')) return { stores: [...db.objectStoreNames], count: -1 }
+        const count = await new Promise((res) => {
+          const tx = db.transaction('references', 'readonly')
+          const r = tx.objectStore('references').count()
+          r.onsuccess = () => res(r.result)
+          r.onerror = () => res(-2)
+        })
+        return { origin: self.location.origin, count }
+      })()`)
+      if (inExtensionDb.count > 0) {
+        ok(
+          `المرجع مكتوب في قاعدة **الإضافة** لا الموقع — ${inExtensionDb.count} سجلًّا مقروءًا من ${inExtensionDb.origin}`,
+        )
+      } else {
+        fail(
+          `المرجع غائب عن قاعدة الإضافة: ${JSON.stringify(inExtensionDb)} — أي أنه كُتب في مكان آخر (الصفّ 78)`,
+        )
+      }
+
       // ── 4) السحب يحرّك التحويل بمقدار حركة المؤشِّر الحقيقية ────
       st = await readCompareState(tabId)
       const before = st.transform

@@ -12,17 +12,12 @@
 import { signal } from '@preact/signals'
 
 import { captureKindFor, type CaptureSource } from '@/modules/capture/kind'
-import {
-  assignCaptureAsReference,
-  assignImageAsReference,
-  findReferenceForPage,
-} from '@/modules/compare/reference'
 import { toCss, toJson, toTailwindText } from '@/modules/style-export/css'
+import { base64ToBlob, blobToBase64 } from '@/shared/base64'
 import { onMessage, send } from '@/shared/messaging'
 import { isMode, type Mode } from '@/shared/modes'
 import { errWith, ok, type RasdError, type Result } from '@/shared/result'
 import { getSettings } from '@/shared/settings'
-import { blobs } from '@/shared/storage/repository'
 
 import { copyCaptureToClipboard } from './clipboard'
 import { readSpace, viewportRect, watchDpr, type CoordSpace } from './coords'
@@ -48,7 +43,6 @@ import { createInspect } from './tools/inspect'
 import { createMeasure, type MeasureTool } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
-import type { PageKey } from '@/modules/compare/reference'
 
 export interface OverlaySession {
   readonly host: OverlayHost
@@ -377,23 +371,20 @@ async function bootOverlay(
   compareTool = compare
 
   /**
-   * مفتاح الصفحة الحالية لتخزين مرجع المقارنة واستدعائه — `origin + path`
-   * من `location` مباشرةً، بلا معامِلات بحث ولا جزء تجزئة: كلاهما لا يغيّر
-   * الشكل المرئي عادةً، وتفريق المرجع بهما يجزّئ صفحة واحدة إلى مراجع
-   * زائفة متعدّدة.
+   * **مقاس الصفحة وحده يُرسَل — لا أصلها ولا مسارها.**
    *
-   * **`viewport` ثابت على `'custom'` مؤقّتًا**: تصنيف المقاس الحيّ إلى إحدى
-   * الفئات الأربع (`desktop`/`tablet`/`phone`/`custom`) يحتاج حدودًا لا
-   * مصدر لها بعد — لا `Rasd_Plan.md` ولا `Rasd_Ar.md` يذكران أرقامًا، وصفحة
-   * `compare / viewports` (`127:315`، دفعة لاحقة) هي من تبني محاكاة
-   * الأجهزة المسمّاة الثلاثة وعندها فقط يُعرف المقياس الصحيح. حتى ذلك
-   * الحين: مرجعٌ واحد لكل صفحة بفئة واحدة، لا أربعة.
+   * الأصل والمسار يبنيهما `pageKeyFromTab` في الخلفية من التبويب نفسه:
+   * المصدر الموثوق ما يعرفه المتصفّح لا ما تدّعيه الصفحة (نفس قاعدة
+   * `colour/save`). أمّا المقاس فمعرفةُ الصفحة وحدها ولا سبيل لاشتقاقه
+   * من `tabId`، فيُرسَل صراحةً — نفس منطق `dpr` في `capture/run`.
+   *
+   * **ثابت على `'custom'` مؤقّتًا**: تصنيف المقاس الحيّ إلى الفئات الأربع
+   * (`desktop`/`tablet`/`phone`/`custom`) يحتاج حدودًا لا مصدر لها بعد —
+   * لا `Rasd_Plan.md` ولا `Rasd_Ar.md` يذكران أرقامًا، وصفحة
+   * `compare / viewports` (`127:315`) هي من تبني محاكاة الأجهزة المسمّاة
+   * وعندها فقط يُعرف المقياس الصحيح. حتى ذلك الحين: مرجعٌ واحد لكل صفحة.
    */
-  const pageKey = (): PageKey => ({
-    origin: win.location.origin,
-    path: win.location.pathname,
-    viewport: 'custom',
-  })
+  const referenceViewport = 'custom' as const
 
   /** عنوان الكائن الحيّ للمرجع المعروض — يُحرَّر صراحةً قبل أيّ استبدال أو عند التفكيك. */
   let referenceObjectUrl: string | null = null
@@ -437,22 +428,19 @@ async function bootOverlay(
   /**
    * يستدعي مرجع هذه الصفحة المحفوظ عند دخول وضع المقارنة.
    *
-   * يعمل بلا صلاحية مضيف: قراءة IndexedDB من سكربت محتوى يعمل فعلًا على
-   * الصفحة نفس أصلها دومًا، لا طلب عابر أصل. الصلاحية الاختيارية (دفعة
-   * لاحقة) تلزم للبقاء عبر **تنقّل** (تحميل صفحة جديد) لا عبر إعادة دخول
-   * الوضع نفسه في نفس الجلسة.
+   * **عبر الخلفية لا مباشرةً**: سكربت المحتوى يعمل بأصل الصفحة المزارة،
+   * فـ`indexedDB` عنده قاعدة الموقع لا قاعدة رصد — انظر الصفّ 78 في
+   * `Rasd_Plan.md §6` وتعليل `reference/load` في `contract.ts`.
    */
   const loadStoredReference = (): void => {
     if (compare.state.reference.peek()) return
     const myEpoch = ++referenceEpoch
     void (async () => {
-      const found = await findReferenceForPage(pageKey())
+      const found = await send('reference/load', { viewport: referenceViewport })
       if (!found.ok || !found.value) return
       if (referenceEpoch !== myEpoch) return
-      const blob = await blobs.get(found.value.blobId)
-      if (!blob.ok) return
       try {
-        const image = await loadReferenceImage(blob.value.blob)
+        const image = await loadReferenceImage(base64ToBlob(found.value.base64, found.value.mime))
         // الفحص النهائي **بعد كل انتظار** — محاولة أحدث (تنقّل، مغادرة
         // الوضع، أو تعيين يدوي جديد) سبقت هذه النتيجة فلا تُطبَّق، ويُحرَّر
         // عنوان الكائن الذي أُنشئ للتوّ كي لا يتسرَّب.
@@ -467,24 +455,36 @@ async function bootOverlay(
     })()
   }
 
-  /** يعيّن لقطة أو صورة مرفوعة مرجعًا: يحفظها في `references` ثم يُحمِّلها حيًّا فورًا. */
+  /**
+   * يعيّن لقطة أو صورة مرفوعة مرجعًا — الكتابة في الخلفية، والردّ يحمل
+   * البايتات المكتوبة توًّا فلا نداء قراءة ثانٍ بعده.
+   */
   const setCompareReferenceFromBlob = (source: { captureId: string } | { image: Blob }): void => {
     const myEpoch = ++referenceEpoch
     void (async () => {
-      const key = pageKey()
-      const written =
+      const payload =
         'captureId' in source
-          ? await assignCaptureAsReference(source.captureId, key, null)
-          : await assignImageAsReference(source.image, key, null)
+          ? ({ kind: 'capture', captureId: source.captureId } as const)
+          : ({
+              kind: 'image',
+              base64: await blobToBase64(source.image),
+              mime: source.image.type,
+            } as const)
+      if (referenceEpoch !== myEpoch) return
+
+      const written = await send('reference/set', {
+        viewport: referenceViewport,
+        source: payload,
+      })
       if (!written.ok) {
         console.warn(`[رصد] تعذّر حفظ المرجع: ${written.error.message}`)
         return
       }
       if (referenceEpoch !== myEpoch) return
-      const blob = await blobs.get(written.value.blobId)
-      if (!blob.ok) return
       try {
-        const image = await loadReferenceImage(blob.value.blob)
+        const image = await loadReferenceImage(
+          base64ToBlob(written.value.base64, written.value.mime),
+        )
         // نفس الحارس النهائي أعلاه — انظر تعليق `loadStoredReference`.
         if (referenceEpoch !== myEpoch) {
           URL.revokeObjectURL(image.url)
@@ -554,21 +554,29 @@ async function bootOverlay(
         source: pinned.source,
       })
     },
-    /*
-     * **«استخدم آخر لقطة» غير موصولة عمدًا — لأنها لا تستطيع أن تعمل بعد.**
+    /**
+     * **«استخدم آخر لقطة» — عادت بعد إصلاح موضع التخزين (الصفّ 78).**
      *
-     * كانت موصولة بـ`setCompareReferenceFromBlob({ captureId })`، وذلك
-     * المسار يقرأ مخزن `captures` من **سكربت المحتوى** — وسكربت المحتوى
-     * يعمل بأصل صفحة المضيف لا بأصل الإضافة، فـ`indexedDB` عنده قاعدة
-     * الموقع المزار لا قاعدة رصد. قِيس مباشرةً: `location.origin` في
-     * السكربت هو الموقع، و`indexedDB.databases()` فارغة، ولا يرى ما كتبه
-     * الـservice worker. واللقطات تُحفَظ في الخلفية دومًا (لا
-     * `captureVisibleTab` لسكربت محتوى) — فالقراءة كانت تعود `not-found`
-     * **دائمًا**، في كل مسار، لا في الالتقاط الكامل وحده.
+     * كانت تقرأ `captures` من سكربت المحتوى فتُخفق دومًا (قاعدة الموقع لا
+     * قاعدة رصد)، فأُوقفت. والآن القراءة في الخلفية حيث المخزن فعلًا.
      *
-     * فتُحذَف الوصلة بدل زرٍّ لا يفعل شيئًا (سابقة المرحلة 7)، ويعود مع
-     * إصلاح موضع التخزين نفسه — انظر الصفّ 78 في `Rasd_Plan.md §6`.
+     * **ولا تعتمد على `lastCapture` وحده**: ذاك المتغيّر لا يُملأ إلا
+     * بالتقاطٍ قادته الصفحة (منطقة · عنصر · جزء ظاهر)، بينما الالتقاط
+     * الكامل تقوده الخلفية ولا يمرّ بها أصلًا — فكان الزرّ صامتًا بعد
+     * أكثر التقاطٍ يستحقّ مقارنة. الرجوع إلى `capture/latest` يغطّي
+     * الحالتين بمصدر واحد.
      */
+    onCompareUseLastCapture: () => {
+      if (lastCapture) {
+        setCompareReferenceFromBlob({ captureId: lastCapture.id })
+        return
+      }
+      void (async () => {
+        const latest = await send('capture/latest', undefined)
+        if (!latest.ok || !latest.value) return
+        setCompareReferenceFromBlob({ captureId: latest.value.id })
+      })()
+    },
     onCompareDropImage: (file) => setCompareReferenceFromBlob({ image: file }),
     onComparePasteImage: (file) => setCompareReferenceFromBlob({ image: file }),
     fullPage,

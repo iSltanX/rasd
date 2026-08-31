@@ -66,6 +66,7 @@
 | الالتقاط          | `capture/run` · `capture/start` · `capture/blob` · `capture/hide-overlay` · `capture/show-overlay`      | داخلية (يقودها التفعيل) | `pnpm verify:capture`            |
 | الالتقاط الكامل   | `fullpage/prepare` · `fullpage/step` · `fullpage/finish` · `fullpage/cancel`                            | داخلية                  | `pnpm verify:fullpage`           |
 | اللون             | `colour/frame` · `colour/save`                                                                          | داخلية                  | `pnpm verify:colour`             |
+| المقارنة          | `reference/load` · `reference/set` · `capture/latest`                                                   | داخلية                  | `pnpm verify:compare`            |
 | الفحص             | `inspect/report` · `inspect/get`                                                                        | داخلية                  | `pnpm verify:inspect`            |
 | الصفحات           | `page/open`                                                                                             | نقطة دخول               | `pnpm verify:popup`              |
 | الحالة والإعدادات | `session/get` · `session/patch` · `settings/get` · `settings/patch` · `settings/reset`                  | داخلية                  | `pnpm test` (وحدات)              |
