@@ -38,3 +38,5 @@ export type {
 } from './inspect/InspectPanel'
 export { ReferenceOverlay } from './compare/ReferenceOverlay'
 export type { ReferenceOverlayProps } from './compare/ReferenceOverlay'
+export { ComparePanel, CompareIdle } from './compare/ComparePanel'
+export type { ComparePanelProps, CompareIdleProps } from './compare/ComparePanel'

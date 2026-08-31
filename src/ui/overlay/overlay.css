@@ -1732,3 +1732,325 @@
   max-width: none; /* لا `max-width: 100%` موروثة تمنع مقاسًا طبيعيًا أكبر من الطبقة. */
   user-select: none;
 }
+
+/* ── لوحة المقارنة ───────────────────────────────────────────────── */
+
+/*
+ * نفس هيكل `.rasd-ov-cp` (لوحة اللون) حرفًا بحرف — بادئة `cmp` مستقلّة لا
+ * إعادة استعمال مباشرة: كل لوحة في هذه الطبقة لها بادئتها الخاصّة
+ * (`insp`/`cp`)، فالتوحيد هنا بصريّ (نفس التوكنز والمقاسات) لا بنيويّ.
+ * `--rasd-tool-compare-*` هو لون الأداة المخصَّص لها في نظام التصميم
+ * (مبنيّ منذ توليد التوكنز — `public/assets/tokens.css`)، مطابقةً لاستعمال
+ * `--rasd-tool-colors-*` في لوحة اللون.
+ */
+.rasd-ov-cmp {
+  direction: rtl;
+  display: flex;
+  flex-direction: column;
+  inline-size: var(--rasd-ov-cmp-w);
+  border-radius: var(--rasd-radius-xl);
+  background: var(--rasd-overlay-glass);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  box-shadow: var(--rasd-elevation-4);
+  backdrop-filter: blur(24px) saturate(140%); /* rasd-allow-literal: نفس تبرير .rasd-ov-cp */
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-primary);
+  pointer-events: auto;
+
+  --rasd-ov-cmp-w: 21.25rem; /* rasd-allow-literal: عرض 340px، مقيس من `69:104` */
+}
+
+.rasd-ov-cmp-idle {
+  --rasd-ov-cmp-w: 21.25rem; /* rasd-allow-literal: عرض 340px، مقيس من `96:605` */
+
+  gap: var(--rasd-space-16);
+  padding: var(--rasd-space-24);
+  align-items: flex-start;
+}
+
+.rasd-ov-cmp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--rasd-space-12) var(--rasd-space-16);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+}
+
+.rasd-ov-cmp-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  font-weight: 600;
+  color: var(--rasd-tool-compare-fg);
+}
+
+.rasd-ov-cmp-icon,
+.rasd-ov-cmp-vp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--rasd-radius-sm);
+  background: transparent;
+  color: var(--rasd-icon-secondary);
+  cursor: pointer;
+}
+
+.rasd-ov-cmp-icon {
+  inline-size: var(--rasd-space-24);
+  block-size: var(--rasd-space-24);
+  flex: none;
+}
+
+.rasd-ov-cmp-icon:hover,
+.rasd-ov-cmp-vp-btn:hover {
+  background: var(--rasd-surface-hover);
+  color: var(--rasd-icon-primary);
+}
+
+.rasd-ov-cmp-icon:focus-visible,
+.rasd-ov-cmp-btn:focus-visible,
+.rasd-ov-cmp-tab:focus-visible,
+.rasd-ov-cmp-vp-btn:focus-visible {
+  outline: var(--rasd-stroke-medium) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-space-2);
+}
+
+/* ── الوضع — أربعة تبويبات (69:112–69:115)، لا شريحتان مقسومتان ── */
+
+.rasd-ov-cmp-mode {
+  display: flex;
+  gap: var(--rasd-space-4);
+  margin: var(--rasd-space-16);
+  padding: var(--rasd-space-4);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-sunken);
+}
+
+.rasd-ov-cmp-tab {
+  flex: 1;
+  border: 0;
+  border-radius: var(--rasd-radius-sm);
+  background: transparent;
+  color: var(--rasd-text-secondary);
+  font: inherit;
+  font-size: var(--rasd-font-size-2xs);
+  padding-block: var(--rasd-space-8);
+  cursor: pointer;
+}
+
+.rasd-ov-cmp-tab[aria-selected='true'] {
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-tool-compare-fg);
+  font-weight: 600;
+  box-shadow: var(--rasd-elevation-1);
+}
+
+/* ── المنزلقان ────────────────────────────────────────────────────── */
+
+.rasd-ov-cmp-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-14);
+  padding: 0 var(--rasd-space-16) var(--rasd-space-16);
+}
+
+.rasd-ov-cmp-slider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+}
+
+.rasd-ov-cmp-slider[data-inactive='true'] {
+  opacity: 0.5;
+}
+
+.rasd-ov-cmp-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rasd-ov-cmp-slider-value {
+  font-family: var(--rasd-font-family-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.rasd-ov-cmp-slider-label {
+  color: var(--rasd-text-secondary);
+}
+
+/*
+ * `input[type=range]` أصلي شفّاف فوق مسار وتعبئة ومقبض زخرفيَّين — نفس
+ * تقنية `ui/components/Slider/Slider.module.css` منقولة إلى CSS عادية
+ * (لا وحدات هنا، انظر رأس الملفّ). `--rasd-ov-cmp-slider-value` تُحسَب من
+ * خاصّية `value` نفسها عبر `style` مضمَّنة في المكوّن — لا حاجة لسلك JS
+ * إضافي، ودعم المتصفّح لـ`::slider-track`/`::slider-thumb` (بلا بادئة)
+ * ليس عامًّا بعد فبقيت التقنية القديمة الموثوقة.
+ */
+.rasd-ov-cmp-slider input[type='range'] {
+  appearance: none;
+  position: relative;
+  inline-size: 100%;
+  block-size: var(--rasd-space-16);
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.rasd-ov-cmp-slider input[type='range']::-webkit-slider-runnable-track {
+  block-size: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-sunken);
+}
+
+.rasd-ov-cmp-slider input[type='range']::-moz-range-track {
+  block-size: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-sunken);
+}
+
+.rasd-ov-cmp-slider input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  inline-size: var(--rasd-space-16);
+  block-size: var(--rasd-space-16);
+  margin-block-start: calc((var(--rasd-space-6) - var(--rasd-space-16)) / 2);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-text-on-brand);
+  border: var(--rasd-stroke-medium) solid var(--rasd-tool-compare-fg);
+  box-shadow: var(--rasd-elevation-1);
+}
+
+.rasd-ov-cmp-slider input[type='range']::-moz-range-thumb {
+  inline-size: var(--rasd-space-16);
+  block-size: var(--rasd-space-16);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-text-on-brand);
+  border: var(--rasd-stroke-medium) solid var(--rasd-tool-compare-fg);
+  box-shadow: var(--rasd-elevation-1);
+}
+
+.rasd-ov-cmp-slider input[type='range']:disabled {
+  cursor: not-allowed;
+}
+
+.rasd-ov-cmp-slider input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: var(--rasd-stroke-medium) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+
+/* ── صفّ المقاس ───────────────────────────────────────────────────── */
+
+.rasd-ov-cmp-viewport {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--rasd-space-12) var(--rasd-space-16);
+  border-block: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+}
+
+.rasd-ov-cmp-vp-btn {
+  gap: var(--rasd-space-8);
+  padding-inline: var(--rasd-space-10);
+  padding-block: var(--rasd-space-6);
+  color: var(--rasd-text-primary);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+}
+
+.rasd-ov-cmp-vp-note {
+  color: var(--rasd-text-tertiary);
+  font-size: var(--rasd-font-size-2xs);
+}
+
+/* ── الإجراءات ────────────────────────────────────────────────────── */
+
+.rasd-ov-cmp-actions {
+  display: flex;
+  gap: var(--rasd-space-8);
+  padding: var(--rasd-space-10) var(--rasd-space-12);
+}
+
+.rasd-ov-cmp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-8);
+  flex: 1;
+  min-block-size: var(--rasd-space-36);
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.rasd-ov-cmp-btn:hover {
+  background: var(--rasd-surface-hover);
+}
+
+/* ── لوحة الخمول («لا مرجع») ──────────────────────────────────────── */
+
+.rasd-ov-cmp-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--rasd-space-48);
+  block-size: var(--rasd-space-48);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-tool-compare-surface);
+  border: var(--rasd-stroke-thin) solid var(--rasd-tool-compare-border);
+  color: var(--rasd-tool-compare-fg);
+}
+
+.rasd-ov-cmp-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+}
+
+.rasd-ov-cmp-h {
+  margin: 0;
+  font-family: var(--rasd-font-family-display), var(--rasd-font-family-text), sans-serif;
+  font-weight: 700;
+  font-size: var(--rasd-font-size-md);
+}
+
+.rasd-ov-cmp-desc {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+  line-height: 1.6;
+}
+
+.rasd-ov-cmp-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-8);
+  inline-size: 100%;
+  padding: var(--rasd-space-20);
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-medium) dashed var(--rasd-border-default);
+  color: var(--rasd-text-tertiary);
+  text-align: center;
+}
+
+.rasd-ov-cmp-dropzone[data-drag-over='true'] {
+  border-color: var(--rasd-tool-compare-border);
+  background: var(--rasd-tool-compare-surface);
+  color: var(--rasd-tool-compare-fg);
+}
+
+.rasd-ov-cmp-idle-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+  inline-size: 100%;
+}
+
+.rasd-ov-cmp-idle-actions .rasd-ov-cmp-btn {
+  justify-content: space-between;
+}
