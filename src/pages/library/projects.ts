@@ -82,6 +82,69 @@ export async function moveCapturesToProject(
   return ok(moved)
 }
 
+/**
+ * ينقل لوحات/ألوان/مراجع/أدلة مُحدَّدة إلى مشروع — نفس نمط
+ * `moveCapturesToProject` أعلاه حرفيًّا، أربع مرّات لأربعة أنواع. سدّ فجوة
+ * التسليم المسجَّلة في `Phase_18.md §4/§8`: الحقل `projectId` مبنيّ منذ
+ * المرحلة 3 على الأنواع الأربعة (`schema.ts`)، ولم تكن واجهة تكتبه قبل
+ * هذه الدفعة.
+ */
+export async function moveColorsToProject(
+  ids: readonly string[],
+  projectId: string | null,
+): Promise<Result<number>> {
+  let moved = 0
+  for (const id of ids) {
+    const found = await colors.get(id)
+    if (!found.ok) continue
+    const written = await colors.put({ ...found.value, projectId })
+    if (written.ok) moved += 1
+  }
+  return ok(moved)
+}
+
+export async function movePalettesToProject(
+  ids: readonly string[],
+  projectId: string | null,
+): Promise<Result<number>> {
+  let moved = 0
+  for (const id of ids) {
+    const found = await palettes.get(id)
+    if (!found.ok) continue
+    const written = await palettes.put({ ...found.value, projectId })
+    if (written.ok) moved += 1
+  }
+  return ok(moved)
+}
+
+export async function moveReferencesToProject(
+  ids: readonly string[],
+  projectId: string | null,
+): Promise<Result<number>> {
+  let moved = 0
+  for (const id of ids) {
+    const found = await references.get(id)
+    if (!found.ok) continue
+    const written = await references.put({ ...found.value, projectId })
+    if (written.ok) moved += 1
+  }
+  return ok(moved)
+}
+
+export async function moveGuidesToProject(
+  ids: readonly string[],
+  projectId: string | null,
+): Promise<Result<number>> {
+  let moved = 0
+  for (const id of ids) {
+    const found = await guides.get(id)
+    if (!found.ok) continue
+    const written = await guides.put({ ...found.value, projectId })
+    if (written.ok) moved += 1
+  }
+  return ok(moved)
+}
+
 /** ينقل كل ما يشير إلى `fromProjectId` في مخزن واحد إلى `toProjectId` — خطوة واحدة من خمس. */
 async function reassignCaptures(
   fromProjectId: string,

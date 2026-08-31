@@ -132,6 +132,23 @@ export async function putCaptureWithBlob(
  * وينطبق المنطق نفسه حرفيًّا على المصغَّرة المضافة في المرحلة 18: مصغَّرة
  * بلا لقطة أصلية بايتاتٌ ميتة لا يشير إليها شيء.
  */
+/**
+ * يحذف مرجعًا وبايتاته معًا — نفس منطق `deleteCaptureWithBlob` أعلاه
+ * حرفيًّا: `blobId` بلا سجلّ `blobs` مطابق له بايتاتٌ ميتة لا يشير إليها
+ * شيء (المرحلة 18، دورة إكمال الحذف والنقل بلا مشروع).
+ */
+export async function deleteReferenceWithBlob(id: string, blobId: string): Promise<Result<null>> {
+  return withDb(async (db) => {
+    const tx = db.transaction(['references', 'blobs'], 'readwrite')
+    await Promise.all([
+      tx.objectStore('references').delete(id),
+      tx.objectStore('blobs').delete(blobId),
+      tx.done,
+    ])
+    return null
+  })
+}
+
 export async function deleteCaptureWithBlob(id: string): Promise<Result<null>> {
   return withDb(async (db) => {
     const tx = db.transaction(['captures', 'blobs', 'annotations', 'thumbnails'], 'readwrite')

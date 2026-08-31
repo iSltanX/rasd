@@ -401,6 +401,69 @@ if (!librarySession) {
       else fail('شريط إجراءات التحديد لم يظهر')
       await evalIn(S, `document.querySelector('[aria-label="إلغاء التحديد"]')?.click()`)
 
+      // ── حذف ونقل غير اللقطات — سدّ فجوة §4/§8 من Phase_18.md ───────
+      // window.confirm الحقيقي يوقف الأتمتة بحوار نظام لا يُغلَق برمجيًا؛
+      // يُستبدَل هنا فقط، ولا حاجة لاستعادته — لا خطوة لاحقة تعتمد رفضه.
+      await evalIn(S, `window.confirm = () => true`)
+
+      await evalIn(
+        S,
+        `[...document.querySelectorAll('[role="tab"]')].find(t => t.textContent === 'الألوان').click()`,
+      )
+      await waitFor(`document.querySelector('[data-color-id="col1"]') ? 'y' : null`)
+      await evalIn(
+        S,
+        `document.querySelector('[data-color-id="col1"] input[type="checkbox"]').click()`,
+      )
+      await evalIn(S, `document.querySelector('[aria-label="حذف المحدَّد نهائيًا"]').click()`)
+      const colorDeleted = await waitFor(
+        `document.querySelector('[data-color-id="col1"]') ? null : 'y'`,
+      )
+      if (colorDeleted) ok('حذف لون مُحدَّد من الشبكة الحيّة يزيله فعليًا — لا نافذة فحسب')
+      else fail('اللون المحدَّد لم يُحذف من الشبكة')
+
+      await evalIn(
+        S,
+        `[...document.querySelectorAll('[role="tab"]')].find(t => t.textContent === 'اللوحات').click()`,
+      )
+      await waitFor(`document.querySelector('[data-palette-id="pal1"]') ? 'y' : null`)
+      await evalIn(
+        S,
+        `document.querySelector('[data-palette-id="pal1"] input[type="checkbox"]').click()`,
+      )
+      await evalIn(
+        S,
+        `(() => {
+        const el = document.querySelector('[aria-label="انقل المحدَّد إلى مشروع"]')
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set
+        setter.call(el, 'proj1')
+        el.dispatchEvent(new Event('change', { bubbles: true }))
+      })()`,
+      )
+      const paletteMoved = await waitFor(
+        `(async () => {
+          const db = await new Promise((res, rej) => {
+            const r = indexedDB.open('rasd')
+            r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error)
+          })
+          const rec = await new Promise((res, rej) => {
+            const req = db.transaction('palettes').objectStore('palettes').get('pal1')
+            req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error)
+          })
+          db.close()
+          return rec && rec.projectId === 'proj1' ? 'y' : null
+        })()`,
+      )
+      if (paletteMoved)
+        ok('نقل لوحة مُحدَّدة إلى مشروع من الشبكة الحيّة يكتب projectId فعليًا في IndexedDB')
+      else fail('نقل اللوحة المحدَّدة إلى مشروع لم يُكتَب في IndexedDB')
+
+      await evalIn(
+        S,
+        `[...document.querySelectorAll('[role="tab"]')].find(t => t.textContent === 'اللقطات').click()`,
+      )
+      await waitFor(`document.querySelector('[data-capture-id]') ? 'y' : null`)
+
       // ── شجرة الإتاحة ─────────────────────────────────────────────
       const a11y = JSON.parse(
         await evalIn(
@@ -464,7 +527,10 @@ if (!librarySession) {
   }
 }
 
-for (const e of pageErrors.slice(0, 6)) fail(`استثناء في الصفحة: ${String(e).slice(0, 200)}`)
+// 800 حرفًا لا 200 — سطر الاستدعاء الحقيقي في مصدر مصغَّر يحتاج مساحة
+// أكبر ممّا يحتاجه سطر انهيار السيناريو (أعلاه)؛ 200 كانت تقطع كل تتبّع
+// خطأ من Icon-*.js في منتصف اسم الملفّ نفسه.
+for (const e of pageErrors.slice(0, 6)) fail(`استثناء في الصفحة: ${String(e).slice(0, 800)}`)
 
 // ── التقرير ─────────────────────────────────────────────────────
 console.log('\n── فحص صفحة المكتبة في Chrome حقيقي ──\n')

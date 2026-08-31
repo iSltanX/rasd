@@ -7,6 +7,10 @@ import {
   deleteProject,
   loadProjects,
   moveCapturesToProject,
+  moveColorsToProject,
+  moveGuidesToProject,
+  movePalettesToProject,
+  moveReferencesToProject,
   renameProject,
   setProjectColor,
 } from '@/pages/library/projects'
@@ -116,6 +120,80 @@ describe('moveCapturesToProject', () => {
     await captures.put(capture('a'))
     const moved = await moveCapturesToProject(['a', 'لا-وجود'], 'p1')
     expect(moved.ok && moved.value).toBe(1)
+  })
+})
+
+describe('moveColorsToProject / movePalettesToProject / moveReferencesToProject / moveGuidesToProject', () => {
+  it('moveColorsToProject ينقل الألوان المُحدَّدة بلا مسّ الباقي', async () => {
+    await colors.putMany([
+      {
+        id: 'c1',
+        hex: '#111',
+        name: '',
+        note: '',
+        source: 'pixel',
+        projectId: null,
+        sourceUrl: null,
+        createdAt: NOW,
+      },
+      {
+        id: 'c2',
+        hex: '#222',
+        name: '',
+        note: '',
+        source: 'pixel',
+        projectId: null,
+        sourceUrl: null,
+        createdAt: NOW,
+      },
+    ])
+    const created = await createProject('هدف', '#0090FF', NOW)
+    const projectId = created.ok ? created.value.id : ''
+
+    const moved = await moveColorsToProject(['c1'], projectId)
+    expect(moved.ok && moved.value).toBe(1)
+
+    const c1 = await colors.get('c1')
+    const c2 = await colors.get('c2')
+    expect(c1.ok && c1.value.projectId).toBe(projectId)
+    expect(c2.ok && c2.value.projectId).toBeNull()
+  })
+
+  it('movePalettesToProject بـnull ينقل إلى «بلا مشروع»', async () => {
+    await palettes.put({ id: 'p1', name: 'ل', colors: ['#111'], projectId: 'old', createdAt: NOW })
+    await movePalettesToProject(['p1'], null)
+    const p1 = await palettes.get('p1')
+    expect(p1.ok && p1.value.projectId).toBeNull()
+  })
+
+  it('moveReferencesToProject ينقل المراجع المُحدَّدة', async () => {
+    await references.put({
+      id: 'r1',
+      projectId: null,
+      origin: 'https://a.com',
+      path: '/',
+      viewport: 'desktop',
+      blobId: 'b1',
+      createdAt: NOW,
+    })
+    const created = await createProject('هدف', '#0090FF', NOW)
+    const projectId = created.ok ? created.value.id : ''
+
+    const moved = await moveReferencesToProject(['r1'], projectId)
+    expect(moved.ok && moved.value).toBe(1)
+    const r1 = await references.get('r1')
+    expect(r1.ok && r1.value.projectId).toBe(projectId)
+  })
+
+  it('moveGuidesToProject ينقل الأدلة المُحدَّدة، ومعرِّف غير موجود يُتجاهَل بصمت', async () => {
+    await guides.put({ id: 'g1', title: 'دليل', projectId: null, captureIds: [], createdAt: NOW })
+    const created = await createProject('هدف', '#0090FF', NOW)
+    const projectId = created.ok ? created.value.id : ''
+
+    const moved = await moveGuidesToProject(['g1', 'لا-وجود'], projectId)
+    expect(moved.ok && moved.value).toBe(1)
+    const g1 = await guides.get('g1')
+    expect(g1.ok && g1.value.projectId).toBe(projectId)
   })
 })
 

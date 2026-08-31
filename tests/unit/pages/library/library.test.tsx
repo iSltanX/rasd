@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 
 import { render } from 'preact'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Library } from '@/pages/library/Library'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
@@ -216,7 +216,7 @@ describe('Library — التبويبات', () => {
     expect(root.querySelector('[role="toolbar"]')).toBeFalsy()
   })
 
-  it('تبويب المراجع والأدلّة واللوحات: تحديد بلا شريط إجراءات غنيّ — عدّاد وإلغاء فقط', async () => {
+  it('تبويب المراجع والأدلّة واللوحات: تحديد بشريط SimpleSelectionBar — حذف ونقل، لا تفضيل ولا أرشفة ولا وسم', async () => {
     await guides.put({ id: 'g1', title: 'دليل', projectId: null, captureIds: [], createdAt: NOW })
     const root = await mount()
     clickTab(root, 'أدلة الخطوات')
@@ -229,9 +229,183 @@ describe('Library — التبويبات', () => {
     await flush()
 
     expect(root.textContent).toContain('محدَّدة')
-    // لا أيقونات إجراء جماعي (تفضيل/أرشفة/مهملات) — القسم لا ينطبق على الأدلّة.
+    // الحذف موجود فعليًا — سدّ فجوة `Phase_18.md §4/§8` — لا أيقونات اللقطات
+    // (تفضيل/أرشفة/مهملات/وسم) التي لا معنى لها على الأدلّة.
+    expect(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]')).toBeTruthy()
     expect(root.querySelector('[aria-label="تفضيل المحدَّد"]')).toBeFalsy()
+    expect(root.querySelector('[aria-label="أرشفة المحدَّد"]')).toBeFalsy()
+    expect(root.querySelector('input[name="tag"]')).toBeFalsy()
   })
+
+  it('حذف لون مُحدَّد من تبويب الألوان يزيله من الشبكة فعليًا', async () => {
+    await colors.put({
+      id: 'col1',
+      hex: '#3B82F6',
+      name: 'أزرق',
+      note: '',
+      source: 'manual',
+      projectId: null,
+      sourceUrl: null,
+      createdAt: NOW,
+    })
+    const root = await mount()
+    clickTab(root, 'الألوان')
+    await waitFor(() => root.querySelector('[data-color-id="col1"]') !== null)
+
+    // happy-dom لا يعرِّف window.confirm أصلًا — الاستدعاء الشرطي يتفادى
+    // استثناء `.bind` على undefined (نفس نمط selection-bar.test.tsx).
+    const originalConfirm: typeof window.confirm = window.confirm?.bind(window)
+    window.confirm = () => true
+    ;(
+      root.querySelector('[data-color-id="col1"] input[type="checkbox"]') as HTMLInputElement
+    ).click()
+    await flush()
+    ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
+    await waitFor(() => root.querySelector('[data-color-id="col1"]') === null)
+    window.confirm = originalConfirm
+
+    expect((await colors.get('col1')).ok).toBe(false)
+  })
+
+  it('رفض تأكيد الحذف يُبقي السجلّ كما هو', async () => {
+    await colors.put({
+      id: 'col1',
+      hex: '#3B82F6',
+      name: 'أزرق',
+      note: '',
+      source: 'manual',
+      projectId: null,
+      sourceUrl: null,
+      createdAt: NOW,
+    })
+    const root = await mount()
+    clickTab(root, 'الألوان')
+    await waitFor(() => root.querySelector('[data-color-id="col1"]') !== null)
+
+    // happy-dom لا يعرِّف window.confirm أصلًا — الاستدعاء الشرطي يتفادى
+    // استثناء `.bind` على undefined (نفس نمط selection-bar.test.tsx).
+    const originalConfirm: typeof window.confirm = window.confirm?.bind(window)
+    window.confirm = () => false
+    ;(
+      root.querySelector('[data-color-id="col1"] input[type="checkbox"]') as HTMLInputElement
+    ).click()
+    await flush()
+    ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
+    await flush()
+    window.confirm = originalConfirm
+
+    expect(root.querySelector('[data-color-id="col1"]')).toBeTruthy()
+    expect((await colors.get('col1')).ok).toBe(true)
+  })
+
+  it('نقل لوحة مُحدَّدة إلى مشروع عبر SimpleSelectionBar يكتب projectId فعليًا', async () => {
+    await palettes.put({
+      id: 'pal1',
+      name: 'لوحة الفحص',
+      colors: ['#111', '#222'],
+      projectId: null,
+      createdAt: NOW,
+    })
+    const { createProject } = await import('@/pages/library/projects')
+    const created = await createProject('مشروع الفحص', '#0090FF', NOW)
+    const projectId = created.ok ? created.value.id : ''
+
+    const root = await mount()
+    clickTab(root, 'اللوحات')
+    await waitFor(() => root.querySelector('[data-palette-id="pal1"]') !== null)
+    ;(
+      root.querySelector('[data-palette-id="pal1"] input[type="checkbox"]') as HTMLInputElement
+    ).click()
+    await flush()
+
+    const select = root.querySelector('[aria-label="انقل المحدَّد إلى مشروع"]') as HTMLSelectElement
+    select.value = projectId
+    select.dispatchEvent(new Event('change'))
+
+    await waitFor(async () => {
+      const found = await palettes.get('pal1')
+      return found.ok && found.value.projectId === projectId
+    })
+  })
+
+  it(
+    'حذف بطيء على تبويب ثم تبديل فوري إلى آخر لا يُعلِّقه على سكيلتون تحميل دائم — ' +
+      'مراجعة خصمة كشفت أن الحارس المتأخّر وحده لا يكفي',
+    async () => {
+      await colors.put({
+        id: 'col1',
+        hex: '#111',
+        name: '',
+        note: '',
+        source: 'manual',
+        projectId: null,
+        sourceUrl: null,
+        createdAt: NOW,
+      })
+      await guides.put({ id: 'g1', title: 'دليل', projectId: null, captureIds: [], createdAt: NOW })
+
+      /**
+       * حذفٌ بطيء متحكَّم فيه — لا حلقة حقيقية على مئات العناصر: هذا يضمن
+       * ترتيب السباق بدل الاتّكال على أن IndexedDB الوهمية تصادف أن تكون
+       * بطيئة كفاية. **التعليق على `colors.get` لا `bulk-delete.deleteColors`
+       * نفسها عمدًا**: `Library.tsx` يستهلك `deleteColors` عبر جدول
+       * `DELETE_FN_FOR_TAB` — كائن حرفي يُقيَّم مرّة عند تحميل الوحدة، فيجمّد
+       * مرجع الدالّة وقتها؛ محاولة أولى استعملت `vi.spyOn` على وحدة
+       * `bulk-delete` نفسها فلم يُعلَّق النداء الفعلي إطلاقًا (0 نداءات
+       * مُقاسة) — التجميد يكسر الربط الحيّ. `colors.get` كائن مستودعٍ
+       * (`repository.ts`) لا كائنًا حرفيًّا، وتُستدعى خاصّيته حيًّا عند كل
+       * نداء داخل `deleteColors` نفسها، فتُعلَّق فعليًّا.
+       */
+      const realGet = colors.get.bind(colors)
+      // كائنٌ لا متغيّر `let` مباشر — تضييق التحكّم بالتدفّق (control-flow
+      // narrowing) لـTypeScript يُعامل إعادة الإسناد داخل مُنفِّذ Promise
+      // بتشدّدٍ يُخطئ معه أحيانًا؛ الخاصّية تتفادى ذلك.
+      const gate: { release: (() => void) | null } = { release: null }
+      const getSpy = vi.spyOn(colors, 'get').mockImplementation(async (id) => {
+        await new Promise<void>((resolve) => {
+          gate.release = resolve
+        })
+        return realGet(id)
+      })
+
+      const root = await mount()
+      clickTab(root, 'الألوان')
+      await waitFor(() => root.querySelector('[data-color-id="col1"]') !== null)
+
+      const originalConfirm: typeof window.confirm = window.confirm?.bind(window)
+      window.confirm = () => true
+      ;(
+        root.querySelector('[data-color-id="col1"] input[type="checkbox"]') as HTMLInputElement
+      ).click()
+      await flush()
+      ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
+      await flush()
+      // الحذف بدأ الآن — deleteColors علِقت داخل أوّل await لـcolors.get،
+      // ووعدها لم يُحلّ بعد.
+      expect(getSpy).toHaveBeenCalled()
+
+      // تبديلٌ فوريّ قبل أن يُتمّ الحذف البطيء.
+      clickTab(root, 'أدلة الخطوات')
+      await waitFor(() => root.querySelector('[data-guide-id="g1"]') !== null)
+      expect(root.querySelector('[aria-busy="true"]')).toBeFalsy()
+
+      // والآن يُتمّ الحذف البطيء متأخّرًا — بعد أن استقرّ تبويب الأدلّة فعلًا.
+      gate.release?.()
+      await flush()
+      await flush()
+      await flush()
+
+      // العطل المُصلَح: كان استدعاء reload() المتأخّر (من إغلاق تبويب
+      // الألوان القديم) يكتب `loading` فورًا عند بدايته بلا حارسٍ يفحصه،
+      // فيُعلَّق تبويب الأدلّة على سكيلتون تحميل لا يزول أبدًا رغم أن
+      // بياناته الصحيحة عُرضت بالفعل قبل لحظة.
+      expect(root.querySelector('[aria-busy="true"]')).toBeFalsy()
+      expect(root.querySelector('[data-guide-id="g1"]')).toBeTruthy()
+
+      window.confirm = originalConfirm
+      getSpy.mockRestore()
+    },
+  )
 
   it('تبويب المراجع يحمِّل ويعرض المرجع المحفوظ', async () => {
     await references.put({

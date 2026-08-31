@@ -1,15 +1,20 @@
 /**
  * صفحة المكتبة — الحاوية الجذر.
  *
- * هذه الدفعة (الثامنة) تُضيف الوسوم (§10.3) وعرضَي الأرشيف والمهملات
- * ومؤشِّر الحصة — آخر محتوى المرحلة قبل دفعة الإغلاق. فوق التبويبات
- * الخمسة (السابعة) ولوحة المشاريع (السادسة) وشريط الأدوات (الخامسة)
- * والشبكة الافتراضية (الرابعة).
+ * الدفعة الثامنة أضافت الوسوم (§10.3) وعرضَي الأرشيف والمهملات ومؤشِّر
+ * الحصة، فوق التبويبات الخمسة (السابعة) ولوحة المشاريع (السادسة) وشريط
+ * الأدوات (الخامسة) والشبكة الافتراضية (الرابعة).
  *
  * **مبدِّل العرض (نشِطة/الأرشيف/المهملات) والوسوم مقصوران على تبويب
  * اللقطات**: `ARCHIVE_FILTERS`/`TRASH_FILTERS`/`tags` كلّها مبنيّة على
  * `CaptureRecord` — نفس حدّ التصفية والترتيب من الدفعة الخامسة، الآن ممتدّ
  * إلى العرض والوسوم بنفس التعليل بالضبط.
+ *
+ * **إضافة لاحقة لدفعة الإغلاق**: التحديد المتعدّد للتبويبات الأربعة غير
+ * اللقطات كان يعرض شريطًا بلا فعل حقيقي (إلغاء فقط) — فجوة سُجِّلت في
+ * `Phase_18.md §4/§8` كشرط تسليم للمرحلة 16 ولم تُبنَ في الإغلاق نفسه.
+ * سُدّت هنا: `SimpleSelectionBar` يمنح هذه الأنواع حذفًا نهائيًا (لا مهملات
+ * لها) ونقلًا إلى مشروع — عبر `DELETE_FN_FOR_TAB`/`MOVE_FN_FOR_TAB` أدناه.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
@@ -33,6 +38,7 @@ import { SegmentedControl } from '@/ui/components/SegmentedControl/SegmentedCont
 import { Skeleton } from '@/ui/components/Skeleton/Skeleton'
 import { Tabs, type TabItem } from '@/ui/components/Tabs/Tabs'
 
+import { deleteColors, deleteGuides, deletePalettes, deleteReferences } from './bulk-delete'
 import {
   loadCounts,
   loadProjectNames,
@@ -52,6 +58,7 @@ import { QuotaIndicator } from './parts/QuotaIndicator'
 import { ReferenceCard } from './parts/ReferenceCard'
 import { SelectionBar, type LibraryViewMode } from './parts/SelectionBar'
 import { SimpleGrid } from './parts/SimpleGrid'
+import { SimpleSelectionBar } from './parts/SimpleSelectionBar'
 import { TagsPanel } from './parts/TagsPanel'
 import { Toolbar } from './parts/Toolbar'
 import {
@@ -59,12 +66,17 @@ import {
   deleteProject,
   loadProjects,
   moveCapturesToProject,
+  moveColorsToProject,
+  moveGuidesToProject,
+  movePalettesToProject,
+  moveReferencesToProject,
   renameProject,
   setProjectColor,
 } from './projects'
 import { addTagToCaptures, loadTagsWithCounts } from './tags'
 import { browserThumbnailEncoder } from './thumbnail-encoder'
 
+import type { Result } from '@/shared/result'
 import type { QuotaState } from '@/shared/storage/quota'
 import type {
   CaptureRecord,
@@ -106,6 +118,29 @@ const VIEW_MODE_OPTIONS: readonly { value: LibraryViewMode; label: string }[] = 
   { value: 'trashed', label: 'المهملات' },
 ]
 
+/**
+ * حذف ونقل-لمشروع للتبويبات الأربعة غير اللقطات — جدولا تفريع بمعرِّف
+ * ثابت (نفس نمط `EMPTY_KIND_FOR_TAB` أعلاه)، بدل تفريع `if/switch` طويل
+ * داخل كل معالج. `captures` غائب عمدًا: مسارها منفصل (`applyToSelection`
+ * و`onPurgeSelection`) لأن لها دورة مهملات لا تملكها الأنواع الأخرى.
+ */
+const DELETE_FN_FOR_TAB: Partial<
+  Record<LibraryTab, (ids: readonly string[]) => Promise<Result<number>>>
+> = {
+  references: deleteReferences,
+  colors: deleteColors,
+  palettes: deletePalettes,
+  guides: deleteGuides,
+}
+const MOVE_FN_FOR_TAB: Partial<
+  Record<LibraryTab, (ids: readonly string[], projectId: string | null) => Promise<Result<number>>>
+> = {
+  references: moveReferencesToProject,
+  colors: moveColorsToProject,
+  palettes: movePalettesToProject,
+  guides: moveGuidesToProject,
+}
+
 export function Library(): JSX.Element {
   const [activeTab, setActiveTab] = useState<LibraryTab>('captures')
   const [loadState, setLoadState] = useState<LoadState>('loading')
@@ -118,6 +153,26 @@ export function Library(): JSX.Element {
   )
   const [thumbnailUrls, setThumbnailUrls] = useState<Map<string, string | null>>(new Map())
   const pendingThumbs = useRef<Set<string>>(new Set())
+
+  /**
+   * يعكس `activeTab` **حاضرًا** لا لحظة إنشاء إغلاق — انظر `reload()` أدناه.
+   * مرجعٌ لا حالة: قراءته لا تُعيد رسمًا، وهذا بالضبط ما يلزم لحارس يُفحَص
+   * عند بداية `reload()` وبعد `await`ـه معًا.
+   */
+  const activeTabRef = useRef(activeTab)
+  useEffect(() => {
+    activeTabRef.current = activeTab
+  }, [activeTab])
+
+  /**
+   * تذكرة تسلسل لكل استدعاء `reload()` — تكمِّل `activeTabRef` لا تكرّره.
+   * `activeTabRef` يكشف استدعاءً من إغلاقٍ قديم انتقل التبويب عنه تمامًا؛
+   * هذه التذكرة تكشف حالة **أضيق**: استدعاءان متتاليان على **نفس** التبويب
+   * (بحثٌ يُكتَب بسرعة بلا تهدئة، كل ضغطة زرّ تُطلق `reload()` مستقلّة) قد
+   * يعود أقدمهما بعد أحدثهما — IndexedDB لا يضمن ترتيب استجابتين متزامنتين
+   * ولو استُهدِف المخزن نفسه. مرجعٌ لا حالة، للسبب نفسه.
+   */
+  const reloadTicketRef = useRef(0)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [sortKey, setSortKey] = useState<LibrarySortKey>(DEFAULT_SORT_KEY)
@@ -163,13 +218,29 @@ export function Library(): JSX.Element {
   }
 
   const reload = useCallback(async () => {
+    // القيمة **حين بدأ هذا الاستدعاء بعينه** — ما يُطلَب من المخزن، لا ما
+    // يُعرَض الآن. والتذكرة تميّزه عن أي استدعاء آخر لاحق على التبويب نفسه.
+    const requestedTab = activeTab
+    const myTicket = ++reloadTicketRef.current
+
+    /**
+     * **حارس مبكر — قبل `setLoadState('loading')` لا بعده فقط.** مراجعة
+     * خصمة على هذا الحارس نفسه (يوم إضافته) كشفت أن الفحص المتأخّر وحده لا
+     * يكفي: استدعاءٌ من إغلاقٍ قديم (‏`.then()` معالج حذف/نقل بطيء نُقر
+     * زرّه قبل تبديل التبويب) يبدأ تنفيذه بعد أن صار `activeTab` تبويبًا
+     * آخر تمامًا منذ زمن — فيكتب `setLoadState('loading')` فورًا **مفسدًا
+     * حالة `ready` صحيحة عُرضت للتوّ للتبويب الحالي**، ثم يعود عند الحارس
+     * المتأخّر بلا أن يُصحِّحها ثانيةً أبدًا: سكيلتون تحميل معلَّق للأبد.
+     * الفحص هنا عند البداية يمنع الاستدعاء الفاسد من الكتابة أصلًا.
+     */
+    if (activeTabRef.current !== requestedTab) return
     setLoadState('loading')
     const names = await loadProjectNames()
     setProjectNames(names)
 
     const [result, counts, quotaState] = await Promise.all([
       loadTab({
-        tab: activeTab,
+        tab: requestedTab,
         searchQuery,
         captureQuery: { filters, sortKey, sortDirection },
         projectNameLookup: (id) => names[id] ?? '',
@@ -177,6 +248,26 @@ export function Library(): JSX.Element {
       loadCounts(),
       loadQuota(),
     ])
+
+    /**
+     * **حارس السباق المتأخّر — عطلٌ حقيقي كشفه `verify-library.mjs` في
+     * كروم حقيقي لا وحدة اختبار واحدة.** استدعاءا `reload()` يتداخلان
+     * زمنيًا حين يُشغَّل الثاني (تبديل تبويب، مثلًا) قبل أن يُتمّ الأوّل
+     * (بعد حذف أو نقل) سلسلة `await`ـه — وIndexedDB لا يضمن ترتيب
+     * استجابتين متوازيتين. فحين يفوز الاستدعاء **الأقدم** بالسباق، يكتب
+     * `setRecords` بشكل سجلّ تبويبه هو، بينما `activeTab` صار تبويبًا آخر
+     * فعلًا — فرع العرض يحوّل `records` إلى نوع التبويب *الحالي* بـ`as` بلا
+     * فحص، فبطاقة كـ`Card` (لقطات) تقرأ `record.kind` من سجلّ لوحة فتنهار
+     * (`Icon` تستلم `name: undefined`، ‎`shouldMirror` تُفشِل على `.replace`
+     * لا وجود له). نفس عائلة عطل تبديل التبويب المُصلَح في دفعة الإغلاق —
+     * هنا مصدر التأخّر معالج حذف/نقل لا الرسم المتزامن.
+     *
+     * **والتذكرة تضيف حالة لا يكشفها فحص التبويب وحده**: استدعاءان على
+     * *نفس* التبويب (بحثٌ يُكتَب بسرعة بلا تهدئة) يمكن أن يعود أقدمهما
+     * بعد أحدثهما أيضًا — مراجعة خصمة كشفت هذا كحالة منفصلة، وdiff الأداء
+     * لا يبرِّر إضافة تهدئة (debounce) لحلّها حين يكفيها فحصٌ صريح هنا.
+     */
+    if (activeTabRef.current !== requestedTab || reloadTicketRef.current !== myTicket) return
 
     setQuota(quotaState)
     if (result.ok) {
@@ -286,17 +377,25 @@ export function Library(): JSX.Element {
   /**
    * تُطبَّق تسلسليًّا لا بالتوازي: العدد المتوقَّع للتحديد عشراتٌ لا آلاف،
    * ومعاملة واحدة لكل سجلّ أبسط من إدارة فشل جزئي وسط دفعة متوازية.
+   *
+   * **`clearSelection()` مشروطة بالتبويب — لا تُفرَّغ صمتًا تحديدًا جديدًا
+   * على تبويب آخر.** مراجعة خصمة كشفت أن حلقة `for` هنا (تسلسلية، فقد تأخذ
+   * وقتًا محسوسًا على تحديد كبير) قد تمتدّ إلى ما بعد أن يبدّل المستخدم
+   * التبويب ويحدِّد عناصر جديدة هناك؛ `clearSelection()` غير المشروطة
+   * سابقًا كانت ستمحو ذلك التحديد الجديد بلا أي علاقة بما طُلب هنا أصلًا.
+   * `reload()` لا يحتاج الحارس نفسه — يحرس نفسه داخليًا.
    */
   const applyToSelection = useCallback(
     async (mutate: (record: CaptureRecord) => CaptureRecord) => {
+      const requestedTab = activeTab
       for (const id of selection) {
         const found = await captures.get(id)
         if (found.ok) await captures.put(mutate(found.value))
       }
-      clearSelection()
+      if (activeTabRef.current === requestedTab) clearSelection()
       await reload()
     },
-    [selection, clearSelection, reload],
+    [activeTab, selection, clearSelection, reload],
   )
 
   const onFavoriteSelection = useCallback(
@@ -321,21 +420,24 @@ export function Library(): JSX.Element {
   )
   /** حذف نهائي — لا معاملة `applyToSelection` البسيطة: `purgeCapture` يحذف من ثلاثة مخازن معًا. */
   const onPurgeSelection = useCallback(() => {
+    const requestedTab = activeTab
     void (async () => {
       for (const id of selection) await purgeCapture(id)
-      clearSelection()
+      // نفس حارس `applyToSelection` — تحديدٌ جديد على تبويب آخر لا يُمحى بصمت.
+      if (activeTabRef.current === requestedTab) clearSelection()
       await reload()
     })()
-  }, [selection, clearSelection, reload])
+  }, [activeTab, selection, clearSelection, reload])
 
   const onMoveSelectionToProject = useCallback(
     (projectId: string | null) => {
+      const requestedTab = activeTab
       void moveCapturesToProject([...selection], projectId).then(() => {
-        clearSelection()
+        if (activeTabRef.current === requestedTab) clearSelection()
         void reload()
       })
     },
-    [selection, clearSelection, reload],
+    [activeTab, selection, clearSelection, reload],
   )
   const onAddTagToSelection = useCallback(
     (name: string) => {
@@ -343,6 +445,38 @@ export function Library(): JSX.Element {
       void addTagToCaptures([...selection], name).then(() => void reloadTags())
     },
     [selection, reloadTags],
+  )
+
+  /**
+   * حذف ونقل-لمشروع للتبويبات الأربعة غير اللقطات — `DELETE_FN_FOR_TAB`/
+   * `MOVE_FN_FOR_TAB` أعلاه. `activeTab === 'captures'` لا يصل هذين
+   * المعالجين أصلًا (فرع العرض أدناه يُخصّص `SelectionBar` الحقيقي لها)،
+   * فغياب الدالّة من الجدول لتبويب اللقطات غير ذي أثر — حارسٌ لا يُشحن كودًا
+   * ميتًا فحسب.
+   */
+  const onDeleteSelectionGeneric = useCallback(() => {
+    const del = DELETE_FN_FOR_TAB[activeTab]
+    if (!del) return
+    const requestedTab = activeTab
+    void del([...selection]).then(() => {
+      // نفس حارس `applyToSelection` — احذف/انقل يخصّان التبويب الذي طُلبا
+      // عليه؛ تحديدٌ جديد استُحدِث على تبويب آخر أثناء الانتظار لا يُمحى.
+      if (activeTabRef.current === requestedTab) clearSelection()
+      void reload()
+    })
+  }, [activeTab, selection, clearSelection, reload])
+
+  const onMoveSelectionToProjectGeneric = useCallback(
+    (projectId: string | null) => {
+      const move = MOVE_FN_FOR_TAB[activeTab]
+      if (!move) return
+      const requestedTab = activeTab
+      void move([...selection], projectId).then(() => {
+        if (activeTabRef.current === requestedTab) clearSelection()
+        void reload()
+      })
+    },
+    [activeTab, selection, clearSelection, reload],
   )
 
   // ── المشاريع ──────────────────────────────────────────────────
@@ -455,12 +589,13 @@ export function Library(): JSX.Element {
           onClear={clearSelection}
         />
       ) : selection.size > 0 ? (
-        <div class={styles.plainSelectionBar} role="toolbar" aria-label="إجراءات التحديد">
-          <span>{selection.size} محدَّدة</span>
-          <Button variant="ghost" size="s" onClick={clearSelection}>
-            إلغاء التحديد
-          </Button>
-        </div>
+        <SimpleSelectionBar
+          count={selection.size}
+          projects={projects}
+          onMoveToProject={onMoveSelectionToProjectGeneric}
+          onDelete={onDeleteSelectionGeneric}
+          onClear={clearSelection}
+        />
       ) : null}
 
       <div class={styles.body}>
