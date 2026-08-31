@@ -490,6 +490,91 @@ if (extId && sw && granted) {
         )
       }
 
+      // ── 3.5) مقبض التقسيم القابل بالسحب — SplitHandle.tsx ──────
+      // **قبل أي سحب لكامل الصورة عمدًا**: `transform` لا يزال محايدًا هنا
+      // (`tx=ty=0` قبل النقل أدناه). `nudge` ينقل المرجع خارج مربّع لوحة
+      // المقارنة (`PANEL_INSET=40`..~380 أفقيًّا، `PANEL_TOP=64`..~563
+      // رأسيًّا) كي لا تلتقط اللوحة الحدث بدل المقبض تحتها.
+      //
+      // **نقلات صغيرة ضمن حدود المقبض ذاته عمدًا — لا سحبًا واسعًا كخطوة
+      // 4.** قِيس مباشرةً أثناء بناء هذا الفحص أن `Input.dispatchMouseEvent`
+      // في Chrome بلا رأس **لا يحترم `setPointerCapture`**: `pointerdown`
+      // يصل المقبض دومًا، لكن `pointermove` بعد نقلة تُخرج المؤشِّر من
+      // حدود المقبض (حتى مع `setPointerCapture` ناجحًا بلا رمي) لا يصله
+      // إطلاقًا — CDP يوجّه بحسب اختبار إصابة عاديّ عند كل نقطة، لا بإعادة
+      // توجيه الأسر. المقبض ثابت المقاس بصريًّا (`~28×48px`، انظر تعليق
+      // `.rasd-ov-split-handle` في overlay.css)، فنقلات ≤10px تبقى داخله
+      // دون حاجة للأسر أصلًا — وهذا الحدّ سمة بيئة CDP الاصطناعية لا
+      // سلوك متصفّح حقيقي (لمسة أو فأرة حقيقيّان يستمرّان عبر `setPointerCapture`
+      // بصرف النظر عن موضع المؤشِّر، وهو ما تثبته `split-handle.test.tsx`
+      // بأحداث مصطنَعة مباشرة على العنصر لا بإحداثيات شاشة).
+      //
+      // `displayMode` الافتراضي `split` — لا حاجة لتبديل الوضع. **المقياس
+      // اتجاهيّ لا دقيق**: عرض الصورة الطبيعي 1px يجعل أي دلتا سحب تُشبِع
+      // الموضع فورًا عند 0 أو 100 — الدقّة الحسابية (بما فيها التحجيم 2×)
+      // مُثبَتة في `split-handle.test.tsx` (10 حالات). ما لا تثبته الوحدات:
+      // هل `setPointerCapture` الحقيقي في Chrome (بخلاف happy-dom الذي لا
+      // يطبّقه قط) يمرّ بلا رمي، وهل حدث مؤشِّر CDP حقيقي — لا مصطنَع
+      // بـ`dispatchEvent` — يصل المقبض عبر اختبار إصابة حقيقي.
+      await inOverlay(
+        tabId,
+        `() => { globalThis.__rasdCompare.compare.nudge(700, 100); return true }`,
+      )
+      await settle(pageSession)
+      const handleRect = await inOverlay(
+        tabId,
+        `() => {
+          const el = globalThis.__rasdCompare.host.layer.querySelector('.rasd-ov-split-handle')
+          if (!el) return null
+          const r = el.getBoundingClientRect()
+          return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+        }`,
+      )
+      if (!handleRect) {
+        fail('مقبض التقسيم غائب من DOM رغم وضع split ومرجع قائم.')
+      } else {
+        // **تسخين لازم قِيس لا حدس**: هذا أوّل `pressAt` في السكربت كلّه —
+        // بلا `moveTo` أوّليّ هنا يفشل أوّل press+move صامتًا (٥٠٪→٥٠٪) رغم
+        // نجاح الثاني مباشرةً بعده بالإحداثيات نفسها؛ CDP يحتاج مؤشِّرًا
+        // «واصلًا» فعليًّا إلى نقطة قبل أن يقبل ضغطًا هناك أوّل مرّة في جلسة
+        // جديدة. الخطوة 4 لاحقًا لا تحتاج تسخينًا مماثلًا لأن هذه الخطوة
+        // سبقتها وأدّت الغرض عرَضًا.
+        await moveTo(pageSession, handleRect.x, handleRect.y)
+        st = await readCompareState(tabId)
+        const splitBefore = st.splitPosition
+        await pressAt(pageSession, handleRect.x, handleRect.y)
+        await moveTo(pageSession, handleRect.x + 8, handleRect.y)
+        await releaseAt(pageSession, handleRect.x + 8, handleRect.y)
+        st = await readCompareState(tabId)
+        if (st.splitPosition > splitBefore) {
+          ok(`سحب المقبض يمينًا زاد موضع الفاصل (${splitBefore}٪ → ${st.splitPosition}٪)`)
+        } else {
+          fail(
+            `سحب المقبض لم يغيّر الموضع في الاتجاه المتوقَّع: ${splitBefore} → ${st.splitPosition}`,
+          )
+        }
+
+        // والاتجاه المعاكس — نفس المقبض، دلتا سالبة.
+        await pressAt(pageSession, handleRect.x, handleRect.y)
+        await moveTo(pageSession, handleRect.x - 8, handleRect.y)
+        await releaseAt(pageSession, handleRect.x - 8, handleRect.y)
+        const stAfterBack = await readCompareState(tabId)
+        if (stAfterBack.splitPosition < st.splitPosition) {
+          ok(
+            `سحب المقبض يسارًا أنقص موضع الفاصل (${st.splitPosition}٪ → ${stAfterBack.splitPosition}٪)`,
+          )
+        } else {
+          fail(`السحب العكسي لم يُنقص الموضع: ${st.splitPosition} → ${stAfterBack.splitPosition}`)
+        }
+
+        // إعادة الموضع إلى منتصفه — الخطوات اللاحقة (منزلق الشفافية،
+        // إعادة الدخول) لا تفترض قيمة بعينها، لكن نظافة الحالة أوضح للقارئ.
+        await inOverlay(
+          tabId,
+          `() => { globalThis.__rasdCompare.compare.setSplitPosition(50); return true }`,
+        )
+      }
+
       // ── 4) السحب يحرّك التحويل بمقدار حركة المؤشِّر الحقيقية ────
       st = await readCompareState(tabId)
       const before = st.transform

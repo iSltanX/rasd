@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks'
 
 import { VIEWPORT_LABELS, VIEWPORT_ORDER } from '@/modules/compare/viewport'
+import { formatDimensions } from '@/shared/bidi'
 import { Icon } from '@/ui/icons/Icon'
 
 import type { Viewport } from '@/shared/storage/schema'
@@ -96,7 +97,7 @@ function ViewportCard({
       <div class="rasd-ov-vpg-meta">
         <div class="rasd-ov-vpg-row">
           <span class="rasd-ov-vpg-dim">
-            {image ? `${image.naturalWidth} × ${image.naturalHeight}` : '—'}
+            {image ? formatDimensions(image.naturalWidth, image.naturalHeight) : '—'}
           </span>
           <span class="rasd-ov-vpg-label">{VIEWPORT_LABELS[viewport]}</span>
         </div>

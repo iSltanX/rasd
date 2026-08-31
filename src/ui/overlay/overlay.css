@@ -1733,6 +1733,91 @@
   user-select: none;
 }
 
+/*
+ * ── مقبض التقسيم — `SplitHandle.tsx` (69:91 · 69:92) ─────────────────
+ * الإطار مقاسه ومكانه **مطابقان لـ`.rasd-ov-reference` تمامًا** (نفس
+ * متغيّرات `--rasd-ov-x/y/rotate/scale` زائد `--rasd-ov-w/h`) — الخطّ
+ * والمقبض داخله يقعان في فضاء الصورة نفسه، فيتحرّكان معها تلقائيًّا.
+ */
+.rasd-ov-split-frame {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: var(--rasd-ov-w);
+  block-size: var(--rasd-ov-h);
+  translate: var(--rasd-ov-x, 0) var(--rasd-ov-y, 0);
+  transform-origin: 0 0;
+  rotate: var(--rasd-ov-rotate, 0deg);
+  scale: var(--rasd-ov-scale, 1);
+  pointer-events: none;
+}
+
+.rasd-ov-split-line {
+  position: absolute;
+  background: var(--rasd-tool-compare-fg);
+  pointer-events: none;
+}
+
+.rasd-ov-split-line[data-axis='vertical'] {
+  inset-block: 0;
+  left: var(--rasd-ov-split-pos); /* rasd-allow-literal: فيزيائي مقصود، انظر SplitHandle.tsx */
+  inline-size: var(--rasd-stroke-medium);
+  translate: -50% 0;
+}
+
+.rasd-ov-split-line[data-axis='horizontal'] {
+  inset-inline: 0;
+  top: var(--rasd-ov-split-pos);
+  block-size: var(--rasd-stroke-medium);
+  translate: 0 -50%;
+}
+
+/*
+ * المقبض حجمه **ثابت بالبكسل بصرف النظر عن `scale`** — عمدًا: مقبضٌ
+ * يتقلّص مع التصغير حتى يصير نقطة غير قابلة للإصابة يُبطل غرضه. القسمة على
+ * `var(--rasd-ov-scale)` تُلغي التحجيم الموروث من `.rasd-ov-split-frame`
+ * الأب فيبقى المقاس البصري ثابتًا مهما كبَّر المستخدم المرجع أو صغَّره.
+ */
+.rasd-ov-split-handle {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-2);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-tool-compare-surface);
+  border: var(--rasd-stroke-thin) solid var(--rasd-tool-compare-border);
+  color: var(--rasd-tool-compare-fg);
+  box-shadow: var(--rasd-elevation-2);
+  pointer-events: auto;
+  touch-action: none;
+  scale: calc(1 / var(--rasd-ov-scale, 1));
+}
+
+.rasd-ov-split-handle[data-axis='vertical'] {
+  left: var(--rasd-ov-split-pos); /* rasd-allow-literal: فيزيائي مقصود، انظر SplitHandle.tsx */
+  inset-block-start: 50%;
+  inline-size: 1.75rem;
+  block-size: 3rem;
+  translate: -50% -50%;
+  cursor: ew-resize;
+}
+
+.rasd-ov-split-handle[data-axis='horizontal'] {
+  top: var(--rasd-ov-split-pos);
+  inset-inline-start: 50%;
+  inline-size: 3rem;
+  block-size: 1.75rem;
+  flex-direction: column;
+  translate: -50% -50%;
+  cursor: ns-resize;
+}
+
+.rasd-ov-split-handle:focus-visible {
+  outline: var(--rasd-stroke-medium) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-space-2);
+}
+
 /* ── لوحة المقارنة ───────────────────────────────────────────────── */
 
 /*

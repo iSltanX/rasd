@@ -34,6 +34,7 @@ import {
   Marquee,
   MeasureGap,
   ReferenceOverlay,
+  SplitHandle,
   ViewportGallery,
   type QuickAction,
   type ViewportGalleryCard,
@@ -601,11 +602,9 @@ function hexOfPixel(p: { r: number; g: number; b: number }): string {
  * المفاتيح استثناء: كلّ `*Layer` يملك مستمعه الخاصّ المشروط بحياة المكوّن،
  * تمامًا مثل `AreaLayer`.
  *
- * **بلا مقبض تقسيم قابل للسحب بعد**: `Figma 69:2` يُظهر خطًّا ومقبضًا على
- * حدّ التقسيم، لكن منزلق «موضع الفاصل» في اللوحة يمنح تحكّمًا رقميًا كاملًا
- * بالفعل، والقصّ المرئي في `ReferenceOverlay` يرسم حدّ الفاصل حيًّا أصلًا.
- * سحب الخطّ مباشرةً تفاعلٌ إضافي مؤجَّل لا ناقصٌ، ولا يُعرَض مقبضه هنا حتى
- * يُبنى فعلًا — نفس انضباط `ElementLayer` («تُحذَف حتى يوجد محرّكها»).
+ * **مقبض التقسيم القابل للسحب** (`SplitHandle`، `Figma 69:91`/`69:92`)
+ * يُرسَم فقط في وضع `split` مع مرجع قائم — يشارك فضاء `ReferenceOverlay`
+ * حرفيًّا فيتحرّك معه؛ التفصيل الكامل في تعليق رأس `SplitHandle.tsx` نفسه.
  *
  * **«اختر من المكتبة» بلا معاودة بعد**: يحتاج قناة رسالة وواجهة اختيار من
  * المكتبة غير موجودتين اليوم — فجوة معلَنة، والزرّ يُعرض بلا أثر حتى تُبنيا.
@@ -679,6 +678,17 @@ function CompareLayer({
           splitPosition={splitPosition}
           splitAxis={splitAxis}
           blinkShowingLive={blinkShowingLive}
+        />
+      ) : null}
+
+      {reference && displayMode === 'split' ? (
+        <SplitHandle
+          transform={transform}
+          naturalWidth={reference.naturalWidth}
+          naturalHeight={reference.naturalHeight}
+          splitPosition={splitPosition}
+          splitAxis={splitAxis}
+          onSplitPositionChange={(percent) => compare.setSplitPosition(percent)}
         />
       ) : null}
 
