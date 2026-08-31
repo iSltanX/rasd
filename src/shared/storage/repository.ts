@@ -133,6 +133,41 @@ export async function putCaptureWithBlob(
  * بلا لقطة أصلية بايتاتٌ ميتة لا يشير إليها شيء.
  */
 /**
+ * يحفظ مرجعًا: الوصف في `references` والبايتات في `blobs`، بمعاملة واحدة —
+ * نفس نمط `putCaptureWithBlob` أعلاه حرفيًّا (المرحلة 16، §8.1).
+ *
+ * **`record.blobId` يجب أن يكون معرِّفًا خاصًّا بالمرجع — لا معرِّف لقطة
+ * مصدرها.** حين يُعيَّن مرجعٌ من لقطة محفوظة، تُنسَخ بايتاتها تحت معرِّف
+ * جديد (`modules/compare/reference.ts`) بدل مشاركة `blobId` نفسه: لو
+ * شارك المرجع بلوب اللقطة، لكان حذف المرجع لاحقًا (`deleteReferenceWithBlob`
+ * أدناه) يحذف بلوب اللقطة **الحيّة** معه — بيانات مستخدم حقيقية تضيع بفعلٍ
+ * على كائن آخر لا صلة له ظاهريًا.
+ */
+export async function putReferenceWithBlob(
+  record: RasdDB['references']['value'],
+  blob: Blob,
+): Promise<Result<string>> {
+  const guard = await guardWrite(blob.size)
+  if (!guard.ok) return guard
+
+  return withDb(async (db) => {
+    const tx = db.transaction(['references', 'blobs'], 'readwrite')
+    const blobRecord: BlobRecord = {
+      id: record.blobId,
+      blob,
+      mime: blob.type,
+      bytes: blob.size,
+    }
+    await Promise.all([
+      tx.objectStore('references').put(record),
+      tx.objectStore('blobs').put(blobRecord),
+      tx.done,
+    ])
+    return record.id
+  })
+}
+
+/**
  * يحذف مرجعًا وبايتاته معًا — نفس منطق `deleteCaptureWithBlob` أعلاه
  * حرفيًّا: `blobId` بلا سجلّ `blobs` مطابق له بايتاتٌ ميتة لا يشير إليها
  * شيء (المرحلة 18، دورة إكمال الحذف والنقل بلا مشروع).

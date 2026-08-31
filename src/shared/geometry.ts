@@ -40,8 +40,17 @@
  * (`modules/capture/crop.ts`)، فبكسل الصورة **هو** بكسل الجهاز — و`image`
  * كانت ستكون هوية بلا تحويل، تفرض فرعًا جديدًا على كل `switch` شامل مقابل
  * صفر عمل.
+ *
+ * **`reference` أُضيف في المرحلة 16، والتعليل هنا معكوس تمامًا عن `image`
+ * أعلاه.** مرجع المقارنة صورة **مرفوعة من الجهاز أو أي لقطة محفوظة** —
+ * بخلاف اللقطة فهي لا تُلتقَط بدقّة الجهاز الحالي، وبخلاف `canvas` (مسرح
+ * المحرر) فتحويلها ليس تكبيرًا بلا دوران بل تحويلٌ حرّ يتحكّم فيه المستخدم
+ * تفاعليًّا (إزاحة وتحجيم **ودوران** معًا، `modules/compare/overlay.ts`) —
+ * فهوية بلا تحويل هنا كانت ستُخفي بالضبط الخطأ الذي بُني الوسم المزدوج
+ * لمنعه: خلط دلتا سحبٍ بفضاء `viewport` مع إحداثي داخل بكسلات المرجع
+ * الطبيعية قبل القسمة على التحجيم.
  */
-export type Space = 'viewport' | 'page' | 'device' | 'canvas'
+export type Space = 'viewport' | 'page' | 'device' | 'canvas' | 'reference'
 
 export interface Point<S extends Space = Space> {
   readonly space: S
@@ -61,10 +70,12 @@ export type ViewportPoint = Point<'viewport'>
 export type PagePoint = Point<'page'>
 export type DevicePoint = Point<'device'>
 export type CanvasPoint = Point<'canvas'>
+export type ReferencePoint = Point<'reference'>
 export type ViewportRect = Rect<'viewport'>
 export type PageRect = Rect<'page'>
 export type DeviceRect = Rect<'device'>
 export type CanvasRect = Rect<'canvas'>
+export type ReferenceRect = Rect<'reference'>
 
 // ─────────────────────────────────────────────────────────────────
 // بنّاؤون
@@ -101,6 +112,7 @@ export const viewportPoint = (x: number, y: number): ViewportPoint => point('vie
 export const pagePoint = (x: number, y: number): PagePoint => point('page', x, y)
 export const devicePoint = (x: number, y: number): DevicePoint => point('device', x, y)
 export const canvasPoint = (x: number, y: number): CanvasPoint => point('canvas', x, y)
+export const referencePoint = (x: number, y: number): ReferencePoint => point('reference', x, y)
 
 export const viewportRect = (x: number, y: number, w: number, h: number): ViewportRect =>
   rect('viewport', x, y, w, h)
@@ -110,6 +122,8 @@ export const deviceRect = (x: number, y: number, w: number, h: number): DeviceRe
   rect('device', x, y, w, h)
 export const canvasRect = (x: number, y: number, w: number, h: number): CanvasRect =>
   rect('canvas', x, y, w, h)
+export const referenceRect = (x: number, y: number, w: number, h: number): ReferenceRect =>
+  rect('reference', x, y, w, h)
 
 /**
  * `DOMRect` → مستطيل نافذة.
