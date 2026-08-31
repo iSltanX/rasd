@@ -97,12 +97,33 @@ describe('ComparePanel — يُصيَّر بلا رمي', () => {
 })
 
 describe('CompareIdle — يُصيَّر بلا رمي', () => {
-  it('يرسم العنوان ومنطقة الإفلات وزرّي الإجراء', () => {
+  it('يرسم العنوان ومنطقة الإفلات', () => {
     const el = mount(<CompareIdle />)
     expect(el.textContent).toContain('لا يوجد مرجع لهذه الصفحة')
     expect(el.querySelector('[data-rasd-ov="compare-idle"]')).toBeTruthy()
-    expect(el.textContent).toContain('اختر من المكتبة')
-    expect(el.textContent).toContain('استخدم آخر لقطة')
+    expect(el.querySelector('.rasd-ov-cmp-dropzone')).toBeTruthy()
+  })
+
+  /**
+   * سابقة المرحلة 7: ما لا محرّك له **يُحذَف** لا يُعرَض معطَّلًا ولا حيًّا
+   * بلا أثر. الزرّان يظهران بمعاودتيهما ويغيبان بغيابهما.
+   */
+  it('زرّا الإجراء لا يظهران بلا معاودة خلفهما', () => {
+    const el = mount(<CompareIdle />)
+    expect(el.querySelectorAll('.rasd-ov-cmp-idle-actions button')).toHaveLength(0)
+    expect(el.textContent).not.toContain('اختر من المكتبة')
+    expect(el.textContent).not.toContain('استخدم آخر لقطة')
+  })
+
+  it('كل زرّ يظهر وحده حين تُمرَّر معاودته وحدها', () => {
+    const onlyLibrary = mount(<CompareIdle onChooseFromLibrary={vi.fn()} />)
+    expect(onlyLibrary.textContent).toContain('اختر من المكتبة')
+    expect(onlyLibrary.textContent).not.toContain('استخدم آخر لقطة')
+
+    render(null, onlyLibrary)
+    const onlyLast = mount(<CompareIdle onUseLastCapture={vi.fn()} />)
+    expect(onlyLast.textContent).toContain('استخدم آخر لقطة')
+    expect(onlyLast.textContent).not.toContain('اختر من المكتبة')
   })
 
   it('زرّا الإجراء يستدعيان المعاودتين', () => {

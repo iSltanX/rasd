@@ -25,6 +25,7 @@ import {
 } from '@/modules/capture/full-page/tiles'
 import { sendToTab } from '@/shared/messaging'
 import { errText, ok, type Result } from '@/shared/result'
+import { patchSession } from '@/shared/storage/session'
 
 import { captureTile } from './capture-service'
 import { dataUrlToBytes } from './image-ops'
@@ -308,6 +309,31 @@ export function startFullPage(
   const controller = new AbortController()
   active = { tabId, controller }
 
+  /*
+   * **حالة المهمّة تُكتَب في الجلسة — وإلا فحالة «جارٍ الالتقاط» غير قابلة
+   * للوصول أصلًا.**
+   *
+   * `selectPopupState` يختار `capturing` من `session.job` وحده، ولم يكن
+   * أحدٌ يكتبه قطّ: `sweepStalledJobs` يمسح مهمّةً لا يمكن أن توجد،
+   * والنافذة تعرض شبكة الأدوات أثناء التقاطٍ يستغرق عشرين ثانية، وقناة
+   * التقدّم تصل رسائلها إلى `liveProgress` **فتُهمَل** لأنها لا تُعرض إلا
+   * داخل حالة لا تُختار.
+   *
+   * علامةُ وجودٍ خشنة تكفي هنا: `Popup.tsx` يفضّل `liveProgress` الحيّة على
+   * `job.done/total`، فلا داعي لكتابة كل بلاطة على القرص.
+   * ولا تُنتظَر — النداء يجب أن يعود فورًا (انظر ترويسة الدالّة).
+   */
+  void patchSession({
+    job: {
+      id: crypto.randomUUID(),
+      kind: 'full-page',
+      tabId,
+      startedAt: Date.now(),
+      done: 0,
+      total: 0,
+    },
+  })
+
   void (async () => {
     try {
       const run = await runFullPage({
@@ -356,6 +382,9 @@ export function startFullPage(
       })
     } finally {
       active = null
+      // تُمسَح في `finally` كالحالة الحيّة تمامًا: خروجٌ بنجاح أو فشل أو
+      // إلغاء يجب ألّا يترك النافذة عالقة على «جارٍ الالتقاط».
+      void patchSession({ job: null })
     }
   })()
 

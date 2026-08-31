@@ -163,6 +163,18 @@ export function Popup(): JSX.Element | null {
     void sendToTab({ tabId: loaded.tabId }, 'mode/set', { mode: 'idle' }).then(() => window.close())
   }
 
+  /**
+   * إلغاء مهمّة الالتقاط الكامل — **لا `mode/set idle`**.
+   *
+   * كان زرّ إلغاء «جارٍ الالتقاط» يستدعي `exitLiveMode`، وذاك يبدّل وضع
+   * الطبقة لا غير: الحلقة تعيش في الـservice worker ويملكها `AbortController`
+   * هناك، فلا يوقفها تبديلُ وضعٍ في الصفحة. `fullpage/cancel` هي التي تصل
+   * إليه — وهي رسالة إلى الخلفية (`send`) لا إلى التبويب (`sendToTab`).
+   */
+  const cancelJob = () => {
+    void send('fullpage/cancel', undefined).then(() => window.close())
+  }
+
   const openPage = (page: 'library' | 'settings' | 'onboarding' | 'editor') => {
     void send('page/open', { page }).then(() => window.close())
   }
@@ -275,7 +287,7 @@ export function Popup(): JSX.Element | null {
             kind={context.job.kind}
             done={liveProgress?.done ?? context.job.done}
             total={liveProgress?.total ?? context.job.total}
-            onCancel={exitLiveMode}
+            onCancel={cancelJob}
           />
         ) : (
           <div class={styles.body} />

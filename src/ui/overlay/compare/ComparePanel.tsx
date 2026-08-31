@@ -209,15 +209,26 @@ export function CompareIdle({
         <span>أفلت ملف PNG، أو ألصق من الحافظة</span>
       </div>
 
+      {/*
+       * **زرّان لا يُعرضان إلا بمعاودة فعلية خلفهما.**
+       *
+       * كانا يُعرَضان دائمًا فينقر المستخدم بلا أثر — وهو ما تمنعه سابقة
+       * المرحلة 7 المطبَّقة في `ElementLayer`: «تُحذَف حتى يوجد محرّكها، ولا
+       * تُعرَض معطَّلة». والاستثناء هنا كان سهوًا لا قرارًا.
+       */}
       <div class="rasd-ov-cmp-idle-actions">
-        <button type="button" class="rasd-ov-cmp-btn" onClick={onChooseFromLibrary}>
-          <span>اختر من المكتبة</span>
-          <Icon name="folder" size="sm" />
-        </button>
-        <button type="button" class="rasd-ov-cmp-btn" onClick={onUseLastCapture}>
-          <span>استخدم آخر لقطة</span>
-          <Icon name="history" size="sm" />
-        </button>
+        {onChooseFromLibrary ? (
+          <button type="button" class="rasd-ov-cmp-btn" onClick={onChooseFromLibrary}>
+            <span>اختر من المكتبة</span>
+            <Icon name="folder" size="sm" />
+          </button>
+        ) : null}
+        {onUseLastCapture ? (
+          <button type="button" class="rasd-ov-cmp-btn" onClick={onUseLastCapture}>
+            <span>استخدم آخر لقطة</span>
+            <Icon name="history" size="sm" />
+          </button>
+        ) : null}
       </div>
     </section>
   )

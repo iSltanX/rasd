@@ -554,9 +554,21 @@ async function bootOverlay(
         source: pinned.source,
       })
     },
-    onCompareUseLastCapture: () => {
-      if (lastCapture) setCompareReferenceFromBlob({ captureId: lastCapture.id })
-    },
+    /*
+     * **«استخدم آخر لقطة» غير موصولة عمدًا — لأنها لا تستطيع أن تعمل بعد.**
+     *
+     * كانت موصولة بـ`setCompareReferenceFromBlob({ captureId })`، وذلك
+     * المسار يقرأ مخزن `captures` من **سكربت المحتوى** — وسكربت المحتوى
+     * يعمل بأصل صفحة المضيف لا بأصل الإضافة، فـ`indexedDB` عنده قاعدة
+     * الموقع المزار لا قاعدة رصد. قِيس مباشرةً: `location.origin` في
+     * السكربت هو الموقع، و`indexedDB.databases()` فارغة، ولا يرى ما كتبه
+     * الـservice worker. واللقطات تُحفَظ في الخلفية دومًا (لا
+     * `captureVisibleTab` لسكربت محتوى) — فالقراءة كانت تعود `not-found`
+     * **دائمًا**، في كل مسار، لا في الالتقاط الكامل وحده.
+     *
+     * فتُحذَف الوصلة بدل زرٍّ لا يفعل شيئًا (سابقة المرحلة 7)، ويعود مع
+     * إصلاح موضع التخزين نفسه — انظر الصفّ 78 في `Rasd_Plan.md §6`.
+     */
     onCompareDropImage: (file) => setCompareReferenceFromBlob({ image: file }),
     onComparePasteImage: (file) => setCompareReferenceFromBlob({ image: file }),
     fullPage,
