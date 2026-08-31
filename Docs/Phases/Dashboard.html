@@ -756,7 +756,7 @@
 
       <div class="progress-block">
         <div class="progress-head">
-          <span><b class="num" id="doneCount">15</b> من <b class="num">28</b> مرحلة مغلقة</span>
+          <span><b class="num" id="doneCount">16</b> من <b class="num">28</b> مرحلة مغلقة</span>
           <span id="progressPct" class="num" style="color: var(--ink-faint)"></span>
         </div>
         <div class="progress-track">
@@ -1354,18 +1354,25 @@
             section: 'المقارنة',
             model: 'Sonnet',
             version: 'v1.0',
-            status: 'next',
-            date: null,
-            hash: null,
-            artifact: null,
+            status: 'done',
+            date: '2026-08-31',
+            hash: '9ebd6c6',
+            hashNote: 'عشر دفعات؛ دفعة الإغلاق تُثبَّت لاحقًا',
+            artifact: 'https://claude.ai/code/artifact/72dc5455-83bc-4c16-ba9c-d1f4ff3ae60a',
             oneliner:
-              'يضع التصميم المرجعي فوق التنفيذ الفعلي ويتحكّم فيه — أهم أداة لضمان الجودة البصرية.',
-            units: ['src/modules/compare/overlay.ts', 'src/content/tools/compare.ts'],
+              'يضع التصميم المرجعي فوق التنفيذ الفعلي ويتحكّم فيه — سحب وتكبير ومقبض تقسيم قابل للسحب، ومرجع مستقلّ لكل مقاس شاشة.',
+            units: [
+              'src/modules/compare/{overlay,reference,viewport}.ts',
+              'src/content/tools/compare.ts',
+              'src/background/resume.ts',
+              'src/ui/overlay/compare/{ComparePanel,ReferenceOverlay,SplitHandle,ViewportGallery}.tsx',
+              'scripts/{verify-compare,verify-activate}.mjs',
+            ],
             completion: [
-              'كل أنماط العرض في §8.2–8.4 تعمل',
-              'المراجع لكل مقاس محفوظة ومستدعاة',
-              'يعمل بلا صلاحية مضيف داخل الجلسة',
-              'معيار اللغة الموحَّد (§3.5)',
+              'أنماط العرض الأربعة والتحكّم الأساسي تعمل حيًّا ✅ — أربعة عناصر (وضع المزج · التدوير · المحاذاة لحافّة/عنصر · «طابق العرض») ⚠️ بلا سند تصميمي في 69:104، فجوات معلَنة (Phase_16.md §4)',
+              'المراجع لكل مقاس محفوظة ومستدعاة ✅ — معرض المقاسات، حدّ غير متماثل مثبَت حيًّا مرّتين',
+              'يعمل بلا صلاحية مضيف داخل الجلسة ✅',
+              'معيار اللغة الموحَّد (§3.5) ✅ — تدقيق كودي مباشر كشف مخالفتين وأصلحهما؛ Playwright المؤجَّل مطابق لسابقاته لا استثناء',
             ],
             deps: [3, 6, 8],
             adrs: ['0012', '0013'],
@@ -1375,6 +1382,10 @@
               {
                 dir: 'in',
                 text: 'من المرحلة 18: كان الحذف والربط بمشروع غير مبنيَّين يوم إغلاقها — بند مفتوح كان يلزم إغلاقه أولًا. أُغلق فعليًا في دفعة عاشرة لاحقة بنفس اليوم (Phase_18.md §10) — الثلاثة (تصفّح · حذف · ربط بمشروع) جاهزة الآن.',
+              },
+              {
+                dir: 'in',
+                text: 'إصلاح عرضي محايث كشفته هذه المرحلة نفسها: مسار التفعيل (الصفّ 77) كان ميتًا كليًّا منذ المرحلة 6، ومراجع المقارنة (الصفّ 78) كانت تُكتَب في قاعدة بيانات الموقع المزار لا رصد. أُصلح الاثنان قبل إغلاق هذه المرحلة — Phase_16.md §9.',
               },
             ],
             orderNote:
@@ -1387,7 +1398,7 @@
             section: 'المقارنة',
             model: 'Sonnet',
             version: 'v1.0',
-            status: 'pending',
+            status: 'next',
             date: null,
             hash: null,
             artifact: null,
