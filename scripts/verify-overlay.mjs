@@ -254,12 +254,53 @@ const census = `() => ({
   fonts: document.fonts.size,
 })`
 
+/**
+ * المرحلة 16: استئناف صامت (`background/resume.ts`) يحقن الطبقة تلقائيًا في
+ * أي تبويب يبلغ complete على أصل ممنوحة صلاحيته — وصلاحيتنا هنا أعلاه هي
+ * بالذات صلاحية العيّنات المحلّية (منحناها لتشريع الحقن اليدوي أدناه، لا
+ * رغبةً في سلوك الاستئناف). فيتسابق استئنافه الصامت مع حقننا الصريح على
+ * حدث الاكتمال نفسه — ويُلوِّث تعداد "قبل" (المضيف يظهر) و"بعد" (خطوط
+ * تحميلها ما زال قيد التنفيذ حين نقرأ).
+ *
+ * لا نُسكت الاستئناف ولا نُعطّله — سلوك مقصود مُثبَت بمكانه (الصفّ 85) —
+ * بل نمنحه فرصة ليكتمل، ونفكّك ما حقنه، قبل أخذ تعداد "قبل" الحقيقي. هذا
+ * نفس ما اضطُرّ إليه verify:activate حين أعاد تعريف "تبويب بارد" أول مرّة
+ * ظهر فيها الاستئناف.
+ */
+async function settleResume(tabId) {
+  const overlayPresent = () =>
+    inSW(`chrome.scripting.executeScript({
+      target: { tabId: ${tabId} }, world: 'ISOLATED',
+      func: () => !!globalThis.__rasdOverlay,
+    }).then(r => r[0].result).catch(() => false)`)
+
+  let present = false
+  for (let i = 0; i < 30; i++) {
+    present = await overlayPresent()
+    if (present) break
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  if (!present) return // لم يستأنف على هذا التبويب — لا أثر لتفكيكه
+
+  // نفس المهلة التي يثق بها الفحص أدناه لاكتمال تحميل وجوه الخطّ.
+  await new Promise((r) => setTimeout(r, 400))
+  await inSW(`chrome.scripting.executeScript({
+    target: { tabId: ${tabId} }, world: 'ISOLATED',
+    func: () => { const w = globalThis.__rasdOverlay; if (w) w.teardown() },
+  })`)
+  for (let i = 0; i < 15; i++) {
+    if (!(await overlayPresent())) return
+    await new Promise((r) => setTimeout(r, 100))
+  }
+}
+
 // ── الجولة ──────────────────────────────────────────────────────
 const results = []
 
 if (extId && sw && granted) {
   for (const fixture of ['rtl-ar', 'ltr-en', 'mixed', 'spa', 'mutating', 'hostile']) {
     const tabId = await openTab(`/${fixture}/`)
+    await settleResume(tabId)
     const before = await inPage(tabId, census)
 
     // جامع أخطاء في **العالمين**: أخطاء طبقتنا تقع في العالم المعزول ولا
