@@ -1,0 +1,20 @@
+.bar {
+  position: absolute;
+  inset-block-start: var(--rasd-space-12);
+  inset-inline-start: var(--rasd-space-12);
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  padding: var(--rasd-space-6) var(--rasd-space-10);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-overlay);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  box-shadow: var(--rasd-elevation-2);
+}
+
+.label {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-secondary);
+  white-space: nowrap;
+}

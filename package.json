@@ -45,6 +45,7 @@
     "verify:popup": "node scripts/verify-popup.mjs",
     "verify:capture": "node scripts/verify-capture.mjs",
     "verify:compare": "node scripts/verify-compare.mjs",
+    "verify:compare-diff": "node scripts/verify-compare-diff.mjs",
     "verify:activate": "node scripts/verify-activate.mjs",
     "docs:lint": "node scripts/docs-lint.mjs",
     "entrypoints:lint": "node scripts/entrypoints-lint.mjs",

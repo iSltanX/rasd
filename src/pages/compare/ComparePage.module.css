@@ -1,0 +1,42 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  block-size: 100vh;
+  box-sizing: border-box;
+  background: var(--rasd-surface-canvas);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-block-size: 0;
+}
+
+.stageWrap {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--rasd-space-24);
+  box-sizing: border-box;
+}
+
+.centerState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-12);
+  block-size: 100vh;
+  padding: var(--rasd-space-24);
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.centerHint {
+  margin: 0;
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-secondary);
+}

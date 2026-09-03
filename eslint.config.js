@@ -98,6 +98,22 @@ export const architectureZones = [
 ]
 
 /**
+ * خاصية CSS فيزيائية في نمط سطري — مُستخرَجة اسمًا (المرحلة 17) لِمَ
+ * `layout.ts` يُستثنى منها وحدها: `percentBox`/`percentBoxStyle` يُحوِّلان
+ * بكسل **جهاز** (فضاء صورة، `modules/compare/diff.ts`) إلى صندوق موضوع
+ * فوق صورتين — وخاصية منطقية هنا كانت تقلب موضع كل صندوق أفقيًّا في صفحة
+ * RTL (عُثر عليه حيًّا: مربّع منطقة قرب الحافّة اليمنى للصورة يُرسَم قرب
+ * اليسار). نفس تعليل `object-position`/`clipPath` الفيزيائيَّين في
+ * `pages/compare/parts/Stage.module.css`/`AdjacentView.tsx` بالفعل.
+ */
+export const physicalPropertySelector = {
+  selector:
+    'Property[key.name=/^(marginLeft|marginRight|paddingLeft|paddingRight|borderLeft|borderRight|left|right|borderTopLeftRadius|borderTopRightRadius|borderBottomLeftRadius|borderBottomRightRadius)$/]',
+  message:
+    'استخدم الخاصية المنطقية (marginInlineStart · insetInlineStart · borderStartStartRadius) — الواجهة عربية RTL.',
+}
+
+/**
  * محدِّدات `no-restricted-syntax` — **مصفوفة مُصدَّرة لا قائمة سطرية**.
  *
  * السابقة الوحيدة للاستثناء في هذا الملفّ كانت إطفاء القاعدة كاملةً على
@@ -133,13 +149,7 @@ export const restrictedSyntax = [
     message:
       'استخدم onMessage() أو serveChannel() من @/shared/messaging — التسجيل المباشر يتجاوز تغليف الأخطاء.',
   },
-  {
-    // خصائص CSS فيزيائية في الأنماط السطرية — واجهة RTL لا تحتملها.
-    selector:
-      'Property[key.name=/^(marginLeft|marginRight|paddingLeft|paddingRight|borderLeft|borderRight|left|right|borderTopLeftRadius|borderTopRightRadius|borderBottomLeftRadius|borderBottomRightRadius)$/]',
-    message:
-      'استخدم الخاصية المنطقية (marginInlineStart · insetInlineStart · borderStartStartRadius) — الواجهة عربية RTL.',
-  },
+  physicalPropertySelector,
   {
     // `formatHuman` للعدّ البشري وحده؛ القياسات تمرّ من `formatMeasure`.
     selector:
@@ -319,6 +329,27 @@ export default tseslint.config(
   {
     files: ENCODE_ALLOWED,
     rules: { 'no-restricted-syntax': ['error', ...restrictedSyntax] },
+  },
+
+  /*
+   * `layout.ts` وملفّ اختباره — يُستثنيان من `physicalPropertySelector` وحده،
+   * لا من بقيّة القائمة ولا من `encodeSelectors`. القاعدة تُعاد كاملةً ناقصةً
+   * محدِّدًا واحدًا (نفس نمط `ENCODE_ALLOWED` أعلاه) — الملفّان يبقيان
+   * محروسَين من النداءات الخام وسوء استعمال `formatHuman` وبوّابة الترميز،
+   * ويُستثنيان فقط من حارس `left`/`right`/... لأن `PercentBox` يحوِّل بكسل
+   * جهاز فيزيائي إلى صندوق CSS، لا واجهة نصّية تحتمل انعكاس RTL — واختباره
+   * يبني نفس الصناديق الحرفية ليقارنها. انظر تعليق `physicalPropertySelector`
+   * وترويسة `src/pages/compare/layout.ts` لتاريخ العطل الذي كشف الحاجة.
+   */
+  {
+    files: ['src/pages/compare/layout.ts', 'tests/unit/pages/compare/layout.test.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...restrictedSyntax.filter((s) => s !== physicalPropertySelector),
+        ...encodeSelectors,
+      ],
+    },
   },
 
   /*

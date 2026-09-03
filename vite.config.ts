@@ -56,6 +56,7 @@ export default defineConfig(({ mode }) => ({
         settings: PAGE_PATHS.settings,
         onboarding: PAGE_PATHS.onboarding,
         offscreen: PAGE_PATHS.offscreen,
+        compare: PAGE_PATHS.compare,
         ...(mode === 'production'
           ? {}
           : {

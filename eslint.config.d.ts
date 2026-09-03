@@ -25,6 +25,8 @@ export interface RestrictedSelector {
 
 export const architectureZones: ArchitectureZone[]
 export const restrictedSyntax: RestrictedSelector[]
+/** خاصية CSS فيزيائية في نمط سطري — مُستثنًى منها `pages/compare/layout.ts` وحده (المرحلة 17). */
+export const physicalPropertySelector: RestrictedSelector
 export const encodeSelector: RestrictedSelector
 /** الوصول المحسوب بسلسلة حرفية: `c['convertToBlob']()`. */
 export const encodeComputedSelector: RestrictedSelector

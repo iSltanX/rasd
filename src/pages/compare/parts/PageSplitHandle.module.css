@@ -1,0 +1,42 @@
+.frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.line {
+  position: absolute;
+  inset-block: 0;
+  /* الموضع فيزيائي مقصود — نسبة عبر عرض الصورة، لا اتجاه قراءة. انظر تعليق PageSplitHandle.tsx. */
+  left: var(--rasd-cmp-split-pos); /* rasd-allow-literal: فيزيائي مقصود، انظر PageSplitHandle.tsx */
+  inline-size: var(--rasd-stroke-medium);
+  translate: -50% 0;
+  background: var(--rasd-tool-compare-fg);
+  pointer-events: none;
+}
+
+.handle {
+  position: absolute;
+  inset-block-start: 50%;
+  left: var(--rasd-cmp-split-pos); /* rasd-allow-literal: فيزيائي مقصود، انظر PageSplitHandle.tsx */
+  translate: -50% -50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-2);
+  inline-size: 1.75rem;
+  block-size: 3rem;
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-overlay);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-strong);
+  color: var(--rasd-text-primary);
+  box-shadow: var(--rasd-elevation-2);
+  cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.handle:focus-visible {
+  outline: var(--rasd-stroke-medium) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-space-2);
+}

@@ -1,0 +1,40 @@
+.desaturated {
+  filter: grayscale(70%) brightness(0.85);
+  opacity: 0.9;
+}
+
+/*
+ * لون محايد (`tool/compare`) لا `tool/diff/added`·`removed` — هذا المستطيل
+ * حدود منطقة للتنقّل، لا تصنيف «أُضيف»/«أُزيل» (لا تُبنى هذه التصنيفات هنا،
+ * انظر تعليق Sidebar.tsx). الخريطة الحرارية وحدها تحمل لوني الإضافة والإزالة.
+ */
+.regionBox {
+  position: absolute;
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: var(--rasd-stroke-medium) solid var(--rasd-tool-compare-fg);
+  border-radius: var(--rasd-radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.regionBoxSelected {
+  border-color: var(--rasd-border-focus);
+  box-shadow: var(--rasd-elevation-2);
+}
+
+.badge {
+  position: absolute;
+  inset-block-start: var(--rasd-space-2);
+  inset-inline-start: var(--rasd-space-2);
+  min-inline-size: 1.25rem;
+  padding-inline: var(--rasd-space-4);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-inverse);
+  color: var(--rasd-text-inverse);
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-2xs);
+  line-height: 1.25rem;
+  text-align: center;
+}

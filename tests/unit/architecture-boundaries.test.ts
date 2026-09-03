@@ -12,6 +12,7 @@ import {
   encodeSelector,
   encodeSelectors,
   ENCODE_ALLOWED,
+  physicalPropertySelector,
   restrictedSyntax,
 } from '../../eslint.config.js'
 
@@ -196,5 +197,47 @@ describe('بوّابة الترميز', () => {
     expect(selectors).toContain('chrome')
     expect(selectors).toContain('formatHuman')
     expect(selectors).not.toContain('toBlob')
+  })
+})
+
+/**
+ * حارس الخاصية الفيزيائية — واستثناء `layout.ts` الوحيد منه (المرحلة 17).
+ *
+ * `percentBox`/`percentBoxStyle` تحوِّلان بكسل **جهاز** (فضاء صورة، لا
+ * اتجاه صفحة) إلى صندوق CSS — خاصية منطقية هناك تقلب موضع كل صندوق جزئي
+ * أفقيًّا في صفحة RTL (عُثر عليه حيًّا أثناء التحقّق، لا افتراضًا). نفس منطق
+ * «بوّابة الترميز»: طرحُ محدِّد واحد من مصفوفة، لا إطفاء القاعدة.
+ */
+describe('حارس الخاصية الفيزيائية', () => {
+  it('يمنع left/right وما شابه في أي نمط سطري افتراضيًّا', () => {
+    expect(physicalPropertySelector.selector).toContain('left')
+    expect(physicalPropertySelector.selector).toContain('right')
+  })
+
+  it('المستثنى ملفٌّ واحد بالاسم — layout.ts وحده', () => {
+    expect(restrictedSyntax).toContain(physicalPropertySelector)
+  })
+
+  /*
+   * نفس بند «الاستثناء يُبقي بقيّة المحدِّدات سارية» أعلاه، مقلوبًا: هنا
+   * نتحقّق أن الاستثناء نفسه لا يُسقِط شيئًا غير المقصود — لو أُطفئت القاعدة
+   * كاملةً على `layout.ts` بدل طرح محدِّد واحد، لسقطت معها حراسة `chrome.*`
+   * الخام وبوّابة الترميز أيضًا.
+   */
+  it('الاستثناء طرحٌ معلَن — لا يُسقِط حراسة chrome.* الخام عن layout.ts', async () => {
+    const eslint = new ESLint({ cwd: fileURLToPath(new URL('../..', import.meta.url)) })
+    const config = await eslint.calculateConfigForFile('src/pages/compare/layout.ts')
+    const rule = config.rules?.['no-restricted-syntax']
+    expect(rule).toBeDefined()
+    const selectors = (rule as unknown[]).slice(1) as { selector: string }[]
+    expect(selectors.map((s) => s.selector)).not.toContain(physicalPropertySelector.selector)
+    expect(selectors.some((s) => s.selector.includes('chrome'))).toBe(true)
+    expect(selectors.some((s) => s.selector.includes('formatHuman'))).toBe(true)
+  })
+
+  it('layout.ts الحقيقي يلنت نظيفًا — لا يستعمل left/right لأنه صحّح إلى صندوق فيزيائي سليم', async () => {
+    const eslint = new ESLint({ cwd: fileURLToPath(new URL('../..', import.meta.url)) })
+    const [result] = await eslint.lintFiles(['src/pages/compare/layout.ts'])
+    expect(result?.messages.filter((m) => m.ruleId === 'no-restricted-syntax')).toHaveLength(0)
   })
 })
