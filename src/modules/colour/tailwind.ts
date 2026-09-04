@@ -17,8 +17,9 @@
  * `modules/` منطق خالص: لا DOM ولا `chrome.*`.
  */
 
-import { converter, modeOklab, modeOklch, modeRgb, useMode, type Color } from 'culori/fn'
+import { modeOklch, useMode } from 'culori/fn'
 
+import { deltaE, oklabOf, type Oklab } from './distance'
 import { formatColour, readColour, type ColourReading } from './formats'
 import {
   TAILWIND_PALETTE,
@@ -27,16 +28,8 @@ import {
   type TailwindSwatch,
 } from './tailwind-palette'
 
-useMode(modeRgb)
+// `rgb`/`oklab` يسجّلهما `distance.ts`؛ و`oklch` يلزم هنا لقراءة قيم اللوحة نفسها.
 useMode(modeOklch)
-useMode(modeOklab)
-const toOklab = converter('oklab')
-
-interface Lab {
-  readonly l: number
-  readonly a: number
-  readonly b: number
-}
 
 /**
  * عتبة «قريب بما يكفي لتسميته» — **0.02**، مقيسة على اللوحة نفسها بالمسار
@@ -139,7 +132,7 @@ const PALETTE_WITH_4_2: readonly TailwindSwatch[] = [
 /** ذاكرة التحويل — اللوحة ثابتة، فتُحوَّل مرّة لا مع كل حركة مؤشِّر. */
 const labCache = new WeakMap<
   readonly TailwindSwatch[],
-  { swatch: TailwindSwatch; lab: Lab; hex: string }[]
+  { swatch: TailwindSwatch; lab: Oklab; hex: string }[]
 >()
 
 /*
@@ -167,29 +160,13 @@ function prepared(palette: readonly TailwindSwatch[]) {
     // في المدخل، ولا يُبتلع صامتًا.
     const reading = readColour(swatch.oklch)
     if (!reading) throw new Error(`قيمة لوحة غير صالحة: ${swatch.name}`)
-    return { swatch, lab: labOfReading(reading), hex: formatColour(reading).hex }
+    return { swatch, lab: oklabOf(reading), hex: formatColour(reading).hex }
   })
   labCache.set(palette, built)
   return built
 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
-
-function labOf(c: Color): Lab {
-  const l = toOklab(c)
-  // الرماديات الخالصة تُكتب `oklch(98.5% 0 none)`، فيُرجِع `culori` لونًا
-  // بلا محاور — والصفر هو معناها لا افتراضٌ عليها.
-  return { l: l.l ?? 0, a: l.a ?? 0, b: l.b ?? 0 }
-}
-
-/** من قراءة إلى OKLab — عبر `rgb` المعروضة لا الإحداثيات الخام. */
-function labOfReading(c: ColourReading): Lab {
-  return labOf({ mode: 'rgb', r: c.rgb.r / 255, g: c.rgb.g / 255, b: c.rgb.b / 255 })
-}
-
-function distance(x: Lab, y: Lab): number {
-  return Math.hypot(x.l - y.l, x.a - y.a, x.b - y.b)
-}
 
 /**
  * أقرب درجة إلى قراءة لون — بحث خطّي على 242 عنصرًا.
@@ -211,13 +188,13 @@ export function nearestTailwind(
    * هي البكسلات التي يراها المطوّر ويقارن بها. فقياس المسافة من قيمة لا
    * تُعرض يعطي اسمًا لا علاقة له بما على الشاشة. والقصّ معلَن في `inSrgb`.
    */
-  const target = labOfReading(c)
+  const target = oklabOf(c)
 
   const rows = prepared(palette)
   let best = rows[0]!
-  let bestD = distance(target, best.lab)
+  let bestD = deltaE(target, best.lab)
   for (let i = 1; i < rows.length; i++) {
-    const d = distance(target, rows[i]!.lab)
+    const d = deltaE(target, rows[i]!.lab)
     if (d < bestD) {
       bestD = d
       best = rows[i]!
@@ -227,7 +204,7 @@ export function nearestTailwind(
   const ties: TailwindMatch[] = []
   for (const row of rows) {
     if (row.swatch === best.swatch) continue
-    const d = distance(target, row.lab)
+    const d = deltaE(target, row.lab)
     if (Math.abs(d - bestD) <= TIE_DELTA) ties.push({ swatch: row.swatch, deltaE: d, hex: row.hex })
   }
 
