@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatColour, formatsOf, fromPixel, readColour } from '@/modules/colour/formats'
+import { formatColour, formatsOf, fromOklch, fromPixel, readColour } from '@/modules/colour/formats'
 
 /**
  * الصيغ الخمس — `Rasd_Ar.md §6.7`.
@@ -198,5 +198,36 @@ describe('جولة الذهاب والإياب على 100 لون — الدقّ�
       const original = formatColour(fromPixel(r, g, b))
       expect(formatsOf(original.rgb)?.hex).toBe(original.hex)
     }
+  })
+})
+
+/**
+ * `fromOklch` أُضيفت في المرحلة 14 لمسار **التوليد** (سلّم الدرجات
+ * والتعديلات الأربع). وعقدها الجوهري أنها تمرّ بمسار `fromColor` الداخلي
+ * نفسه الذي تمرّ به `readColour` — فلا مسار ثانٍ للقصّ والتقريب وحكم المدى.
+ */
+describe('fromOklch — البناء من إحداثيات محسوبة', () => {
+  it('تتّفق مع `readColour` على القيمة نفسها مكتوبةً نصًّا', () => {
+    const viaNumbers = fromOklch(0.6554, 0.1892, 251.97)
+    const viaCss = readColour('oklch(65.54% 0.1892 251.97)')
+    expect(viaNumbers.rgb).toEqual(viaCss?.rgb)
+    expect(viaNumbers.inSrgb).toBe(viaCss?.inSrgb)
+  })
+
+  it('تُعلن الخروج عن مدى sRGB كما تفعل `readColour`', () => {
+    expect(fromOklch(0.7, 0.4, 150).inSrgb).toBe(false)
+    expect(fromOklch(0.6554, 0.1892, 251.97).inSrgb).toBe(true)
+  })
+
+  it('الرمادي بلا زاوية يبقى رماديًّا', () => {
+    const grey = fromOklch(0.5, 0, 0)
+    expect(grey.rgb.r).toBe(grey.rgb.g)
+    expect(grey.rgb.g).toBe(grey.rgb.b)
+  })
+
+  it('الشفافية تُمرَّر وتُقصّ إلى [0,1]', () => {
+    expect(fromOklch(0.5, 0.1, 200, 0.5).alpha).toBe(0.5)
+    expect(fromOklch(0.5, 0.1, 200, 3).alpha).toBe(1)
+    expect(fromOklch(0.5, 0.1, 200, -1).alpha).toBe(0)
   })
 })

@@ -149,6 +149,26 @@ export function fromPixel(r: number, g: number, b: number, a = 255): ColourReadi
   return fromColor({ mode: 'rgb', r: r / 255, g: g / 255, b: b / 255, alpha: a / 255 })
 }
 
+/**
+ * يبني قراءة من إحداثيات OKLCH محسوبة — مسار **التوليد** لا القراءة.
+ *
+ * أُضيف في المرحلة 14: `scale.ts` تولّد إحداثيات (سلّم الدرجات، والتعديلات
+ * الأربع) ثم تحتاج قراءةً كاملة منها — بقصّها إلى sRGB وتقريبها إلى بايت
+ * وحكمها في `inSrgb`. وكان البديل الوحيد قبل هذا التصدير بناءَ نصّ
+ * `oklch(…%…)` ثم إعادة تحليله بـ`readColour` — دورةٌ كاملة عبر السلسلة
+ * النصّية لبيانات موجودة عددًا أصلًا، تُنفَّذ عشر مرّات لكل سلّم.
+ *
+ * **والمقصد نفسه محفوظ**: كلتاهما تمرّان بـ`fromColor` الداخلية — فالقصّ
+ * والتقريب وحكم المدى تقع في موضع واحد لا موضعين. التصدير أزال الدورة
+ * النصّية ولم يُنشئ مسارًا ثانيًا.
+ *
+ * `l` بمدى 0..1 و`h` بالدرجات — نفس اصطلاح `Oklch` المُصدَّر أعلاه، لا
+ * نسبةً مئوية كما تُكتب في CSS.
+ */
+export function fromOklch(l: number, c: number, h: number, alpha = 1): ColourReading {
+  return fromColor({ mode: 'oklch', l, c, h, alpha: clamp(alpha, 0, 1) })
+}
+
 function fromColor(input: Color): ColourReading {
   const alpha = clamp(input.alpha ?? 1, 0, 1)
   const oklchRaw = toOklch(input)
