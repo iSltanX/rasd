@@ -28,6 +28,29 @@ export type ToolName = Exclude<ActiveMode, 'idle'> | 'viewport' | 'full-page'
  */
 export type ActivationFailure = RestrictionReason | 'boot-failed' | 'no-receiver'
 
+/**
+ * لونٌ واحد في لوحة مستخرَجة — مُسطَّحًا للسلك.
+ *
+ * `hex` لا `ColourReading`: تلك تحمل إحداثيات OKLCH الخام وحكم المدى وقنوات
+ * منفصلة — بنية غنيّة تخدم الحساب، ولا معنى لعبورها السلك حين يكفي المستهلِك
+ * لونٌ يعرضه ويحفظه. و`ColorRecord` في المخزن يحفظ `hex` كذلك.
+ */
+export interface PaletteSwatch {
+  readonly hex: string
+  /** حصّة اللون من البكسلات المحسوبة، 0..1. */
+  readonly share: number
+  readonly count: number
+  /** `§6.3` — دون عتبة التشبّع الحيادية. يُوسَم دائمًا حتى حين لا يُسقَط. */
+  readonly neutral: boolean
+}
+
+export interface PaletteExtraction {
+  readonly swatches: readonly PaletteSwatch[]
+  readonly countedPixels: number
+  /** كم عنقودًا حياديًّا أُسقط — يُعلَن ولا يُخفى بصمت. */
+  readonly droppedNeutrals: number
+}
+
 // ─────────────────────────────────────────────────────────────────
 // الطلبات — رسالة واحدة، ردّ واحد
 // ─────────────────────────────────────────────────────────────────
@@ -199,6 +222,29 @@ export interface RequestMap {
     readonly source: ColorSource
   }
   /**
+   * يستخرج لوحة ألوان من بكسلات (`Rasd_Ar.md §6.1`).
+   *
+   * **من الخلفية لا من الصفحة ولا من worker** — [ADR 0017](../../../Docs/ADR/0017-palette-extraction-host.md):
+   * قِيس أن `Worker` من أصل الإضافة لا يُحمَّل داخل مستند صفحة مضيفة، فسقط
+   * مضيف `palette.worker.ts`؛ والـservice worker يملك `OffscreenCanvas`
+   * وبكسلات المصادر أصلًا، وهو خيط مستقلّ عن عرض أي صفحة.
+   *
+   * **مصدران يغطّيان الخمسة**: `viewport` بمستطيل اختياري يغطّي «الجزء
+   * الظاهر» و«منطقة» و«عنصر» معًا (الصفحة تعرف مستطيل عنصرها وتمرّره)،
+   * و`capture` يغطّي «لقطة محفوظة». ويبقى **«الصفحة كاملة» غير مدعوم هنا**:
+   * يحتاج خطّ التجميع متعدّد البلاطات (المرحلة 10) لا لقطةً واحدة — فجوة
+   * معلَنة لا مغفولة.
+   */
+  'palette/extract': {
+    readonly source:
+      | { readonly kind: 'viewport'; readonly rect: DeviceRect | null }
+      | { readonly kind: 'capture'; readonly captureId: string }
+    /** `§6.2`: 5 · 8 · 12 · مخصَّص. */
+    readonly count: number
+    /** `§6.3`: يُسقط الحياديات بدل وسمها. */
+    readonly dropNeutrals: boolean
+  }
+  /**
    * يهيّئ الصفحة لالتقاط كامل: يجد المُمرِّر، ويحيّد الثوابت، ويمهّد.
    *
    * ثلاث رسائل لا واحدة (`prepare`/`step`/`finish`) لأن الحلقة تُقاد من
@@ -286,6 +332,7 @@ export interface ResponseMap {
    */
   'colour/frame': { dataUrl: string }
   'colour/save': { id: string }
+  'palette/extract': PaletteExtraction
   'fullpage/prepare': FullPagePrepared
   'fullpage/step': FullPageStep
   'fullpage/finish': { restored: boolean }

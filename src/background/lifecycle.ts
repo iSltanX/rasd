@@ -37,6 +37,7 @@ import { blobs, captures, colors } from '@/shared/storage/repository'
 import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
 import { cancelFullPage } from './full-page-job'
+import { extractFromCapture, extractFromViewport } from './palette-service'
 
 import type { PageKey } from '@/modules/compare/reference'
 import type { InspectSnapshot } from '@/shared/inspect-schema'
@@ -248,6 +249,29 @@ function registerRequestHandlers() {
     const saved = await colors.put(record)
     if (!saved.ok) throw new RasdThrow(saved.error)
     return { id: record.id }
+  })
+
+  /**
+   * استخراج لوحة (`§6.1`) — الحساب هنا لا في الصفحة ولا في worker (ADR 0017).
+   *
+   * مصدر `viewport` يلتقط الجزء الظاهر بالمسار نفسه الذي تستعمله عيّنة اللون
+   * (`captureTile`)، ثم يقصّ إلى المستطيل إن مُرِّر — فـ«منطقة» و«عنصر»
+   * و«الجزء الظاهر» ثلاثتها مسار واحد. ومصدر `capture` يقرأ بايتات لقطة
+   * محفوظة من المخزن الذي تملكه الخلفية أصلًا.
+   */
+  onMessage('palette/extract', async ({ source, count, dropNeutrals }, { tabId }) => {
+    const options = { count, dropNeutrals }
+    if (source.kind === 'capture') {
+      const extracted = await extractFromCapture(source.captureId, options)
+      if (!extracted.ok) throw new RasdThrow(extracted.error)
+      return extracted.value
+    }
+    if (tabId === undefined) throw new Error('لا تبويب مستهدَف لاستخراج اللوحة.')
+    const shot = await captureTile(tabId)
+    if (!shot.ok) throw new RasdThrow(shot.error)
+    const extracted = await extractFromViewport(shot.value, source.rect, options)
+    if (!extracted.ok) throw new RasdThrow(extracted.error)
+    return extracted.value
   })
 
   /**
