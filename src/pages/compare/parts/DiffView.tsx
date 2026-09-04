@@ -12,17 +12,29 @@
  *
  * **`diff` تُرسَم بقماش حقيقي لا `<img>`**: `DiffOutcome.diff` مصفوفة بكسل
  * خام (`RasterImage`)، و`putImageData` يرسمها مباشرة بلا ترميز/فكّ وسيط.
+ *
+ * **`extraInA`/`extraInB` تُعلَّمان صراحةً** (`Rasd_Plan.md §17`: «تعليم
+ * المنطقة الزائدة صراحةً بدل رفض المقارنة») — تهشير محايد (`tool/compare`
+ * لا `tool/diff/added`·`removed`: هذا «لم يُقارَن» لا «تغيّر»، تصنيف مختلف
+ * تمامًا). شريط `extraInA` يملأ فراغًا حقيقيًّا في المسرح (ب لا تصل إليه
+ * أصلًا، فلا شيء تحته)؛ وشريط `extraInB` يُهشَّر **فوق** محتوى ب المرئي —
+ * كان سيبدو مقارَنًا بصمت وهو ليس كذلك بلا هذا التمييز.
  */
 
 import { useEffect, useRef } from 'preact/hooks'
 
-import { percentBox, percentBoxStyle, type PixelSize } from '@/pages/compare/layout'
+import {
+  extraStripBoxes,
+  percentBox,
+  percentBoxStyle,
+  type PixelSize,
+} from '@/pages/compare/layout'
 import { cx } from '@/ui/cx'
 
 import styles from './DiffView.module.css'
 import stageStyles from './Stage.module.css'
 
-import type { RasterImage } from '@/modules/compare/diff'
+import type { ExtraStrip, RasterImage } from '@/modules/compare/diff'
 import type { RegionItem } from '@/pages/compare/region-format'
 import type { DeviceRect } from '@/shared/geometry'
 import type { JSX } from 'preact'
@@ -33,6 +45,8 @@ export interface DiffViewProps {
   readonly stage: PixelSize
   readonly diff: RasterImage
   readonly overlap: DeviceRect
+  readonly extraInA: ExtraStrip
+  readonly extraInB: ExtraStrip
   readonly regionItems: readonly RegionItem[]
   readonly selectedIndex: number | null
   readonly onSelectRegion: (index: number) => void
@@ -44,6 +58,8 @@ export function DiffView({
   stage,
   diff,
   overlap,
+  extraInA,
+  extraInB,
   regionItems,
   selectedIndex,
   onSelectRegion,
@@ -70,6 +86,7 @@ export function DiffView({
   }, [diff])
 
   const overlapBox = percentBoxStyle(percentBox(overlap, stage))
+  const extraBoxes = extraStripBoxes(extraInA, extraInB, stage)
 
   return (
     <>
@@ -86,6 +103,11 @@ export function DiffView({
         class={stageStyles.overlayBox}
         style={overlapBox}
       />
+      {extraBoxes.map(({ key, box }) => (
+        <div key={key} class={styles.extraStrip} style={percentBoxStyle(box)}>
+          <span class={styles.extraStripLabel}>غير مُقارَن</span>
+        </div>
+      ))}
       {regionItems.map((item, index) => {
         const box = percentBoxStyle(percentBox(item.region.rect, stage))
         const selected = index === selectedIndex

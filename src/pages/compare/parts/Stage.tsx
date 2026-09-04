@@ -95,6 +95,8 @@ export function Stage({
           stage={stageSizePx}
           diff={diffOutcome.diff}
           overlap={diffOutcome.overlap}
+          extraInA={diffOutcome.extraInA}
+          extraInB={diffOutcome.extraInB}
           regionItems={regionItems}
           selectedIndex={selectedRegionIndex}
           onSelectRegion={onSelectRegion}

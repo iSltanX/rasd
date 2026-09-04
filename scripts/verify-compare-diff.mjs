@@ -378,6 +378,137 @@ if (!cmpSession) {
     }
 
     /*
+     * ── تعليم المنطقة الزائدة عند اختلاف الأبعاد («Rasd_Plan.md §17») ──
+     * فجوة كانت صامتة: `extraInA`/`extraInB` وصلا العميل منذ الدفعة السابقة
+     * بلا مستهلِك في الواجهة. لقطتان بأبعاد مختلفتين (200×150 و280×220) —
+     * التقاطع 200×150 خالٍ من أي فرق، والفائض في ب فقط (80×220 يمينًا،
+     * 200×70 أسفل) — فأيّ علامة «غير مُقارَن» ظاهرة تثبت الفجوة مُصلَحة، لا
+     * فرقًا حسابيًّا محتملًا يُخلَط معها.
+     */
+    try {
+      const MISM_A = 'verify-mismatch-a'
+      const MISM_B = 'verify-mismatch-b'
+      const seededMismatch = JSON.parse(
+        await evalIn(
+          S,
+          `(async () => {
+          const db = await new Promise((res, rej) => {
+            const r = indexedDB.open('rasd')
+            r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error)
+          })
+          function makePng(w, h) {
+            const c = new OffscreenCanvas(w, h)
+            const ctx = c.getContext('2d')
+            ctx.fillStyle = 'rgb(100,100,100)'
+            ctx.fillRect(0, 0, w, h)
+            return c.convertToBlob({ type: 'image/png' })
+          }
+          const blobA = await makePng(200, 150)
+          const blobB = await makePng(280, 220)
+          const now = Date.now()
+          const tx = db.transaction(['captures','blobs'], 'readwrite')
+          const rec = (id, title, w, h) => ({
+            id, createdAt: now, origin: 'https://example.com', url: 'https://example.com/mismatch',
+            title, kind: 'viewport', status: 'ready', projectId: null, tags: [],
+            width: w, height: h, devicePixelRatio: 1, favorite: false, archived: false, trashedAt: null,
+          })
+          tx.objectStore('captures').put(rec('${MISM_A}', 'مقاس أ', 200, 150))
+          tx.objectStore('captures').put(rec('${MISM_B}', 'مقاس ب', 280, 220))
+          tx.objectStore('blobs').put({ id: '${MISM_A}', blob: blobA, mime: 'image/png', bytes: blobA.size })
+          tx.objectStore('blobs').put({ id: '${MISM_B}', blob: blobB, mime: 'image/png', bytes: blobB.size })
+          await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error) })
+          db.close()
+          return JSON.stringify({ ok: true })
+        })().catch(e => JSON.stringify({ ok: false, error: String(e) }))`,
+        ),
+      )
+
+      if (!seededMismatch.ok) {
+        fail(`تعذّر زرع لقطتَي الأبعاد المختلفة: ${seededMismatch.error}`)
+      } else {
+        const mismUrl = `chrome-extension://${extId}/src/pages/compare/index.html?a=${MISM_A}&b=${MISM_B}`
+        await send('Page.navigate', { url: mismUrl }, S)
+
+        async function waitForStableRatioOn(idMarker, timeoutMs = 10000) {
+          const start = Date.now()
+          let lastText = null
+          let stableCount = 0
+          while (Date.now() - start < timeoutMs) {
+            const onNewPage = await evalIn(S, `location.search.includes('${idMarker}')`).catch(
+              () => false,
+            )
+            if (onNewPage) {
+              const text = await evalIn(
+                S,
+                `document.querySelector('[class*="ratioValue"]')?.textContent ?? null`,
+              ).catch(() => null)
+              if (text !== null && text === lastText) {
+                stableCount++
+                if (stableCount >= 3) return text
+              } else {
+                stableCount = 0
+              }
+              lastText = text
+            }
+            await new Promise((r) => setTimeout(r, 150))
+          }
+          return null
+        }
+
+        const mismRatio = await waitForStableRatioOn(MISM_A)
+        if (mismRatio === null) {
+          fail('لقطتا الأبعاد المختلفة لم يستقرّ حسابهما خلال المهلة')
+        } else {
+          note(`نسبة الاختلاف على التقاطع (يُتوقَّع 0% — التقاطع نفسه بلا فرق): "${mismRatio}"`)
+
+          // ── بند الدليل الرابع «غير مُقارَن» ────────────────────────
+          const legendHasExtra = await evalIn(
+            S,
+            `[...document.querySelectorAll('li')].some(li => li.textContent.includes('غير مُقارَن'))`,
+          )
+          legendHasExtra
+            ? ok('بند الدليل «غير مُقارَن» ظاهر عند اختلاف الأبعاد')
+            : fail('بند الدليل «غير مُقارَن» غائب رغم اختلاف الأبعاد — الفجوة لم تُصلَح فعليًّا')
+
+          // ── التبديل إلى «فرق البكسل» لرؤية التهشير فعليًّا ──────────
+          await evalIn(
+            S,
+            `(() => {
+              const btn = [...document.querySelectorAll('[aria-label="طريقة عرض المقارنة"] *')]
+                .find(el => el.textContent?.trim() === 'فرق البكسل' && el.children.length === 0)
+              const target = btn?.closest('button') ?? btn
+              target?.click()
+            })()`,
+          )
+          await new Promise((r) => setTimeout(r, 300))
+
+          const extraStripCount = await evalIn(
+            S,
+            `document.querySelectorAll('[class*="extraStrip"]:not([class*="extraStripLabel"])').length`,
+          )
+          // فائض ب فقط: عمود يمينًا وصفّ أسفل — صندوقان بالضبط.
+          if (extraStripCount === 2) {
+            ok(`صندوقا التهشير ظاهران بالعدد الصحيح: ${extraStripCount}`)
+          } else {
+            fail(`عدد صناديق التهشير ${extraStripCount} — المتوقَّع 2 (عمود ب وصفّ ب فقط)`)
+          }
+
+          try {
+            const dir = join(root, 'artifacts')
+            if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+            const { data } = await send('Page.captureScreenshot', { format: 'png' }, S)
+            writeFileSync(join(dir, 'compare-extra-region.png'), Buffer.from(data, 'base64'))
+            note('لقطة المنطقة الزائدة: artifacts/compare-extra-region.png')
+          } catch (e) {
+            note(`تعذّرت لقطة المنطقة الزائدة: ${e}`)
+          }
+        }
+      }
+    } catch (e) {
+      fail(`استثناء أثناء فحص المنطقة الزائدة: ${e.message ?? e}`)
+    }
+
+    /*
      * ── هدف الأداء: 4000×3000 في ≤3 ثوانٍ («Rasd_Plan.md §17»، معيار
      * الاكتمال) ──────────────────────────────────────────────────
      * لم يُقَس بعد في هذا الفحص — يُقاس الآن حيًّا لا افتراضًا. الصورتان

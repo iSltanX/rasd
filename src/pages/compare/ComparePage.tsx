@@ -204,6 +204,15 @@ export function ComparePage(): JSX.Element {
   }
 
   const stage = stageSize(loadedA.capture.record, loadedB.capture.record)
+  // فجوة معلَنة صراحة (§17: «تعليم المنطقة الزائدة») — لا يظهر بند الدليل
+  // الرابع إلا حين تختلف الأبعاد فعلًا، فلا يُربك مقارنةً بمقاسين متساويين.
+  const hasExtraRegion = Boolean(
+    diffOutcome &&
+    (diffOutcome.extraInA.cols ||
+      diffOutcome.extraInA.rows ||
+      diffOutcome.extraInB.cols ||
+      diffOutcome.extraInB.rows),
+  )
 
   return (
     <div class={styles.page}>
@@ -227,6 +236,7 @@ export function ComparePage(): JSX.Element {
           onNextRegion={onNextRegion}
           thresholdFraction={threshold}
           onThresholdChange={setThreshold}
+          hasExtraRegion={hasExtraRegion}
         />
         <div class={styles.stageWrap}>
           <Stage

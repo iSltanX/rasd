@@ -24,6 +24,39 @@
   box-shadow: var(--rasd-elevation-2);
 }
 
+/*
+ * تهشير محايد — «لم يُقارَن» لا «تغيّر»، فلا لونَي `tool/diff/added`·`removed`
+ * (Rasd_Plan.md §17: «تعليم المنطقة الزائدة صراحةً بدل رفض المقارنة»).
+ * `pointer-events: none` لأنه تعليميّ بحت — لا نقر عليه ولا حجب لما تحته.
+ */
+.extraStrip {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+  border: var(--rasd-stroke-thin) dashed var(--rasd-tool-compare-border);
+  background-color: var(--rasd-tool-compare-surface);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--rasd-tool-compare-border) 0 var(--rasd-stroke-thin),
+    transparent var(--rasd-stroke-thin) var(--rasd-space-10)
+  );
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.extraStripLabel {
+  margin-block-start: var(--rasd-space-8);
+  padding-inline: var(--rasd-space-8);
+  padding-block: var(--rasd-space-2);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-inverse);
+  color: var(--rasd-text-inverse);
+  font-size: var(--rasd-font-size-2xs);
+  white-space: nowrap;
+}
+
 .badge {
   position: absolute;
   inset-block-start: var(--rasd-space-2);

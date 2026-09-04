@@ -11,6 +11,10 @@
  * صفٌّ واحد صادق — عدد المناطق المتغيّرة الحقيقي (`regions.length`، هنديّ) —
  * نفس أسلوب الفجوات المُعلَنة في `ComparePanel.tsx` (المرحلة 16) ضدّ إطار
  * `69:104`.
+ *
+ * **بند الدليل الرابع («غير مُقارَن») مشروط بـ`hasExtraRegion`** — لا يظهر
+ * إلا حين تختلف أبعاد اللقطتين فعلًا (`Rasd_Plan.md §17`: «تعليم المنطقة
+ * الزائدة صراحةً»)، فلا يُربك دليلًا لمقارنة بمقاسين متساويين ببند لا ينطبق.
  */
 
 import {
@@ -51,6 +55,7 @@ export interface SidebarProps {
   readonly onNextRegion: () => void
   readonly thresholdFraction: number
   readonly onThresholdChange: (fraction: number) => void
+  readonly hasExtraRegion: boolean
 }
 
 export function Sidebar({
@@ -66,6 +71,7 @@ export function Sidebar({
   onNextRegion,
   thresholdFraction,
   onThresholdChange,
+  hasExtraRegion,
 }: SidebarProps): JSX.Element {
   const modeIndex = MODE_OPTIONS.findIndex((o) => o.value === mode)
 
@@ -143,6 +149,12 @@ export function Sidebar({
             <span class={cx(styles.swatch, styles.swatchNeutral)} />
             <span>بلا تغيير</span>
           </li>
+          {hasExtraRegion ? (
+            <li class={styles.legendRow}>
+              <span class={cx(styles.swatch, styles.swatchExtra)} />
+              <span>غير مُقارَن</span>
+            </li>
+          ) : null}
         </ul>
       </section>
 

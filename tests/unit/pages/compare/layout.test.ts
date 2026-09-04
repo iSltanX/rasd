@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { percentBox, percentBoxStyle, stageSize } from '@/pages/compare/layout'
+import { extraStripBoxes, percentBox, percentBoxStyle, stageSize } from '@/pages/compare/layout'
+import { deviceRect } from '@/shared/geometry'
+
+import type { ExtraStrip } from '@/modules/compare/diff'
+
+const NONE: ExtraStrip = { cols: null, rows: null }
 
 describe('stageSize', () => {
   it('يأخذ أكبر عرض وأكبر ارتفاع بين الصورتين', () => {
@@ -72,5 +77,47 @@ describe('percentBoxStyle', () => {
       width: '30%',
       height: '40%',
     })
+  })
+})
+
+/**
+ * §17: «تعليم المنطقة الزائدة صراحةً بدل رفض المقارنة» — الفجوة التي كانت
+ * صامتة (البيانات موجودة في `DiffOutcome` منذ الدفعة السابقة، لا مستهلِك لها).
+ */
+describe('extraStripBoxes — تعليم المنطقة الزائدة (فجوة §17 المُصلَحة)', () => {
+  const stage = { width: 200, height: 150 }
+
+  it('لا صناديق حين تتساوى الأبعاد (extraInA وextraInB كلاهما null)', () => {
+    expect(extraStripBoxes(NONE, NONE, stage)).toEqual([])
+  })
+
+  it('صندوق واحد من a-cols حين أ أعرض من ب فقط', () => {
+    const extraInA: ExtraStrip = { cols: deviceRect(150, 0, 50, 150), rows: null }
+    const boxes = extraStripBoxes(extraInA, NONE, stage)
+    expect(boxes).toHaveLength(1)
+    expect(boxes[0]).toEqual({
+      key: 'a-cols',
+      box: { left: 75, top: 0, width: 25, height: 100 },
+    })
+  })
+
+  it('حتى أربعة صناديق معًا — عمود وصفّ من كل صورة', () => {
+    const extraInA: ExtraStrip = {
+      cols: deviceRect(180, 0, 20, 150),
+      rows: deviceRect(0, 140, 200, 10),
+    }
+    const extraInB: ExtraStrip = {
+      cols: deviceRect(190, 0, 10, 150),
+      rows: deviceRect(0, 145, 200, 5),
+    }
+    const boxes = extraStripBoxes(extraInA, extraInB, stage)
+    expect(boxes.map((b) => b.key)).toEqual(['a-cols', 'a-rows', 'b-cols', 'b-rows'])
+  })
+
+  it('يتجاوز أي محور null دون صندوق فارغ', () => {
+    const extraInB: ExtraStrip = { cols: null, rows: deviceRect(0, 100, 200, 50) }
+    const boxes = extraStripBoxes(NONE, extraInB, stage)
+    expect(boxes).toHaveLength(1)
+    expect(boxes[0]?.key).toBe('b-rows')
   })
 })

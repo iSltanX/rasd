@@ -24,6 +24,8 @@
  * من حارس الخاصية الفيزيائية في `eslint.config.js` بالاسم، لا بإطفاء القاعدة.
  */
 
+import type { ExtraStrip } from '@/modules/compare/diff'
+
 export interface PixelSize {
   readonly width: number
   readonly height: number
@@ -75,4 +77,39 @@ export function percentBoxStyle(box: PercentBox): Record<string, string> {
     width: `${box.width}%`,
     height: `${box.height}%`,
   }
+}
+
+export interface ExtraStripBox {
+  /** مفتاح ثابت — أي صورة (a/b) وأيّ محور (cols/rows)، لا `region.id` مرقَّم. */
+  readonly key: 'a-cols' | 'a-rows' | 'b-cols' | 'b-rows'
+  readonly box: PercentBox
+}
+
+/**
+ * صناديق الأشرطة الفائضة من كلتا الصورتين — للتعليم الصريح فوق ما لم
+ * يُقارَن، بدل تركه فراغًا صامتًا أو محتوًى يبدو مُقارَنًا وهو ليس كذلك.
+ *
+ * **فجوة كانت صامتة لا معلَنة** — `extraInA`/`extraInB` وصلا `DiffOutcome`
+ * منذ الدفعة السابقة (`diff.ts` يحسبهما بدقّة، ثلاثة اختبارات تثبت ذلك) لكن
+ * لا مكوّن كان يستهلكهما: نصّ §17 «تعليم المنطقة الزائدة صراحةً» لم يتحقّق
+ * في الواجهة رغم توفّر البيانات الكاملة له. هذا الملفّ هو موضع الإصلاح —
+ * الاستهلاك في `DiffView.tsx`.
+ *
+ * حتى أربعة صناديق (عمودان وصفّان، من كل صورة) — عادةً أقلّ إذ تساوي الأبعاد
+ * هو الشائع لا الاستثناء. المصفوفة تخطّي `null` بلا صندوق فارغ.
+ */
+export function extraStripBoxes(
+  extraInA: ExtraStrip,
+  extraInB: ExtraStrip,
+  stage: PixelSize,
+): readonly ExtraStripBox[] {
+  const boxes: ExtraStripBox[] = []
+  const add = (key: ExtraStripBox['key'], rect: PixelRect | null): void => {
+    if (rect) boxes.push({ key, box: percentBox(rect, stage) })
+  }
+  add('a-cols', extraInA.cols)
+  add('a-rows', extraInA.rows)
+  add('b-cols', extraInB.cols)
+  add('b-rows', extraInB.rows)
+  return boxes
 }

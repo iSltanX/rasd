@@ -140,6 +140,17 @@
   background: var(--rasd-border-strong);
 }
 
+/* نفس روح تهشير `.extraStrip` في `DiffView.module.css` — نمط أضيق يلائم عيّنة 12px. */
+.swatchExtra {
+  border: var(--rasd-stroke-thin) dashed var(--rasd-tool-compare-border);
+  background-color: var(--rasd-tool-compare-surface);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--rasd-tool-compare-border) 0 var(--rasd-stroke-thin),
+    transparent var(--rasd-stroke-thin) var(--rasd-space-4)
+  );
+}
+
 .sensitivity {
   padding-block-start: var(--rasd-space-8);
   border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
