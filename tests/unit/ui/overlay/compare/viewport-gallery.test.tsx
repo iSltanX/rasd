@@ -23,6 +23,7 @@ afterEach(() => {
 const FILLED_CARD: ViewportGalleryCard = {
   viewport: 'desktop',
   image: { url: 'blob:x', naturalWidth: 1440, naturalHeight: 900 },
+  diffRatio: null,
 }
 
 describe('ViewportGallery — يُصيَّر بلا رمي', () => {
@@ -44,13 +45,39 @@ describe('ViewportGallery — يُصيَّر بلا رمي', () => {
     expect(el.querySelectorAll('[data-drag-over]').length).toBeGreaterThan(0)
   })
 
-  it('كل بطاقة تعرض رقاقة «لم يُقارَن» و«—» — لا نسبة فرق محسوبة هنا', () => {
+  it('بطاقة بلا فرق مقيس تبقى «لم يُقارَن» + «—» — لا رقم يُخترَع لمقاس لم يُقَس', () => {
     const el = mount(<ViewportGallery cards={[FILLED_CARD]} />)
     const chips = el.querySelectorAll('.rasd-ov-vpg-chip')
     expect(chips).toHaveLength(4)
     for (const chip of chips) expect(chip.textContent).toBe('لم يُقارَن')
     expect(el.querySelectorAll('.rasd-ov-vpg-pct')).toHaveLength(4)
     for (const pct of el.querySelectorAll('.rasd-ov-vpg-pct')) expect(pct.textContent).toBe('—')
+  })
+
+  /**
+   * سدادُ دَيْن المرحلة 16: النسبة والرقاقة الدلالية كانتا مُستبعَدتين
+   * لغياب محرّك `pixelmatch`، والمحرّك قائم الآن في الخلفية.
+   */
+  it('بطاقة مقيسة تعرض النسبة بأرقام غربية ورقاقة دلالية', () => {
+    const el = mount(<ViewportGallery cards={[{ ...FILLED_CARD, diffRatio: 0.079 }]} />)
+    const card = el.querySelector('[aria-label="سطح المكتب"]')
+    expect(card?.querySelector('.rasd-ov-vpg-pct')?.textContent).toBe('7.9%')
+    const chip = card?.querySelector('.rasd-ov-vpg-chip')
+    expect(chip?.textContent).toBe('فروق كبيرة')
+    expect(chip?.getAttribute('data-status')).toBe('major')
+  })
+
+  it('البطاقات الأخرى تبقى «لم يُقارَن» حين تُقاس واحدة وحدها', () => {
+    const el = mount(<ViewportGallery cards={[{ ...FILLED_CARD, diffRatio: 0.079 }]} />)
+    const chips = [...el.querySelectorAll('.rasd-ov-vpg-chip')].map((c) => c.textContent)
+    expect(chips.filter((t) => t === 'لم يُقارَن')).toHaveLength(3)
+  })
+
+  it('فرقٌ صفريّ يعرض «مطابق» و0% لا «لم يُقارَن»', () => {
+    const el = mount(<ViewportGallery cards={[{ ...FILLED_CARD, diffRatio: 0 }]} />)
+    const card = el.querySelector('[aria-label="سطح المكتب"]')
+    expect(card?.querySelector('.rasd-ov-vpg-chip')?.textContent).toBe('مطابق')
+    expect(card?.querySelector('.rasd-ov-vpg-pct')?.textContent).toBe('0%')
   })
 
   it('زرّ الإغلاق يستدعي onClose', () => {

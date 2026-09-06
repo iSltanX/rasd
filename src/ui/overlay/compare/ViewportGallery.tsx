@@ -1,8 +1,10 @@
 import { useState } from 'preact/hooks'
 
+import { classifyDiffStatus, DIFF_STATUS_LABELS } from '@/modules/compare/diff-status'
 import { VIEWPORT_LABELS, VIEWPORT_ORDER } from '@/modules/compare/viewport'
-import { formatDimensions } from '@/shared/bidi'
+import { formatDimensions, formatPercent } from '@/shared/bidi'
 import { Icon } from '@/ui/icons/Icon'
+import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import type { Viewport } from '@/shared/storage/schema'
 import type { JSX } from 'preact'
@@ -11,15 +13,25 @@ import type { JSX } from 'preact'
  * معرض المقاسات — `compare / viewports` (`127:315`). **تعرض ولا تحسب**،
  * كبقيّة لوحات الطبقة.
  *
- * **قسم الفرق مُستبعَد عمدًا رغم ظهوره في نفس إطار Figma** — كل بطاقة في
- * الإطار تحمل نسبة اختلاف (`٧٫٩٪`…) ورقاقة حالة دلالية (`فروق كبيرة`
- * `فروق طفيفة` `مطابق`) ومستطيل تظليل فوق المصغَّرة، وثلاثتها تحتاج محرّك
- * `pixelmatch` في **المرحلة 17** لا 16 — نفس نمط الفصل المسجَّل في
- * `ComparePanel.tsx` لقسم «فرق البكسلات» (وقبله `Rasd_Plan.md §6` صفّ 60،
- * المرحلتان 13/14 لـ`colors / sampling`). **البطاقة الأولى في الإطار نفسه
- * («مخصّص» `1920×1080`) مصمَّمة بحالة «لم يُقارَن» + `—`** — أي أن التصميم
- * ذاته يفترض حالة معلَّقة مشروعة، فعرض الرقاقة والنسبة بهاتين القيمتين على
- * البطاقات الأربع كلّها هنا ليس نقصًا يُخفى بل استخدام حالة مصمَّمة فعلًا.
+ * **النسبة والرقاقة موصولتان الآن — سدادُ دَيْنٍ سجّلته المرحلة 16 على 17
+ * في هذا التعليق نفسه.** كانتا مُستبعَدتين لغياب محرّك `pixelmatch`، وقد
+ * بُني في `background/compare-diff-service.ts`. البطاقة تستقبل `diffRatio`
+ * جاهزًا، والتصنيف الدلالي (`فروق كبيرة` `فروق طفيفة` `مطابق` `لم يُقارَن`)
+ * في `classifyDiffStatus` — **وحدة منطق خالصة قابلة للاختبار لا شرطٌ داخل
+ * المكوّن**، وحدُّها قرارٌ هندسيّ موثَّق هناك على سابقة `classifyViewport`.
+ *
+ * **البطاقة الأولى في الإطار («مخصّص» `1920×1080`) مصمَّمة بحالة «لم
+ * يُقارَن» + `—`** — فبطاقةٌ بلا قياس تبقى عليها، ولا تُخترَع لها نسبة.
+ * وذلك حال ثلاث بطاقات من أربع عمليًّا: **المقاس الحيّ وحده هو ما يمكن
+ * قياسه اليوم**، لأن قياس البقية يحتاج تغيير حجم النافذة وهو ما أُجِّل
+ * صراحةً مع زرّ «أعد فحص كل المقاسات» في الفقرة التالية.
+ *
+ * **مستطيل التظليل فوق المصغَّرة — فجوة معلَنة لا مبنيّة**: الإطار يرسمه
+ * فوق موضع الاختلاف، لكن `LiveDiff` (`shared/messaging/contract.ts`) يحمل
+ * عدد المناطق لا صناديقها — `groupDiffRegions` تحسب الصناديق في الخلفية ثم
+ * تُختزَل إلى `regionCount` قبل عبور الرسالة (تعليل الاختزال في رأس
+ * `compare-diff-service.ts`: «نسبةٌ وعددُ مناطق بدل خريطة حرارية»). فلا
+ * بيانات لموضعه، ورسمُه بموضعٍ مُخمَّن كذبٌ مرئيّ. يحتاج توسيع العقد نفسه.
  *
  * **زرّ «أعد فحص كل المقاسات» في رأس الإطار (`127:317`) غير معروض هنا
  * إطلاقًا** — يحتاج محرّك تغيير حجم نافذة تلقائيًّا والتقاط متسلسل عبر
@@ -42,6 +54,14 @@ export interface ViewportGalleryCard {
     readonly naturalWidth: number
     readonly naturalHeight: number
   } | null
+  /**
+   * كسر الفرق (0–1) لآخر قياس على هذا المقاس، أو `null` — «لم يُقارَن».
+   *
+   * **مطلوب لا اختياري**: حقلٌ اختياري يجعل «لم يُقَس» سهوًا صامتًا في
+   * موضع البناء، بينما `null` صريحة تُقرأ قرارًا. وكل مستدعٍ يعرف أيّ
+   * بطاقة قِيست فعلًا — المقاس الحيّ وحده اليوم (انظر تعليق الرأس).
+   */
+  readonly diffRatio: number | null
 }
 
 export interface ViewportGalleryProps {
@@ -59,7 +79,8 @@ function ViewportCard({
   onDropImage?: (viewport: Viewport, file: File) => void
 }): JSX.Element {
   const [dragOver, setDragOver] = useState(false)
-  const { viewport, image } = card
+  const { viewport, image, diffRatio } = card
+  const status = classifyDiffStatus(diffRatio)
 
   const onDrop = (e: JSX.TargetedDragEvent<HTMLDivElement>): void => {
     e.preventDefault()
@@ -97,13 +118,24 @@ function ViewportCard({
       <div class="rasd-ov-vpg-meta">
         <div class="rasd-ov-vpg-row">
           <span class="rasd-ov-vpg-dim">
-            {image ? formatDimensions(image.naturalWidth, image.naturalHeight) : '—'}
+            {image ? (
+              <TechnicalValue kind="dimension" variant="inherit">
+                {formatDimensions(image.naturalWidth, image.naturalHeight)}
+              </TechnicalValue>
+            ) : (
+              '—'
+            )}
           </span>
           <span class="rasd-ov-vpg-label">{VIEWPORT_LABELS[viewport]}</span>
         </div>
         <div class="rasd-ov-vpg-row">
-          <span class="rasd-ov-vpg-pct">—</span>
-          <span class="rasd-ov-vpg-chip">لم يُقارَن</span>
+          {/* قياس تقني ⇒ أرقام غربية (`§3.5`)، خلافًا لعدّ العناصر في `ComparePanel`. */}
+          <span class="rasd-ov-vpg-pct">
+            {status === 'unmeasured' || diffRatio === null ? '—' : formatPercent(diffRatio)}
+          </span>
+          <span class="rasd-ov-vpg-chip" data-status={status}>
+            {DIFF_STATUS_LABELS[status]}
+          </span>
         </div>
       </div>
     </article>
@@ -129,7 +161,11 @@ export function ViewportGallery({
 
       <div class="rasd-ov-vpg-grid">
         {VIEWPORT_ORDER.map((viewport) => {
-          const card = cards.find((c) => c.viewport === viewport) ?? { viewport, image: null }
+          const card = cards.find((c) => c.viewport === viewport) ?? {
+            viewport,
+            image: null,
+            diffRatio: null,
+          }
           return (
             <ViewportCard key={viewport} card={card} {...(onDropImage ? { onDropImage } : {})} />
           )

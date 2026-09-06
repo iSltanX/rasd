@@ -7,11 +7,13 @@ import { ESLint } from 'eslint'
 import { describe, expect, it } from 'vitest'
 
 import {
+  ENCODE_ALLOWED,
+  LTR_GEOMETRY_LAYER,
+  dimensionIsolationSelector,
   encodeComputedSelector,
   encodeLiteralSelector,
   encodeSelector,
   encodeSelectors,
-  ENCODE_ALLOWED,
   physicalPropertySelector,
   restrictedSyntax,
 } from '../../eslint.config.js'
@@ -191,12 +193,31 @@ describe('بوّابة الترميز', () => {
    * طرح محدِّد واحد، لسقطت معها ستّ حراسات أخرى — وأوّلها أن `image-ops.ts`
    * لا ينادي `chrome.runtime.sendMessage` خامًا.
    */
-  it('الاستثناء يُبقي بقيّة المحدِّدات السبعة سارية', () => {
-    expect(restrictedSyntax).toHaveLength(7)
+  it('الاستثناء يُبقي بقيّة المحدِّدات الثمانية سارية', () => {
+    expect(restrictedSyntax).toHaveLength(8)
     const selectors = restrictedSyntax.map((r) => r.selector).join(' ')
     expect(selectors).toContain('chrome')
     expect(selectors).toContain('formatHuman')
+    expect(selectors).toContain('formatDimensions')
     expect(selectors).not.toContain('toBlob')
+  })
+
+  /*
+   * حارس عزل الأبعاد — يُثبَّت بالاسم لا بالعدد وحده. قِيس في Chrome حقيقي
+   * أن `1440 × 900` داخل `dir="rtl"` تُعرَض `900 × 1440`، وأن المستودع
+   * كرّر الخرق ثماني مرّات رغم إصلاحه مرّةً في المرحلة 16 (`§6` صفّ 88).
+   */
+  it('حارس عزل الأبعاد يستثني طبقة الهندسة بالاسم لا بإطفاء القاعدة', () => {
+    expect(restrictedSyntax).toContain(dimensionIsolationSelector)
+    expect(LTR_GEOMETRY_LAYER).toEqual([
+      'src/ui/overlay/Marquee.tsx',
+      'src/ui/overlay/BoxModel.tsx',
+      'src/ui/overlay/NodeLabel.tsx',
+    ])
+    // المستثنون يبقون محروسين من كل محدِّد آخر — طرحٌ لا إطفاء.
+    const kept = restrictedSyntax.filter((r) => r !== dimensionIsolationSelector)
+    expect(kept).toHaveLength(restrictedSyntax.length - 1)
+    expect(kept.map((r) => r.selector).join(' ')).toContain('chrome')
   })
 })
 

@@ -9,7 +9,7 @@
  * أخيرًا، حتى لا يُطلَق معالج على مضيف أُزيل.
  */
 
-import { signal } from '@preact/signals'
+import { computed, signal } from '@preact/signals'
 
 import { captureKindFor, type CaptureSource } from '@/modules/capture/kind'
 import { classifyViewport, VIEWPORT_ORDER } from '@/modules/compare/viewport'
@@ -44,6 +44,7 @@ import { createInspect } from './tools/inspect'
 import { createMeasure, type MeasureTool } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
+import type { LiveDiff } from '@/shared/messaging/contract'
 import type { Viewport } from '@/shared/storage/schema'
 import type { ViewportGalleryCard } from '@/ui/overlay'
 
@@ -390,6 +391,77 @@ async function bootOverlay(
    */
   const currentViewport = (): Viewport => classifyViewport(space.layoutWidth)
 
+  /**
+   * ── الفرق الحيّ — سلكُ `compare/diff` ────────────────────────────
+   *
+   * النتيجة **مقترنة بالمقاس الذي قِيست عليه**، لا مفردة: نسبةٌ بلا مقاسها
+   * لا سبيل لإبطالها حين يتغيّر المقاس تحتها.
+   */
+  const liveDiffAt = signal<{ viewport: Viewport; diff: LiveDiff } | null>(null)
+  const liveDiffBusy = signal(false)
+  const liveDiffError = signal<string | null>(null)
+
+  /**
+   * الحالة المعروضة — **الإبطال محسوبٌ لا مُدار**.
+   *
+   * `spaceSignal` تُكتب عند كل إطار مزامنة (تمرير · تغيير حجم · إبطال
+   * يدوي)، فتغيّرُ عرض النافذة يُسقط النتيجة في الإطار نفسه بلا مستمع
+   * إضافي ولا مقارنة دورية. أمّا تغيّر **المرجع** فيُبطَل صراحةً في
+   * `setCompareReference` وعند مغادرة الوضع — والسببان معًا هما ما تعنيه
+   * «نسبةٌ قديمة فوق مرجعٍ جديد كذبةٌ صامتة».
+   */
+  const compareDiff = computed(() => {
+    const at = liveDiffAt.value
+    const live = classifyViewport(spaceSignal.value.layoutWidth)
+    return {
+      result: at && at.viewport === live ? at.diff : null,
+      busy: liveDiffBusy.value,
+      error: liveDiffError.value,
+    }
+  })
+
+  const clearLiveDiff = (): void => {
+    liveDiffAt.value = null
+    liveDiffError.value = null
+  }
+
+  /**
+   * يطلب قياسًا جديدًا من الخلفية.
+   *
+   * **بلا إخفاء الطبقة هنا** — لا سهوًا بل لأن مسار الالتقاط يفعله فعلًا
+   * في موضعه الصحيح: `compare/diff` في `background/lifecycle.ts` يمرّ من
+   * `captureTile`، وهي تُخفي الطبقة بـ`capture/hide-overlay` قبل
+   * `captureVisibleTab` وتُعيدها بـ`capture/show-overlay` في `finally`
+   * (`background/capture-service.ts`). وهذا هو الطرف الذي يملك التوقيت:
+   * الردّ على `capture/hide-overlay` لا يصل إلّا بعد إطارَي رسم
+   * (`host.hide()`)، فالضمانة في الردّ لا في ترتيب نداءين من هنا. وإخفاءٌ
+   * ثانٍ من الصفحة كان سيُظهر الطبقة في `finally` الخاصّ به بينما الخلفية
+   * لا تزال تلتقط.
+   *
+   * **والمقاس يُلتقط مرّة عند الطلب لا بعد الردّ** — نفس قاعدة
+   * `setCompareReferenceFromBlob`: المرجع المستهدَف هو مقاس الصفحة لحظة
+   * الفعل، وتغيّره أثناء الانتظار يُبطل النتيجة عبر `compareDiff` أعلاه.
+   */
+  const captureLiveDiff = (): void => {
+    if (liveDiffBusy.peek()) return
+    const viewport = currentViewport()
+    liveDiffBusy.value = true
+    liveDiffError.value = null
+    void (async () => {
+      try {
+        const measured = await send('compare/diff', { viewport })
+        if (!measured.ok) {
+          liveDiffAt.value = null
+          liveDiffError.value = measured.error.message
+          return
+        }
+        liveDiffAt.value = { viewport, diff: measured.value }
+      } finally {
+        liveDiffBusy.value = false
+      }
+    })()
+  }
+
   /** عنوان الكائن الحيّ للمرجع المعروض — يُحرَّر صراحةً قبل أيّ استبدال أو عند التفكيك. */
   let referenceObjectUrl: string | null = null
 
@@ -426,6 +498,9 @@ async function bootOverlay(
     const previous = referenceObjectUrl
     referenceObjectUrl = image?.url ?? null
     compare.setReference(image)
+    // مرجعٌ جديد يُبطل نسبة المرجع السابق — هذا هو الشقّ الذي لا يمسكه
+    // حسابُ `compareDiff` (المرجع لا أثر له في `spaceSignal`).
+    clearLiveDiff()
     if (previous && previous !== referenceObjectUrl) URL.revokeObjectURL(previous)
   }
 
@@ -525,21 +600,36 @@ async function bootOverlay(
     viewportGallery.value = null
   }
 
+  /**
+   * نسبة الفرق التي تخصّ بطاقة مقاسٍ بعينه.
+   *
+   * **المقاس الحيّ وحده قد تكون له نسبة**: `compare/diff` يلتقط الجزء
+   * الظاهر من النافذة كما هي الآن، فقياس مقاسٍ آخر يحتاج تغيير حجم النافذة
+   * — وهو ما يخصّ زرّ «أعد فحص كل المقاسات» غير المبنيّ (تعليق رأس
+   * `ViewportGallery.tsx`). فبقيّة البطاقات تبقى «لم يُقارَن» بصدق، ولا
+   * تُنسَب إليها نسبة مقاسٍ آخر.
+   */
+  const galleryDiffRatio = (viewport: Viewport): number | null =>
+    viewport === currentViewport() ? (compareDiff.peek().result?.diffRatio ?? null) : null
+
   /** يحمِّل المراجع الأربعة دفعة واحدة — نداء مستقلّ لكل مقاس، متوازيةً لا متتالية. */
   const openViewportGallery = (): void => {
     const myEpoch = ++galleryEpoch
     void (async () => {
       const cards = await Promise.all(
         VIEWPORT_ORDER.map(async (viewport): Promise<ViewportGalleryCard> => {
+          const diffRatio = galleryDiffRatio(viewport)
           const found = await send('reference/load', { viewport })
-          if (!found.ok || !found.value) return { viewport, image: null }
+          // بطاقة بلا مرجع تبقى «لم يُقارَن» مهما كان آخر قياس:
+          // نسبةٌ فوق منطقة إفلات فارغة لا مرجع لها تناقضٌ ظاهر.
+          if (!found.ok || !found.value) return { viewport, image: null, diffRatio: null }
           try {
             const image = await loadReferenceImage(
               base64ToBlob(found.value.base64, found.value.mime),
             )
-            return { viewport, image }
+            return { viewport, image, diffRatio }
           } catch {
-            return { viewport, image: null }
+            return { viewport, image: null, diffRatio: null }
           }
         }),
       )
@@ -590,9 +680,12 @@ async function bootOverlay(
         }
         galleryObjectUrls.push(image.url)
         const existing =
-          viewportGallery.peek() ?? VIEWPORT_ORDER.map((v) => ({ viewport: v, image: null }))
+          viewportGallery.peek() ??
+          VIEWPORT_ORDER.map((v) => ({ viewport: v, image: null, diffRatio: null }))
+        // مرجعٌ جديد لهذا المقاس ⇒ نسبته القديمة باطلة — نفس حكم
+        // `setCompareReference`، والبطاقات الأخرى لا يمسّها التعيين.
         viewportGallery.value = existing.map((c) =>
-          c.viewport === viewport ? { viewport, image } : c,
+          c.viewport === viewport ? { viewport, image, diffRatio: null } : c,
         )
         if (viewport === currentViewport()) setCompareReference(image)
       } catch (e) {
@@ -708,6 +801,8 @@ async function bootOverlay(
     onOpenViewportGallery: openViewportGallery,
     onCloseViewportGallery: closeViewportGallery,
     onViewportGalleryDropImage: (viewport, file) => setGalleryReference(viewport, { image: file }),
+    compareDiff,
+    onCaptureCompareDiff: captureLiveDiff,
     fullPage,
     onCancelFullPage: () => void send('fullpage/cancel', undefined),
     space: spaceSignal,
@@ -768,6 +863,9 @@ async function bootOverlay(
       // معرض المقاسات مرتبط بوضع المقارنة نفسه — لا معنى لبقائه مفتوحًا
       // بعد مغادرته، ومغادرته هنا تشمل تنقّل SPA (نفس تعليق `referenceEpoch` أعلاه).
       closeViewportGallery()
+      // ومغادرة الوضع تشمل تنقّل SPA أيضًا — أي مرجعًا آخر لصفحة أخرى.
+      // فالنسبة تسقط معه، لا تنتظر عودةً إلى الوضع لتُعرض فوق مرجع جديد.
+      clearLiveDiff()
     } else {
       loadStoredReference()
     }

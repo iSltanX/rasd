@@ -35,6 +35,13 @@ export const encodeLiteralSelector: RestrictedSelector
 /** الثلاثة معًا. لا يُستعمل أحدها وحده. */
 export const encodeSelectors: RestrictedSelector[]
 export const ENCODE_ALLOWED: string[]
+/**
+ * أبعادٌ داخل JSX بلا `<TechnicalValue>`/`<bdi>` — تنقلب بصريًّا في RTL
+ * (`1440 × 900` ⇐ `900 × 1440`، مقيسًا في Chrome). المرحلة 17.
+ */
+export const dimensionIsolationSelector: RestrictedSelector
+/** مكوّنات طبقة الهندسة `direction: ltr` — مُستثناة من `dimensionIsolationSelector` وحده. */
+export const LTR_GEOMETRY_LAYER: string[]
 
 declare const config: unknown
 export default config

@@ -127,6 +127,29 @@ export const physicalPropertySelector = {
  * إطفاءً شاملًا، ويجعل `architecture-boundaries.test.ts` يفحص القاعدة
  * المطبَّقة فعلًا لا نسخة منها.
  */
+/**
+ * **الأبعاد المعروضة داخل RTL تُعزَل بـ`<bdi>` وإلا انقلب ترتيبها.**
+ *
+ * قِيس في Chrome حقيقي أن `1440 × 900` داخل `dir="rtl"` تُعرَض بصريًّا
+ * **`900 × 1440`**: رقمان لاتينيان يفصلهما محايد، فترتّبهما خوارزمية bidi
+ * باتّجاه المحيط — العرض والارتفاع مقلوبان أمام القارئ. ولا يكفي أن تكون
+ * الأرقام غربية: **ترتيبها** هو ما ينقلب لا شكلها.
+ *
+ * و`shared/bidi/isolate.ts` يسمّي `dimension` صنفًا تقنيًّا يجب عزله منذ
+ * كُتب. ومع ذلك استعملت **ثمانية** مواضع `formatDimensions` بلا عزل — فلم
+ * يفشل مستعملٌ واحد بل الانضباط اليدوي نفسه، وهذا ما يحوّله إلى حارس.
+ *
+ * **ولماذا `<bdi>` لا عزلٌ داخل الدالّة**: `isolate.ts` نفسه ينصّ على أن
+ * DOM يستعمل `<TechnicalValue>` «ولا يحمل محارف عزل غير مرئية، فالنسخ منه
+ * يعطي النصّ نظيفًا». وهذا شرطٌ حقيقي هنا لا تفضيل: `Marquee` توثّق أن
+ * المقاس «قيمة تُنسخ إلى محرّر كود».
+ */
+export const dimensionIsolationSelector = {
+  selector:
+    "JSXElement:not([openingElement.name.name='TechnicalValue']):not([openingElement.name.name='bdi']) > JSXExpressionContainer > CallExpression[callee.name='formatDimensions']",
+  message: 'أبعادٌ داخل RTL بلا عزل تنقلب بصريًّا — لُفّها بـ<TechnicalValue kind="dimension">.',
+}
+
 export const restrictedSyntax = [
   {
     selector: "NewExpression[callee.name='Function']",
@@ -150,6 +173,7 @@ export const restrictedSyntax = [
       'استخدم onMessage() أو serveChannel() من @/shared/messaging — التسجيل المباشر يتجاوز تغليف الأخطاء.',
   },
   physicalPropertySelector,
+  dimensionIsolationSelector,
   {
     // `formatHuman` للعدّ البشري وحده؛ القياسات تمرّ من `formatMeasure`.
     selector:
@@ -227,6 +251,22 @@ export const ENCODE_ALLOWED = [
   'src/background/image-ops.ts',
   'src/background/stitch.ts',
   'src/pages/library/thumbnail-encoder.ts',
+]
+
+/**
+ * مكوّنات **طبقة الهندسة** — تُستثنى من `dimensionIsolationSelector` وحده.
+ *
+ * ثلاثتها تعيش داخل `.rasd-ov-geom` التي تحمل `direction: ltr` صراحةً
+ * (فضاء الإحداثيات فيزيائي، لا اتجاه قراءة)، فلا انقلاب bidi أصلًا هناك —
+ * العلّة لا تنطبق. والأهمّ أن `Marquee` توثّق أن المقاس «قيمة تُنسخ إلى
+ * محرّر كود»، ولفّها بعنصر إضافي يخدم مشكلةً غير قائمة ويعقّد نصًّا يُنسخ.
+ *
+ * استثناءٌ **بالحدّ**: الملفّات الثلاثة تبقى محروسة من كل محدِّد آخر.
+ */
+export const LTR_GEOMETRY_LAYER = [
+  'src/ui/overlay/Marquee.tsx',
+  'src/ui/overlay/BoxModel.tsx',
+  'src/ui/overlay/NodeLabel.tsx',
 ]
 
 const importOrder = [
@@ -329,6 +369,21 @@ export default tseslint.config(
   {
     files: ENCODE_ALLOWED,
     rules: { 'no-restricted-syntax': ['error', ...restrictedSyntax] },
+  },
+
+  /*
+   * طبقة الهندسة — تُستثنى من `dimensionIsolationSelector` وحده. القاعدة
+   * تُعاد كاملةً ناقصةً محدِّدًا واحدًا، نفس نمط `ENCODE_ALLOWED` أعلاه.
+   */
+  {
+    files: LTR_GEOMETRY_LAYER,
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...restrictedSyntax.filter((r) => r !== dimensionIsolationSelector),
+        ...encodeSelectors,
+      ],
+    },
   },
 
   /*

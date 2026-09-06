@@ -403,7 +403,9 @@ if (!cmpSession) {
           } else if (!afterMs || !/[0-9]/u.test(String(afterMs))) {
             fail(`النسبة بعد التحريك غير قابلة للقراءة: "${afterMs}"`)
           } else {
-            ok(`إعادة الحساب بعتبة أخرى تمّت بلا استثناء — النسبة "${afterMs}" (كانت "${beforeMs}")`)
+            ok(
+              `إعادة الحساب بعتبة أخرى تمّت بلا استثناء — النسبة "${afterMs}" (كانت "${beforeMs}")`,
+            )
           }
         }
       }

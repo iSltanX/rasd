@@ -56,6 +56,29 @@ export interface PaletteExtraction {
 // ─────────────────────────────────────────────────────────────────
 
 /** ما تحمله كل رسالة. `void` يعني بلا حمولة. */
+/**
+ * فرقٌ مقيس بين مرجع محفوظ والصفحة الحيّة — سدادُ دَيْنٍ سجّلته المرحلة 16.
+ *
+ * استبعدت المرحلة 16 قسم «فرق البكسلات» من `ComparePanel` ونسبةَ كل بطاقة
+ * من `ViewportGallery`، وأسندت الثلاثة إلى المرحلة 17 صراحةً في تعليقَي
+ * الملفّين. وهذا شكل ما وُعد به: نسبةٌ وعددُ مناطق، لا صورة فرق — الطبقة
+ * تعرض رقمًا فوق صفحة حيّة، لا خريطةً حرارية تحتاج قماشًا (تلك في
+ * `pages/compare/`).
+ */
+export interface LiveDiff {
+  /** كسرٌ من 0 إلى 1 على مساحة التقاطع — تُنسَّق للعرض بـ`formatPercent`. */
+  readonly diffRatio: number
+  /** عدد المناطق المتغيّرة — «٣ عناصر تحرّكت» في الإطار المرجعي. */
+  readonly regionCount: number
+  /** بكسلات التقاطع المقارَنة فعلًا — يُعلن مقام النسبة بدل إخفائه. */
+  readonly comparedPixels: number
+  /** أبعاد التقاطع، لأن اختلاف المقاسين يجعل النسبة على جزءٍ لا على الكلّ. */
+  readonly overlapWidth: number
+  readonly overlapHeight: number
+  /** صحيحٌ متى خالف مقاسُ المرجع مقاسَ اللقطة — تُعلَن للمستخدم لا تُبتلَع. */
+  readonly sizeMismatch: boolean
+}
+
 export interface RequestMap {
   'diagnostics/ping': void
   'diagnostics/storage': void
@@ -245,6 +268,19 @@ export interface RequestMap {
     readonly dropNeutrals: boolean
   }
   /**
+   * يقيس الفرق بين مرجع المقاس المحفوظ والجزء الظاهر من الصفحة الآن.
+   *
+   * **الحساب في الخلفية لا في سكربت المحتوى** — نفس حكم [ADR 0017](../../../Docs/ADR/0017-palette-extraction-host.md)
+   * ونفس علّته حرفيًّا: `Worker` من أصل الإضافة لا يُحمَّل داخل مستند صفحة
+   * مضيفة (مقيس، `§6` صفّ 90)، و`computeDiff` متزامنة فتجمّد الصفحة التي
+   * تقيسها لو نُفِّذت فيها. والخلفية تملك الطرفين أصلًا: المرجع في قاعدة
+   * الإضافة منذ إصلاح الصفّ 84، واللقطة من `chrome.tabs.captureVisibleTab`.
+   *
+   * وإخفاء الطبقة قبل اللقطة مسؤولية المستدعي (`capture/hide-overlay`)،
+   * كما في كل مسار التقاط آخر — فلا تُقاس الطبقة على أنها تغيّرٌ في الصفحة.
+   */
+  'compare/diff': { viewport: Viewport }
+  /**
    * يهيّئ الصفحة لالتقاط كامل: يجد المُمرِّر، ويحيّد الثوابت، ويمهّد.
    *
    * ثلاث رسائل لا واحدة (`prepare`/`step`/`finish`) لأن الحلقة تُقاد من
@@ -333,6 +369,7 @@ export interface ResponseMap {
   'colour/frame': { dataUrl: string }
   'colour/save': { id: string }
   'palette/extract': PaletteExtraction
+  'compare/diff': LiveDiff
   'fullpage/prepare': FullPagePrepared
   'fullpage/step': FullPageStep
   'fullpage/finish': { restored: boolean }

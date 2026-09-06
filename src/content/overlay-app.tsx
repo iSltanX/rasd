@@ -56,10 +56,24 @@ import type { ElementHoverTool } from './tools/element-hover'
 import type { EyedropperTool } from './tools/eyedropper'
 import type { InspectTool } from './tools/inspect'
 import type { MeasureTarget, MeasureTool } from './tools/measure'
+import type { LiveDiff } from '@/shared/messaging/contract'
 import type { Mode } from '@/shared/modes'
 import type { CaptureKind, Viewport } from '@/shared/storage/schema'
-import type { Signal } from '@preact/signals'
+import type { ReadonlySignal, Signal } from '@preact/signals'
 import type { JSX } from 'preact'
+
+/**
+ * ما تحتاجه لوحة المقارنة لعرض الفرق الحيّ — تُبنى في `content/index.ts`.
+ *
+ * تعيش هنا لا في `ui/`: `ComparePanel` يستقبل الحقول الثلاثة مفكوكةً
+ * (`diff` · `diffBusy` · `diffError`) كبقيّة خصائصه، وتجميعها شأن السلك.
+ */
+export interface CompareDiffView {
+  /** آخر قياس صالح، أو `null` — لم يُقَس بعد أو أُبطل. */
+  readonly result: LiveDiff | null
+  readonly busy: boolean
+  readonly error: string | null
+}
 
 /** تلميحات `capture / area-select` — نصوصها ومفاتيحها من الملفّ حرفيًا. */
 const AREA_HINTS = [
@@ -114,6 +128,20 @@ export interface OverlayAppProps {
   onCloseViewportGallery?: () => void
   /** يُطلَب حين يُفلِت المستخدم صورة على بطاقة مقاس بعينه داخل المعرض. */
   onViewportGalleryDropImage?: (viewport: Viewport, file: File) => void
+  /**
+   * حالة الفرق الحيّ — `compare/diff` (سدادُ دَيْن المرحلة 16 على 17).
+   *
+   * **إشارة واحدة لا ثلاث**: النتيجة وحالة الانشغال والخطأ تُقرأ معًا في
+   * كل رسمة، وفصلها إلى ثلاث خصائص يضاعف السلك بلا مكسب. و`Readonly`
+   * لأنها محسوبة في `content/index.ts` (تسقط النتيجة تلقائيًّا متى تغيّر
+   * المقاس) — العرض لا يكتب فيها.
+   *
+   * اختيارية: غيابها يُخفي القسم والزرّ في `ComparePanel` بلا تعطيل ظاهري
+   * (سابقة المرحلة 7)، فيبقى بقيّة الملفّ صالحًا لمستدعٍ لا يملك سلكها.
+   */
+  compareDiff?: ReadonlySignal<CompareDiffView>
+  /** يُطلَب حين يضغط المستخدم «التقط الفرق». */
+  onCaptureCompareDiff?: () => void
   /**
    * تقدّم الالتقاط الكامل — `null` يعني لا مهمّة.
    *
@@ -618,6 +646,8 @@ function CompareLayer({
   onOpenViewportGallery,
   onCloseViewportGallery,
   onViewportGalleryDropImage,
+  diff,
+  onCaptureDiff,
 }: {
   compare: CompareTool
   space: Signal<CoordSpace>
@@ -627,6 +657,8 @@ function CompareLayer({
   onOpenViewportGallery?: () => void
   onCloseViewportGallery?: () => void
   onViewportGalleryDropImage?: (viewport: Viewport, file: File) => void
+  diff?: CompareDiffView
+  onCaptureDiff?: () => void
 }) {
   const reference = compare.state.reference.value
   const transform = compare.state.transform.value
@@ -707,7 +739,11 @@ function CompareLayer({
             onOpacityChange={(percent) => compare.setOpacity(percent)}
             onSplitPositionChange={(percent) => compare.setSplitPosition(percent)}
             onClose={() => compare.setReference(null)}
+            diff={diff?.result ?? null}
+            diffBusy={diff?.busy ?? false}
+            diffError={diff?.error ?? null}
             {...(onOpenViewportGallery ? { onOpenViewportPicker: onOpenViewportGallery } : {})}
+            {...(onCaptureDiff ? { onCaptureDiff } : {})}
           />
         ) : (
           <CompareIdle
@@ -906,6 +942,8 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           {...(props.onViewportGalleryDropImage
             ? { onViewportGalleryDropImage: props.onViewportGalleryDropImage }
             : {})}
+          {...(props.compareDiff ? { diff: props.compareDiff.value } : {})}
+          {...(props.onCaptureCompareDiff ? { onCaptureDiff: props.onCaptureCompareDiff } : {})}
         />
         {job}
       </>

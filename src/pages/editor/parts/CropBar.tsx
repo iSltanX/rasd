@@ -1,5 +1,6 @@
 import { ASPECT_PRESETS, describeRatio, type AspectPresetId } from '@/modules/capture/selection'
 import { formatDimensions } from '@/shared/bidi'
+import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import styles from './CropBar.module.css'
 
@@ -49,9 +50,16 @@ export function CropBar(props: CropBarProps): JSX.Element {
       </div>
 
       <p class={styles.readout} data-crop-readout>
-        {crop
-          ? `${formatDimensions(Math.round(crop.width), Math.round(crop.height))} · ${describeRatio(crop)}`
-          : 'الصورة كاملة'}
+        {crop ? (
+          <>
+            <TechnicalValue kind="dimension" variant="inherit">
+              {formatDimensions(Math.round(crop.width), Math.round(crop.height))}
+            </TechnicalValue>{' '}
+            · {describeRatio(crop)}
+          </>
+        ) : (
+          'الصورة كاملة'
+        )}
       </p>
 
       <div class={styles.actions}>

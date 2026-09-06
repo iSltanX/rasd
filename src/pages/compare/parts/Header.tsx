@@ -13,6 +13,7 @@
 import { formatDimensions } from '@/shared/bidi'
 import { Button } from '@/ui/components/Button/Button'
 import { Icon } from '@/ui/icons/Icon'
+import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import styles from './Header.module.css'
 
@@ -32,7 +33,10 @@ export function Header({ titleA, titleB, width, height }: HeaderProps): JSX.Elem
         <div class={styles.titleBlock}>
           <h1 class={styles.title}>مقارنة لقطتين</h1>
           <p class={styles.subtitle}>
-            {titleA} مقابل {titleB} · {formatDimensions(width, height)}
+            {titleA} مقابل {titleB} ·{' '}
+            <TechnicalValue kind="dimension" variant="inherit">
+              {formatDimensions(width, height)}
+            </TechnicalValue>
           </p>
         </div>
         <Icon name="split-view" size="md" class={styles.badgeIcon} />

@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { CompareIdle, ComparePanel, type ComparePanelProps } from '@/ui/overlay'
 
+import type { LiveDiff } from '@/shared/messaging/contract'
+
 let host: HTMLDivElement | null = null
 
 function mount(ui: preact.ComponentChild): HTMLDivElement {
@@ -99,6 +101,106 @@ describe('ComparePanel — يُصيَّر بلا رمي', () => {
       const noSwap = mount(<ComparePanel {...panelProps()} />)
       ;(noSwap.querySelector('footer button') as HTMLButtonElement).click()
     }).not.toThrow()
+  })
+})
+
+/**
+ * ── قسم «فرق البكسلات» — سدادُ دَيْن المرحلة 16 على 17 ──────────────
+ *
+ * كان القسم مُستبعَدًا من المكوّن لغياب محرّك `pixelmatch`؛ صار له محرّك
+ * في `background/compare-diff-service.ts` يصل عبر `compare/diff`.
+ */
+function liveDiff(overrides: Partial<LiveDiff> = {}): LiveDiff {
+  return {
+    diffRatio: 0.048,
+    regionCount: 3,
+    comparedPixels: 1_296_000,
+    overlapWidth: 1440,
+    overlapHeight: 900,
+    sizeMismatch: false,
+    ...overrides,
+  }
+}
+
+describe('ComparePanel — فرق البكسلات', () => {
+  it('لا قسم ولا زرّ بلا onCaptureDiff ولا نتيجة — سابقة المرحلة 7', () => {
+    const el = mount(<ComparePanel {...panelProps()} />)
+    expect(el.querySelector('[data-rasd-ov="compare-diff"]')).toBeNull()
+    expect(el.textContent).not.toContain('التقط الفرق')
+  })
+
+  it('قبل أوّل قياس تُعرَض «—» لا صفرٌ كاذب', () => {
+    const el = mount(<ComparePanel {...panelProps({ onCaptureDiff: vi.fn() })} />)
+    const section = el.querySelector('[data-rasd-ov="compare-diff"]')
+    expect(section).toBeTruthy()
+    expect(section?.querySelector('.rasd-ov-cmp-diff-value')?.textContent).toBe('—')
+    expect(section?.querySelector('.rasd-ov-cmp-diff-count')?.textContent).toBe('—')
+    expect(section?.textContent).not.toContain('0%')
+  })
+
+  /** §3.5: النسبة قياسٌ تقني (غربي)، وعدّ العناصر عدٌّ بشري (هندي). */
+  it('بعد القياس: النسبة بأرقام غربية والعدد بأرقام هندية', () => {
+    const el = mount(<ComparePanel {...panelProps({ diff: liveDiff(), onCaptureDiff: vi.fn() })} />)
+    expect(el.querySelector('.rasd-ov-cmp-diff-value')?.textContent).toBe('4.8%')
+    expect(el.querySelector('.rasd-ov-cmp-diff-count')?.textContent).toBe('٣')
+    expect(el.textContent).toContain('فرق البكسلات')
+    expect(el.textContent).toContain('عناصر تحرّكت')
+  })
+
+  it('اختلاف المقاسين يُعلَن نصًّا بأبعاد التقاطع — لا يُبتلَع', () => {
+    const el = mount(
+      <ComparePanel
+        {...panelProps({
+          diff: liveDiff({ sizeMismatch: true, overlapWidth: 1280, overlapHeight: 800 }),
+          onCaptureDiff: vi.fn(),
+        })}
+      />,
+    )
+    const note = el.querySelector('.rasd-ov-cmp-diff-note')
+    expect(note?.textContent).toContain('مقاس المرجع يخالف مقاس الصفحة')
+    expect(note?.textContent).toContain('1280 × 800')
+  })
+
+  it('تطابق المقاسين لا يُظهر الإعلان أصلًا', () => {
+    const el = mount(<ComparePanel {...panelProps({ diff: liveDiff(), onCaptureDiff: vi.fn() })} />)
+    expect(el.querySelector('.rasd-ov-cmp-diff-note')).toBeNull()
+  })
+
+  it('رسالة الفشل تُعرَض — زرٌّ يفشل صامتًا يُقرأ «لا شيء تغيّر»', () => {
+    const el = mount(
+      <ComparePanel {...panelProps({ diffError: 'لا مرجع محفوظًا لهذا المقاس.' })} />,
+    )
+    expect(el.querySelector('.rasd-ov-cmp-diff-error')?.textContent).toBe(
+      'لا مرجع محفوظًا لهذا المقاس.',
+    )
+  })
+
+  it('زرّ «التقط الفرق» يستدعي المعاودة', () => {
+    const onCaptureDiff = vi.fn()
+    const el = mount(<ComparePanel {...panelProps({ onCaptureDiff })} />)
+    const btn = [...el.querySelectorAll('footer button')].find((b) =>
+      b.textContent?.includes('التقط الفرق'),
+    )
+    ;(btn as HTMLButtonElement).click()
+    expect(onCaptureDiff).toHaveBeenCalledOnce()
+  })
+
+  it('أثناء القياس: الزرّ معطَّل ونصّه يقول ذلك، والنتيجة السابقة تبقى معروضة', () => {
+    const el = mount(
+      <ComparePanel
+        {...panelProps({ diff: liveDiff(), diffBusy: true, onCaptureDiff: vi.fn() })}
+      />,
+    )
+    const btn = el.querySelector<HTMLButtonElement>('footer button[aria-busy="true"]')
+    expect(btn?.disabled).toBe(true)
+    expect(btn?.textContent).toContain('جارٍ القياس')
+    expect(el.querySelector('.rasd-ov-cmp-diff-value')?.textContent).toBe('4.8%')
+  })
+
+  it('نتيجة بلا معاودة تُعرَض كذلك — قياسٌ وقع لا يختفي', () => {
+    const el = mount(<ComparePanel {...panelProps({ diff: liveDiff() })} />)
+    expect(el.querySelector('[data-rasd-ov="compare-diff"]')).toBeTruthy()
+    expect(el.textContent).not.toContain('التقط الفرق')
   })
 })
 

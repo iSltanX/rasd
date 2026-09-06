@@ -1,5 +1,6 @@
 import { formatDimensions } from '@/shared/bidi'
 import { Icon, type IconName } from '@/ui/icons/Icon'
+import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import styles from './Success.module.css'
 
@@ -26,7 +27,12 @@ export function Success({ width, height, actions, onOpenLibrary }: SuccessProps)
         <Icon name="check" size="lg" />
       </span>
       <p class={styles.title}>حُفظت اللقطة</p>
-      <p class={styles.sub}>محفوظة محليًا · {formatDimensions(width, height)}</p>
+      <p class={styles.sub}>
+        محفوظة محليًا ·{' '}
+        <TechnicalValue kind="dimension" variant="inherit">
+          {formatDimensions(width, height)}
+        </TechnicalValue>
+      </p>
 
       <div class={styles.actions}>
         {actions.map((a) => (

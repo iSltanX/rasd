@@ -44,6 +44,7 @@
     "verify:fullpage": "node scripts/verify-fullpage.mjs",
     "verify:inspect": "node scripts/verify-inspect.mjs",
     "verify:popup": "node scripts/verify-popup.mjs",
+    "verify:capturing": "node scripts/verify-capturing.mjs",
     "verify:capture": "node scripts/verify-capture.mjs",
     "verify:compare": "node scripts/verify-compare.mjs",
     "verify:compare-diff": "node scripts/verify-compare-diff.mjs",

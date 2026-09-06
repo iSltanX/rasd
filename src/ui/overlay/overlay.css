@@ -2026,6 +2026,57 @@
   outline-offset: var(--rasd-stroke-thin);
 }
 
+/* ── فرق البكسلات — `69:104` ──────────────────────────────────────
+ * كان القسم مُستبعَدًا حتى يُبنى محرّك `pixelmatch`؛ بُني في
+ * `background/compare-diff-service.ts` فوُصل هنا. تعليل شكل الصفّين وصنفَي
+ * الأرقام في رأس `ComparePanel.tsx`.
+ */
+
+.rasd-ov-cmp-diff {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+  padding: var(--rasd-space-12) var(--rasd-space-16);
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+}
+
+.rasd-ov-cmp-diff-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* قياس تقني — نفس عزل `.rasd-ov-cmp-slider-value` حرفيًّا، §3.5 البند 2. */
+.rasd-ov-cmp-diff-value {
+  font-family: var(--rasd-font-family-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* عدٌّ بشري بأرقام هندية — يبقى في اتجاه النصّ ولا يُعزل ولا يُجبَر مونو. */
+.rasd-ov-cmp-diff-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.rasd-ov-cmp-diff-label {
+  color: var(--rasd-text-secondary);
+}
+
+.rasd-ov-cmp-diff-note {
+  margin: 0;
+  color: var(--rasd-status-warning-fg);
+  font-size: var(--rasd-font-size-2xs);
+  line-height: 1.6;
+}
+
+.rasd-ov-cmp-diff-error {
+  margin: 0;
+  color: var(--rasd-status-danger-fg);
+  font-size: var(--rasd-font-size-2xs);
+  line-height: 1.6;
+}
+
 /* ── صفّ المقاس ───────────────────────────────────────────────────── */
 
 .rasd-ov-cmp-viewport {
@@ -2082,6 +2133,12 @@
 
 .rasd-ov-cmp-btn:hover {
   background: var(--rasd-surface-hover);
+}
+
+/* قياسٌ جارٍ — نفس مفردة `input[type='range']:disabled` أعلاه. */
+.rasd-ov-cmp-btn:disabled {
+  cursor: not-allowed;
+  color: var(--rasd-text-tertiary);
 }
 
 /* ── لوحة الخمول («لا مرجع») ──────────────────────────────────────── */
@@ -2316,9 +2373,9 @@
   color: var(--rasd-text-tertiary);
 }
 
-/* رقاقة حالة محايدة وحدها هنا («لم يُقارَن») — الألوان الدلالية
- * (مطابق/فروق طفيفة/فروق كبيرة) تخصّ محرّك الفرق في المرحلة 17، انظر
- * تعليق رأس `ViewportGallery.tsx`. */
+/* الرقاقة المحايدة هي حالة «لم يُقارَن» وحدها؛ الحالات الثلاث المقيسة
+ * تلبس توكنات الحالة الدلالية. التصنيف نفسه في
+ * `modules/compare/diff-status.ts` لا هنا — CSS يلوّن ولا يقرّر. */
 .rasd-ov-vpg-chip {
   display: inline-flex;
   align-items: center;
@@ -2327,4 +2384,19 @@
   background: var(--rasd-surface-sunken);
   color: var(--rasd-text-tertiary);
   font-size: var(--rasd-font-size-2xs);
+}
+
+.rasd-ov-vpg-chip[data-status='identical'] {
+  background: var(--rasd-status-success-surface);
+  color: var(--rasd-status-success-fg);
+}
+
+.rasd-ov-vpg-chip[data-status='minor'] {
+  background: var(--rasd-status-warning-surface);
+  color: var(--rasd-status-warning-fg);
+}
+
+.rasd-ov-vpg-chip[data-status='major'] {
+  background: var(--rasd-status-danger-surface);
+  color: var(--rasd-status-danger-fg);
 }

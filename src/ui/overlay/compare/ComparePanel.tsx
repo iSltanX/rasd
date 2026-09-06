@@ -1,9 +1,11 @@
 import { useState } from 'preact/hooks'
 
-import { formatPercent } from '@/shared/bidi'
+import { formatDimensions, formatHuman, formatPercent } from '@/shared/bidi'
 import { Icon } from '@/ui/icons/Icon'
+import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import type { CompareDisplayMode } from '@/modules/compare/overlay'
+import type { LiveDiff } from '@/shared/messaging/contract'
 import type { JSX } from 'preact'
 
 /**
@@ -11,12 +13,23 @@ import type { JSX } from 'preact'
  * تحسب**، كبقيّة لوحات الطبقة (`ColourPanel`/`InspectPanel`): تستقبل
  * قيمًا جاهزة وتُبلِّغ عن الأفعال بمعاودات.
  *
- * **قسم «فرق البكسلات» مُستبعَد عمدًا من هذا الملفّ رغم ظهوره في نفس
- * إطار Figma.** يحمل نِسبًا وعدّادات («فرق البكسلات ٤٫٨٪»، «٣ عناصر
- * تحرّكت»…) تخصّ خوارزمية `pixelmatch` في **المرحلة 17** لا 16 — نفس نمط
- * الفصل بين مكوّن Figma واحد ومرحلتين مسجَّل سابقًا لـ`colors / sampling`
- * (`Rasd_Plan.md §6` صفّ 60، المرحلتان 13/14). زرّ «التقط الفرق» في نفس
- * الإطار يخصّ المرحلة 17 أيضًا فأُسقط معه.
+ * **قسم «فرق البكسلات» موصولٌ الآن — سدادُ دَيْنٍ سجّلته المرحلة 16 على
+ * 17 في هذا التعليق نفسه.** كان مُستبعَدًا لأن نِسبه وعدّاداته («فرق
+ * البكسلات ٤٫٨٪»، «٣ عناصر تحرّكت») تحتاج خوارزمية `pixelmatch`، وهي
+ * الآن مبنيّة في `background/compare-diff-service.ts` وتصل عبر رسالة
+ * `compare/diff`. فلم يبقَ إلّا العرض — وهذا الملفّ **يعرض ولا يحسب** كما
+ * كان: يستقبل `LiveDiff` جاهزًا ويُبلِّغ عن الطلب بـ`onCaptureDiff`. زرّ
+ * «التقط الفرق» في «الإجراءات» عاد معه من الإطار نفسه.
+ *
+ * **صنفا الأرقام مفصولان هنا بدقّة (`Rasd_Plan.md §3.5`)**: نسبة الفرق
+ * **قياس** فبأرقام غربية (`formatPercent`)، وعدد العناصر المتحرّكة **عدٌّ
+ * بشري** فبأرقام هندية (`formatHuman`) — نفس قسمة `pages/compare/region-format.ts`
+ * بين «أيّ نسبة» و«كم عنصرًا».
+ *
+ * **وقبل أوّل قياس تُعرَض `—` لا صفرٌ**: الصفر ادّعاء تطابقٍ لم يقع، وهو
+ * الفرق الذي يفصله `classifyDiffStatus` (`modules/compare/diff-status.ts`)
+ * بين «مطابق» و«لم يُقارَن». و`sizeMismatch` يُعلَن نصًّا لا يُبتلَع: نسبةٌ
+ * محسوبة على مساحة التقاطع وحدها تُقرأ خطأً ما لم يُقَل ذلك.
  *
  * **اختيار وضع المزج (`CompareBlendMode`) غير معروض هنا بعد**: إطار
  * Figma لا يُظهر عنصر تحكّم منفصلًا له صراحةً بين أدوات اللوحة الملتقَطة —
@@ -43,7 +56,7 @@ import type { JSX } from 'preact'
  * إغلاق المرحلة لا أثناء البناء**: `Rasd_Plan.md §8` يصفه «أكثر عملية
  * متكرِّرة في هذا الوضع»، والرياضيات (`matchWidthScale`) مبنيّة ومختبَرة
  * تمامًا كرياضيات التدوير — لكن `69:104` بأقسامه الستّة كاملة (رأس، وضع،
- * منزلقان، فرق [مُستبعَد]، مقاس، إجراءات [تبديل + التقط فرق]) **لا يحمل
+ * منزلقان، فرق، مقاس، إجراءات [تبديل + التقط فرق]) **لا يحمل
  * زرًّا ثالثًا في «الإجراءات» ولا أي عنصر آخر لهذه الوظيفة** — نفس غياب
  * التصميم المصدري بالضبط، فنفس الحكم: فجوة معلَنة لا زرّ مُخترَع.
  * `Rasd_Plan.md §6` صفّ 89.
@@ -57,10 +70,22 @@ export interface ComparePanelProps {
   readonly splitPosition: number
   /** جاهز من المستدعي — «سطح مكتب 1440» مثلًا؛ هذه اللوحة لا تصنّف مقاسات. */
   readonly viewportLabel: string
+  /**
+   * آخر قياس فرق حيّ، أو `null` — لم يُقَس بعد، أو أُبطل لأن المرجع أو
+   * المقاس تغيّر. **الإبطال مسؤولية المستدعي لا هذه اللوحة**: نسبةٌ قديمة
+   * معروضة فوق مرجعٍ جديد كذبةٌ صامتة، ومن يملك المرجع هو من يعرف تغيّره.
+   */
+  readonly diff?: LiveDiff | null
+  /** قياسٌ جارٍ — يُعطِّل الزرّ ويُبدّل نصّه، ولا يمسح النتيجة السابقة. */
+  readonly diffBusy?: boolean
+  /** رسالة فشل القياس — تُعرَض ولا تُبتلَع؛ زرٌّ يفشل صامتًا يُقرأ «لا شيء تغيّر». */
+  readonly diffError?: string | null
   readonly onSetDisplayMode: (mode: CompareDisplayMode) => void
   readonly onOpacityChange: (percent: number) => void
   readonly onSplitPositionChange: (percent: number) => void
   readonly onSwap?: () => void
+  /** يطلب قياس فرقٍ جديد. غيابها يُخفي القسم والزرّ معًا — سابقة المرحلة 7. */
+  readonly onCaptureDiff?: () => void
   readonly onOpenViewportPicker?: () => void
   readonly onClose?: () => void
 }
@@ -83,13 +108,25 @@ export function ComparePanel({
   opacity,
   splitPosition,
   viewportLabel,
+  diff = null,
+  diffBusy = false,
+  diffError = null,
   onSetDisplayMode,
   onOpacityChange,
   onSplitPositionChange,
   onSwap,
+  onCaptureDiff,
   onOpenViewportPicker,
   onClose,
 }: ComparePanelProps): JSX.Element {
+  /*
+   * القسم يُعرَض حين يكون فيه ما يُعرَض أو ما يُفعَل، لا دائمًا — سابقة
+   * المرحلة 7 المطبَّقة في `CompareIdle` أدناه: ما لا محرّك له يُحذَف.
+   * والنتيجة والخطأ شرطان إلى جانب المعاودة كي لا يختفي قياسٌ وقع فعلًا
+   * (أو فشلٌ وقع فعلًا) لمجرّد أن المستدعي لم يمرّر المعاودة.
+   */
+  const showDiff = onCaptureDiff !== undefined || diff !== null || diffError !== null
+
   return (
     <section class="rasd-ov-cmp" data-rasd-ov="compare-panel" aria-label="مقارنة">
       <header class="rasd-ov-cmp-head">
@@ -150,6 +187,30 @@ export function ComparePanel({
         </label>
       </div>
 
+      {showDiff ? (
+        <div class="rasd-ov-cmp-diff" data-rasd-ov="compare-diff">
+          <div class="rasd-ov-cmp-diff-row">
+            <span class="rasd-ov-cmp-diff-value">{diff ? formatPercent(diff.diffRatio) : '—'}</span>
+            <span class="rasd-ov-cmp-diff-label">فرق البكسلات</span>
+          </div>
+          <div class="rasd-ov-cmp-diff-row">
+            <span class="rasd-ov-cmp-diff-count">{diff ? formatHuman(diff.regionCount) : '—'}</span>
+            <span class="rasd-ov-cmp-diff-label">عناصر تحرّكت</span>
+          </div>
+          {diff?.sizeMismatch ? (
+            <p class="rasd-ov-cmp-diff-note">
+              مقاس المرجع يخالف مقاس الصفحة — النسبة على مساحة التقاطع وحدها:{' '}
+              <span class="rasd-ov-cmp-vp-dim">
+                <TechnicalValue kind="dimension" variant="inherit">
+                  {formatDimensions(diff.overlapWidth, diff.overlapHeight)}
+                </TechnicalValue>
+              </span>
+            </p>
+          ) : null}
+          {diffError ? <p class="rasd-ov-cmp-diff-error">{diffError}</p> : null}
+        </div>
+      ) : null}
+
       <div class="rasd-ov-cmp-viewport">
         <button
           type="button"
@@ -168,6 +229,24 @@ export function ComparePanel({
           <Icon name="swap" size="sm" />
           <span>تبديل</span>
         </button>
+        {/*
+         * **التعطيل هنا لا يخرق سابقة المرحلة 7.** تلك السابقة تمنع عرض
+         * زرٍّ بلا محرّك؛ وهذا زرٌّ محرّكه قائم ويعمل الآن — التعطيل إبلاغُ
+         * حالة لا إخفاءُ فجوة، ونصّه يتبدّل ليقول ذلك. والزرّ يغيب أصلًا
+         * حين تغيب `onCaptureDiff` (انظر `showDiff` أعلاه).
+         */}
+        {onCaptureDiff ? (
+          <button
+            type="button"
+            class="rasd-ov-cmp-btn"
+            onClick={onCaptureDiff}
+            disabled={diffBusy}
+            aria-busy={diffBusy}
+          >
+            <Icon name="diff" size="sm" />
+            <span>{diffBusy ? 'جارٍ القياس…' : 'التقط الفرق'}</span>
+          </button>
+        ) : null}
       </footer>
     </section>
   )

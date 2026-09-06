@@ -255,7 +255,15 @@ export function createDiffClient(deps: ClientDeps = {}): DiffClient {
 
       const live = await ensureReady()
       if (!live || !worker) {
-        const outcome = runHere(a, b, diffOptions, regionOptions, dead ?? 'unsupported', started, now)
+        const outcome = runHere(
+          a,
+          b,
+          diffOptions,
+          regionOptions,
+          dead ?? 'unsupported',
+          started,
+          now,
+        )
         lastPath = outcome.path
         return outcome
       }
@@ -310,7 +318,15 @@ export function createDiffClient(deps: ClientDeps = {}): DiffClient {
       if (isFailure(message)) {
         // مخزنا المستدعي لم يُمسّا — المنقول نسختاهما — فيُحسَب عليهما
         // الفرق مباشرةً بلا احتجاز ولا استثناء على مخزن مفصول.
-        const outcome = runHere(a, b, diffOptions, regionOptions, dead ?? 'worker-error', started, now)
+        const outcome = runHere(
+          a,
+          b,
+          diffOptions,
+          regionOptions,
+          dead ?? 'worker-error',
+          started,
+          now,
+        )
         lastPath = outcome.path
         return outcome
       }

@@ -36,6 +36,7 @@ import { quotaState } from '@/shared/storage/quota'
 import { blobs, captures, colors } from '@/shared/storage/repository'
 import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
+import { measureLiveDiff } from './compare-diff-service'
 import { cancelFullPage } from './full-page-job'
 import { extractFromCapture, extractFromViewport } from './palette-service'
 
@@ -292,6 +293,34 @@ function registerRequestHandlers() {
     const latest = list.value.filter((r) => r.trashedAt === null).at(-1)
     if (!latest) return null
     return { id: latest.id, width: latest.width, height: latest.height }
+  })
+
+  /**
+   * قياس الفرق الحيّ — سدادُ دَيْن المرحلة 16 المُسنَد إلى 17 صراحةً.
+   *
+   * **يُعاد استعمال مسار المرجع نفسه** (`pageKeyFromTab` ثم
+   * `findReferenceForPage`) لا استعلامٌ موازٍ له: مرجعُ هذه الرسالة هو
+   * حرفيًّا ما يعرضه `reference/load`، فلو انحرف الاستعلامان لقِيس فرقٌ عن
+   * صورةٍ غير التي يراها المستخدم فوق صفحته.
+   *
+   * وغيابُ المرجع ليس خطأً بل حالة: `null` تُقرأ «لا شيء يُقارَن به» —
+   * نفس تساهل `reference/load` مع السجلّ اليتيم، ولنفس السبب.
+   */
+  onMessage('compare/diff', async ({ viewport }, { tabId }) => {
+    if (tabId === undefined) throw new Error('لا تبويب مستهدَف لقياس الفرق.')
+    const key = await pageKeyFromTab(tabId, viewport)
+    const found = await findReferenceForPage(key)
+    if (!found.ok) throw new RasdThrow(found.error)
+    if (!found.value) throw new Error('لا مرجع محفوظًا لهذا المقاس.')
+    const blob = await blobs.get(found.value.blobId)
+    if (!blob.ok) throw new RasdThrow(blob.error)
+
+    const shot = await captureTile(tabId)
+    if (!shot.ok) throw new RasdThrow(shot.error)
+
+    const measured = await measureLiveDiff(blob.value.blob, shot.value)
+    if (!measured.ok) throw new RasdThrow(measured.error)
+    return measured.value
   })
 
   onMessage('reference/load', async ({ viewport }, { tabId }) => {
