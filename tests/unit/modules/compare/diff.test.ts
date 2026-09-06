@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeDiff, type RasterImage } from '@/modules/compare/diff'
+import { computeDiff, DEFAULT_DIFF_OPTIONS, type RasterImage } from '@/modules/compare/diff'
 
 /** صورة صلبة اللون — كل بكسل بنفس القيمة. */
 function solid(
@@ -113,5 +113,194 @@ describe('computeDiff — اختلاف الأبعاد يُعالَج بلا اس
     expect(result.extraInA.rows).toBeNull()
     expect(result.extraInB.rows).toEqual({ space: 'device', x: 0, y: 8, width: 8, height: 4 })
     expect(result.extraInB.cols).toBeNull()
+  })
+})
+
+/**
+ * مستوى رمادي دالّةً في `(x, y)` — ثمانية مستويات متباعدة 32.
+ *
+ * **لماذا رماديّ:** مركّبتا I وQ في مقياس `pixelmatch` تنعدمان للرماديات
+ * (معاملاتهما تجمع صفرًا حين `r = g = b`)، فيبقى `delta = 0.5053 × d²` حيث
+ * `d` فرق قيمة الرمادي — رقمٌ يُشتقّ يدويًّا لا يُقرأ من تشغيل. وسقف العتبة
+ * الافتراضية `35215 × 0.1² = 352.15`، فأصغر فرق مستوى ممكن (32) يعطي
+ * `0.5053 × 1024 = 517.4` وهو فوق السقف.
+ *
+ * **ولماذا 13 و29:** كلاهما ≡ 5 (mod 8)، فانزياح بكسل واحد في أيّ من
+ * المحورين ينقل رقم المستوى خمس خانات — فرق قيمة 160 أو 96 (بعد الالتفاف)،
+ * وكلاهما فوق السقف بأضعاف. أي أن كل بكسل من الصورة يتغيّر بانزياح واحد، بلا
+ * دورية تُخفي إزاحةً زوجية كما تفعل رقعة الشطرنج.
+ */
+const level = (x: number, y: number): number => ((13 * x + 29 * y) % 8) * 32
+
+/** صورة بنمط لكل بكسل — `originX/Y` تُزيح النمط لا الصورة. */
+function patterned(width: number, height: number, originX = 0, originY = 0): RasterImage {
+  const data = new Uint8ClampedArray(width * height * 4)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const v = level(x + originX, y + originY)
+      data.set([v, v, v, 255], (y * width + x) * 4)
+    }
+  }
+  return { data, width, height }
+}
+
+/**
+ * قصّ الزاوية العلوية-اليسرى هو أعقد ما في هذا الملفّ: نسخٌ صفًّا بصفّ بخطوة
+ * `img.width` لا `w`. وصورةٌ صلبة اللون تُخفي كل أخطاء الخطوة الممكنة — أي
+ * إزاحة تقرأ اللون نفسه فتعطي النتيجة نفسها. هذه المجموعة تُدخل نمطًا لكل
+ * بكسل كي ينكشف انزياح بكسل واحد، وكي تفشل الخطوة الخاطئة (`y * w * 4`)
+ * التي كانت تمرّ صامتة.
+ */
+describe('computeDiff — قصّ التقاطع بخطوة الصفّ الصحيحة (نمط لكل بكسل)', () => {
+  it('صورة أعرض مقابل صورة بحجم التقاطع ← صفر فروق، لأنهما متطابقتان بالبناء', () => {
+    // أ: 14×10 بالنمط نفسه. ب: 10×10 بالنمط نفسه. زاوية أ العلوية-اليسرى
+    // 10×10 هي ب حرفيًّا — بشرط أن يقرأ القصّ كل صفّ من إزاحة `y × 14 × 4`.
+    const a = patterned(14, 10)
+    const b = patterned(10, 10)
+
+    const result = computeDiff(a, b)
+
+    expect(result.overlap).toEqual({ space: 'device', x: 0, y: 0, width: 10, height: 10 })
+    expect(result.diffPixelCount).toBe(0)
+    expect(result.mask.some(Boolean)).toBe(false)
+  })
+
+  it('والحالة السابقة تميّز انزياح بكسل واحد فعلًا — أفقيًّا وعموديًّا', () => {
+    // بلا هذه الحالة يبقى `toBe(0)` أعلاه ادّعاءً بلا حساسية مُثبتة.
+    // كل بكسل يتغيّر بالانزياح (انظر اشتقاق `level`)، فالعدّ المتوقّع هو
+    // مساحة التقاطع كاملة: 10 × 10 = 100.
+    const wide = patterned(14, 10)
+
+    expect(computeDiff(wide, patterned(10, 10, 1, 0)).diffPixelCount).toBe(100)
+    expect(computeDiff(wide, patterned(10, 10, 0, 1)).diffPixelCount).toBe(100)
+  })
+
+  it('اختلاف في المحورين معًا وبأبعاد فردية: 14×13 مقابل 9×11 ← صفر فروق', () => {
+    // عرض التقاطع 9 (فردي) وارتفاعه 11 (فردي) — كي لا تُخفي مضاعفاتُ
+    // العرض خطأَ خطوةٍ يصادف أن ينقسم بلا باقٍ.
+    const result = computeDiff(patterned(14, 13), patterned(9, 11))
+
+    expect(result.overlap).toEqual({ space: 'device', x: 0, y: 0, width: 9, height: 11 })
+    expect(result.comparedPixels).toBe(99)
+    expect(result.diffPixelCount).toBe(0)
+  })
+
+  it('وموضع الفرق يبقى في مكانه عبر القصّ — لا انزياح بكسل في الإحداثيات', () => {
+    const a = patterned(14, 10)
+    const b = patterned(10, 10)
+    // بكسل واحد عند (3, 7): إزاحة قيمته 128 تبقى داخل شبكة المستويات
+    // (مضاعفات 32) وتعطي `0.5053 × 128² = 8278.8` — فوق السقف 352.15.
+    const target = (7 * 10 + 3) * 4
+    const shifted = (b.data[target]! + 128) % 256
+    b.data.set([shifted, shifted, shifted, 255], target)
+
+    const result = computeDiff(a, b)
+
+    expect(result.diffPixelCount).toBe(1)
+    expect(result.mask[7 * 10 + 3]).toBe(1)
+    expect(result.mask.filter(Boolean)).toHaveLength(1)
+  })
+})
+
+/**
+ * لا اختبار كان يفحص بايتًا واحدًا من `diff.data`. والافتراضي يجعل الفحص
+ * مستحيلًا أصلًا: `removedColor` و`addedColor` كلاهما `[255, 0, 0]`، فتبديل
+ * التخصيصين (`diffColor`/`diffColorAlt`) يمرّ صامتًا على أي اختبار افتراضي.
+ * هذه المجموعة تمرّر لونين متمايزين، فتحرس اتجاه الألوان وشفافية الخلفية
+ * (`diffMask: true`) معًا.
+ */
+describe('computeDiff — بايتات الخريطة الحرارية واتجاه الألوان', () => {
+  const REMOVED = [7, 11, 13] as const
+  const ADDED = [19, 23, 29] as const
+
+  /** صفّ بكسلات واحد — أصغر شكل يحمل الاتجاهين والخلفية معًا. */
+  function row(pixels: readonly (readonly [number, number, number, number])[]): RasterImage {
+    const data = new Uint8ClampedArray(pixels.length * 4)
+    pixels.forEach((p, i) => data.set(p, i * 4))
+    return { data, width: pixels.length, height: 1 }
+  }
+
+  const pixelAt = (img: RasterImage, i: number): number[] =>
+    Array.from(img.data.slice(i * 4, i * 4 + 4))
+
+  it('أ أفتح من ب ⇒ addedColor، وأ أغمق ⇒ removedColor — الادّعاء في ComparePage مُقاسًا', () => {
+    // ثلاثة بكسلات: [0] أ أبيض وب أسود، [1] أ أسود وب أبيض، [2] متطابقان.
+    const a = row([WHITE, BLACK, GRAY])
+    const b = row([BLACK, WHITE, GRAY])
+
+    const result = computeDiff(a, b, { removedColor: REMOVED, addedColor: ADDED })
+
+    expect(pixelAt(result.diff, 0)).toEqual([...ADDED, 255])
+    expect(pixelAt(result.diff, 1)).toEqual([...REMOVED, 255])
+    // خلفية شفّافة تمامًا — لا رمادي مخفَّف. هذا هو ما يجعل اشتقاق القناع من
+    // قناة ألفا صحيحًا؛ سقوط `diffMask: true` كان يملأ ألفا 255 في كل بكسل
+    // فيصير القناع كلّه آحادًا والمناطق منطقةً واحدة تغطّي الصورة.
+    expect(pixelAt(result.diff, 2)).toEqual([0, 0, 0, 0])
+    expect(Array.from(result.mask)).toEqual([1, 1, 0])
+    expect(result.diffPixelCount).toBe(2)
+  })
+
+  it('واللونان الافتراضيان متطابقان — ولهذا لا يكشف اختبارٌ افتراضي انقلاب الاتجاه', () => {
+    // حارس على الافتراضي نفسه: لو صار اللونان مختلفين هناك يومًا، فالحالة
+    // السابقة وحدها لم تعد كافية لتوثيق سبب الحاجة إلى ألوان صريحة هنا.
+    expect(DEFAULT_DIFF_OPTIONS.removedColor).toEqual(DEFAULT_DIFF_OPTIONS.addedColor)
+
+    const a = row([WHITE, BLACK])
+    const b = row([BLACK, WHITE])
+    const result = computeDiff(a, b)
+
+    expect(pixelAt(result.diff, 0)).toEqual(pixelAt(result.diff, 1))
+  })
+})
+
+/**
+ * فرع «لا تقاطع أصلًا» كان بلا اختبار رغم أنه قرارٌ دُوفع عنه أمام مراجعة
+ * خصمية. المحروس هنا هو ما ينصّ عليه تعليقه حرفيًّا: `(0, 0)` لا
+ * `overlapW`/`overlapH` الفعليّين — فتمرير بُعدٍ موجب كان يزعم أن أعمدة أو
+ * صفوفًا قد قُورنت، وهو كذبٌ يزيد على الصمت.
+ */
+describe('computeDiff — بُعدٌ صفريّ ⇐ لا تقاطع، والصورتان كاملتان «غير مُقارَنتين»', () => {
+  it('عرض صفري في أ: لا استثناء، ولا بكسل واحد يُعدّ مُقارَنًا', () => {
+    const a: RasterImage = { data: new Uint8ClampedArray(0), width: 0, height: 10 }
+    const b = solid(8, 6, GRAY)
+
+    expect(() => computeDiff(a, b)).not.toThrow()
+    const result = computeDiff(a, b)
+
+    expect(result.comparedPixels).toBe(0)
+    expect(result.diffPixelCount).toBe(0)
+    expect(result.diffRatio).toBe(0)
+    expect(result.diff.width).toBe(0)
+    expect(result.diff.height).toBe(0)
+    expect(result.diff.data).toHaveLength(0)
+    expect(result.mask).toHaveLength(0)
+
+    /*
+     * الارتفاع المشترك 6 موجب — وهو بالضبط الرقم الذي كانت المراجعة تقترح
+     * تمريره. `(0, 0)` تعني: `overlap` بلا مساحة، و**كل** بكسل في ب واقع
+     * في شريط فائض. لو مُرِّر `overlapH = 6` لصار `extraInB.rows` عدمًا
+     * (`6 > 6` كاذبة) فتُعلَن صفوف ب الستّة مُقارَنةً وهي لم تُقارَن.
+     */
+    expect(result.overlap).toEqual({ space: 'device', x: 0, y: 0, width: 0, height: 0 })
+    expect(result.extraInB.cols).toEqual({ space: 'device', x: 0, y: 0, width: 8, height: 6 })
+    expect(result.extraInB.rows).toEqual({ space: 'device', x: 0, y: 0, width: 8, height: 6 })
+    // وأ نفسها بلا مساحة: عمودها مفقود، وصفوفها شريط عرضه صفر — صدقٌ لا ادّعاء.
+    expect(result.extraInA.cols).toBeNull()
+    expect(result.extraInA.rows).toEqual({ space: 'device', x: 0, y: 0, width: 0, height: 10 })
+  })
+
+  it('ارتفاع صفري في ب: نفس العقد على المحور الآخر', () => {
+    const a = solid(9, 7, GRAY)
+    const b: RasterImage = { data: new Uint8ClampedArray(0), width: 5, height: 0 }
+
+    const result = computeDiff(a, b)
+
+    expect(result.overlap).toEqual({ space: 'device', x: 0, y: 0, width: 0, height: 0 })
+    expect(result.comparedPixels).toBe(0)
+    // العرض المشترك 5 موجب أيضًا، ومع ذلك أ كاملة في الشريطين.
+    expect(result.extraInA.cols).toEqual({ space: 'device', x: 0, y: 0, width: 9, height: 7 })
+    expect(result.extraInA.rows).toEqual({ space: 'device', x: 0, y: 0, width: 9, height: 7 })
+    expect(result.extraInB.cols).toEqual({ space: 'device', x: 0, y: 0, width: 5, height: 0 })
+    expect(result.extraInB.rows).toBeNull()
   })
 })

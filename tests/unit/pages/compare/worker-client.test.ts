@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeDiff, type RasterImage } from '@/modules/compare/diff'
-import { groupDiffRegions, type DiffRegion } from '@/modules/compare/regions'
+import { computeDiff, type DiffOptions, type RasterImage } from '@/modules/compare/diff'
+import { groupDiffRegions, type DiffRegion, type RegionOptions } from '@/modules/compare/regions'
 import { createDiffClient, READY_TIMEOUT_MS, REPLY_TIMEOUT_MS } from '@/pages/compare/worker-client'
 
 import type { DiffReply, DiffRequest, WorkerLike } from '@/modules/compare/diff-protocol'
@@ -78,11 +78,23 @@ function expected(
  * `groupDiffRegions` فعليًّا على ما يصله كي يُحاكي ردًّا صحيحًا من
  * `diff.worker.ts`، لا بيانات مصطنعة.
  */
-function fakeWorker(options: { ready?: boolean; failRequest?: boolean; swallow?: boolean } = {}): {
+function fakeWorker(
+  options: {
+    ready?: boolean
+    failRequest?: boolean
+    swallow?: boolean
+    /** ينهار الخيط وهو يعالج الطلب: حدث `error` بدل ردٍّ أو فشلٍ مُصاغ. */
+    errorOnRequest?: boolean
+    /** `postMessage` نفسها ترمي — خيطٌ مات قبل الإرسال أو مخزنٌ لا يُنقل. */
+    throwOnPost?: boolean
+  } = {},
+): {
   worker: WorkerLike
   posted: DiffRequest[]
   /** أطوال المخازن المُمرَّرة في قائمة النقل، مقروءةً **بعد** الإرسال. */
   transferred: number[][]
+  /** يُطلق حدث `error` من الخارج — لفحص انهيارٍ **قبل** الجهوز. */
+  fireError: () => void
 } {
   const chan = new MessageChannel()
   const handlers = {
@@ -91,11 +103,19 @@ function fakeWorker(options: { ready?: boolean; failRequest?: boolean; swallow?:
   }
   const posted: DiffRequest[] = []
   const transferred: number[][] = []
+  // نسخة من القائمة: أوّل مستمع يستدعي `kill` فيُفرِغ `handlers` أثناء الدوران.
+  const fireError = (): void => {
+    for (const h of [...handlers.error]) h({ type: 'error' })
+  }
 
   // جانب الخيط: يستقبل الطلب، ويحسب الفرق والمناطق، ويردّ ناقلًا.
   chan.port2.onmessage = (e: MessageEvent) => {
     const req = e.data as DiffRequest
     posted.push(req)
+    if (options.errorOnRequest) {
+      fireError()
+      return
+    }
     if (options.swallow) return
     if (options.failRequest) {
       chan.port2.postMessage({ id: req.id, error: 'فشل مصطنع' })
@@ -143,6 +163,7 @@ function fakeWorker(options: { ready?: boolean; failRequest?: boolean; swallow?:
 
   const worker: WorkerLike = {
     postMessage(message: unknown, transfer?: Transferable[]) {
+      if (options.throwOnPost) throw new Error('نقل مرفوض')
       chan.port1.postMessage(message, transfer ?? [])
       // بعد الإرسال: مخزنٌ نُقل فعلًا يقرأ صفرًا هنا، ومخزنٌ نُسخ لا يقرأه.
       transferred.push((transfer ?? []).map((t) => (t as ArrayBuffer).byteLength))
@@ -166,7 +187,7 @@ function fakeWorker(options: { ready?: boolean; failRequest?: boolean; swallow?:
       chan.port2.close()
     },
   }
-  return { worker, posted, transferred }
+  return { worker, posted, transferred, fireError }
 }
 
 describe('عميل خيط الفرق', () => {
@@ -369,5 +390,224 @@ describe('عميل خيط الفرق', () => {
     const out = await client.run(second.a, second.b)
     expect(out.path).toBe('main')
     expect(out.diffPixelCount).toBe(ref.diff.diffPixelCount)
+  })
+})
+
+/**
+ * الاختبارات أعلاه تقارن مسار الخيط بمسار السقوط على **الخيارات الافتراضية**
+ * وحدها. وذلك يترك ادّعاء الترويسة — «الدالّتان نفساهما لا نسختان» — بلا
+ * إثبات: لو أسقط `runHere` خيارات المستدعي كلّها (`computeDiff(a, b)` بلا
+ * معامل ثالث) لبقيت المقارنة خضراء، لأن الافتراضي هو ما كان يُقاس أصلًا.
+ *
+ * وهذا ليس افتراضًا نظريًّا: `ComparePage` تمرّر عتبةً من شريط الحساسية
+ * وألوانًا مقروءةً من التوكنز في كل نداء، فإسقاطها في مسار السقوط يعني أن
+ * شريط الحساسية يتوقّف عن العمل عند أوّل بيئة بلا `Worker` — بلا أي إشارة.
+ */
+describe('عميل خيط الفرق — الخيارات غير الافتراضية عبر المسارين', () => {
+  /** عتبة أعلى، ولونان متمايزان — لا شيء منها افتراضيّ. */
+  const CUSTOM_DIFF: Partial<DiffOptions> = {
+    threshold: 0.45,
+    removedColor: [7, 11, 13],
+    addedColor: [19, 23, 29],
+  }
+  /** عكس الافتراضي (4 و4) في الحقلين معًا. */
+  const CUSTOM_REGIONS: Partial<RegionOptions> = { dilate: 0, minPixels: 1 }
+
+  /**
+   * زوجٌ مصمَّم كي **تُحدث** كل مجموعة خيارات أثرًا مقيسًا، بأرقام مشتقّة لا
+   * منسوخة. الرماديات وحدها كي ينعدم المركّبان I وQ فيبقى
+   * `delta = 0.5053 × d²`:
+   *
+   * - كتلة 3×3 عند (5,5) بفرق `d = 60` ⇐ `delta = 1819`.
+   * - كتلة 3×3 عند (12,12) بفرق `d = 155` ⇐ `delta = 12140`.
+   * - بكسل معزول واحد عند (17,2) بفرق `d = 155`.
+   *
+   * وسقفا العتبتين: `35215 × 0.1² = 352.15` و`35215 × 0.45² = 7131.04`.
+   * فبالعتبة الافتراضية تُعدّ الثلاثة (9 + 9 + 1 = 19)، وبعتبة 0.45 تسقط
+   * كتلة الـ60 وحدها (9 + 1 = 10).
+   */
+  function makeTunedImages(): { a: RasterImage; b: RasterImage } {
+    const a = solid(W, H, GRAY)
+    const b = clone(a)
+    setBlock(b, 5, 5, 3, [160, 160, 160, 255])
+    setBlock(b, 12, 12, 3, [255, 255, 255, 255])
+    setBlock(b, 17, 2, 1, [255, 255, 255, 255])
+    return { a, b }
+  }
+
+  const pixelAt = (out: { diff: RasterImage }, x: number, y: number): number[] =>
+    Array.from(out.diff.data.slice((y * W + x) * 4, (y * W + x) * 4 + 4))
+
+  it('**مسار السقوط يحترم خيارات المستدعي حرفيًّا — بايتًا ببايت كمسار الخيط**', async () => {
+    const { worker, posted } = fakeWorker()
+    const viaWorker = createDiffClient({ spawn: () => worker })
+    const viaMain = createDiffClient({ spawn: () => null })
+    const onThread = makeTunedImages()
+    const onMain = makeTunedImages()
+
+    const w = await viaWorker.run(onThread.a, onThread.b, CUSTOM_DIFF, CUSTOM_REGIONS)
+    const m = await viaMain.run(onMain.a, onMain.b, CUSTOM_DIFF, CUSTOM_REGIONS)
+
+    expect(w.path).toBe('worker')
+    expect(m.path).toBe('main')
+    expect(m.diffPixelCount).toBe(w.diffPixelCount)
+    expect(m.comparedPixels).toBe(w.comparedPixels)
+    expect(m.diffRatio).toBe(w.diffRatio)
+    expect(Array.from(m.diff.data)).toEqual(Array.from(w.diff.data))
+    expect(Array.from(m.mask)).toEqual(Array.from(w.mask))
+    expect(m.regions).toEqual(w.regions)
+    // والطلب حمل الخيارات إلى الخيط كما هي — لا افتراضيًّا مُعاد بناؤه هناك.
+    expect(posted[0]?.diffOptions).toEqual(CUSTOM_DIFF)
+    expect(posted[0]?.regionOptions).toEqual(CUSTOM_REGIONS)
+
+    viaWorker.dispose()
+    viaMain.dispose()
+  })
+
+  it('وهذه الخيارات مُميِّزة فعلًا: العدّ والألوان والمناطق كلّها تخالف الافتراضي', async () => {
+    // بلا هذه الحالة تبقى المساواة أعلاه قابلةً للتحقّق حتى لو أُسقطت
+    // الخيارات في **المسارين** معًا.
+    const client = createDiffClient({ spawn: () => null })
+    const tuned = makeTunedImages()
+    const plain = makeTunedImages()
+
+    const custom = await client.run(tuned.a, tuned.b, CUSTOM_DIFF, CUSTOM_REGIONS)
+    const fallback = await client.run(plain.a, plain.b)
+
+    // العتبة: 19 بالافتراضية، و10 بـ0.45 (الاشتقاق في تعليق `makeTunedImages`).
+    expect(fallback.diffPixelCount).toBe(19)
+    expect(custom.diffPixelCount).toBe(10)
+
+    /*
+     * الألوان: ب أفتح من أ في كل بكسل مختلف (160 و255 فوق 100)، أي أن أ
+     * **أغمق** — فالبكسل يأخذ `removedColor` بالقاعدة المقيسة في
+     * `diff.test.ts`. الافتراضي أحمر `[255, 0, 0]`، والمخصّص `[7, 11, 13]`.
+     */
+    expect(pixelAt(fallback, 12, 12)).toEqual([255, 0, 0, 255])
+    expect(pixelAt(custom, 12, 12)).toEqual([7, 11, 13, 255])
+
+    /*
+     * المناطق: بالافتراضي (dilate 4، minPixels 4) تنتفخ الكتلتان
+     * (5..7 و12..14 في المحورين) إلى مربّعين متداخلين فتندمجان في منطقة
+     * واحدة، ويسقط البكسل المعزول لأنه دون الحدّ الأدنى ⇐ منطقة واحدة.
+     * وبالمخصّص (0 و1) لا انتفاخ ولا ترشيح: كتلة (12,12) والبكسل المعزول
+     * ⇐ منطقتان.
+     */
+    expect(fallback.regions).toHaveLength(1)
+    expect(custom.regions).toHaveLength(2)
+    expect(custom.regions.map((r) => [r.rect.x, r.rect.y, r.rect.width, r.rect.height])).toEqual([
+      [17, 2, 1, 1],
+      [12, 12, 3, 3],
+    ])
+  })
+
+  it('**والخيارات تصل مسار السقوط بعد فشل الخيط أيضًا** — لا نداءً افتراضيًّا للإنقاذ', async () => {
+    // موضعا نداء `runHere` اثنان: قبل الجهوز وبعد فشل الردّ. الأوّل مقيس
+    // أعلاه، وهذا الثاني كان بلا حراسة على الخيارات.
+    const { worker } = fakeWorker({ failRequest: true })
+    const client = createDiffClient({ spawn: () => worker })
+    const rescued = makeTunedImages()
+    const reference = createDiffClient({ spawn: () => null })
+    const plain = makeTunedImages()
+
+    const out = await client.run(rescued.a, rescued.b, CUSTOM_DIFF, CUSTOM_REGIONS)
+    const ref = await reference.run(plain.a, plain.b, CUSTOM_DIFF, CUSTOM_REGIONS)
+
+    expect(out.path).toBe('main')
+    expect(out.reason).toBe('worker-error')
+    expect(out.diffPixelCount).toBe(ref.diffPixelCount)
+    expect(Array.from(out.diff.data)).toEqual(Array.from(ref.diff.data))
+    expect(out.regions).toEqual(ref.regions)
+    // ولا يساوي ما كان الافتراضي سيعطيه — فالمساواة أعلاه ليست مصادفة.
+    expect(out.diffPixelCount).not.toBe(19)
+
+    client.dispose()
+    reference.dispose()
+  })
+})
+
+/**
+ * مسارا الفشل الحقيقيّان — حدث `error` من الخيط، ورمي `postMessage` نفسه —
+ * كانا بلا تغطية بينما المهلتان مغطّاتان. والفرق جوهري: المهلة تُنقذ الطلب
+ * بعد ثوانٍ، أمّا هذان فيقعان فورًا وبلا مؤقّت ينقذهما إن لم يعالجهما العميل.
+ *
+ * ولهذا يُحقَن هنا **مؤقّت لا يُطلق أبدًا**: لو لم يكن معالج الخطأ هو ما
+ * يُنهي الطلب، لعلّق الوعد إلى ما لا نهاية وسقط الاختبار بمهلته — لا بمرور
+ * صامت.
+ */
+describe('عميل خيط الفرق — انهيار الخيط ورفض النقل', () => {
+  /** يسجّل المهل المطلوبة ولا يُطلق أيًّا منها. */
+  const frozenTimer = (fired: number[]) => (_fn: () => void, ms: number) => {
+    fired.push(ms)
+    return () => undefined
+  }
+
+  it('**حدث `error` قبل الجهوز ← سقوط بـ`worker-error` بلا انتظار مهلة الجهوز**', async () => {
+    const { worker, fireError } = fakeWorker({ ready: false })
+    const fired: number[] = []
+    const client = createDiffClient({ spawn: () => worker, timer: frozenTimer(fired) })
+    const { a, b } = makeImages()
+    const ref = expected(a, b)
+
+    // `run` يسجّل مستمعي الخيط تزامنيًّا قبل أوّل `await`، فالحدث يجد مستمعه.
+    const pending = client.run(a, b)
+    fireError()
+    const out = await pending
+
+    expect(out.path).toBe('main')
+    expect(out.reason).toBe('worker-error')
+    // مهلة الجهوز طُلبت ولم تُطلق: الإنقاذ جاء من الحدث لا من المؤقّت.
+    expect(fired).toEqual([READY_TIMEOUT_MS])
+    expect(out.diffPixelCount).toBe(ref.diff.diffPixelCount)
+    expect(out.diffPixelCount).toBeGreaterThan(0)
+    expect(out.diffRatio).toBeCloseTo(ref.diff.diffRatio, 10)
+    expect(out.regions).toEqual(ref.regions)
+  })
+
+  it('**وحدث `error` على طلبٍ معلَّق بعد الجهوز ← نفس السقوط، والخيط يبقى ميّتًا**', async () => {
+    const { worker } = fakeWorker({ errorOnRequest: true })
+    const fired: number[] = []
+    const client = createDiffClient({ spawn: () => worker, timer: frozenTimer(fired) })
+    const first = makeImages()
+    const ref = expected(first.a, first.b)
+
+    const out = await client.run(first.a, first.b)
+
+    expect(out.path).toBe('main')
+    expect(out.reason).toBe('worker-error')
+    // المهلتان معًا طُلبتا ولم تُطلق واحدة — الطلب المعلَّق حُلّ بالحدث.
+    expect(fired).toEqual([READY_TIMEOUT_MS, REPLY_TIMEOUT_MS])
+    expect(out.diffPixelCount).toBe(ref.diff.diffPixelCount)
+    expect(out.diffPixelCount).toBeGreaterThan(0)
+    expect(out.regions).toEqual(ref.regions)
+
+    // وما بعده لا يعود إلى خيط منهار: نداء ثانٍ على الخيط الرئيسي مباشرةً.
+    const second = makeImages()
+    const after = await client.run(second.a, second.b)
+    expect(after.path).toBe('main')
+    expect(after.reason).toBe('worker-error')
+    expect(after.diffPixelCount).toBe(ref.diff.diffPixelCount)
+  })
+
+  it('**ورمي `postMessage` نفسه لا يُسرّب استثناءً إلى المستدعي**', async () => {
+    // بلا الْتقاطٍ حول `postMessage` يُرفَض وعد `run`، و`ComparePage` تُعلن
+    // «تعذّر حساب الفرق» بدل أن تعرض فرقًا صحيحًا حُسب على الخيط الرئيسي.
+    const { worker } = fakeWorker({ throwOnPost: true })
+    const client = createDiffClient({ spawn: () => worker })
+    const { a, b } = makeImages()
+    const ref = expected(a, b)
+
+    const out = await client.run(a, b)
+
+    expect(out.path).toBe('main')
+    expect(out.reason).toBe('worker-error')
+    expect(out.diffPixelCount).toBe(ref.diff.diffPixelCount)
+    expect(out.diffPixelCount).toBeGreaterThan(0)
+    expect(out.diffRatio).toBeCloseTo(ref.diff.diffRatio, 10)
+    expect(out.regions).toEqual(ref.regions)
+    // والمخزنان اللذان بقيا عند مالكهما هما ما حُسب عليهما الفرق.
+    expect(a.data.buffer.byteLength).toBeGreaterThan(0)
+    expect(b.data.buffer.byteLength).toBeGreaterThan(0)
+    expect(client.lastPath).toBe('main')
   })
 })
