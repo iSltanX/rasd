@@ -37,6 +37,20 @@ const BASE: ColourPanelProps = {
 
 const ARABIC_INDIC = /[٠-٩]/u
 
+/*
+ * عطلُ مرآة من المرحلة 13، قِيس في Chrome: تحت `space-between` في سياق RTL
+ * يقع أوّلُ عنصر في DOM **يمينًا**. فترتيب «الإغلاق ثمّ العنوان» كان يرسم
+ * «×» يمينًا، والإطار `65:55` يضع العكس.
+ */
+describe('ColourPanel — ترتيب الرأس', () => {
+  it('العنوان يسبق زرّ الإغلاق في DOM فيقع يمينًا في RTL', () => {
+    const el = mount(<ColourPanel {...BASE} onClose={() => undefined} />)
+    const head = el.querySelector('.rasd-ov-cp-head')
+    expect(head?.firstElementChild?.className).toContain('rasd-ov-cp-title')
+    expect(head?.lastElementChild?.getAttribute('aria-label')).toBe('إغلاق')
+  })
+})
+
 describe('ColourPanel — كتلة «العناصر التي تستخدم اللون»', () => {
   it('بلا `usage` ولا `onScanUsage`: لا كتلة إطلاقًا — لا صفر كاذب', () => {
     const el = mount(<ColourPanel {...BASE} />)
@@ -55,7 +69,7 @@ describe('ColourPanel — كتلة «العناصر التي تستخدم الل
     const el = mount(
       <ColourPanel
         {...BASE}
-        usage={{ total: 0, current: null, scanning: true, progress: 0.42 }}
+        usage={{ total: 0, rows: [], scanning: true, progress: 0.42 }}
         onCancelScan={onCancelScan}
       />,
     )
@@ -69,7 +83,7 @@ describe('ColourPanel — كتلة «العناصر التي تستخدم الل
 
   it('بعد المسح: العدّ بشريٌّ بأرقام هندية ومصرَّفٌ عربيًّا', () => {
     const el = mount(
-      <ColourPanel {...BASE} usage={{ total: 14, current: null, scanning: false, progress: 1 }} />,
+      <ColourPanel {...BASE} usage={{ total: 14, rows: [], scanning: false, progress: 1 }} />,
     )
     const text = el.querySelector('[data-rasd-ov="colour-usage"]')?.textContent ?? ''
     expect(text).toContain('يستخدمه')
@@ -79,7 +93,7 @@ describe('ColourPanel — كتلة «العناصر التي تستخدم الل
 
   it('المثنّى بلا رقم — «عنصران» لا «٢ عنصر»', () => {
     const el = mount(
-      <ColourPanel {...BASE} usage={{ total: 2, current: null, scanning: false, progress: 1 }} />,
+      <ColourPanel {...BASE} usage={{ total: 2, rows: [], scanning: false, progress: 1 }} />,
     )
     const text = el.querySelector('[data-rasd-ov="colour-usage"]')?.textContent ?? ''
     expect(text).toContain('عنصران')
@@ -92,39 +106,82 @@ describe('ColourPanel — كتلة «العناصر التي تستخدم الل
    */
   it('مسحٌ بلا نتيجة يقول ذلك صراحةً — لا يعود إلى حالة ما قبل المسح', () => {
     const el = mount(
-      <ColourPanel {...BASE} usage={{ total: 0, current: null, scanning: false, progress: 1 }} />,
+      <ColourPanel {...BASE} usage={{ total: 0, rows: [], scanning: false, progress: 1 }} />,
     )
     const text = el.querySelector('[data-rasd-ov="colour-usage"]')?.textContent ?? ''
     expect(text).toContain('لا عنصر يستخدمه')
     expect(text).not.toContain('أظهر العناصر')
   })
 
-  it('التنقّل يظهر مع نتائج فقط، ويُبلّغ الاتجاه', () => {
-    const onStepUsage = vi.fn()
+  it('«أبرِز الكل» يظهر مع نتائج فقط ويُبلّغ النقر', () => {
+    const onHighlightAll = vi.fn()
     const el = mount(
       <ColourPanel
         {...BASE}
-        usage={{ total: 3, current: 0, scanning: false, progress: 1 }}
-        onStepUsage={onStepUsage}
+        usage={{ total: 3, rows: [], scanning: false, progress: 1 }}
+        onHighlightAll={onHighlightAll}
       />,
     )
-    const nav = el.querySelector('.rasd-ov-cp-usage-nav')
-    expect(nav).not.toBeNull()
-    const buttons = [...(nav?.querySelectorAll('button') ?? [])]
-    expect(buttons).toHaveLength(2)
-    buttons[1]?.dispatchEvent(new Event('click', { bubbles: true }))
-    expect(onStepUsage).toHaveBeenCalledWith(1)
+    const btn = [...el.querySelectorAll('button')].find((b) => b.textContent === 'أبرِز الكل')
+    expect(btn).toBeDefined()
+    btn?.dispatchEvent(new Event('click', { bubbles: true }))
+    expect(onHighlightAll).toHaveBeenCalled()
   })
 
-  it('لا تنقّل حين لا نتائج — سهمان فوق صفر لا معنى لهما', () => {
+  it('لا «أبرِز الكل» فوق صفر — زرٌّ بلا ما يُبرزه', () => {
     const el = mount(
       <ColourPanel
         {...BASE}
-        usage={{ total: 0, current: null, scanning: false, progress: 1 }}
-        onStepUsage={() => undefined}
+        usage={{ total: 0, rows: [], scanning: false, progress: 1 }}
+        onHighlightAll={() => undefined}
       />,
     )
-    expect(el.querySelector('.rasd-ov-cp-usage-nav')).toBeNull()
+    expect([...el.querySelectorAll('button')].some((b) => b.textContent === 'أبرِز الكل')).toBe(
+      false,
+    )
+  })
+
+  /*
+   * الإطار `65:55` يعرض ثلاثة صفوف لأربعة عشر عنصرًا — فالقائمة **عيّنة**
+   * والعدّاد هو الحقيقة. والمكوّن يعرض ما وصله ولا يقصّ بنفسه.
+   */
+  it('يعرض قائمة العناصر بمحدِّداتها وخصائصها — لا عدّادًا وحده', () => {
+    const el = mount(
+      <ColourPanel
+        {...BASE}
+        usage={{
+          total: 14,
+          rows: [
+            { selector: 'button.cta-btn', property: 'background-color' },
+            { selector: 'a.nav-cta', property: 'background-color' },
+            { selector: 'span.badge', property: 'color' },
+          ],
+          scanning: false,
+          progress: 1,
+        }}
+      />,
+    )
+    const rows = el.querySelectorAll('.rasd-ov-cp-usage-row')
+    expect(rows).toHaveLength(3)
+    expect(rows[0]?.textContent).toContain('button.cta-btn')
+    expect(rows[0]?.textContent).toContain('background-color')
+    expect(el.querySelector('[data-rasd-ov="colour-usage"]')?.textContent).toContain('١٤')
+  })
+
+  it('كل محدِّد وخاصية معزولان اتجاهيًّا — لا مقطع لاتيني عارٍ في RTL', () => {
+    const el = mount(
+      <ColourPanel
+        {...BASE}
+        usage={{
+          total: 1,
+          rows: [{ selector: 'button.cta-btn', property: 'color' }],
+          scanning: false,
+          progress: 1,
+        }}
+      />,
+    )
+    const row = el.querySelector('.rasd-ov-cp-usage-row')
+    expect(row?.querySelectorAll('bdi[data-technical]')).toHaveLength(2)
   })
 })
 
@@ -145,9 +202,19 @@ describe('ColourPanel — زرّ «جرّب بديلًا» (§6.11)', () => {
     expect(onReplace).toHaveBeenCalled()
   })
 
-  it('لا يزاحم «حفظ» — كلاهما في صفّ الإجراءات', () => {
+  it('هو البارز و«حفظ» ثانوي — كما يرسمهما `65:55`', () => {
     const el = mount(<ColourPanel {...BASE} onReplace={() => undefined} />)
-    const actions = el.querySelector('.rasd-ov-cp-actions')
-    expect(actions?.querySelectorAll('button')).toHaveLength(2)
+    const buttons = [...(el.querySelector('.rasd-ov-cp-actions')?.querySelectorAll('button') ?? [])]
+    expect(buttons).toHaveLength(2)
+    expect(buttons[0]?.textContent).toContain('جرّب بديلًا')
+    expect(buttons[0]?.className).toContain('rasd-ov-cp-btn-primary')
+    expect(buttons[1]?.className).not.toContain('rasd-ov-cp-btn-primary')
+  })
+
+  it('وحيث لا استبدال يَرِث «حفظ» البروز — لا زرّ وحيد يقرأ معطَّلًا', () => {
+    const el = mount(<ColourPanel {...BASE} />)
+    const buttons = [...(el.querySelector('.rasd-ov-cp-actions')?.querySelectorAll('button') ?? [])]
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]?.className).toContain('rasd-ov-cp-btn-primary')
   })
 })

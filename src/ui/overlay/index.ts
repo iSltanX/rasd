@@ -29,6 +29,13 @@ export type {
   ColourVarView,
   ColourContrastView,
 } from './colour/ColourPanel'
+export { ScalePanel } from './colour/ScalePanel'
+export type {
+  ScalePanelProps,
+  ScaleStepCount,
+  ScaleStripStop,
+  ScaleSampleRow,
+} from './colour/ScalePanel'
 export { InspectPanel, InspectIdle, INSPECT_TABS, TAB_LABELS } from './inspect/InspectPanel'
 export type {
   InspectPanelProps,

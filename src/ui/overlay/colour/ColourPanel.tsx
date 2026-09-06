@@ -1,4 +1,4 @@
-import { formatHuman, formatPercent, plural } from '@/shared/bidi'
+import { formatPercent, plural } from '@/shared/bidi'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
@@ -70,11 +70,24 @@ export interface ColourContrastView {
  * شيء» (`total === 0`). خلطُهما كان سيقول «لا عنصر يستعمله» عن لون لم
  * يُبحَث عنه أصلًا.
  */
+export interface ColourUsageRow {
+  /** محدِّد العنصر كما يولّده `modules/dom-picker` — `button.cta-btn`. */
+  readonly selector: string
+  /** الخاصية التي طابقت — `background-color` · `color` · … */
+  readonly property: string
+}
+
 export interface ColourUsageView {
   /** عدد العناصر المطابقة — **عدٌّ بشري**، يُنسَّق بأرقام هندية عند العرض. */
   readonly total: number
-  /** فهرس المُبرَز حاليًّا، أو `null` قبل أي تنقّل. */
-  readonly current: number | null
+  /**
+   * صفوف القائمة كما يعرضها الإطار `65:55`: محدِّد وخاصية لكل صفّ.
+   *
+   * **قد تكون أقصر من `total`** — الإطار يعرض ثلاثة صفوف لأربعة عشر عنصرًا،
+   * فالقائمة عيّنة والعدّاد هو الحقيقة. وقصُّها مسؤولية المستدعي لا هذا
+   * المكوّن: هو يعرض ما وصله.
+   */
+  readonly rows: readonly ColourUsageRow[]
   /** المسح جارٍ — يُعرض تقدّمه بدل رقم نهائي كاذب. */
   readonly scanning: boolean
   /** نسبة التقدّم 0..1 أثناء المسح. */
@@ -104,7 +117,8 @@ export interface ColourPanelProps {
   usage?: ColourUsageView
   onScanUsage?: () => void
   onCancelScan?: () => void
-  onStepUsage?: (delta: 1 | -1) => void
+  /** «أبرِز الكل» — يرسم إطارًا فوق كل عنصر مطابق في الصفحة. */
+  onHighlightAll?: () => void
   /** `§6.11` — زرّ «جرّب بديلًا». غيابه يُخفي الزرّ. */
   onReplace?: () => void
 }
@@ -123,19 +137,29 @@ export function ColourPanel({
   usage,
   onScanUsage,
   onCancelScan,
-  onStepUsage,
+  onHighlightAll,
   onReplace,
 }: ColourPanelProps): JSX.Element {
   return (
     <section class="rasd-ov-cp" data-rasd-ov="colour-panel" aria-label="اللون">
+      {/*
+       * **العنوان أوّلًا في DOM لا زرّ الإغلاق — تصحيح مرآة.**
+       *
+       * كان الإغلاق أوّلًا، وتحت `justify-content: space-between` في سياق
+       * RTL يقع أوّلُ عنصر عند **بداية** المحور أي يمينًا (مقيسًا في Chrome).
+       * فكانت «×» تُرسم يمينًا والعنوان يسارًا، والإطار المرجعي `65:55`
+       * يضع العكس تمامًا — وكذلك إطارات المرحلة 14 الثلاثة كلّها. عطلُ
+       * مرآة من المرحلة 13 لم يظهر لأن المقارنة البصرية بذاك الإطار كانت
+       * على استثناء معلَن (`Phase_13.md §6`).
+       */}
       <header class="rasd-ov-cp-head">
-        <button type="button" class="rasd-ov-cp-icon" onClick={onClose} aria-label="إغلاق">
-          <Icon name="close" size="sm" />
-        </button>
         <span class="rasd-ov-cp-title">
           <span>اللون</span>
           <Icon name="eyedropper" size="sm" />
         </span>
+        <button type="button" class="rasd-ov-cp-icon" onClick={onClose} aria-label="إغلاق">
+          <Icon name="close" size="sm" />
+        </button>
       </header>
 
       <div class="rasd-ov-cp-swatch-block">
@@ -237,67 +261,81 @@ export function ColourPanel({
       {usage || onScanUsage ? (
         <div class="rasd-ov-cp-usage" data-rasd-ov="colour-usage">
           {usage?.scanning ? (
-            <>
-              <span class="rasd-ov-cp-usage-text">جارٍ المسح… {formatPercent(usage.progress)}</span>
+            <div class="rasd-ov-cp-usage-head">
+              <span>جارٍ المسح… {formatPercent(usage.progress)}</span>
               <button type="button" class="rasd-ov-cp-btn-quiet" onClick={onCancelScan}>
                 أوقف
               </button>
-            </>
+            </div>
           ) : usage ? (
             <>
-              <span class="rasd-ov-cp-usage-text">
+              <div class="rasd-ov-cp-usage-head">
                 {/*
                  * `plural` تُصرّف العدد كاملًا: المثنّى بلا رقم («عنصران» لا
-                 * «٢ عنصر»)، والعدد هنديّ لأنه عدٌّ بشري (`§3.5`، ونصّ `§17`
-                 * لهذه المرحلة صريح: «عدّاد العناصر عدٌّ بشري بأرقام هندية»).
+                 * «٢ عنصر»)، والعدد هنديّ لأنه عدٌّ بشري — ونصّ `§14` لهذه
+                 * المرحلة صريح: «عدّاد العناصر عدٌّ بشري بأرقام هندية».
                  */}
-                {usage.total > 0
-                  ? `يستخدمه ${plural(usage.total, 'عنصر واحد', 'عنصران', 'عناصر')}`
-                  : 'لا عنصر يستخدمه في هذه الصفحة'}
-              </span>
-              {usage.total > 0 && onStepUsage ? (
-                <span class="rasd-ov-cp-usage-nav">
-                  <button
-                    type="button"
-                    class="rasd-ov-cp-icon"
-                    onClick={() => onStepUsage(-1)}
-                    aria-label="العنصر السابق"
-                  >
-                    <Icon name="chevron-right" size="xs" />
-                  </button>
-                  <span class="rasd-ov-cp-usage-at">
-                    {usage.current === null ? '—' : formatHuman(usage.current + 1)}
-                  </span>
-                  <button
-                    type="button"
-                    class="rasd-ov-cp-icon"
-                    onClick={() => onStepUsage(1)}
-                    aria-label="العنصر التالي"
-                  >
-                    <Icon name="chevron-left" size="xs" />
-                  </button>
+                <span>
+                  {usage.total > 0
+                    ? `يستخدمه ${plural(usage.total, 'عنصر واحد', 'عنصران', 'عناصر')}`
+                    : 'لا عنصر يستخدمه في هذه الصفحة'}
                 </span>
+                {usage.total > 0 && onHighlightAll ? (
+                  <button type="button" class="rasd-ov-cp-btn-quiet" onClick={onHighlightAll}>
+                    أبرِز الكل
+                  </button>
+                ) : null}
+              </div>
+
+              {usage.rows.length > 0 ? (
+                <ul class="rasd-ov-cp-usage-list">
+                  {usage.rows.map((row) => (
+                    <li key={`${row.selector}|${row.property}`} class="rasd-ov-cp-usage-row">
+                      <TechnicalValue kind="selector" variant="mono-xs">
+                        {row.selector}
+                      </TechnicalValue>
+                      <TechnicalValue kind="property" variant="mono-xs">
+                        {row.property}
+                      </TechnicalValue>
+                    </li>
+                  ))}
+                </ul>
               ) : null}
             </>
           ) : (
-            <button type="button" class="rasd-ov-cp-btn-quiet" onClick={onScanUsage}>
-              أظهر العناصر التي تستخدمه
-            </button>
+            <div class="rasd-ov-cp-usage-head">
+              <button type="button" class="rasd-ov-cp-btn-quiet" onClick={onScanUsage}>
+                أظهر العناصر التي تستخدمه
+              </button>
+            </div>
           )}
         </div>
       ) : null}
 
+      {/*
+       * **«جرّب بديلًا» هو البارز و«حفظ» ثانوي** — كما يرسمهما `65:55`
+       * حرفيًّا. وترتيبهما في DOM يضع البارز أوّلًا فيقع يمينًا في RTL،
+       * مطابقًا للإطار. وحيث لا استبدال يبقى «حفظ» وحده فيَرِث البروز:
+       * زرٌّ وحيد ثانويّ المظهر يقرأ معطَّلًا.
+       */}
       <footer class="rasd-ov-cp-actions">
         {onReplace ? (
-          <button type="button" class="rasd-ov-cp-btn-quiet" onClick={onReplace}>
-            <span>جرّب بديلًا</span>
-            <Icon name="color-replace" size="sm" />
+          <>
+            <button type="button" class="rasd-ov-cp-btn rasd-ov-cp-btn-primary" onClick={onReplace}>
+              <span>جرّب بديلًا</span>
+              <Icon name="color-replace" size="sm" />
+            </button>
+            <button type="button" class="rasd-ov-cp-btn" onClick={onSave}>
+              <span>حفظ</span>
+              <Icon name="swatches" size="sm" />
+            </button>
+          </>
+        ) : (
+          <button type="button" class="rasd-ov-cp-btn rasd-ov-cp-btn-primary" onClick={onSave}>
+            <span>حفظ</span>
+            <Icon name="swatches" size="sm" />
           </button>
-        ) : null}
-        <button type="button" class="rasd-ov-cp-btn" onClick={onSave}>
-          <span>حفظ</span>
-          <Icon name="swatches" size="sm" />
-        </button>
+        )}
       </footer>
     </section>
   )

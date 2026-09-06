@@ -1640,25 +1640,36 @@
   color: var(--rasd-text-secondary);
 }
 
-.rasd-ov-cp-usage-text {
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rasd-ov-cp-usage-nav {
-  display: inline-flex;
+.rasd-ov-cp-usage-head {
+  display: flex;
   align-items: center;
-  gap: var(--rasd-space-2);
-  flex-shrink: 0;
+  justify-content: space-between;
+  gap: var(--rasd-space-8);
 }
 
-/* الفهرس بين السهمين — عرضٌ ثابت فلا يقفز الزرّان مع تغيّر الرقم. */
-.rasd-ov-cp-usage-at {
-  min-inline-size: var(--rasd-space-20);
-  text-align: center;
-  font-variant-numeric: tabular-nums;
+/*
+ * قائمة العناصر — صفٌّ لكل مطابقة: المحدِّد يمينًا والخاصية يسارًا، كما
+ * يرسمها `65:55`. والخاصية بلون خافت لأنها تُقرأ ثانيةً بعد المحدِّد.
+ */
+.rasd-ov-cp-usage-list {
+  display: grid;
+  gap: var(--rasd-space-2);
+  margin: var(--rasd-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rasd-ov-cp-usage-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rasd-space-8);
+  min-inline-size: 0;
+}
+
+.rasd-ov-cp-usage-row > :last-child {
+  color: var(--rasd-text-tertiary);
+  flex-shrink: 0;
 }
 
 /* زرٌّ ثانوي: نفس هندسة `-btn` بلا حدّ ولا سطح — لا يزاحم «حفظ». */
@@ -1703,6 +1714,18 @@
   color: var(--rasd-text-primary);
   font: inherit;
   cursor: pointer;
+}
+
+/* البارز — `--rasd-action-primary-*` نفسها التي يستعملها `Button` الأساسي. */
+.rasd-ov-cp-btn-primary {
+  background: var(--rasd-action-primary-rest);
+  border-color: var(--rasd-action-primary-rest);
+  color: var(--rasd-text-on-brand);
+}
+
+.rasd-ov-cp-btn-primary:hover {
+  background: var(--rasd-action-primary-hover);
+  border-color: var(--rasd-action-primary-hover);
 }
 
 .rasd-ov-cp-btn:hover {
