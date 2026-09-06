@@ -76,6 +76,16 @@ const STEPS = [
         stdio: 'inherit',
       }),
   },
+  {
+    // خريطة المراحل كانت تُحدَّث يدويًّا داخل طقس الإغلاق، فانحرفت صامتةً حين
+    // أُغلقت مراحل بلا طقس كامل (§8). الحارس يجعل الانحراف مستحيلًا لا مُستبعَدًا.
+    name: 'حارس خريطة المراحل',
+    run: () =>
+      execFileSync(process.execPath, ['scripts/phases-sync.mjs', '--check'], {
+        cwd: root,
+        stdio: 'inherit',
+      }),
+  },
 ]
 
 const started = Date.now()

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { extraStripBoxes, percentBox, percentBoxStyle, stageSize } from '@/pages/compare/layout'
+import {
+  extraStripBoxes,
+  imageBox,
+  percentBox,
+  percentBoxStyle,
+  splitPercentInImage,
+  stageSize,
+} from '@/pages/compare/layout'
 import { deviceRect } from '@/shared/geometry'
 
 import type { ExtraStrip } from '@/modules/compare/diff'
@@ -119,5 +126,67 @@ describe('extraStripBoxes — تعليم المنطقة الزائدة (فجوة
     const boxes = extraStripBoxes(NONE, extraInB, stage)
     expect(boxes).toHaveLength(1)
     expect(boxes[0]?.key).toBe('b-rows')
+  })
+})
+
+describe('imageBox — الصورة تُموضَع بفضاء المسرح لا بفرشها على الحاوية', () => {
+  it('الصورة التي تبلغ الحدّ الأقصى في المحورين تملأ المسرح كاملًا', () => {
+    expect(imageBox({ width: 280, height: 220 }, { width: 280, height: 220 })).toEqual({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 100,
+    })
+  })
+
+  it('الصورة الأصغر تشغل نسبتها الحقيقية — لا تُكبَّر لتملأ', () => {
+    // الحالة المقيسة حيًّا: `object-fit: contain` كان يرسمها 1.400× أكبر.
+    const box = imageBox({ width: 200, height: 150 }, { width: 280, height: 220 })
+    expect(box.left).toBe(0)
+    expect(box.top).toBe(0)
+    expect(box.width).toBeCloseTo((200 / 280) * 100, 10)
+    expect(box.height).toBeCloseTo((150 / 220) * 100, 10)
+  })
+
+  it('صندوق الصورة ومستطيلٌ داخلها يتّفقان في المقياس — لا فضاءان', () => {
+    const stage = { width: 280, height: 220 }
+    const image = { width: 200, height: 150 }
+    const box = imageBox(image, stage)
+    // مستطيل عند الحافة اليمنى-السفلى للصورة يجب أن ينتهي عند حافة صندوقها
+    const edge = percentBox({ x: 190, y: 140, width: 10, height: 10 }, stage)
+    expect(edge.left + edge.width).toBeCloseTo(box.left + box.width, 10)
+    expect(edge.top + edge.height).toBeCloseTo(box.top + box.height, 10)
+  })
+
+  it('صورة أصغر في المحورين معًا — الحالة التي رصدتها المراجعة الخصمية', () => {
+    const box = imageBox({ width: 100, height: 50 }, { width: 200, height: 200 })
+    expect(box.width).toBe(50)
+    expect(box.height).toBe(25)
+  })
+})
+
+describe('splitPercentInImage — المقبض في فضاء المسرح، القصّ في فضاء الصورة', () => {
+  it('صورةٌ بمقاس المسرح: النسبة نفسها بلا تحويل', () => {
+    expect(splitPercentInImage(50, { width: 280, height: 220 }, { width: 280, height: 220 })).toBe(
+      50,
+    )
+  })
+
+  it('صورة أضيق: نفس بكسل المسرح نسبةٌ أكبر منها', () => {
+    // 50٪ من مسرح 280 = بكسل 140، وهو 70٪ من صورة عرضها 200.
+    expect(splitPercentInImage(50, { width: 200, height: 150 }, { width: 280, height: 220 })).toBe(
+      70,
+    )
+  })
+
+  it('تُقصّ إلى 100 حين يتجاوز المقبض حافة الصورة الأضيق', () => {
+    // 90٪ من 280 = 252 > 200، فالصورة كلّها مقصوصة لا نسبة تتجاوز 100.
+    expect(splitPercentInImage(90, { width: 200, height: 150 }, { width: 280, height: 220 })).toBe(
+      100,
+    )
+  })
+
+  it('صفر عند صورة بلا عرض — لا قسمة على صفر تتسرّب إلى CSS', () => {
+    expect(splitPercentInImage(50, { width: 0, height: 0 }, { width: 280, height: 220 })).toBe(0)
   })
 })

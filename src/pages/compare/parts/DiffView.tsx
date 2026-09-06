@@ -25,6 +25,7 @@ import { useEffect, useRef } from 'preact/hooks'
 
 import {
   extraStripBoxes,
+  imageBox,
   percentBox,
   percentBoxStyle,
   type PixelSize,
@@ -42,6 +43,7 @@ import type { JSX } from 'preact'
 export interface DiffViewProps {
   readonly baseUrl: string
   readonly baseTitle: string
+  readonly baseSize: PixelSize
   readonly stage: PixelSize
   readonly diff: RasterImage
   readonly overlap: DeviceRect
@@ -55,6 +57,7 @@ export interface DiffViewProps {
 export function DiffView({
   baseUrl,
   baseTitle,
+  baseSize,
   stage,
   diff,
   overlap,
@@ -85,6 +88,7 @@ export function DiffView({
     }
   }, [diff])
 
+  const baseBox = percentBoxStyle(imageBox(baseSize, stage))
   const overlapBox = percentBoxStyle(percentBox(overlap, stage))
   const extraBoxes = extraStripBoxes(extraInA, extraInB, stage)
 
@@ -95,6 +99,7 @@ export function DiffView({
         alt={baseTitle}
         class={cx(stageStyles.fillImage, styles.desaturated)}
         draggable={false}
+        style={baseBox}
       />
       <canvas
         ref={canvasRef}

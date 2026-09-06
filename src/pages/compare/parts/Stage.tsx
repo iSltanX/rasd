@@ -21,6 +21,14 @@ export type CompareMode = 'adjacent' | 'diff' | 'blink'
 export interface StageImage {
   readonly url: string
   readonly title: string
+  /**
+   * مقاس الصورة **الأصلي** بالبكسل — لا مقاسها المعروض.
+   *
+   * لازمٌ لأن الصورة تُموضَع بـ`imageBox()` في فضاء المسرح، لا تُفرَش على
+   * الحاوية بـ`object-fit`. صورةٌ لا تبلغ الحدّ الأقصى في أيّ محور كانت
+   * تُرسَم مكبَّرةً (قِيس 1.400×) فتنفصل عن كل ما يُرسَم فوقها.
+   */
+  readonly size: PixelSize
 }
 
 export interface StageProps {
@@ -63,7 +71,11 @@ export function Stage({
     <div
       ref={stageRef}
       class={styles.box}
-      style={{ aspectRatio: `${stageSizePx.width} / ${stageSizePx.height}` }}
+      style={{
+        aspectRatio: `${stageSizePx.width} / ${stageSizePx.height}`,
+        // نفس النسبة عددًا، لأن `calc()` لا يقبل صيغة `W / H` الوصفية.
+        '--rasd-stage-ratio': `${stageSizePx.width / stageSizePx.height}`,
+      }}
     >
       {mode === 'adjacent' ? (
         <AdjacentView
@@ -71,6 +83,9 @@ export function Stage({
           urlB={b.url}
           titleA={a.title}
           titleB={b.title}
+          sizeA={a.size}
+          sizeB={b.size}
+          stage={stageSizePx}
           splitPosition={splitPosition}
           onSplitPositionChange={onSplitPositionChange}
           measureExtent={measureExtent}
@@ -82,6 +97,9 @@ export function Stage({
           urlB={b.url}
           titleA={a.title}
           titleB={b.title}
+          sizeA={a.size}
+          sizeB={b.size}
+          stage={stageSizePx}
           showingA={blinkShowingA}
           isPlaying={blinkPlaying}
           onTogglePlay={onBlinkTogglePlay}
@@ -92,6 +110,7 @@ export function Stage({
         <DiffView
           baseUrl={b.url}
           baseTitle={b.title}
+          baseSize={b.size}
           stage={stageSizePx}
           diff={diffOutcome.diff}
           overlap={diffOutcome.overlap}

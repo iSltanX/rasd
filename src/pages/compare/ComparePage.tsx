@@ -242,8 +242,16 @@ export function ComparePage(): JSX.Element {
           <Stage
             mode={mode}
             stageSizePx={stage}
-            a={{ url: loadedA.capture.objectUrl, title: loadedA.capture.record.title }}
-            b={{ url: loadedB.capture.objectUrl, title: loadedB.capture.record.title }}
+            a={{
+              url: loadedA.capture.objectUrl,
+              title: loadedA.capture.record.title,
+              size: loadedA.capture.record,
+            }}
+            b={{
+              url: loadedB.capture.objectUrl,
+              title: loadedB.capture.record.title,
+              size: loadedB.capture.record,
+            }}
             splitPosition={splitPosition}
             onSplitPositionChange={setSplitPosition}
             blinkShowingA={blinkShowingA}

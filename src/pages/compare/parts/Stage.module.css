@@ -1,27 +1,40 @@
+/*
+ * **العرض يُشتقّ من الارتفاع المتاح كي لا تنكسر نسبة المسرح.**
+ *
+ * كان هنا `inline-size: 100%` مع `max-block-size: 100%`: يحسب المتصفّح
+ * الارتفاع من `aspect-ratio` ثم يقصّه بالحدّ الأقصى **بلا** أن يعيد حساب
+ * العرض — فتخرج الحاوية بنسبةٍ غير نسبة المسرح. قِيس حيًّا `1072×691`
+ * بدل `1072×842` المطلوبة، أي تشويه رأسي بمعامل 0.82 يصيب **كل** ما
+ * يُموضَع فوق المسرح بنسبة مئوية: صناديق المناطق وشرائط «غير مُقارَن»
+ * والخريطة الحرارية. وقد ظلّ مستترًا لأن `object-fit: contain` كان يحمي
+ * الصورة وحدها منه، فبدت هي سليمةً وما فوقها منحرفًا — وهو ما جعل العطل
+ * يُقرأ أوّل مرّة كعطل صورة لا كعطل حاوية.
+ *
+ * `min(100%, calc(100cqh * ratio))` تحسم البُعدين معًا: لا تتجاوز عرض
+ * الحاوية، ولا تتجاوز ارتفاعها المتاح — وهو معنى «احتواء» صندوقٍ ذي نسبة،
+ * محسوبًا في CSS لا مُقلَّدًا بـ`object-fit` على الصورة وحدها.
+ */
 .box {
   position: relative;
   overflow: hidden;
   border-radius: var(--rasd-radius-lg);
   border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
   background: var(--rasd-surface-sunken);
-  inline-size: 100%;
-  max-block-size: 100%;
+  inline-size: min(100%, calc(100cqh * var(--rasd-stage-ratio, 1)));
   margin-inline: auto;
 }
 
 /*
- * `object-position: left top` فيزيائي مقصود لا سهوًا: فضاء بكسل الصورة
- * يحاذي (0,0) دومًا («لا فضاء خامس للصورة»، `modules/compare/diff.ts`) —
- * إرساءٌ يطابق فضاء بكسل لا اتجاه قراءة، فلا يُعكس مع RTL. نفس تعليل
- * `PageSplitHandle.tsx` و`SplitHandle.tsx` الأصلي حرفيًّا.
+ * **بلا `inset: 0` وبلا `object-fit`** — والموضع والمقاس يأتيان من
+ * `imageBox()` في `layout.ts`، أي من نفس دالّة تموضع كل مستطيل آخر فوق
+ * المسرح. كان هنا `inset: 0` مع `object-fit: contain`، فتُرسَم الصورة بأكبر
+ * مقياس يناسب الحاوية لا بمقياس المسرح: قِيس تكبيرٌ زائد 1.400× لصورة
+ * `200×150` في مسرح `280×220`، فانفصلت الصورة عن الصناديق فوقها. تعليل
+ * الإرساء الفيزيائي عند (0,0) انتقل إلى `imageBox`، حيث صار محسوبًا لا
+ * مُعلَنًا: صندوق الصورة يبدأ عند `left: 0; top: 0` بحكم `x = y = 0`.
  */
 .fillImage {
   position: absolute;
-  inset: 0;
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: contain;
-  object-position: left top;
   user-select: none;
   -webkit-user-drag: none;
 }

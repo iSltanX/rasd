@@ -12,6 +12,10 @@
   min-block-size: 0;
 }
 
+/*
+ * `container-type: size` لأن `.box` يشتقّ عرضه من **ارتفاع** هذه الحاوية
+ * (`100cqh`) كي لا تنكسر نسبته. انظر `Stage.module.css`.
+ */
 .stageWrap {
   flex: 1;
   min-inline-size: 0;
@@ -20,6 +24,7 @@
   justify-content: center;
   padding: var(--rasd-space-24);
   box-sizing: border-box;
+  container-type: size;
 }
 
 .centerState {

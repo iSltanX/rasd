@@ -493,6 +493,68 @@ if (!cmpSession) {
             fail(`عدد صناديق التهشير ${extraStripCount} — المتوقَّع 2 (عمود ب وصفّ ب فقط)`)
           }
 
+          // ── محاذاة الصورة بفضاء المسرح ───────────────────────────
+          //
+          // **هذا التأكيد يسدّ الثغرة التي أفلت منها عطلٌ حقيقي.** الفحص
+          // السابق عدّ صناديق التهشير ولم يقس مواضعها، فمرّ رغم أن الصورة
+          // تحتها كانت مرسومةً بمقياس آخر: `object-fit: contain` يرسم بأكبر
+          // مقياس يناسب الحاوية لا بمقياس المسرح، فكانت صورة 200×150 داخل
+          // مسرح 280×220 تُكبَّر 1.400×. العدّ لا يكشف انزياحًا — القياس يكشفه.
+          const alignment = JSON.parse(
+            await evalIn(
+              S,
+              `(() => {
+                const img = document.querySelector('img[alt="مقاس ب"], img[alt="مقاس أ"]')
+                const box = img?.parentElement
+                if (!img || !box) return JSON.stringify({ ok: false, why: 'لا صورة في المسرح' })
+                // صندوق **المحتوى** لا الحدودي: النِسَب المئوية لابنٍ مطلق
+                // تُحسب منه، والحدّ (border) خارجه. قياسه بـgetBoundingClientRect
+                // كان يُظهر انحرافًا وهميًّا بمقدار سُمك الحدّ في كل بُعد.
+                const b = box.getBoundingClientRect()
+                const inner = { width: box.clientWidth, height: box.clientHeight }
+                const r = img.getBoundingClientRect()
+                const perStageUnit = inner.width / 280
+                return JSON.stringify({
+                  ok: true, alt: img.alt,
+                  drawn: [r.width, r.height],
+                  expected: [img.naturalWidth * perStageUnit, img.naturalHeight * perStageUnit],
+                  offset: [r.left - b.left - box.clientLeft, r.top - b.top - box.clientTop],
+                  stageRatio: [inner.width / inner.height, 280 / 220],
+                })
+              })()`,
+            ),
+          )
+          if (!alignment.ok) {
+            fail(`تعذّر قياس محاذاة الصورة: ${alignment.why}`)
+          } else {
+            const [dw, dh] = alignment.drawn
+            const [ew, eh] = alignment.expected
+            const scaleError = Math.max(Math.abs(dw / ew - 1), Math.abs(dh / eh - 1))
+            const [ox, oy] = alignment.offset
+            const [gotRatio, wantRatio] = alignment.stageRatio
+            const ratioError = Math.abs(gotRatio / wantRatio - 1)
+            if (ratioError > 0.01) {
+              fail(
+                `نسبة حاوية المسرح مكسورة: ${gotRatio.toFixed(4)} بدل ${wantRatio.toFixed(4)} — ` +
+                  `كل ما يُموضَع فوقها بنسبة مئوية مشوَّه`,
+              )
+            } else {
+              ok(`نسبة حاوية المسرح محفوظة: ${gotRatio.toFixed(4)} ≈ ${wantRatio.toFixed(4)}`)
+            }
+            if (scaleError < 0.01 && Math.abs(ox) < 1 && Math.abs(oy) < 1) {
+              ok(
+                `الصورة مرسومة بمقياس المسرح تمامًا: ${dw.toFixed(0)}×${dh.toFixed(0)} ` +
+                  `(المتوقَّع ${ew.toFixed(0)}×${eh.toFixed(0)}) ومرساة عند (0,0)`,
+              )
+            } else {
+              fail(
+                `الصورة منحرفة عن فضاء المسرح — مرسومة ${dw.toFixed(1)}×${dh.toFixed(1)} ` +
+                  `والمتوقَّع ${ew.toFixed(1)}×${eh.toFixed(1)} ` +
+                  `(تكبير ${(dw / ew).toFixed(3)}×، إزاحة ${ox.toFixed(1)},${oy.toFixed(1)})`,
+              )
+            }
+          }
+
           try {
             const dir = join(root, 'artifacts')
             if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
