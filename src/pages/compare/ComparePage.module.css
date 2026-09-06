@@ -25,6 +25,8 @@
   padding: var(--rasd-space-24);
   box-sizing: border-box;
   container-type: size;
+  /* لقطة أطول من أن تُحتوى تُملأ عرضًا وتُمرَّر — انظر `.box` في `Stage.module.css`. */
+  overflow: auto;
 }
 
 .centerState {

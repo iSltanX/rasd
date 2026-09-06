@@ -619,6 +619,111 @@ if (!cmpSession) {
     }
 
     /*
+     * ── لقطة صفحة كاملة: المسرح يبقى قابلًا للفحص ─────────────────
+     *
+     * لقطات الصفحة الكاملة هي المدخل الأساسي للأداة، ونسبتها متطرّفة
+     * (قِيس في هذا المستودع `1265×9690`). والاحتواء الخالص ينهار عندها:
+     * قِيس أن المسرح يصير **113 بكسلًا** عرضًا (7.9٪ من المتاح) — شريطٌ
+     * لا تُرى فيه منطقةُ فرقٍ ولا تُفحَص. فيُثبَت هنا أن الحدّ الأدنى
+     * يحفظ عرضًا صالحًا **ونسبةً سليمة معًا**: أحدهما بلا الآخر عطل.
+     */
+    try {
+      const TALL_A = 'verify-tall-a'
+      const TALL_B = 'verify-tall-b'
+      const seededTall = JSON.parse(
+        await evalIn(
+          S,
+          `(async () => {
+          const db = await new Promise((res, rej) => {
+            const r = indexedDB.open('rasd')
+            r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error)
+          })
+          async function tall(shift) {
+            const c = new OffscreenCanvas(400, 3000)
+            const ctx = c.getContext('2d')
+            ctx.fillStyle = 'rgb(240,240,240)'
+            ctx.fillRect(0, 0, 400, 3000)
+            ctx.fillStyle = 'rgb(20,20,20)'
+            ctx.fillRect(100, 1400 + shift, 200, 100)
+            return c.convertToBlob({ type: 'image/png' })
+          }
+          const blobA = await tall(0)
+          const blobB = await tall(200)
+          const now = Date.now()
+          const tx = db.transaction(['captures','blobs'], 'readwrite')
+          const rec = (id, title) => ({
+            id, createdAt: now, origin: 'https://example.com', url: 'https://example.com/tall',
+            title, kind: 'full-page', status: 'ready', projectId: null, tags: [],
+            width: 400, height: 3000, devicePixelRatio: 1, favorite: false, archived: false, trashedAt: null,
+          })
+          tx.objectStore('captures').put(rec('${TALL_A}', 'صفحة كاملة أ'))
+          tx.objectStore('captures').put(rec('${TALL_B}', 'صفحة كاملة ب'))
+          tx.objectStore('blobs').put({ id: '${TALL_A}', blob: blobA, mime: 'image/png', bytes: blobA.size })
+          tx.objectStore('blobs').put({ id: '${TALL_B}', blob: blobB, mime: 'image/png', bytes: blobB.size })
+          await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error) })
+          db.close()
+          return JSON.stringify({ ok: true })
+        })().catch(e => JSON.stringify({ ok: false, error: String(e) }))`,
+        ),
+      )
+
+      if (!seededTall.ok) {
+        fail(`تعذّر زرع لقطتين طويلتين: ${seededTall.error}`)
+      } else {
+        await send(
+          'Page.navigate',
+          {
+            url: `chrome-extension://${extId}/src/pages/compare/index.html?a=${TALL_A}&b=${TALL_B}`,
+          },
+          S,
+        )
+        await new Promise((r) => setTimeout(r, 2500))
+        const tall = JSON.parse(
+          await evalIn(
+            S,
+            `(() => {
+              const box = document.querySelector('[class*="box"]')
+              const wrap = box?.parentElement
+              if (!box || !wrap) return JSON.stringify({ ok: false })
+              const b = box.getBoundingClientRect()
+              const w = wrap.getBoundingClientRect()
+              return JSON.stringify({
+                ok: true,
+                widthShare: b.width / w.width,
+                ratio: box.clientWidth / box.clientHeight,
+                scrollable: wrap.scrollHeight > wrap.clientHeight + 1,
+              })
+            })()`,
+          ),
+        )
+        if (!tall.ok) {
+          fail('تعذّر قياس مسرح اللقطة الطويلة')
+        } else {
+          const wantRatio = 400 / 3000
+          const ratioError = Math.abs(tall.ratio / wantRatio - 1)
+          if (tall.widthShare < 0.4) {
+            fail(
+              `المسرح انهار إلى شريط: ${(tall.widthShare * 100).toFixed(1)}٪ من العرض المتاح — ` +
+                `لا تُفحَص فيه منطقة فرق`,
+            )
+          } else {
+            ok(
+              `المسرح يبقى قابلًا للفحص مع لقطة 400×3000: ${(tall.widthShare * 100).toFixed(1)}٪ ` +
+                `من العرض${tall.scrollable ? ' مع تمرير رأسي' : ''}`,
+            )
+          }
+          ratioError < 0.02
+            ? ok(
+                `ونسبة المسرح محفوظة رغم الحدّ الأدنى: ${tall.ratio.toFixed(5)} ≈ ${wantRatio.toFixed(5)}`,
+              )
+            : fail(`نسبة المسرح انكسرت: ${tall.ratio.toFixed(5)} بدل ${wantRatio.toFixed(5)}`)
+        }
+      }
+    } catch (e) {
+      fail(`استثناء أثناء فحص اللقطة الطويلة: ${e.message ?? e}`)
+    }
+
+    /*
      * ── هدف الأداء: 4000×3000 في ≤3 ثوانٍ («Rasd_Plan.md §17»، معيار
      * الاكتمال) ──────────────────────────────────────────────────
      * لم يُقَس بعد في هذا الفحص — يُقاس الآن حيًّا لا افتراضًا. الصورتان
