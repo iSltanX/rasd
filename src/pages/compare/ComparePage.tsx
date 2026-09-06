@@ -7,7 +7,8 @@
  * راجع ترويسته — لا يُلمَس هنا). أيّ خطوة تفشل تعرض خطأً صريحًا، لا شاشة
  * بيضاء صامتة (معيار الاكتمال، `Rasd_Plan.md §17`).
  *
- * **`URL.createObjectURL` يُلغى عند مغادرة الصفحة** عبر مرجعين يتتبّعان آخر
+ * **`URL.createObjectURL` يُلغى عند مغادرة الصفحة وعلى كل مسار فاشل** —
+ * عبر مرجعين يتتبّعان آخر
  * قيمة محمَّلة — التسريب الفعلي هنا ضئيل جدًّا حتى بلا ذلك (المتصفّح يُلغي
  * كل عنوان كائن تلقائيًّا عند تدمير المستند نفسه، وهذه صفحة تبويب كامل)، لكن
  * التنظيف الصريح أوضح نيّة من الاتّكال على ذلك ضمنيًّا.
@@ -92,14 +93,33 @@ export function ComparePage(): JSX.Element {
       }
 
       const [resultA, resultB] = await Promise.all([loadCapture(idA), loadCapture(idB)])
-      if (!alive) return
+
+      /*
+       * **الإلغاء على كل مسار غير سعيد، لا على مسار النجاح وحده.**
+       *
+       * `loadCapture` تُنشئ `objectUrl` داخلها، ومُلغي التركيب لا يعرف إلا
+       * ما بلغ `loadedARef`/`loadedBRef` — أي ما نجح المساران كلاهما. فكان
+       * نجاحُ أ وفشلُ ب يترك رابط أ حيًّا، وكذلك فشلُ فكّ الصورة، وكذلك
+       * إلغاء التركيب بين التحميل والضبط. ثلاثة مسارات تُسرِّب، وواحدٌ
+       * يُنظِّف — والترويسة كانت تعِد بالتنظيف بلا قيد.
+       */
+      const releaseLoaded = () => {
+        if (resultA.ok) URL.revokeObjectURL(resultA.value.objectUrl)
+        if (resultB.ok) URL.revokeObjectURL(resultB.value.objectUrl)
+      }
+      if (!alive) {
+        releaseLoaded()
+        return
+      }
 
       if (!resultA.ok) {
+        releaseLoaded()
         setErrorMessage(`تعذّر تحميل اللقطة أ: ${resultA.error.message}`)
         setPageState('error')
         return
       }
       if (!resultB.ok) {
+        releaseLoaded()
         setErrorMessage(`تعذّر تحميل اللقطة ب: ${resultB.error.message}`)
         setPageState('error')
         return
@@ -109,9 +129,13 @@ export function ComparePage(): JSX.Element {
         decodeRasterImage(resultA.value.blob),
         decodeRasterImage(resultB.value.blob),
       ])
-      if (!alive) return
+      if (!alive) {
+        releaseLoaded()
+        return
+      }
 
       if (!rasterA || !rasterB) {
+        releaseLoaded()
         setErrorMessage('تعذّر تحليل صورة إحدى اللقطتين — قد تتجاوز أبعادها الحدّ المدعوم.')
         setPageState('error')
         return

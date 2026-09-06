@@ -73,6 +73,35 @@ export type DiffMessage = DiffReply | DiffFailure
 export const isFailure = (m: DiffMessage): m is DiffFailure => 'error' in m
 
 /**
+ * تحقّقٌ **إيجابي** من شكل الردّ — لا نفيٌ لوجود `error`.
+ *
+ * `isFailure` وحدها لا تكفي: رسالةٌ بشكل غير متوقَّع (خيطٌ من نسخة أقدم،
+ * إضافةٌ تُحقن، خطأ برمجي في الخيط يردّ كائنًا ناقصًا) لا تحمل `error`
+ * فتُقرأ **نجاحًا**، ثمّ يقرأ `outcomeFromReply` حقولًا غير موجودة فيرمي
+ * داخل معالج رسالة — والصفحة تبيضّ بلا رسالة يفهمها أحد.
+ *
+ * فيُفحَص الشكل بما يُستهلَك فعلًا: المخزن والأبعاد والعدّادات. وما ليس
+ * ردًّا صالحًا ولا فشلًا صريحًا يُعامَل **فشلًا**، فيسقط إلى الحساب
+ * المتزامن الذي يُنتج نتيجةً صحيحة — انحدارٌ في الأداء لا في الصحّة.
+ */
+export function isReply(m: unknown): m is DiffReply {
+  if (typeof m !== 'object' || m === null) return false
+  const r = m as Partial<DiffReply>
+  return (
+    typeof r.id === 'number' &&
+    r.diffBuffer instanceof ArrayBuffer &&
+    typeof r.diffWidth === 'number' &&
+    typeof r.diffHeight === 'number' &&
+    typeof r.diffPixelCount === 'number' &&
+    typeof r.comparedPixels === 'number' &&
+    typeof r.diffRatio === 'number' &&
+    Array.isArray(r.regions) &&
+    typeof r.overlap === 'object' &&
+    r.overlap !== null
+  )
+}
+
+/**
  * ما يحتاجه العميل من `Worker` — واجهة لا صنف (نفس تعليل `blur-protocol.ts`:
  * `Worker` غائب في بيئة الاختبار، فربط العميل به يجعل نصفه غير قابل للاختبار).
  */

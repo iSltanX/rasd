@@ -28,6 +28,7 @@ import {
 } from '@/modules/compare/diff'
 import {
   isFailure,
+  isReply,
   type DiffMessage,
   type DiffReply,
   type DiffRequest,
@@ -315,7 +316,9 @@ export function createDiffClient(deps: ClientDeps = {}): DiffClient {
         }
       })
 
-      if (isFailure(message)) {
+      // الفشل الصريح **أو** الشكل غير المعروف: كلاهما يسقط إلى الحساب
+      // المتزامن. قبولُ ما لا يُفهَم «نجاحًا» يُبيّض الصفحة بلا رسالة.
+      if (isFailure(message) || !isReply(message)) {
         // مخزنا المستدعي لم يُمسّا — المنقول نسختاهما — فيُحسَب عليهما
         // الفرق مباشرةً بلا احتجاز ولا استثناء على مخزن مفصول.
         const outcome = runHere(

@@ -87,6 +87,8 @@ function fakeWorker(
     errorOnRequest?: boolean
     /** `postMessage` نفسها ترمي — خيطٌ مات قبل الإرسال أو مخزنٌ لا يُنقل. */
     throwOnPost?: boolean
+    /** ردٌّ بلا `error` وبلا حقول الردّ — لا يُعرَف فشلًا بالنفي وحده. */
+    malformed?: boolean
   } = {},
 ): {
   worker: WorkerLike
@@ -119,6 +121,12 @@ function fakeWorker(
     if (options.swallow) return
     if (options.failRequest) {
       chan.port2.postMessage({ id: req.id, error: 'فشل مصطنع' })
+      return
+    }
+    // ردٌّ بلا `error` وبلا حقول الردّ — خيطٌ من نسخة أقدم، أو خطأ برمجي
+    // فيه يردّ كائنًا ناقصًا. لا يُعرَف فشلًا بالنفي وحده.
+    if (options.malformed) {
+      chan.port2.postMessage({ id: req.id, ok: true, whatever: 'شكل غير معروف' })
       return
     }
     const a: RasterImage = {
@@ -237,6 +245,27 @@ describe('عميل خيط الفرق', () => {
     // يقرأ صفرًا بعد الإرسال، ومنسوخٌ يبقى بطوله.
     expect(transferred).toHaveLength(1)
     expect(transferred[0]).toEqual([0, 0])
+    client.dispose()
+  })
+
+  /*
+   * `isFailure` تنفي وجود `error` فقط. رسالةٌ بشكل غير متوقَّع تعبر ذلك
+   * النفي فتُقرأ نجاحًا، ثمّ يقرأ `outcomeFromReply` حقولًا غير موجودة
+   * فيرمي داخل معالج رسالة — والصفحة تبيضّ بلا رسالة يفهمها أحد.
+   */
+  it('**ردٌّ بشكل غير معروف يسقط إلى الحساب المتزامن** — لا يُقبَل نجاحًا', async () => {
+    const { worker } = fakeWorker({ malformed: true })
+    const client = createDiffClient({ spawn: () => worker })
+    const { a, b } = makeImages()
+    const ref = expected(a, b)
+
+    const out = await client.run(a, b)
+
+    expect(out.path).toBe('main')
+    // والنتيجة صحيحة لا صفرٌ ولا رقعةٌ فارغة — انحدارٌ في الأداء لا في الصحّة.
+    expect(out.diffPixelCount).toBe(ref.diff.diffPixelCount)
+    expect(out.diffPixelCount).toBeGreaterThan(0)
+    expect(out.regions).toEqual(ref.regions)
     client.dispose()
   })
 
