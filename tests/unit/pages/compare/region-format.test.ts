@@ -7,6 +7,7 @@ import {
   pixelCountSummary,
   prevRegionIndex,
 } from '@/pages/compare/region-format'
+import { hasIsolates, LRI, PDI, stripIsolates } from '@/shared/bidi'
 
 import type { DiffRegion } from '@/modules/compare/regions'
 
@@ -47,14 +48,35 @@ describe('nextRegionIndex / prevRegionIndex', () => {
 
 describe('pixelCountSummary', () => {
   it('يعرض العددين بأرقام هندية بلا فواصل تجميع', () => {
-    expect(pixelCountSummary(3412, 1_296_000)).toBe('٣٤١٢ بكسل مختلف من ١٢٩٦٠٠٠')
+    // قياسٌ غربي بطرفيه: البكسل وحدة لا شيء يُعدّ باليد (`§17`: أبعاد غربية).
+    expect(pixelCountSummary(3412, 1_296_000)).toBe('3412 بكسل مختلف من 1296000')
   })
 })
 
 describe('diffMethodSummary', () => {
   it('يعرض العتبة بنسبة مئوية غربية', () => {
-    expect(diffMethodSummary(0.1)).toBe(
-      'فرق إدراكي بفضاء YIQ (pixelmatch) — عتبة الحساسية الحالية 10%',
+    expect(stripIsolates(diffMethodSummary(0.1))).toBe(
+      'فرق إدراكي بفضاء YIQ (pixelmatch) — عتبة التجاهل الحالية 10%',
     )
+  })
+
+  /*
+   * `YIQ (pixelmatch)` مقطعٌ لاتيني داخل عربية؛ بلا عزل يتسرّب اتّجاهه إلى
+   * ما حوله — نفس علّة قلب الأبعاد المقيسة في هذه المرحلة. يُثبَّت صراحةً
+   * كي لا يُنزَع سهوًا.
+   */
+  it('**المقطع التقني معزول اتجاهيًّا**', () => {
+    const out = diffMethodSummary(0.1)
+    expect(hasIsolates(out)).toBe(true)
+    expect(out).toContain(`${LRI}YIQ (pixelmatch)${PDI}`)
+  })
+
+  /*
+   * التسمية تصف ما تفعله القيمة: رفع **العتبة** تغاضٍ عن فروق أكبر، وهو
+   * عكس «الحساسية». والشريط في `Sidebar` يقود الحساسية ويشتقّ العتبة منها.
+   */
+  it('يسمّيها «عتبة التجاهل» لا «عتبة الحساسية» — الاسم يصف الأثر', () => {
+    expect(diffMethodSummary(0.4)).toContain('عتبة التجاهل')
+    expect(diffMethodSummary(0.4)).toContain('40%')
   })
 })

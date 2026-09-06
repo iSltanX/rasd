@@ -158,14 +158,23 @@ export function Sidebar({
         </ul>
       </section>
 
+      {/*
+       * **الشريط يقود الحساسية، والعتبة تُشتقّ منها مقلوبةً.**
+       *
+       * كان يعرض العتبة تحت اسم «حساسية المقارنة» — ودلالتهما متعاكستان:
+       * رفع العتبة يجعل المحرّك يتغاضى عن فروق أكبر، أي **يخفض** الحساسية.
+       * فكان دفع الشريط يمينًا يقرأ «حساسية 100٪» بينما النتيجة صفر فرق.
+       * صار المعروض والمقود هو الحساسية نفسها، والعتبة `1 − الحساسية`.
+       * والافتراضي (عتبة 0.1) يقرأ «90٪» — حساسيةٌ عالية، وهو وصفه الصادق.
+       */}
       <section class={cx(styles.section, styles.sensitivity)}>
         <div class={styles.statRow}>
           <span>حساسية المقارنة</span>
-          <span class={styles.statValue}>{formatPercent(thresholdFraction)}</span>
+          <span class={styles.statValue}>{formatPercent(1 - thresholdFraction)}</span>
         </div>
         <Slider
-          value={Math.round(thresholdFraction * 100)}
-          onChange={(v) => onThresholdChange(v / 100)}
+          value={Math.round((1 - thresholdFraction) * 100)}
+          onChange={(v) => onThresholdChange(1 - v / 100)}
           aria-label="حساسية المقارنة"
         />
         <p class={styles.hint}>{diffMethodSummary(thresholdFraction)}</p>

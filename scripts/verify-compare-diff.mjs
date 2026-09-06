@@ -371,40 +371,60 @@ if (!cmpSession) {
 
       if (slider) {
         const errorsBefore = pageErrors.length
-        // تحريكٌ حقيقي: ضبط القيمة ثمّ `input` كما يفعل السحب بالفأرة.
-        const moved = await evalIn(
+        /*
+         * **ذهابٌ وعودة، لا تحريكٌ واحد.** قيمةٌ لا تتغيّر بين قراءتين لا
+         * تُفرِّق بين «أُعيد الحساب فأعطى النتيجة نفسها» و«لم يُعَد أصلًا».
+         * أمّا أدنى حساسية (⇒ 0٪ حتمًا) ثمّ العودة إلى القيمة الأولى (⇒
+         * النسبة الأولى حتمًا) فمساران لا يقعان بالمصادفة عند انهيار.
+         * وتحريكٌ حقيقي: ضبط القيمة ثمّ `input` كما يفعل السحب بالفأرة.
+         */
+        const setSlider = (value) =>
+          evalIn(
+            S,
+            `(() => {
+              const el = document.querySelector('[aria-label="حساسية المقارنة"]')
+              if (!el) return false
+              const from = el.value
+              const setter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value').set
+              setter.call(el, String(${value}))
+              el.dispatchEvent(new Event('input', { bubbles: true }))
+              el.dispatchEvent(new Event('change', { bubbles: true }))
+              return JSON.stringify({ from, to: el.value })
+            })()`,
+          )
+        const original = await evalIn(
           S,
-          `(() => {
-            const el = document.querySelector('[aria-label="حساسية المقارنة"]')
-            if (!el) return false
-            const from = el.value
-            const setter = Object.getOwnPropertyDescriptor(
-              window.HTMLInputElement.prototype, 'value').set
-            const next = Number(from) >= Number(el.max) ? el.min : el.max
-            setter.call(el, next)
-            el.dispatchEvent(new Event('input', { bubbles: true }))
-            el.dispatchEvent(new Event('change', { bubbles: true }))
-            return JSON.stringify({ from, next })
-          })()`,
+          `document.querySelector('[aria-label="حساسية المقارنة"]')?.value ?? null`,
         )
+        const moved = await setSlider(0)
         if (!moved) {
           fail('تعذّر تحريك شريط الحساسية')
         } else {
-          note(`حُرِّك الشريط: ${moved}`)
+          note(`حُرِّك الشريط إلى أدنى حساسية: ${moved}`)
           // إعادة الحساب غير متزامنة (خيط + عرض) — يُنتظَر استقرارها.
           await new Promise((r) => setTimeout(r, 1200))
-          const afterMs = await evalIn(
+          const atZero = await evalIn(
+            S,
+            `document.querySelector('[class*="ratioValue"]')?.textContent`,
+          )
+          await setSlider(Number(original))
+          await new Promise((r) => setTimeout(r, 1200))
+          const backAgain = await evalIn(
             S,
             `document.querySelector('[class*="ratioValue"]')?.textContent`,
           )
           const newErrors = pageErrors.slice(errorsBefore)
           if (newErrors.length > 0) {
             fail(`تحريك الحساسية رمى استثناءً: ${String(newErrors[0]).slice(0, 300)}`)
-          } else if (!afterMs || !/[0-9]/u.test(String(afterMs))) {
-            fail(`النسبة بعد التحريك غير قابلة للقراءة: "${afterMs}"`)
+          } else if (String(atZero).trim() !== '0%') {
+            fail(`أدنى حساسية يجب أن تعطي 0٪ حتمًا — قُرئ "${atZero}"`)
+          } else if (String(backAgain).trim() !== String(beforeMs).trim()) {
+            fail(`العودة إلى الحساسية الأولى لم تُعِد النسبة: "${backAgain}" بدل "${beforeMs}"`)
           } else {
             ok(
-              `إعادة الحساب بعتبة أخرى تمّت بلا استثناء — النسبة "${afterMs}" (كانت "${beforeMs}")`,
+              `إعادة الحساب تتبع الشريط فعلًا: "${beforeMs}" ← أدنى حساسية "${atZero}" ← ` +
+                `عودة "${backAgain}"`,
             )
           }
         }

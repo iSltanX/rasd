@@ -2,13 +2,19 @@
  * تنسيق نصوص المناطق ونسبة الفرق، والتنقّل بينها — منطق خالص لا DOM.
  *
  * **الأرقام مفصولة صنفين بدقّة (`Rasd_Plan.md §17`، معيار الاكتمال):**
- * ترقيم المناطق **عدٌّ بشري هندي** (`formatHuman`)، ونسبة الاختلاف وعدّ
- * البكسلات المقارَنة **قياس غربي** إلا عدّ البكسلات المختلفة نفسها فهو عدٌّ
- * بشري أيضًا («٣٬٤١٢ بكسل مختلف») — القسمة هنا بين «كم عنصرًا/بكسلًا» (هندي)
- * و«أيّ نسبة/كسر» (غربي)، لا بين الحقلين حرفيًّا.
+ * ترقيم المناطق **عدٌّ بشري هندي** (`formatHuman`) — رقمٌ يقوله المستخدم
+ * لزميله («المنطقة الثالثة»). وكل ما عداه **قياس غربي**: النسبة، وعدّ
+ * البكسلات بطرفيه.
+ *
+ * **وكان عدّ البكسلات هنديًّا بتبريرٍ مقلوب**: «كم بكسلًا ⇒ عدٌّ بشري».
+ * والبكسل **وحدة قياس** لا شيءٌ يُعدّ باليد — ولذلك `formatUnit(14)` تُخرج
+ * `14px` غربيًّا في هذا المستودع نفسه. ونصّ `§17` يحسمها بلا تأويل: «نسبة
+ * الاختلاف وأبعاد المستطيلات **غربية**»، وعدّ البكسلات من صنف الأبعاد لا
+ * من صنف الترقيم.
  */
 
-import { formatHuman, formatPercent } from '@/shared/bidi/numerals'
+import { isolate } from '@/shared/bidi/isolate'
+import { formatHuman, formatMeasure, formatPercent } from '@/shared/bidi/numerals'
 
 import type { DiffRegion } from '@/modules/compare/regions'
 
@@ -35,9 +41,9 @@ export function prevRegionIndex(current: number, count: number): number {
   return (current - 1 + count) % count
 }
 
-/** «٣٤١٢ بكسل مختلف من ١٢٩٦٠٠٠» — عدّ بشري هنديّ للحقلين معًا، لا نسبة (`formatHuman` بلا تجميع أرقام). */
+/** «3412 بكسل مختلف من 1296000» — قياسٌ غربي بطرفيه، لا عدٌّ بشري. */
 export function pixelCountSummary(diffPixelCount: number, comparedPixels: number): string {
-  return `${formatHuman(diffPixelCount)} بكسل مختلف من ${formatHuman(comparedPixels)}`
+  return `${formatMeasure(diffPixelCount)} بكسل مختلف من ${formatMeasure(comparedPixels)}`
 }
 
 /**
@@ -46,5 +52,7 @@ export function pixelCountSummary(diffPixelCount: number, comparedPixels: number
  * يستعمله `pixelmatch` داخليًّا (`modules/compare/diff.ts`، تعليق الملفّ).
  */
 export function diffMethodSummary(thresholdFraction: number): string {
-  return `فرق إدراكي بفضاء YIQ (pixelmatch) — عتبة الحساسية الحالية ${formatPercent(thresholdFraction)}`
+  // `YIQ (pixelmatch)` مقطعٌ لاتيني داخل عربية — يُعزَل وإلّا تسرّب اتّجاهه
+  // إلى ما حوله. نفس علّة قلب الأبعاد المقيسة في هذه المرحلة.
+  return `فرق إدراكي بفضاء ${isolate('YIQ (pixelmatch)')} — عتبة التجاهل الحالية ${formatPercent(thresholdFraction)}`
 }
