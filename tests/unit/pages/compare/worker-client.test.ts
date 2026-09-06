@@ -81,6 +81,8 @@ function expected(
 function fakeWorker(options: { ready?: boolean; failRequest?: boolean; swallow?: boolean } = {}): {
   worker: WorkerLike
   posted: DiffRequest[]
+  /** أطوال المخازن المُمرَّرة في قائمة النقل، مقروءةً **بعد** الإرسال. */
+  transferred: number[][]
 } {
   const chan = new MessageChannel()
   const handlers = {
@@ -88,6 +90,7 @@ function fakeWorker(options: { ready?: boolean; failRequest?: boolean; swallow?:
     error: [] as ((e: unknown) => void)[],
   }
   const posted: DiffRequest[] = []
+  const transferred: number[][] = []
 
   // جانب الخيط: يستقبل الطلب، ويحسب الفرق والمناطق، ويردّ ناقلًا.
   chan.port2.onmessage = (e: MessageEvent) => {
@@ -141,6 +144,8 @@ function fakeWorker(options: { ready?: boolean; failRequest?: boolean; swallow?:
   const worker: WorkerLike = {
     postMessage(message: unknown, transfer?: Transferable[]) {
       chan.port1.postMessage(message, transfer ?? [])
+      // بعد الإرسال: مخزنٌ نُقل فعلًا يقرأ صفرًا هنا، ومخزنٌ نُسخ لا يقرأه.
+      transferred.push((transfer ?? []).map((t) => (t as ArrayBuffer).byteLength))
     },
     addEventListener(type: 'message' | 'error', handler: never) {
       if (type === 'message') {
@@ -161,7 +166,7 @@ function fakeWorker(options: { ready?: boolean; failRequest?: boolean; swallow?:
       chan.port2.close()
     },
   }
-  return { worker, posted }
+  return { worker, posted, transferred }
 }
 
 describe('عميل خيط الفرق', () => {
@@ -192,15 +197,54 @@ describe('عميل خيط الفرق', () => {
     client.dispose()
   })
 
-  it('**وكلا مخزني الدخل يُنقلان معًا في نداء واحد** — لا واحد فقط', async () => {
-    const { worker } = fakeWorker()
+  /*
+   * كان هذا الاختبار يؤكّد أنّ مخزنَي المستدعي **يُفصلان** بعد النداء —
+   * فيحرس كسرًا بدل أن يكشفه: `ComparePage` تعيد النداء على `raster` نفسه
+   * كلّما تحرّك شريط الحساسية، فكان أوّل تحريك يرمي على مخزن مفصول.
+   * صار العقد مقلوبًا: المنقول نسختان، والأصل يبقى لمالكه.
+   */
+  it('**مخزنا المستدعي يبقيان سليمين** — المنقول نسختاهما لا هما', async () => {
+    const { worker, transferred } = fakeWorker()
     const client = createDiffClient({ spawn: () => worker })
     const { a, b } = makeImages()
 
     await client.run(a, b)
 
-    expect(a.data.buffer.byteLength).toBe(0)
-    expect(b.data.buffer.byteLength).toBe(0)
+    expect(a.data.buffer.byteLength).toBeGreaterThan(0)
+    expect(b.data.buffer.byteLength).toBeGreaterThan(0)
+    // والنسختان نُقلتا فعلًا لا نُسختا ثانيةً على الرسالة: مخزنٌ منقول
+    // يقرأ صفرًا بعد الإرسال، ومنسوخٌ يبقى بطوله.
+    expect(transferred).toHaveLength(1)
+    expect(transferred[0]).toEqual([0, 0])
+    client.dispose()
+  })
+
+  it('**نداءان متتاليان على الصورتين نفسيهما** — وهو ما يفعله شريط الحساسية', async () => {
+    const { worker } = fakeWorker()
+    const client = createDiffClient({ spawn: () => worker })
+    const { a, b } = makeImages()
+    const ref = expected(a, b)
+
+    const first = await client.run(a, b, { threshold: 0.1 })
+    const second = await client.run(a, b, { threshold: 0.3 })
+
+    expect(first.path).toBe('worker')
+    expect(second.path).toBe('worker')
+    expect(second.diffPixelCount).toBe(ref.diff.diffPixelCount)
+    expect(second.comparedPixels).toBe(ref.diff.comparedPixels)
+    client.dispose()
+  })
+
+  it('**والنداء الثاني يعمل في مسار السقوط أيضًا** — لا فرق بين المسارين', async () => {
+    const client = createDiffClient({ spawn: () => null })
+    const { a, b } = makeImages()
+    const ref = expected(a, b)
+
+    await client.run(a, b)
+    const second = await client.run(a, b)
+
+    expect(second.path).toBe('main')
+    expect(second.diffPixelCount).toBe(ref.diff.diffPixelCount)
     client.dispose()
   })
 

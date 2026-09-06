@@ -98,11 +98,6 @@ function runHere(
   return { ...diff, regions, path: 'main', reason, ms: now() - started }
 }
 
-/** يبني صورة من نسخة مخزن مُحتجَزة قبل النقل — لا من الأصل المفصول. */
-function imageFromCopy(copy: ArrayBuffer, width: number, height: number): RasterImage {
-  return { data: new Uint8ClampedArray(copy), width, height }
-}
-
 /**
  * `Uint8ClampedArray.buffer` مكتوب `ArrayBuffer | SharedArrayBuffer` في
  * تعريفات TypeScript الحديثة — لكن `RasterImage.data` هنا لا يأتي إلا من
@@ -257,31 +252,34 @@ export function createDiffClient(deps: ClientDeps = {}): DiffClient {
 
     async run(a, b, diffOptions = {}, regionOptions = {}) {
       const started = now()
-      // شبكة الأمان: نسختان تبقيان عندنا مهما وقع للمنقولتين، معًا لا واحدة.
-      const copyA = bufferOf(a.data).slice(0)
-      const copyB = bufferOf(b.data).slice(0)
 
       const live = await ensureReady()
       if (!live || !worker) {
-        const outcome = runHere(
-          imageFromCopy(copyA, a.width, a.height),
-          imageFromCopy(copyB, b.width, b.height),
-          diffOptions,
-          regionOptions,
-          dead ?? 'unsupported',
-          started,
-          now,
-        )
+        const outcome = runHere(a, b, diffOptions, regionOptions, dead ?? 'unsupported', started, now)
         lastPath = outcome.path
         return outcome
       }
 
       const id = nextId++
-      // المنقول مخزنا المستدعي، لا النسختان — وكلاهما في نداء واحد.
+      /*
+       * **المنقول نسختان، ومخزنا المستدعي يبقيان سليمين.**
+       *
+       * كان المنقول مخزنَي المستدعي نفسيهما، والنسختان تُحتجزان لمسار
+       * السقوط. وذلك يعطب النداء **الثاني**: `ComparePage` تعيد النداء
+       * على `raster` نفسه كلّما تحرّك شريط الحساسية (تبعيّة `threshold`
+       * في `useEffect`)، فيلقى مخزنًا مفصولًا و`slice(0)` عليه يرمي
+       * `TypeError` — مقيسًا. فكانت «العتبة القابلة للضبط» التي ينصّ
+       * عليها `§17` معطَّلةً من أوّل تحريك.
+       *
+       * وقلبُ الاتّجاه لا يكلّف شيئًا: النسخة كانت تُؤخذ في كل نداء أصلًا،
+       * والفرق أنّ الذاهب إلى الخيط صار هو النسخة (نقلٌ بلا نسخ كما كان)
+       * بينما يبقى الأصل عند مالكه — فيخدم النداء التالي ومسار السقوط معًا،
+       * ولا حاجة لاحتجاز شيء.
+       */
       const request: DiffRequest = {
         id,
-        a: { buffer: bufferOf(a.data), width: a.width, height: a.height },
-        b: { buffer: bufferOf(b.data), width: b.width, height: b.height },
+        a: { buffer: bufferOf(a.data).slice(0), width: a.width, height: a.height },
+        b: { buffer: bufferOf(b.data).slice(0), width: b.width, height: b.height },
         diffOptions,
         regionOptions,
       }
@@ -310,17 +308,9 @@ export function createDiffClient(deps: ClientDeps = {}): DiffClient {
       })
 
       if (isFailure(message)) {
-        // النسختان نجتا من النقل — تُحسَب عليهما العملية فتخرج بنسبة فرق
-        // صحيحة لا صفرًا أو استثناءً على مخزن مفصول.
-        const outcome = runHere(
-          imageFromCopy(copyA, a.width, a.height),
-          imageFromCopy(copyB, b.width, b.height),
-          diffOptions,
-          regionOptions,
-          dead ?? 'worker-error',
-          started,
-          now,
-        )
+        // مخزنا المستدعي لم يُمسّا — المنقول نسختاهما — فيُحسَب عليهما
+        // الفرق مباشرةً بلا احتجاز ولا استثناء على مخزن مفصول.
+        const outcome = runHere(a, b, diffOptions, regionOptions, dead ?? 'worker-error', started, now)
         lastPath = outcome.path
         return outcome
       }

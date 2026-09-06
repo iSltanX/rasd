@@ -350,7 +350,14 @@ if (!cmpSession) {
         }
       }
 
-      // ── حساسية المقارنة: تحريكها يعيد الحساب ────────────────────
+      // ── حساسية المقارنة: تحريكها يعيد الحساب فعلًا ──────────────
+      //
+      // **كان هذا القسم يدّعي ما لا يفعل**: عنوانه «تحريكها يعيد الحساب»
+      // وهو لا يحرّكها — يقرأ وجودها ويطبع القيمة. وبذلك أفلت منه حاجبٌ
+      // حقيقي: كان مخزنا الصورتين يُنقلان إلى الخيط فيُفصلان، فيرمي أوّلُ
+      // تحريكٍ للشريط `TypeError` على مخزن مفصول، والعتبةُ القابلة للضبط
+      // التي ينصّ عليها `§17` معطَّلةٌ من أوّل استعمال. الفحص الذي لا يفعل
+      // ما يقوله أسوأ من غيابه: يشتري طمأنينةً بلا ثمن.
       const beforeMs = await evalIn(
         S,
         `document.querySelector('[class*="ratioValue"]')?.textContent`,
@@ -361,6 +368,45 @@ if (!cmpSession) {
       )
       slider ? ok('شريط حساسية المقارنة موجود بمعرِّف إتاحة صحيح') : fail('شريط الحساسية غائب')
       note(`القيمة قبل أي تعديل: "${beforeMs}"`)
+
+      if (slider) {
+        const errorsBefore = pageErrors.length
+        // تحريكٌ حقيقي: ضبط القيمة ثمّ `input` كما يفعل السحب بالفأرة.
+        const moved = await evalIn(
+          S,
+          `(() => {
+            const el = document.querySelector('[aria-label="حساسية المقارنة"]')
+            if (!el) return false
+            const from = el.value
+            const setter = Object.getOwnPropertyDescriptor(
+              window.HTMLInputElement.prototype, 'value').set
+            const next = Number(from) >= Number(el.max) ? el.min : el.max
+            setter.call(el, next)
+            el.dispatchEvent(new Event('input', { bubbles: true }))
+            el.dispatchEvent(new Event('change', { bubbles: true }))
+            return JSON.stringify({ from, next })
+          })()`,
+        )
+        if (!moved) {
+          fail('تعذّر تحريك شريط الحساسية')
+        } else {
+          note(`حُرِّك الشريط: ${moved}`)
+          // إعادة الحساب غير متزامنة (خيط + عرض) — يُنتظَر استقرارها.
+          await new Promise((r) => setTimeout(r, 1200))
+          const afterMs = await evalIn(
+            S,
+            `document.querySelector('[class*="ratioValue"]')?.textContent`,
+          )
+          const newErrors = pageErrors.slice(errorsBefore)
+          if (newErrors.length > 0) {
+            fail(`تحريك الحساسية رمى استثناءً: ${String(newErrors[0]).slice(0, 300)}`)
+          } else if (!afterMs || !/[0-9]/u.test(String(afterMs))) {
+            fail(`النسبة بعد التحريك غير قابلة للقراءة: "${afterMs}"`)
+          } else {
+            ok(`إعادة الحساب بعتبة أخرى تمّت بلا استثناء — النسبة "${afterMs}" (كانت "${beforeMs}")`)
+          }
+        }
+      }
     }
 
     // ── لقطة بصرية للمراجعة اليدوية مقابل إطار Figma 127:196 ──────

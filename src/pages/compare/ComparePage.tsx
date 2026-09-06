@@ -157,6 +157,22 @@ export function ComparePage(): JSX.Element {
         setDiffOutcome(outcome)
         setSelectedRegionIndex(null)
       })
+      /*
+       * **رفضٌ بلا مُلتقِط يترك رقمًا قديمًا يبدو جديدًا.** كان هذا الوعد
+       * بلا `catch`: أيّ فشلٍ في الحساب يصير `unhandledrejection` صامتًا،
+       * فتبقى `diffOutcome` على قيمتها السابقة ويقرأ المستخدم نسبةَ عتبةٍ
+       * غير التي يراها الشريط. وقد سترت هذه الفجوة عطلًا حقيقيًّا: كان
+       * إعادة الحساب يرمي على مخزن مفصول، ولا شيء في الواجهة يقول ذلك.
+       * تُعلَن الآن حالة خطأ صريحة بدل صمتٍ يُقرأ نجاحًا.
+       */
+      .catch((error: unknown) => {
+        if (!alive) return
+        setDiffOutcome(null)
+        setPageState('error')
+        setErrorMessage(
+          `تعذّر حساب الفرق: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      })
 
     return () => {
       alive = false
