@@ -3,11 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { oklabOf, type Oklab } from '@/modules/colour/distance'
 import { readColour } from '@/modules/colour/formats'
 import {
+  USAGE_DELTA,
+  USAGE_PROPS,
+  collectDeclaredColours,
   coloursInValue,
   matchDeclarations,
   scanColourUsage,
-  USAGE_DELTA,
-  USAGE_PROPS,
   type UsageSite,
 } from '@/modules/colour/usage'
 
@@ -234,6 +235,83 @@ describe('scanColourUsage — المسح المُجزَّأ', () => {
     const { root, win } = page('')
     const hits = await scanColourUsage(readColour(TARGET)!, { root, win, schedule: sync }).done
     expect(hits).toEqual([])
+    root.remove()
+  })
+})
+
+describe('collectDeclaredColours — أساس تصنيف §6.5', () => {
+  const sync = (run: () => void): void => {
+    run()
+  }
+  function page(html: string): { root: HTMLElement; win: Window } {
+    const root = document.createElement('div')
+    root.innerHTML = html
+    document.body.appendChild(root)
+    return { root, win: window }
+  }
+
+  it('يجمع الألوان المصرَّحة بمواضعها', async () => {
+    const { root, win } = page(`
+      <p style="color: #7c3aed">نصّ</p>
+      <div style="background-color: #111827">خلفية</div>
+      <span style="border-top-color: #e7eaf0; border-top-style: solid">حدّ</span>
+    `)
+    const found = await collectDeclaredColours({ root, win, schedule: sync }).done
+    const sites = new Set(found.map((d) => d.site))
+    expect(sites.has('text')).toBe(true)
+    expect(sites.has('background')).toBe(true)
+    expect(sites.has('border')).toBe(true)
+    root.remove()
+  })
+
+  /*
+   * التفريد هو ما يمنع القائمة من التضخّم بعدد **العناصر** بدل عدد
+   * **الألوان** — وبدونه تصير المقاطعة في `classifyPaletteSources` تربيعية.
+   */
+  it('يفرّد: مئة عنصر باللون نفسه تعطي مدخلًا واحدًا لذلك الموضع', async () => {
+    const rows = Array.from({ length: 100 }, () => '<p style="color: #7c3aed">س</p>').join('')
+    const { root, win } = page(rows)
+    const found = await collectDeclaredColours({ root, win, schedule: sync }).done
+    expect(found.filter((d) => d.site === 'text')).toHaveLength(1)
+    // القائمة تنمو بعدد **الألوان** لا بعدد العناصر — وهذا بيت القصيد.
+    expect(found.length).toBeLessThan(10)
+    root.remove()
+  })
+
+  it('يفصل الموضعين للّون نفسه — نصًّا وخلفيةً مدخلان لا واحد', async () => {
+    const { root, win } = page(
+      `<p style="color: #7c3aed">س</p><div style="background-color: #7c3aed">ص</div>`,
+    )
+    const found = await collectDeclaredColours({ root, win, schedule: sync }).done
+    const sites = found.map((d) => d.site).filter((s) => s === 'text' || s === 'background')
+    expect(new Set(sites).size).toBe(2)
+    root.remove()
+  })
+
+  /*
+   * `transparent` تُقرأ `rgba(0,0,0,0)`، فلو مرّت لصُنِّف كل عنصر شفّاف
+   * الخلفية «يصرّح بالأسود» — وأسودُ اللوحة كان سيُنسَب خلفيةً كاذبًا.
+   */
+  it('يُسقط الشفّاف تمامًا — غيابُ لون لا لونٌ أسود', async () => {
+    const { root, win } = page('<div style="background-color: transparent">س</div>')
+    const found = await collectDeclaredColours({ root, win, schedule: sync }).done
+    expect(found.some((d) => d.site === 'background')).toBe(false)
+    root.remove()
+  })
+
+  it('يُلغى فيسلّم ما وُجد لا يُهدره', async () => {
+    const { root, win } = page('<i style="color:#7c3aed"></i>'.repeat(10))
+    const queue: (() => void)[] = []
+    const handle = collectDeclaredColours({
+      root,
+      win,
+      chunkSize: 2,
+      schedule: (run) => queue.push(run),
+    })
+    queue.shift()?.()
+    handle.cancel()
+    queue.shift()?.()
+    await expect(handle.done).resolves.toBeDefined()
     root.remove()
   })
 })

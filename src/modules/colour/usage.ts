@@ -31,7 +31,7 @@
  */
 
 import { deltaE, oklabOf, type Oklab } from './distance'
-import { readColour, type ColourReading } from './formats'
+import { formatColour, readColour, type ColourReading } from './formats'
 
 /** موضع الاستعمال — الخمسة التي يسمّيها `Rasd_Ar.md §6.10` بالضبط. */
 export type UsageSite = 'text' | 'background' | 'border' | 'icon' | 'shadow'
@@ -79,6 +79,18 @@ const COMPOUND_PROPS = new Set(SITE_PROPS.shadow)
  * يشبهه» عتبةٌ أوسع من «أرِني ما هو هو».
  */
 export const USAGE_DELTA = 0.01
+
+/**
+ * لونٌ مصرَّح في ورقة أنماط، بموضع تصريحه — ناتج `collectDeclaredColours`،
+ * ومدخل `classifyPaletteSources` في [`sources.ts`](./sources.ts).
+ *
+ * يعيش هنا لا هناك لأنه **ناتج هذا الملفّ**: وضعُه في المستهلك كان يُنشئ
+ * دورة استيراد بين الوحدتين لا يبرّرها شيء.
+ */
+export interface DeclaredColour {
+  readonly colour: ColourReading
+  readonly site: UsageSite
+}
 
 /** لونٌ مطابق في موضع بعينه. */
 export interface UsageMatch {
@@ -277,4 +289,85 @@ export function idleScheduler(win: Window): Scheduler {
     .requestIdleCallback
   if (typeof ric !== 'function') return (run) => void win.setTimeout(run, 0)
   return (run) => void ric.call(win, run, { timeout: IDLE_TIMEOUT_MS })
+}
+
+/**
+ * يجمع **كل** الألوان المصرَّحة في الشجرة — أساسُ التصنيف في `§6.5`.
+ *
+ * **لا نسخةٌ ثانية من `scanColourUsage`**: تلك تسأل «مَن يستعمل هذا اللون؟»
+ * فتحمل هدفًا وتقارن، وهذه تسأل «ما الألوان المصرَّح بها أصلًا؟» فتجمع بلا
+ * هدف. لكنّهما تتقاسمان ما يمكن أن ينحرف لو كُتب مرّتين: `SITE_PROPS` وقراءة
+ * التصريحات (`declarationsOf`) والتجزئة والمُجدوِل المحقون. فالمشترك مشترك
+ * فعلًا، والمختلف سؤالٌ واحد لا خوارزمية.
+ *
+ * **والتفريد بالسلسلة المنسَّقة لا بالكائن**: `getComputedStyle` تُرجع
+ * `rgb(124, 58, 237)` لكل عنصر يستعمل اللون نفسه، فألف عنصر يعطون مدخلًا
+ * واحدًا. وبلا تفريد كانت القائمة تتضخّم بعدد العناصر لا بعدد الألوان،
+ * فتصير المقاطعة في `classifyPaletteSources` تربيعية بلا داعٍ.
+ */
+export function collectDeclaredColours(
+  options: Partial<Omit<ScanOptions, 'threshold'>> & Pick<ScanOptions, 'root' | 'win'>,
+): { readonly done: Promise<readonly DeclaredColour[]>; cancel(): void } {
+  const opts = { ...DEFAULT_OPTIONS, ...options }
+  const all = [...opts.root.querySelectorAll('*')].filter(
+    (el) => !(opts.skip && (el === opts.skip || opts.skip.contains(el))),
+  )
+
+  /** مفتاح التفريد: `الموضع|القيمة المنسَّقة` — لا الكائن. */
+  const seen = new Set<string>()
+  const found: DeclaredColour[] = []
+  let index = 0
+  let cancelled = false
+  let settle: (value: readonly DeclaredColour[]) => void = () => undefined
+  const done = new Promise<readonly DeclaredColour[]>((resolve) => {
+    settle = resolve
+  })
+
+  const step = (): void => {
+    if (cancelled) {
+      settle(found)
+      return
+    }
+    const end = Math.min(index + opts.chunkSize, all.length)
+    for (; index < end; index++) {
+      const el = all[index]!
+      const declarations = declarationsOf(el, opts.win)
+      for (const [site, props] of Object.entries(SITE_PROPS) as [UsageSite, readonly string[]][]) {
+        for (const prop of props) {
+          const raw = declarations[prop]
+          if (!raw) continue
+          for (const colour of COMPOUND_PROPS.has(prop) ? coloursInValue(raw) : readOne(raw)) {
+            // الشفّاف تمامًا ليس لونًا مصرَّحًا بل غيابه — و`transparent`
+            // تُقرأ `rgba(0,0,0,0)` فتُصنَّف سوادًا لو مرّت.
+            if (colour.alpha === 0) continue
+            const key = `${site}|${formatColour(colour).hex}`
+            if (seen.has(key)) continue
+            seen.add(key)
+            found.push({ colour, site })
+          }
+        }
+      }
+    }
+    opts.onProgress?.(index, all.length)
+    if (index >= all.length) {
+      settle(found)
+      return
+    }
+    opts.schedule(step)
+  }
+
+  opts.schedule(step)
+
+  return {
+    done,
+    cancel: () => {
+      cancelled = true
+    },
+  }
+}
+
+/** قراءةٌ مفردة كمصفوفة — يوحّد الشكل مع `coloursInValue` بلا تفريع. */
+function readOne(value: string): ColourReading[] {
+  const reading = readColour(value)
+  return reading ? [reading] : []
 }

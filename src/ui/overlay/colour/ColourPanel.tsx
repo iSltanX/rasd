@@ -1,3 +1,4 @@
+import { formatHuman, formatPercent, plural } from '@/shared/bidi'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
@@ -9,15 +10,16 @@ import type { JSX } from 'preact'
  * **تعرض ولا تحسب**، كبقيّة بدائيّات الطبقة: تستقبل صفوفًا جاهزة فتُرسم في
  * معرض ثابت بلا تشغيل أداة داخل صفحة.
  *
- * **ما لا يُبنى في هذه المرحلة، ولماذا.** الإطار `65:2` يحمل كتلتين
- * منطقهما مُسنَد في الخطّة إلى **المرحلة 14** لا 13:
- *   - `usage` («يستخدمه ١٤ عنصرًا» وقائمة العناصر) — `Rasd_Ar.md §6.10`،
- *     ونصّ المرحلة 14 صريح: «مسح DOM مُقسَّم على `requestIdleCallback`».
- *   - زرّ «جرّب بديلًا» — `§6.11` الاستبدال المؤقّت، المرحلة 14 كذلك.
+ * **الكتلتان المؤجَّلتان من المرحلة 13 بُنيتا هنا — المرحلة 14.** كان
+ * الإطار `65:2` يحمل كتلتين منطقهما مُسنَد في الخطّة إلى 14 لا 13:
+ * `usage` («يستخدمه ١٤ عنصرًا») من `§6.10`، وزرّ «جرّب بديلًا» من `§6.11`.
+ * وقيل يومها إن «بنيته تنتظرهما ولا تفترض غيابهما» — وهذا ما تحقّق: أُضيفتا
+ * بلا إعادة بناء، وكلتاهما **اختيارية** فالمكوّن يبقى صالحًا حيث لا مسح
+ * ولا استبدال (معرضُ المكوّنات مثلًا).
  *
- * فلا تُرسَم كتلة فارغة تَعِد بما لا يوجد، ولا يُدَّعى عدد. الفجوة معلَنة
- * في `Rasd_Plan.md §6` وفي ملفّ المرحلة، وتُغلَق في 14 بإضافة الكتلتين إلى
- * هذا المكوّن نفسه — بنيته تنتظرهما ولا تفترض غيابهما.
+ * **وتبقى تعرض ولا تحسب**: المسح والاستبدال يقعان في سكربت المحتوى
+ * (`modules/colour/usage.ts` و`replace.ts`)، وهذا يستقبل نتيجةً جاهزة
+ * ويُبلّغ الأفعال بمعاودات — كبقيّة بدائيّات الطبقة.
  *
  * **القيمة تُعرض مضغوطة وتُنسخ كاملة.** الملفّ يكتب `59 130 246` لا
  * `rgb(59, 130, 246)`، وعرض 360px لا يتّسع للثانية. فالمعروض هو المضغوط
@@ -61,6 +63,24 @@ export interface ColourContrastView {
   readonly unreadable: boolean
 }
 
+/**
+ * حصيلة مسح «العناصر التي تستخدم اللون» (`§6.10`) — جاهزةً للعرض.
+ *
+ * `null` تعني «لم يُطلب مسح بعد»، وهي حالةٌ ثالثة تخالف «مُسح فلم يوجد
+ * شيء» (`total === 0`). خلطُهما كان سيقول «لا عنصر يستعمله» عن لون لم
+ * يُبحَث عنه أصلًا.
+ */
+export interface ColourUsageView {
+  /** عدد العناصر المطابقة — **عدٌّ بشري**، يُنسَّق بأرقام هندية عند العرض. */
+  readonly total: number
+  /** فهرس المُبرَز حاليًّا، أو `null` قبل أي تنقّل. */
+  readonly current: number | null
+  /** المسح جارٍ — يُعرض تقدّمه بدل رقم نهائي كاذب. */
+  readonly scanning: boolean
+  /** نسبة التقدّم 0..1 أثناء المسح. */
+  readonly progress: number
+}
+
 export interface ColourPanelProps {
   /** القيمة السداسية للعيّنة — تُعرض كبيرة في رأس الكتلة. */
   hex: string
@@ -80,6 +100,13 @@ export interface ColourPanelProps {
   onCopy?: (value: string, label: string) => void
   onSave?: () => void
   onClose?: () => void
+  /** `§6.10` — غيابها يُخفي الكتلة كاملةً، ولا يرسم صفرًا كاذبًا. */
+  usage?: ColourUsageView
+  onScanUsage?: () => void
+  onCancelScan?: () => void
+  onStepUsage?: (delta: 1 | -1) => void
+  /** `§6.11` — زرّ «جرّب بديلًا». غيابه يُخفي الزرّ. */
+  onReplace?: () => void
 }
 
 export function ColourPanel({
@@ -93,6 +120,11 @@ export function ColourPanel({
   onCopy,
   onSave,
   onClose,
+  usage,
+  onScanUsage,
+  onCancelScan,
+  onStepUsage,
+  onReplace,
 }: ColourPanelProps): JSX.Element {
   return (
     <section class="rasd-ov-cp" data-rasd-ov="colour-panel" aria-label="اللون">
@@ -202,7 +234,66 @@ export function ColourPanel({
         </div>
       ) : null}
 
+      {usage || onScanUsage ? (
+        <div class="rasd-ov-cp-usage" data-rasd-ov="colour-usage">
+          {usage?.scanning ? (
+            <>
+              <span class="rasd-ov-cp-usage-text">جارٍ المسح… {formatPercent(usage.progress)}</span>
+              <button type="button" class="rasd-ov-cp-btn-quiet" onClick={onCancelScan}>
+                أوقف
+              </button>
+            </>
+          ) : usage ? (
+            <>
+              <span class="rasd-ov-cp-usage-text">
+                {/*
+                 * `plural` تُصرّف العدد كاملًا: المثنّى بلا رقم («عنصران» لا
+                 * «٢ عنصر»)، والعدد هنديّ لأنه عدٌّ بشري (`§3.5`، ونصّ `§17`
+                 * لهذه المرحلة صريح: «عدّاد العناصر عدٌّ بشري بأرقام هندية»).
+                 */}
+                {usage.total > 0
+                  ? `يستخدمه ${plural(usage.total, 'عنصر واحد', 'عنصران', 'عناصر')}`
+                  : 'لا عنصر يستخدمه في هذه الصفحة'}
+              </span>
+              {usage.total > 0 && onStepUsage ? (
+                <span class="rasd-ov-cp-usage-nav">
+                  <button
+                    type="button"
+                    class="rasd-ov-cp-icon"
+                    onClick={() => onStepUsage(-1)}
+                    aria-label="العنصر السابق"
+                  >
+                    <Icon name="chevron-right" size="xs" />
+                  </button>
+                  <span class="rasd-ov-cp-usage-at">
+                    {usage.current === null ? '—' : formatHuman(usage.current + 1)}
+                  </span>
+                  <button
+                    type="button"
+                    class="rasd-ov-cp-icon"
+                    onClick={() => onStepUsage(1)}
+                    aria-label="العنصر التالي"
+                  >
+                    <Icon name="chevron-left" size="xs" />
+                  </button>
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <button type="button" class="rasd-ov-cp-btn-quiet" onClick={onScanUsage}>
+              أظهر العناصر التي تستخدمه
+            </button>
+          )}
+        </div>
+      ) : null}
+
       <footer class="rasd-ov-cp-actions">
+        {onReplace ? (
+          <button type="button" class="rasd-ov-cp-btn-quiet" onClick={onReplace}>
+            <span>جرّب بديلًا</span>
+            <Icon name="color-replace" size="sm" />
+          </button>
+        ) : null}
         <button type="button" class="rasd-ov-cp-btn" onClick={onSave}>
           <span>حفظ</span>
           <Icon name="swatches" size="sm" />
