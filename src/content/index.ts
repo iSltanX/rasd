@@ -1071,6 +1071,13 @@ async function bootOverlay(
     inspect,
     measure,
     colour,
+    /**
+     * أداة المرحلة 14 — مُصدَّرة كي يبلغها الفحص الحيّ.
+     *
+     * ما لا سبيل إليه من خارج الطبقة لا يُثبَت حيًّا، ويبقى «مُختبَرًا
+     * وحدةً» — وهي بالضبط الحالة التي بُني هذا السلك لإنهائها.
+     */
+    colourUsage,
     compare,
     lastCapture: () => lastCapture,
     teardown,

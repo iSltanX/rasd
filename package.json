@@ -38,6 +38,7 @@
     "verify:overlay": "node scripts/verify-overlay.mjs",
     "verify:picker": "node scripts/verify-picker.mjs",
     "verify:measure": "node scripts/verify-measure.mjs",
+    "verify:palette": "node scripts/verify-palette.mjs",
     "verify:colour": "node scripts/verify-colour.mjs",
     "verify:editor": "node scripts/verify-editor.mjs",
     "verify:library": "node scripts/verify-library.mjs",
