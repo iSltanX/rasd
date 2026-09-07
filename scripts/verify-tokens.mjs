@@ -91,6 +91,53 @@ async function walk(dir) {
  */
 const FILE_EXEMPT = /rasd-allow-literal-file/
 
+/**
+ * **الرموز المعرَّفة فعلًا** — من ملفّ التوكنز المولَّد وحده.
+ *
+ * وُجدت الحاجة إليه بالقياس: `--rasd-space-14` و`--rasd-space-36`
+ * مستعملان في **أحد عشر** موضعًا وغير معرَّفين في أي مكان. والسلّم مولَّد
+ * من Figma ولا يحوي 14 ولا 36 — فهما اختراعان، ومرّا لأن الحُرّاس الثلاثة
+ * السابقين يفحصون ما **يُكتب حرفيًّا** لا ما **يُشار إليه**.
+ *
+ * **والأثر ليس تجميليًّا**: `var()` بلا تعريف ولا قيمة احتياطية تُنتج
+ * قيمةً غير صالحة، فيسقط **الإعلان كلّه** — لا الخاصية وحدها. أي أن
+ * `padding: var(--rasd-space-14) var(--rasd-space-16)` لا تعطي حشوًا
+ * ناقصًا بل **لا حشو إطلاقًا**، صامتةً بلا تحذير في الطرفية.
+ */
+const DEFINED_TOKENS = new Set(
+  [
+    ...(await readFile(join(root, 'public/assets/tokens.css'), 'utf8')).matchAll(
+      /(--rasd-[\w-]+)\s*:/g,
+    ),
+  ].map((m) => m[1]),
+)
+
+/**
+ * **ورموزٌ محلّية تُضبَط سطريًّا ليست عيبًا.**
+ *
+ * `--rasd-ov-w` و`--rasd-slider-value` وأمثالهما تُمرَّر من JS عبر `style`
+ * لأن قيمتها تُقاس وقت التشغيل ولا يمكن أن تكون في عقدٍ مولَّد من Figma.
+ * فتُجمَع من مصادرها الحقيقية — أي تعريف داخل CSS المشروع، وأي مفتاح
+ * `'--rasd-…':` في TSX — قبل الحكم.
+ *
+ * وبلا هذا التمييز يصرخ الحارس على أربعةٍ وعشرين موضعًا سليمًا، فيُدرَّب
+ * قارئه على تجاهله — وحارسٌ يُتجاهَل أسوأ من غيابه.
+ */
+for (const file of await walk(join(root, 'src'))) {
+  const text = await readFile(file, 'utf8')
+  const pattern = file.endsWith('.css') ? /(--rasd-[\w-]+)\s*:/g : /'(--rasd-[\w-]+)'\s*:/g
+  for (const [, name] of text.matchAll(pattern)) DEFINED_TOKENS.add(name)
+}
+
+/**
+ * رمزٌ مُشار إليه داخل `var()`.
+ *
+ * القيمة الاحتياطية (`var(--x, 1px)`) تُستثنى: الإشارة إلى رمزٍ قد لا
+ * يوجد **مع** بديلٍ صريح قرارٌ مشروع، لا سهو. وهو ما يفعله `Stage.tsx`
+ * بـ`--rasd-stage-ratio` المُمرَّر سطريًّا.
+ */
+const VAR_REF = /var\(\s*(--rasd-[\w-]+)\s*\)/g
+
 const violations = []
 const exempted = []
 const files = await walk(join(root, 'src'))
@@ -141,6 +188,11 @@ for (const file of files) {
     if (isCss && PHYSICAL.test(code)) {
       violations.push({ at, rule: 'خاصية CSS فيزيائية', line: code.trim() })
     }
+    for (const [, name] of code.matchAll(VAR_REF)) {
+      if (!DEFINED_TOKENS.has(name)) {
+        violations.push({ at, rule: `رمز غير معرَّف: ${name}`, line: code.trim() })
+      }
+    }
   })
 }
 
@@ -168,4 +220,5 @@ if (violations.length > 0) {
 console.log('  ✓ لا قيمة لونية حرفية')
 console.log('  ✓ لا px حرفية')
 console.log('  ✓ لا خاصية CSS فيزيائية')
+console.log(`  ✓ كل رمز مُشار إليه معرَّف (${String(DEFINED_TOKENS.size)} رمزًا في العقد)`)
 console.log('\n✓ العقد محترَم.\n')

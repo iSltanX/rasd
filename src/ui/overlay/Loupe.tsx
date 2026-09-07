@@ -94,7 +94,20 @@ export function Loupe({ point, patch, cells, hex }: LoupeProps): JSX.Element {
   }, [patch, cells])
 
   return (
-    <div class="rasd-ov-place rasd-ov-clp" style={at(point)} data-rasd-ov="loupe">
+    <div
+      class="rasd-ov-place rasd-ov-clp"
+      /*
+       * **قطر العدسة يُمرَّر من هنا لا يُكرَّر في CSS.**
+       *
+       * كان CSS يشير إلى `--rasd-space-72` وهو **غير معرَّف** في العقد
+       * المولَّد — فالإعلان يسقط صامتًا والقرص يأخذ مقاس القماش وحده.
+       * صادف ذلك أن يعمل، لكنّه صمتٌ لا تصميم: أيّ إصلاح للرمز كان
+       * سيُدخل مقاسًا يخالف `DIAMETER`. والرقم واحد بطبيعته — قماشٌ
+       * وقرصٌ يجب أن يتطابقا — فمصدرُه واحد.
+       */
+      style={{ ...at(point), '--rasd-ov-loupe-size': `${String(DIAMETER)}px` }}
+      data-rasd-ov="loupe"
+    >
       <div class="rasd-ov-clp-disc">
         <canvas ref={canvas} width={DIAMETER} height={DIAMETER} class="rasd-ov-clp-grid" />
         {/*
