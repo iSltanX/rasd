@@ -51,6 +51,7 @@ import { LOUPE_CELLS } from './sampler'
 import { measureRootFontSize } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
+import type { ColourUsageTool } from './tools/colour-usage'
 import type { CompareTool } from './tools/compare'
 import type { ElementHoverTool } from './tools/element-hover'
 import type { EyedropperTool } from './tools/eyedropper'
@@ -107,6 +108,10 @@ export interface OverlayAppProps {
   /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة الفحص. */
   onCopyInspect?: (kind: 'css' | 'tailwind' | 'json') => void
   /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة اللون. */
+  /** أداة المرحلة 14 — اختيارية فلا تنكسر أي تركيبة قائمة بدونها. */
+  colourUsage?: ColourUsageTool
+  onScanColourUsage?: () => void
+  onReplaceColour?: () => void
   onCopyColour?: (value: string, label: string) => void
   /** يُطلَب حين يحفظ المستخدم لونًا في المكتبة (`§6.15`). */
   onSaveColour?: () => void
@@ -547,19 +552,42 @@ function MeasureLayer({
  */
 function ColourLayer({
   colour,
+  usage,
   space,
   onCopy,
   onSave,
+  onScanUsage,
+  onReplace,
 }: {
   colour: EyedropperTool
+  /** أداة المرحلة 14 — غيابها يُخفي كتلة الاستخدام وزرّ الاستبدال. */
+  usage?: ColourUsageTool
   space: Signal<CoordSpace>
   onCopy?: (value: string, label: string) => void
   onSave?: () => void
+  onScanUsage?: () => void
+  onReplace?: () => void
 }) {
   const live = colour.state.live.value
   const pinned = colour.state.pinned.value
   const error = colour.state.error.value
   const s = space.value
+
+  /*
+   * **الكتلة لا تظهر إلّا مع لون مثبَّت.** «مَن يستعمل هذا اللون؟» سؤالٌ
+   * عن لونٍ بعينه، وعرضُه أثناء التتبّع الحيّ كان سيعرض عدّادًا يقفز مع
+   * كل حركة مؤشِّر — ضجيجٌ لا معلومة.
+   */
+  const usageView =
+    usage && pinned
+      ? {
+          total: usage.state.hits.value.length,
+          rows: usage.state.rows.value,
+          scanning: usage.state.scanning.value,
+          progress: usage.state.progress.value,
+        }
+      : undefined
+  const highlights = usage?.state.highlights.value ?? []
 
   const shown = pinned ?? null
   const hex = shown ? shown.formats.hex : live?.pixel ? hexOfPixel(live.pixel) : null
@@ -573,6 +601,27 @@ function ColourLayer({
           <Loupe point={live.point} patch={live.patch} cells={LOUPE_CELLS} hex={hex} />
         </>
       ) : null}
+
+      {/*
+       * **إبرازُ المستعمِلين يُرسَم في طبقتنا لا على العناصر نفسها.**
+       * لمسُ عنصر الصفحة — ولو بـ`outline` — يغيّر تخطيطها أو يشتبك مع
+       * أنماطها، ويخلط «الإبراز» بـ«الاستبدال» في مسار التراجع نفسه.
+       * وفضاء الإحداثيات هنا فضاء إطار العرض، وهو فضاء طبقة الهندسة
+       * نفسه، فلا تحويل.
+       */}
+      {highlights.map((rect, index) => (
+        <div
+          key={`${String(rect.x)}:${String(rect.y)}:${String(index)}`}
+          class="rasd-ov-cu-mark"
+          data-rasd-ov="colour-usage-mark"
+          style={{
+            insetInlineStart: `${String(rect.x)}px`,
+            insetBlockStart: `${String(rect.y)}px`,
+            inlineSize: `${String(rect.width)}px`,
+            blockSize: `${String(rect.height)}px`,
+          }}
+        />
+      ))}
 
       <div
         class="rasd-ov-place"
@@ -594,6 +643,11 @@ function ColourLayer({
             outOfGamut={!shown.reading.inSrgb}
             {...(onCopy ? { onCopy } : {})}
             {...(onSave ? { onSave } : {})}
+            {...(usageView ? { usage: usageView } : {})}
+            {...(onScanUsage ? { onScanUsage } : {})}
+            {...(usage ? { onCancelScan: () => usage.cancel() } : {})}
+            {...(usage ? { onHighlightAll: () => usage.highlightAll() } : {})}
+            {...(onReplace ? { onReplace } : {})}
             onClose={() => colour.clear()}
           />
         ) : (
@@ -916,8 +970,11 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         <ColourLayer
           colour={props.colour}
           space={props.space}
+          {...(props.colourUsage ? { usage: props.colourUsage } : {})}
           {...(props.onCopyColour ? { onCopy: props.onCopyColour } : {})}
           {...(props.onSaveColour ? { onSave: props.onSaveColour } : {})}
+          {...(props.onScanColourUsage ? { onScanUsage: props.onScanColourUsage } : {})}
+          {...(props.onReplaceColour ? { onReplace: props.onReplaceColour } : {})}
         />
         {job}
       </>

@@ -12,6 +12,7 @@
 import { computed, signal } from '@preact/signals'
 
 import { captureKindFor, type CaptureSource } from '@/modules/capture/kind'
+import { revertAll } from '@/modules/colour/replace'
 import { classifyViewport, VIEWPORT_ORDER } from '@/modules/compare/viewport'
 import { toCss, toJson, toTailwindText } from '@/modules/style-export/css'
 import { base64ToBlob, blobToBase64 } from '@/shared/base64'
@@ -31,6 +32,7 @@ import { startPersistence, type Persistence } from './persistence'
 import { installShortcuts, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
+import { createColourUsage, type ColourUsageTool } from './tools/colour-usage'
 import { createCompare, type CompareTool, type ReferenceImage } from './tools/compare'
 import { createElementHover, type ElementHoverTool } from './tools/element-hover'
 import { createEyedropper, type EyedropperTool } from './tools/eyedropper'
@@ -153,6 +155,7 @@ async function bootOverlay(
       inspectTool?.frame(reasons)
       measureTool?.frame(reasons)
       colourTool?.frame(reasons)
+      colourUsageTool?.frame()
       compareTool?.frame(reasons)
       options.onFrame?.(space)
     },
@@ -163,6 +166,7 @@ async function bootOverlay(
   let inspectTool: ReturnType<typeof createInspect> | null = null
   let measureTool: MeasureTool | null = null
   let colourTool: EyedropperTool | null = null
+  let colourUsageTool: ColourUsageTool | null = null
   let compareTool: CompareTool | null = null
 
   const stopDpr = watchDpr(() => sync.invalidate('dpr'), win)
@@ -355,6 +359,19 @@ async function bootOverlay(
   })
 
   /**
+   * أداة «العناصر التي تستخدم اللون» والاستبدال المؤقّت (المرحلة 14).
+   *
+   * **بجوار القطّارة لا داخلها**: تلك تتبّع مؤشِّرًا، وهذه تمسح شجرةً ثمّ
+   * تترك أثرًا في الصفحة. و`skip` يستبعد مضيف طبقتنا فلا نجد أنفسنا في
+   * نتائج المسح — نفس حارس كل أداة تلمس DOM الصفحة.
+   */
+  const colourUsage = createColourUsage({
+    doc,
+    skip: host.hostEl,
+    onInvalidate: () => sync.invalidate('pointer'),
+  })
+
+  /**
    * أداة المقارنة (المرحلة 16).
    *
    * **الدرع مرفوع**: السحب والعجلة يحتاجان الحدث قبل الصفحة، لنفس سبب
@@ -372,6 +389,7 @@ async function bootOverlay(
   inspectTool = inspect
   measureTool = measure
   colourTool = colour
+  colourUsageTool = colourUsage
   compareTool = compare
 
   /**
@@ -748,6 +766,17 @@ async function bootOverlay(
     measure,
     colour,
     compare,
+    colourUsage,
+    /**
+     * «أظهر العناصر التي تستخدمه» (`§6.10`).
+     *
+     * **يعمل على اللون المثبَّت لا الحيّ**: السؤال عن لونٍ بعينه، ومسحٌ
+     * يتبع المؤشِّر كان سيبدأ ويُجهَض عشرات المرّات في الثانية.
+     */
+    onScanColourUsage: () => {
+      const pinned = colour.state.pinned.peek()
+      if (pinned) colourUsage.scan(pinned.reading)
+    },
     onCopyInspect: (kind) => copyInspect(inspect, kind),
     onCopyColour: (value: string) => {
       void navigator.clipboard?.writeText(value).catch(() => {
@@ -848,7 +877,12 @@ async function bootOverlay(
     if (mode !== 'element') element.reset()
     if (mode !== 'inspect') inspect.reset()
     if (mode !== 'measure') measure.reset()
-    if (mode !== 'colour') colour.reset()
+    if (mode !== 'colour') {
+      colour.reset()
+      // مغادرة وضع اللون تُنهي الاستبدال المؤقّت: أثرٌ يبقى بعد أداته
+      // يترك صفحة المستخدم مطليّة بلا سبيل إلى فهم لماذا.
+      colourUsage.reset()
+    }
     if (mode !== 'compare') {
       // يُبطل أي تحميل/تعيين مرجع معلَّق — انظر تعليق `referenceEpoch` أعلاه.
       // هذا ما يقطع سباق التنقّل داخل الصفحة أيضًا: `onRouteChange` أدناه
@@ -993,6 +1027,17 @@ async function bootOverlay(
     // اللقطة المفكوكة تُحرَّر صراحةً: `ImageBitmap` لا يُجمَع بجمع القمامة
     // وحده، وحجمها بحجم النافذة كاملةً بأربعة بايتات للبكسل.
     colour.dispose()
+    colourUsage.dispose()
+    /*
+     * **حارسٌ نهائي فوق `colourUsage.dispose()` لا بديلٌ عنه.**
+     *
+     * الأداة تتتبّع مقبضها الحيّ وتتراجع عنه، وهذا يكفي في المسار السعيد.
+     * لكن الاستبدال يعدّل **صفحة المستخدم**، وأثرٌ يفلت هنا يبقى بعد رحيل
+     * الطبقة بلا سبيل إلى فهم مصدره — فالكلفة غير متماثلة: نداءٌ زائد
+     * رخيص، وصفحةٌ مطليّة أبدًا ليست كذلك. `revertAll` مثاليّة التكرار
+     * (حارس `reverted` في كل مقبض)، فلا ضرر من مرورها على ما تراجع فعلًا.
+     */
+    revertAll()
     compare.dispose()
     // عنوان كائن صورة المرجع — نفس سبب تحرير `colour` أعلاه، ولو بلا `ImageBitmap`.
     if (referenceObjectUrl) URL.revokeObjectURL(referenceObjectUrl)

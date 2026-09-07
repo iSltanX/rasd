@@ -2738,3 +2738,20 @@
   text-align: center;
   line-height: 1.6;
 }
+
+/*
+ * ── إبراز مستعمِلي اللون (`§6.10`) ────────────────────────────────
+ *
+ * يُرسَم في طبقتنا فوق العنصر لا عليه: لمسُ عنصر الصفحة يغيّر تخطيطها
+ * ويخلط الإبراز بالاستبدال في مسار التراجع نفسه. و`pointer-events: none`
+ * لأنه علامةٌ تُقرأ لا هدفٌ يُنقر — والدرع تحته يتلقّى النقر كالمعتاد.
+ */
+.rasd-ov-cu-mark {
+  position: absolute;
+  pointer-events: none;
+  border: var(--rasd-stroke-medium) solid var(--rasd-border-brand);
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-surface-brand-subtle);
+  /* حدٌّ خارجي فاتح يفصل الإطار عمّا تحته مهما كان لونه. */
+  box-shadow: 0 0 0 var(--rasd-stroke-thin) var(--rasd-surface-default);
+}
