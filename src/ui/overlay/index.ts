@@ -36,6 +36,13 @@ export type {
   ScaleStripStop,
   ScaleSampleRow,
 } from './colour/ScalePanel'
+export { PalettePanel } from './colour/PalettePanel'
+export type {
+  PalettePanelProps,
+  PaletteSourceKind,
+  PaletteReadMethod,
+  PaletteSwatchView,
+} from './colour/PalettePanel'
 export { InspectPanel, InspectIdle, INSPECT_TABS, TAB_LABELS } from './inspect/InspectPanel'
 export type {
   InspectPanelProps,
