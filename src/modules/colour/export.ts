@@ -22,6 +22,7 @@
 import { formatColour, readColour } from './formats'
 import { TAILWIND_VERSION } from './tailwind-palette'
 
+import type { ScaleStop } from './scale'
 import type { PaletteSwatch } from '@/shared/messaging/contract'
 
 export type PaletteFormat = 'css' | 'json' | 'tailwind' | 'text'
@@ -61,16 +62,17 @@ function sanitizePrefix(raw: string | undefined): string {
 }
 
 /**
- * قراءة لون سديدة من قيمة سداسية في اللوحة.
+ * قراءة لون سديدة من قيمة سداسية — للوحة مستخرَجة أو سلّم مولَّد سواء.
  *
  * `PaletteSwatch.hex` يأتي من `formatColour().hex` داخل `palette.ts` دومًا
- * (انظر عقد `PaletteExtraction` في `contract.ts`)، فإخفاق التحليل هنا خطأ
- * في البيانات لا في مدخل المستخدم — يُرمى بوضوح بدل أن يُبتلع صامتًا، على
- * نمط `prepared()` في `tailwind.ts`.
+ * (انظر عقد `PaletteExtraction` في `contract.ts`)، و`ScaleStop.hex` من
+ * `formatColour().hex` داخل `generateScale` بالمثل (`scale.ts`) — فإخفاق
+ * التحليل هنا خطأ في البيانات لا في مدخل المستخدم في الحالتين، يُرمى
+ * بوضوح بدل أن يُبتلع صامتًا، على نمط `prepared()` في `tailwind.ts`.
  */
-function readSwatch(swatch: PaletteSwatch) {
+function readSwatch(swatch: { readonly hex: string }) {
   const reading = readColour(swatch.hex)
-  if (!reading) throw new Error(`قيمة لوحة غير صالحة: ${swatch.hex}`)
+  if (!reading) throw new Error(`قيمة لون غير صالحة: ${swatch.hex}`)
   return reading
 }
 
@@ -97,8 +99,20 @@ function variableName(prefix: string, index: number): string {
  *
  * **لوحة فارغة**: `:root {}` — قاعدة CSS صالحة بلا تصريحات، لا استثناء.
  */
-function cssVariables(swatches: readonly PaletteSwatch[], prefix: string): string {
-  const lines = swatches.map((s, i) => `  --${variableName(prefix, i)}: ${s.hex};`)
+/**
+ * **موسَّعة لتقبل أيّ مصدرٍ يحمل `hex` — لا `PaletteSwatch` وحدها.**
+ *
+ * الصيغة لا تستعمل من كل مدخل غير قيمته السداسية، فتوسيع النوع إلى
+ * `{hex}[]` توسيعٌ صريح بلا تغيير سلوك لمستدعيها الحاليين (`PaletteSwatch`
+ * يحقّق هذا الشكل أصلًا)، ويسمح لـ`exportScale` أدناه بإعادة الدالّة نفسها
+ * لا نسخها — «الدالّة نفسها لا مثيلها».
+ */
+function cssVariables(
+  swatches: readonly { readonly hex: string }[],
+  prefix: string,
+  nameOf: (index: number) => string = (i) => variableName(prefix, i),
+): string {
+  const lines = swatches.map((s, i) => `  --${nameOf(i)}: ${s.hex};`)
   return [':root {', ...lines, '}'].join('\n')
 }
 
@@ -166,10 +180,14 @@ function jsonExport(swatches: readonly PaletteSwatch[], prefix: string): Palette
  * `TailwindNaming.themeValue` في `tailwind.ts`، فمصدر تنسيق القيمة واحد
  * لا اثنان عبر الوحدة.
  */
-function tailwindConfig(swatches: readonly PaletteSwatch[], prefix: string): string {
+function tailwindConfig(
+  swatches: readonly { readonly hex: string }[],
+  prefix: string,
+  nameOf: (index: number) => string = (i) => variableName(prefix, i),
+): string {
   const lines = swatches.map((s, i) => {
     const oklch = formatColour(readSwatch(s)).oklch
-    return `  --color-${variableName(prefix, i)}: ${oklch};`
+    return `  --color-${nameOf(i)}: ${oklch};`
   })
   // الإصدار يُعلَن تعليقًا في رأس المخرَج نفسه — القيمة من `TAILWIND_VERSION`
   // لا رقمًا مكتوبًا هنا مرّتين، فلا يُنسى تحديثه لو تغيّر مصدره يومًا.
@@ -224,5 +242,73 @@ export function exportPalette(
       return tailwindConfig(swatches, prefix)
     case 'text':
       return copyText(swatches)
+  }
+}
+
+/** صيغة عنصر واحد في مخرَج JSON لسلّم — تحمل رقم الدرجة لا حصّة بكسلات. */
+export interface ScaleExportStop {
+  readonly variable: string
+  readonly step: number
+  readonly hex: string
+  /** OKLCH منسَّقة مضغوطة — نفس صيغة `ScaleSampleRow.oklch` في `ScalePanel`. */
+  readonly oklch: string
+}
+
+export interface ScaleExportJson {
+  readonly schema: 'rasd.scale-export/1'
+  readonly prefix: string
+  readonly stops: readonly ScaleExportStop[]
+}
+
+/**
+ * يصدّر سلّمًا مولَّدًا (`generateScale`) — لا `exportPalette` يخدمه.
+ *
+ * **لماذا دالّة مستقلّة لا استدعاءً لـ`exportPalette` بمدخل مُطابَق شكلًا.**
+ * `PaletteSwatch` يحمل `share`/`count`/`neutral` — معنًى حقيقي لمصفوفة
+ * *مُستخرَجة* من بكسلات (كم بكسلًا انتمى لهذا اللون، أهو حياديّ). وسلّمٌ
+ * *مولَّد* حسابيًّا (`generateScale`) لا بكسل وراءه أصلًا: تلفيق `share: 0`
+ * أو `count: 0` لكل درجة كان يكتب في مخرَج JSON بياناتٍ لا يسندها شيء —
+ * «لا تدّعِ ما لا يسنده الكود» بالحرف. فحقل JSON هنا `step` الحقيقي بدل
+ * ذلك، **وصيغتا CSS وTailwind وحدهما مُعاد استعمالهما** حرفيًّا
+ * (`cssVariables`/`tailwindConfig`) لأنهما لا تستعملان من كل مدخل غير
+ * `hex` — الحقل الوحيد المشترك فعلًا بين النوعين.
+ *
+ * **التسمية بالدرجة لا بالرتبة**: `--{بادئة}-{step}` (مثل `--brand-500`)
+ * لا `--{بادئة}-{i+1}` كما في اللوحة المستخرَجة. لا `§6.14` ولا أي مرجع
+ * بصري يحسم تسمية تصدير السلّم تحديدًا — فجوة في المصدر لا قرارًا جاهزًا.
+ * واختير رقم الدرجة لأنه المعيار الفعلي لتسمية سلالم الألوان في كل نظام
+ * تصميم مرجعي في هذا المستودع (`tailwind-palette.ts` نفسها: `blue-500`)،
+ * خلافًا لرتبة اللوحة المستخرَجة التي تعني «الأكثر هيمنة» — مفهومٌ لا
+ * ينطبق على سلّمٍ لا تنافس حصص فيه بين درجاته أصلًا.
+ *
+ * `text` غير مدعومة: `ScalePanel.tsx` يُسقطها عمدًا («صيغة نصّ قابل للنسخ
+ * مُستبعَدة»، انظر ترويسة ذاك الملفّ) فلا مستدعٍ يطلبها هنا.
+ */
+export function exportScale(
+  stops: readonly ScaleStop[],
+  format: Exclude<PaletteFormat, 'text'>,
+  options: ExportOptions = {},
+): string {
+  const prefix = sanitizePrefix(options.prefix)
+  const nameOf = (i: number): string => `${prefix}-${String(stops[i]!.step)}`
+
+  switch (format) {
+    case 'css':
+      return cssVariables(stops, prefix, nameOf)
+    case 'tailwind':
+      return tailwindConfig(stops, prefix, nameOf)
+    case 'json': {
+      const json: ScaleExportJson = {
+        schema: 'rasd.scale-export/1',
+        prefix,
+        stops: stops.map((s, i) => ({
+          variable: nameOf(i),
+          step: s.step,
+          hex: s.hex,
+          oklch: formatColour(readSwatch(s)).oklch,
+        })),
+      }
+      return JSON.stringify(json, null, 2)
+    }
   }
 }

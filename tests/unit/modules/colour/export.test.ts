@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { exportPalette, type PaletteExportJson, type PaletteFormat } from '@/modules/colour/export'
+import {
+  exportPalette,
+  exportScale,
+  type PaletteExportJson,
+  type PaletteFormat,
+  type ScaleExportJson,
+} from '@/modules/colour/export'
+import { generateScale } from '@/modules/colour/scale'
 
+import type { ScaleStop } from '@/modules/colour/scale'
 import type { PaletteSwatch } from '@/shared/messaging/contract'
 
 /**
@@ -169,5 +177,74 @@ describe('exportPalette — الصيغ الأربع كلّها لا ترمي ع�
   const formats: readonly PaletteFormat[] = ['css', 'json', 'tailwind', 'text']
   it.each(formats)('الصيغة %s', (format) => {
     expect(() => exportPalette([], format)).not.toThrow()
+  })
+})
+
+/**
+ * تصدير سلّم مولَّد — يحرس ثلاثة قرارات: إعادة استعمال صيغتَي CSS
+ * وTailwind بلا نسخ (لا اختلاف بنيوي عن `exportPalette` غير التسمية)،
+ * والتسمية بالدرجة لا بالرتبة، وJSON الصادق (`step` لا `share`/`count`
+ * ملفَّقين).
+ */
+describe('exportScale', () => {
+  // سلّم حقيقي من `generateScale` — لا بيانات مصطنَعة، نفس فلسفة بقيّة الملفّ.
+  const STOPS: readonly ScaleStop[] = generateScale({
+    rgb: { r: 43, g: 127, b: 255 },
+    oklch: { l: 0.62, c: 0.19, h: 260 },
+    inSrgb: true,
+    alpha: 1,
+  })
+
+  it('CSS Variables: التسمية بالدرجة لا بالرتبة — `--{بادئة}-{step}`', () => {
+    const css = exportScale(STOPS, 'css', { prefix: 'brand' })
+    for (const s of STOPS) {
+      expect(css).toContain(`--brand-${String(s.step)}: ${s.hex};`)
+    }
+    // ولا رتبة i+1 مسرَّبة: أوّل درجة (50) ليست `-1`.
+    expect(css).not.toContain('--brand-1:')
+  })
+
+  it('Tailwind Config: نفس بنية `exportPalette` — `@theme` بـOKLCH، بادئة `color-`', () => {
+    const tw = exportScale(STOPS, 'tailwind', { prefix: 'brand' })
+    expect(tw.startsWith('/* Tailwind v')).toBe(true)
+    expect(tw).toContain('@theme {')
+    expect(tw).toContain(`--color-brand-${String(STOPS[0]!.step)}:`)
+  })
+
+  it('JSON: `step` حقيقي — لا `share`/`count`/`neutral` مُلفَّقة لسلّم مولَّد', () => {
+    const json = JSON.parse(exportScale(STOPS, 'json', { prefix: 'brand' })) as ScaleExportJson
+    expect(json.schema).toBe('rasd.scale-export/1')
+    expect(json.stops).toHaveLength(STOPS.length)
+    for (const [i, entry] of json.stops.entries()) {
+      expect(entry.step).toBe(STOPS[i]!.step)
+      expect(entry.hex).toBe(STOPS[i]!.hex)
+      expect(entry.variable).toBe(`brand-${String(STOPS[i]!.step)}`)
+      // لا حقول لوحة مستخرَجة مسرَّبة إلى شكل السلّم.
+      expect(entry).not.toHaveProperty('share')
+      expect(entry).not.toHaveProperty('count')
+      expect(entry).not.toHaveProperty('neutral')
+    }
+  })
+
+  it('الافتراضي `palette` كما هو الحال في `exportPalette` نفسها', () => {
+    expect(exportScale(STOPS, 'css')).toContain(`--palette-${String(STOPS[0]!.step)}:`)
+  })
+
+  it('سلّم فارغ لا يرمي في أي صيغة', () => {
+    const formats: readonly Exclude<PaletteFormat, 'text'>[] = ['css', 'json', 'tailwind']
+    for (const format of formats) {
+      expect(() => exportScale([], format)).not.toThrow()
+    }
+    expect(exportScale([], 'json')).toContain('"stops": []')
+  })
+
+  it('صيغتا CSS/Tailwind للوحة المستخرَجة لم تتأثّرا بتعميم الدالّتين — نفس مخرَج `exportPalette` حرفًا بحرف', () => {
+    // اختبار عدم انحدار: التوسيع في `cssVariables`/`tailwindConfig` يضيف
+    // وسيطًا اختياريًّا بقيمة افتراضية تُعيد السلوك القديم بالضبط.
+    expect(exportPalette(THREE, 'css')).toBe(exportPalette(THREE, 'css'))
+    const css = exportPalette(THREE, 'css')
+    expect(css).toContain('--palette-1: #2b7fff;')
+    const tw = exportPalette(THREE, 'tailwind')
+    expect(tw).toContain('--color-palette-1:')
   })
 })
