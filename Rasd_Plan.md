@@ -2175,7 +2175,7 @@ GitHub يعمل من طرف العميل بالكامل · لا إرسال صا�
 | 18 | المكتبة والمشاريع والبحث | `Sonnet 5` | ✅ **مكتملة** — [`Phase_18.md`](Docs/Phases/Phase_18.md) | 2026-08-31 | [الثامنة عشرة](https://claude.ai/code/artifact/35e90196-ab73-402b-bccc-270e8a667b55) |
 | 16 | المرجع فوق الصفحة والعرض المنقسم | `Sonnet 5` | ✅ **مكتملة** — [`Phase_16.md`](Docs/Phases/Phase_16.md) | 2026-08-31 | [السادسة عشرة](https://claude.ai/code/artifact/72dc5455-83bc-4c16-ba9c-d1f4ff3ae60a) |
 | 17 | مقارنة لقطتين وفرق البكسلات | `Sonnet 5` | ✅ **مكتملة** — [`Phase_17.md`](Docs/Phases/Phase_17.md) | 2026-09-06 | [السابعة عشرة](https://claude.ai/code/artifact/12488b51-28df-430a-a389-6c110fe73757) |
-| 14 | اللوحات والدرجات والاستبدال المؤقت | `Opus 5` | **التالية** | — | — |
+| 14 | اللوحات والدرجات والاستبدال المؤقت | `Opus 5` | ✅ **مكتملة** — [`Phase_14.md`](Docs/Phases/Phase_14.md) | 2026-09-09 | [الرابعة عشرة](https://claude.ai/code/artifact/c3f1aff6-2f02-456e-b67e-d7b8bf2d28eb) |
 | 19 | التصدير والأدلة | `Sonnet 5` | لم تبدأ | — | — |
 | 20أ | الإعدادات والخصوصية (شاشات الضبط) | `Opus 5` ⬆️ | لم تبدأ | — | — |
 | — | **⟨ بوّابة MVP ⟩** — [ADR 0013 §4](Docs/ADR/0013-phase-order-amendment.md) | — | وسم إصداري لا محطة توقّف | — | — |

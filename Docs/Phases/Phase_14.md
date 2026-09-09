@@ -241,8 +241,7 @@ tests/unit/**/colour/*.test.ts(x)      ← 14 ملفًّا — كل وحدة و�
   المعرَّفة) · `dd3d71a` (شاشة استخراج اللوحة) · `9788e9f` (`exportScale`) ·
   `9734bc9` (الاستخراج والسلّم موصولان حيًّا، ⌘K) · `a4e0085` (شاشة
   الاستبدال المؤقّت).
-- **الـArtifact:** — يُنشر عقب هذا الملفّ مباشرةً، والرابط يُضاف هنا قبل
-  إتمام الإغلاق (`Rasd_Plan.md §8`: لا تُعدّ المرحلة مغلقة قبله).
+- **الـArtifact:** <https://claude.ai/code/artifact/c3f1aff6-2f02-456e-b67e-d7b8bf2d28eb>
 - **تاريخ الإغلاق:** 2026-09-09
-- ☐ **لوحة المراحل حُدِّثت على الرابط نفسه** — [`Docs/Phases/Dashboard.html`](Dashboard.html)
-  (`Rasd_Plan.md §8` بند 9). تُحدَّث بعد نشر الـArtifact مباشرةً.
+- ☑ **لوحة المراحل حُدِّثت على الرابط نفسه** — [`Docs/Phases/Dashboard.html`](Dashboard.html)
+  (`Rasd_Plan.md §8` بند 9).
