@@ -43,6 +43,8 @@ export type {
   PaletteReadMethod,
   PaletteSwatchView,
 } from './colour/PalettePanel'
+export { ReplacePanel } from './colour/ReplacePanel'
+export type { ReplacePanelProps, ReplaceContrastView } from './colour/ReplacePanel'
 export { InspectPanel, InspectIdle, INSPECT_TABS, TAB_LABELS } from './inspect/InspectPanel'
 export type {
   InspectPanelProps,
