@@ -642,6 +642,102 @@ if (extId && sw && granted) {
         ? ok('جدول العيّنة يعرض 300/500/700/900 بالضبط')
         : fail(`درجات العيّنة ${JSON.stringify(scaleOpened.sampleSteps)} لا 300/500/700/900`)
     }
+
+    /*
+     * ── 8) 5000 عقدة: تحت 2 ثانية، وبلا تجميد ─────────────────────
+     *
+     * معيار قبول صريح في نصّ المرحلة («تكامل: مسح صفحة بـ5000 عقدة لا
+     * يتجاوز 2 ثانية ولا يجمّد الصفحة، يُقاس بالإطارات الطويلة») لم يكن
+     * له أي أثر — لا اختبار وحدة يقيس زمنًا، ولا فحص حيّ. `happy-dom` لا
+     * يصلح شاهدًا هنا أصلًا (سابقة `Phase_18.md`: تخطيطه لا يعكس زمن إطار
+     * حقيقي)، فالقياس يقع في كروم حقيقي وحده.
+     *
+     * **«لا يجمّد» تُقاس بنبض `requestAnimationFrame` لا بالزمن الكلّي
+     * وحده.** زمنٌ إجماليّ قصير قد يخفي جمودًا واحدًا طويلًا وسط عمل سريع
+     * حوله؛ فيُسجَّل الفارق بين كل إطارين متتاليين طوال نافذة المسح، وأكبر
+     * فارق هو الدليل على وجود (أو غياب) جمود فعلي — لا مجرّد استدلال من
+     * المجموع.
+     */
+    await inPage(
+      tabId,
+      `() => {
+        const box = document.createElement('div')
+        box.id = 'rasd-perf-5000'
+        box.style.cssText = 'position:fixed;inset-inline-start:-99999px;inset-block-start:0'
+        const palette = ['#2b7fff', '#e7000b', '#00c950', '#f0f0f0', '#0f172b']
+        for (let i = 0; i < 5000; i++) {
+          const el = document.createElement('span')
+          // كل عنصر خامس يحمل اللون الهدف فعليًّا — مطابقات حقيقية لا صفرية.
+          el.style.color = palette[i % 5]
+          box.appendChild(el)
+        }
+        document.body.appendChild(box)
+        window.__rasdRafGaps = []
+        window.__rasdRafStart = performance.now()
+        let last = window.__rasdRafStart
+        const tick = () => {
+          const now = performance.now()
+          window.__rasdRafGaps.push(now - last)
+          last = now
+          if (now - window.__rasdRafStart < 3500) requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+        return true
+      }`,
+    )
+
+    const scanTiming = await inOverlay(
+      tabId,
+      `() => new Promise((resolve) => {
+        const tool = globalThis.__rasdPalette.colourUsage
+        const started = Date.now()
+        tool.scan({ rgb: { r: 43, g: 127, b: 255 }, alpha: 1, inSrgb: true, source: 'css' })
+        const wait = () => {
+          if (tool.state.scanning.value) return void setTimeout(wait, 10)
+          resolve({ elapsedMs: Date.now() - started, hits: tool.state.hits.value.length })
+        }
+        setTimeout(wait, 10)
+      })`,
+    )
+
+    await new Promise((r) => setTimeout(r, 3600)) // نافذة تسجيل الإطارات (3500ms أعلاه) + هامش.
+
+    const rafReport = await inPage(
+      tabId,
+      `() => {
+        const gaps = window.__rasdRafGaps ?? []
+        document.getElementById('rasd-perf-5000')?.remove()
+        delete window.__rasdRafGaps
+        return { maxGap: Math.max(0, ...gaps), frames: gaps.length }
+      }`,
+    )
+
+    if (!scanTiming) {
+      fail('تعذّر قياس مسح 5000 عقدة')
+    } else {
+      // 1000 من العقد الخمسة آلاف المحقونة (كل خامس عنصر) + مطابقات العيّنة
+      // القائمة أصلًا على الصفحة (`#var-bg`/`span.tw-blue` من القسم 1 أعلاه)
+      // — لا سببًا لعزلهما هنا، فالمسح يرى الصفحة كلّها كما تصلها فعليًّا.
+      scanTiming.hits >= 1000
+        ? ok(
+            `المسح وجد ${scanTiming.hits} مطابقًا (١٠٠٠ من العقد المحقونة + مطابقات الصفحة القائمة)`,
+          )
+        : fail(`عدد المطابقات ${scanTiming.hits} دون 1000 المتوقَّعة من العقد المحقونة وحدها`)
+      scanTiming.elapsedMs < 2000
+        ? ok(`مسح 5000 عقدة اكتمل في ${scanTiming.elapsedMs}ms — دون سقف 2000ms`)
+        : fail(`مسح 5000 عقدة استغرق ${scanTiming.elapsedMs}ms — تجاوز سقف 2000ms`)
+      if (rafReport && rafReport.frames > 0) {
+        // إطار عرض واحد ≈ 16.7ms؛ سقفٌ سخيّ (250ms) يفصل جمودًا حقيقيًّا عن
+        // تذبذب عادي في بيئة CI، بلا تصديق زائف لعتبة 16.7ms المثالية.
+        rafReport.maxGap < 250
+          ? ok(
+              `أكبر فارق بين إطارين متتاليين ${rafReport.maxGap.toFixed(1)}ms — لا تجميد (${rafReport.frames} إطارًا رُصدت)`,
+            )
+          : fail(`فارقٌ ${rafReport.maxGap.toFixed(1)}ms بين إطارين — الصفحة تجمّدت أثناء المسح`)
+      } else {
+        fail('تعذّر رصد إطارات العرض أثناء المسح')
+      }
+    }
   }
 }
 
