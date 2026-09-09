@@ -12,6 +12,7 @@
 import { computed, signal } from '@preact/signals'
 
 import { captureKindFor, type CaptureSource } from '@/modules/capture/kind'
+import { exportPalette, exportScale } from '@/modules/colour/export'
 import { revertAll } from '@/modules/colour/replace'
 import { classifyViewport, VIEWPORT_ORDER } from '@/modules/compare/viewport'
 import { toCss, toJson, toTailwindText } from '@/modules/style-export/css'
@@ -32,6 +33,8 @@ import { startPersistence, type Persistence } from './persistence'
 import { installShortcuts, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
+import { createColourPalette } from './tools/colour-palette'
+import { createColourScale } from './tools/colour-scale'
 import { createColourUsage, type ColourUsageTool } from './tools/colour-usage'
 import { createCompare, type CompareTool, type ReferenceImage } from './tools/compare'
 import { createElementHover, type ElementHoverTool } from './tools/element-hover'
@@ -368,6 +371,27 @@ async function bootOverlay(
   const colourUsage = createColourUsage({
     doc,
     skip: host.hostEl,
+    onInvalidate: () => sync.invalidate('pointer'),
+  })
+
+  /**
+   * أداة «لوحة الصفحة» — `colors / palette-extract` (المرحلة 14).
+   *
+   * `skip` يستبعد مضيف طبقتنا من جمع الألوان المصرَّحة — نفس حارس
+   * `colourUsage` المجاورة، لنفس السبب: فلا نُصنَّف نحن ألوانًا للصفحة.
+   */
+  const colourPalette = createColourPalette({
+    doc,
+    skip: host.hostEl,
+    onInvalidate: () => sync.invalidate('pointer'),
+  })
+
+  /**
+   * أداة «توليد الدرجات» — `colors / scale` (المرحلة 14).
+   *
+   * حسابٌ محض بلا DOM — انظر ترويسة `colour-scale.ts`.
+   */
+  const colourScale = createColourScale({
     onInvalidate: () => sync.invalidate('pointer'),
   })
 
@@ -767,6 +791,8 @@ async function bootOverlay(
     colour,
     compare,
     colourUsage,
+    colourPalette,
+    colourScale,
     /**
      * «أظهر العناصر التي تستخدمه» (`§6.10`).
      *
@@ -776,6 +802,31 @@ async function bootOverlay(
     onScanColourUsage: () => {
       const pinned = colour.state.pinned.peek()
       if (pinned) colourUsage.scan(pinned.reading)
+    },
+    /**
+     * «توليد الدرجات» (`§6.12`) — على اللون المثبَّت، نفس علّة
+     * `onScanColourUsage` أعلاه حرفيًّا.
+     */
+    onGenerateScale: () => {
+      const pinned = colour.state.pinned.peek()
+      if (pinned) colourScale.open(pinned.reading)
+    },
+    /**
+     * تصدير اللوحة/السلّم — نسخٌ إلى الحافظة، على نمط `onCopyColour` أدناه.
+     * لا تنزيل ملفّ: `§6.14` تصف صيغًا **تُلصَق**، ومسار التنزيل الصريح
+     * («downloads اختيارية بتدفّق طلب صريح») معيار إتمام المرحلة 19 لا 14.
+     */
+    onExportPalette: (format) => {
+      const text = exportPalette(colourPalette.state.swatches.peek(), format)
+      void navigator.clipboard?.writeText(text).catch(() => {
+        console.warn('[رصد] تعذّر نسخ تصدير اللوحة إلى الحافظة.')
+      })
+    },
+    onExportScale: (format) => {
+      const text = exportScale(colourScale.state.stops.peek(), format)
+      void navigator.clipboard?.writeText(text).catch(() => {
+        console.warn('[رصد] تعذّر نسخ تصدير السلّم إلى الحافظة.')
+      })
     },
     onCopyInspect: (kind) => copyInspect(inspect, kind),
     onCopyColour: (value: string) => {
@@ -882,6 +933,11 @@ async function bootOverlay(
       // مغادرة وضع اللون تُنهي الاستبدال المؤقّت: أثرٌ يبقى بعد أداته
       // يترك صفحة المستخدم مطليّة بلا سبيل إلى فهم لماذا.
       colourUsage.reset()
+      // وتُغلق شاشتَي الاستخراج والسلّم إن كانتا مفتوحتين — الرصيف يعود
+      // إلى حالته الافتراضية عند العودة إلى وضع اللون، نفس سلوك `colour`
+      // و`colourUsage` أعلاه.
+      colourPalette.close()
+      colourScale.close()
     }
     if (mode !== 'compare') {
       // يُبطل أي تحميل/تعيين مرجع معلَّق — انظر تعليق `referenceEpoch` أعلاه.
@@ -994,6 +1050,17 @@ async function bootOverlay(
             modes.escape()
           }
           break
+        /*
+         * **`⌘K`/`Ctrl+K` تفتح لوحة الاستخراج — المعالج الذي كانت الخريطة
+         * تنتظره.** كان `swallow: false` بحجّة «لا معالج لـ`palette` في أي
+         * مسار إنتاجي» (`shortcuts.ts`)، والآن يوجد: يُفعِّل وضع اللون إن
+         * لم يكن نشطًا، ثمّ يفتح `colourPalette` — «العودة يوم تُبنى اللوحة
+         * فعليًّا» كما وعد التعليق هناك.
+         */
+        case 'palette':
+          modes.set('colour')
+          colourPalette.open()
+          break
         default:
           options.onAction?.(action)
       }
@@ -1028,6 +1095,8 @@ async function bootOverlay(
     // وحده، وحجمها بحجم النافذة كاملةً بأربعة بايتات للبكسل.
     colour.dispose()
     colourUsage.dispose()
+    colourPalette.dispose()
+    colourScale.dispose()
     /*
      * **حارسٌ نهائي فوق `colourUsage.dispose()` لا بديلٌ عنه.**
      *
@@ -1078,6 +1147,9 @@ async function bootOverlay(
      * وحدةً» — وهي بالضبط الحالة التي بُني هذا السلك لإنهائها.
      */
     colourUsage,
+    /** أداتا المرحلة 14 الأخريان — نفس علّة `colourUsage` أعلاه حرفيًّا. */
+    colourPalette,
+    colourScale,
     compare,
     lastCapture: () => lastCapture,
     teardown,

@@ -233,6 +233,43 @@ async function inPage(tabId, fnSource) {
   return inSW(expr)
 }
 
+const pageRect = (tabId, selector) =>
+  inPage(
+    tabId,
+    `() => {
+      const el = document.querySelector(${JSON.stringify(selector)})
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return { x: r.x, y: r.y, w: r.width, h: r.height }
+    }`,
+  )
+
+const centreOf = (r) => ({ x: Math.round(r.x + r.w / 2), y: Math.round(r.y + r.h / 2) })
+
+/** `modifiers`: قناع بتّات CDP — Alt=1، Ctrl=2، Meta=4، Shift=8. */
+async function moveTo(pageSession, x, y, modifiers = 0) {
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseMoved', x, y, pointerType: 'mouse', modifiers },
+    pageSession,
+  )
+  await settle(pageSession)
+}
+
+async function clickAt(pageSession, x, y) {
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x, y, button: 'left', clickCount: 1, pointerType: 'mouse' },
+    pageSession,
+  )
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, pointerType: 'mouse' },
+    pageSession,
+  )
+  await settle(pageSession)
+}
+
 async function injectOverlay(tabId) {
   return inSW(`chrome.scripting.executeScript({
     target: { tabId: ${tabId}, allFrames: true },
@@ -284,6 +321,26 @@ async function settle(pageSession) {
     },
     pageSession,
   )
+}
+
+/**
+ * ضغطة مفتاح حقيقية على مستند الصفحة — لا محاكاة برمجية.
+ *
+ * `code` هو ما تطابقه `shortcuts.ts` (`event.code` لا `event.key`)، و`4`
+ * قناع CDP لـ`Meta` (⌘ على macOS) — نفس القناع المستعمل في `verify-editor.mjs`.
+ */
+async function keyPress(pageSession, key, code, vkCode, modifiers = 0) {
+  await send(
+    'Input.dispatchKeyEvent',
+    { type: 'keyDown', key, code, windowsVirtualKeyCode: vkCode, modifiers },
+    pageSession,
+  )
+  await send(
+    'Input.dispatchKeyEvent',
+    { type: 'keyUp', key, code, windowsVirtualKeyCode: vkCode, modifiers },
+    pageSession,
+  )
+  await settle(pageSession)
 }
 
 // ── الجولة ──────────────────────────────────────────────────────
@@ -454,6 +511,136 @@ if (extId && sw && granted) {
       marks.elementStyle === null
         ? ok('ولم يُلمَس نمط العنصر نفسه — الإبراز عرضٌ لا تعديل')
         : fail(`الإبراز عدّل نمط العنصر: ${marks.elementStyle}`)
+    }
+
+    /*
+     * ── 5) `⌘K` يفتح لوحة الاستخراج من بكسلات الصفحة الحقيقية ─────
+     *
+     * **ضغطة مفتاح حقيقية على الصفحة**، لا نداء برمجيّ على الأداة —
+     * هذا ما يُثبت أن السلك من `shortcuts.ts` إلى `colourPalette.open()`
+     * موصولٌ فعلًا: الحقن يلتقط الحدث في مرحلة `capture` (`shortcuts.ts`)،
+     * فالإرسال إلى مستند الصفحة (`pageSession`) يمرّ من نفس المسار الذي
+     * يراه مستخدم حقيقي، لا مسارًا مختصرًا عبر `chrome.scripting`.
+     *
+     * والوضع `idle` قبل الضغطة عمدًا: يثبت أن `⌘K` تُفعِّل وضع اللون من
+     * الصفر، لا أنها تفترضه نشطًا أصلًا.
+     */
+    await setMode(tabId, 'idle')
+    await keyPress(pageSession, 'k', 'KeyK', 75, 4) // 4 = Meta (CDP)، ⌘ على macOS
+
+    const paletteOpened = await inOverlay(
+      tabId,
+      `() => new Promise((resolve) => {
+        const g = globalThis.__rasdPalette
+        const wait = () => {
+          if (!g.colourPalette.state.open.value) return void setTimeout(wait, 50)
+          if (g.colourPalette.state.extracting.value) return void setTimeout(wait, 50)
+          resolve({
+            mode: g.modes.mode.value,
+            open: g.colourPalette.state.open.value,
+            swatches: g.colourPalette.state.swatches.value.map((s) => s.hex),
+            domPresent: !!g.host.layer.querySelector('[data-rasd-ov="palette-panel"]'),
+          })
+        }
+        setTimeout(wait, 50)
+      })`,
+    )
+    if (!paletteOpened) {
+      fail('⌘K لم يفتح لوحة الاستخراج خلال المهلة')
+    } else {
+      paletteOpened.mode === 'colour'
+        ? ok('⌘K فعَّلت وضع اللون من idle')
+        : fail(`⌘K لم تُفعِّل وضع اللون — الوضع الحالي: ${paletteOpened.mode}`)
+      paletteOpened.open && paletteOpened.domPresent
+        ? ok('لوحة الاستخراج مفتوحة ومرسومة في DOM فعلًا')
+        : fail(`اللوحة لم تُفتح أو لم تُرسَم: ${JSON.stringify(paletteOpened)}`)
+      paletteOpened.swatches.length > 0
+        ? ok(
+            `استخرجت ${paletteOpened.swatches.length} لونًا من بكسلات الصفحة الحقيقية: ${paletteOpened.swatches.slice(0, 3).join(', ')}`,
+          )
+        : fail('لا ألوان مستخرَجة — استخراجٌ من الظاهر عند فتح اللوحة فشل')
+    }
+
+    /*
+     * ── 6) «افصل ألوان الواجهة عن الصور» يصنّف حيًّا — نقرة حقيقية ────
+     *
+     * `#var-bg` يصرّح `background-color: var(--brand)`؛ فبعد الاستخراج
+     * أعلاه يجب أن يظهر لونٌ مصنَّف `خلفية` بمجرّد تفعيل المفتاح، بلا
+     * إعادة استخراج (نفس ما يحرسه اختبار الوحدة، لكن بنقرة DOM حقيقية
+     * لا استدعاء برمجي مباشر على الأداة).
+     */
+    const classified = await inOverlay(
+      tabId,
+      `() => new Promise((resolve) => {
+        const panel = document.querySelector('[data-rasd-ov="palette-panel"]') ??
+          globalThis.__rasdPalette.host.layer.querySelector('[data-rasd-ov="palette-panel"]')
+        const toggle = panel.querySelectorAll('.rasd-ov-pal-toggle-input')[1]
+        toggle.click()
+        setTimeout(() => {
+          const g = globalThis.__rasdPalette
+          resolve({
+            sources: g.colourPalette.state.swatches.value.map((s) => s.source),
+          })
+        }, 150)
+      })`,
+    )
+    if (!classified) {
+      fail('تعذّر تفعيل «افصل ألوان الواجهة عن الصور»')
+    } else {
+      classified.sources.includes('background')
+        ? ok(`التصنيف الحيّ عمل بنقرة حقيقية: ${JSON.stringify(classified.sources)}`)
+        : fail(`لا لون صُنِّف «خلفية» رغم تصريح حقيقي: ${JSON.stringify(classified.sources)}`)
+    }
+
+    await inOverlay(tabId, `() => { globalThis.__rasdPalette.colourPalette.close(); return true }`)
+
+    /*
+     * ── 7) «توليد الدرجات» من لونٍ مثبَّت حقيقي ─────────────────────
+     *
+     * يقطف لونًا فعليًّا بالقطّارة — نقرة مؤشِّر حقيقية على `#solid`
+     * (نفس مسار الالتقاط في `verify-colour.mjs`)، لا كائنًا مصطنَعًا
+     * يُمرَّر مباشرةً للأداة: `PinnedColour`/`ColourReading` عقدان
+     * داخليان (`oklch`، `pixelReading`، …) لا يجوز تخمين حقولهما.
+     */
+    await setMode(tabId, 'colour')
+    const solidRect = await pageRect(tabId, '#solid')
+    const solidPoint = centreOf(solidRect)
+    await moveTo(pageSession, solidPoint.x, solidPoint.y)
+    await clickAt(pageSession, solidPoint.x, solidPoint.y)
+
+    const scaleOpened = await inOverlay(
+      tabId,
+      `() => new Promise((resolve) => {
+        const g = globalThis.__rasdPalette
+        const pinned = g.colour.state.pinned.value
+        if (!pinned) return resolve({ error: 'لا لون مثبَّت بعد النقر' })
+        g.colourScale.open(pinned.reading)
+        // إشارة تتغيّر لا تعني رسمًا فوريًّا — رسمة Preact تنتظر الإطار
+        // التالي، فيُنتظَر تكرارَين منه (نفس نمط \`settle\` أعلاه لكن داخل
+        // سياق الإضافة لا الصفحة المضيفة).
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          resolve({
+            pinnedHex: pinned.formats.hex,
+            open: g.colourScale.state.open.value,
+            stopsCount: g.colourScale.state.stops.value.length,
+            domPresent: !!g.host.layer.querySelector('[data-rasd-ov="scale-panel"]'),
+            sampleSteps: g.colourScale.sampleRows().map((r) => r.step),
+          })
+        }))
+      })`,
+    )
+    if (!scaleOpened) {
+      fail('تعذّر فتح لوحة توليد الدرجات')
+    } else {
+      scaleOpened.open && scaleOpened.domPresent
+        ? ok('لوحة السلّم مفتوحة ومرسومة في DOM فعلًا')
+        : fail(`السلّم لم يُفتح أو لم يُرسَم: ${JSON.stringify(scaleOpened)}`)
+      scaleOpened.stopsCount === 11
+        ? ok('السلّم المحسوب 11 درجة بالضبط')
+        : fail(`عدد الدرجات ${scaleOpened.stopsCount} بدل 11`)
+      JSON.stringify(scaleOpened.sampleSteps) === JSON.stringify([300, 500, 700, 900])
+        ? ok('جدول العيّنة يعرض 300/500/700/900 بالضبط')
+        : fail(`درجات العيّنة ${JSON.stringify(scaleOpened.sampleSteps)} لا 300/500/700/900`)
     }
   }
 }

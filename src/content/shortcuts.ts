@@ -66,21 +66,15 @@ export const BINDINGS: readonly Binding[] = [
     swallow: true,
   },
   /*
-   * `⌘K`/`Ctrl+K` لوحة الأوامر — **لا تُبتلع حتى يوجد لها معالج**.
-   *
-   * كانت `swallow: true` بحجّة أنها «إن وصلت الصفحة فتحت بحثها» — والحجّة
-   * صحيحة لو كنّا نفتح لوحتنا بدلًا منه. لكن لا معالج لـ`palette` في أي
-   * مسار إنتاجي (المستدعي الوحيد لـ`startOverlay` لا يمرّر `onAction`)،
-   * فكان الابتلاع يسرق اختصارًا شائعًا (GitHub · Slack · Notion) **بلا
-   * مقابل**، ويبقى مسروقًا ما بقيت الجلسة — حتى في وضع `idle` بعد `Esc`،
-   * لأن `installShortcuts` لا يُفكَّك إلا بتفكيك الجلسة كلّها.
-   *
-   * والقاعدة مكتوبة في هذا الملفّ نفسه لـ`Esc` والأسهم: «الصفحة قد
-   * تستعملها أيضًا، وابتلاعها دائمًا يكسر تنقّلها». تنطبق هنا من باب أولى.
-   * يعود الابتلاع يوم تُبنى اللوحة فعلًا.
+   * `⌘K`/`Ctrl+K` يفتح لوحة استخراج الصفحة (`colors / palette-extract`) —
+   * **الابتلاع عاد الآن**، فقد بُني المعالج (المرحلة 14): `bootOverlay`
+   * يفعّل وضع اللون ويفتح `colourPalette` عند `kind: 'palette'`. قبل ذلك
+   * كانت `swallow: false` عمدًا — لا معالج، فابتلاعها كان يسرق اختصارًا
+   * شائعًا (GitHub · Slack · Notion) **بلا مقابل**. الآن ثمّة مقابل حقيقي،
+   * فتُبتلع كبقيّة اختصارات الأوضاع أعلاه.
    */
-  { code: 'KeyK', meta: true, action: { kind: 'palette' }, swallow: false },
-  { code: 'KeyK', ctrl: true, action: { kind: 'palette' }, swallow: false },
+  { code: 'KeyK', meta: true, action: { kind: 'palette' }, swallow: true },
+  { code: 'KeyK', ctrl: true, action: { kind: 'palette' }, swallow: true },
   // `Esc` يُبتلع **فقط** حين نكون في وضع نشط — يُحسم وقت التشغيل لا هنا.
   { code: 'Escape', action: { kind: 'escape' }, swallow: false },
   { code: 'ArrowUp', action: { kind: 'step', delta: 1 }, swallow: false },

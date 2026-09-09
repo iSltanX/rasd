@@ -121,6 +121,14 @@ export interface ColourPanelProps {
   onHighlightAll?: () => void
   /** `§6.11` — زرّ «جرّب بديلًا». غيابه يُخفي الزرّ. */
   onReplace?: () => void
+  /**
+   * `§6.12` — «توليد الدرجات» على اللون المثبَّت الحالي، بجوار «جرّب
+   * بديلًا» تمامًا. لا مرجع بصري في `65:55` لهذا الزرّ بعينه (الإطار يسبق
+   * بناء `colors / scale`)، فموضعه واسمه واختياره لأيقونة `gradient` —
+   * نفس أيقونة رأس `ScalePanel.tsx` نفسها — قرارٌ هنا لا نقلٌ عن مرجع.
+   * غيابه يُخفي الزرّ.
+   */
+  onGenerateScale?: () => void
 }
 
 export function ColourPanel({
@@ -139,6 +147,7 @@ export function ColourPanel({
   onCancelScan,
   onHighlightAll,
   onReplace,
+  onGenerateScale,
 }: ColourPanelProps): JSX.Element {
   return (
     <section class="rasd-ov-cp" data-rasd-ov="colour-panel" aria-label="اللون">
@@ -313,29 +322,36 @@ export function ColourPanel({
       ) : null}
 
       {/*
-       * **«جرّب بديلًا» هو البارز و«حفظ» ثانوي** — كما يرسمهما `65:55`
-       * حرفيًّا. وترتيبهما في DOM يضع البارز أوّلًا فيقع يمينًا في RTL،
-       * مطابقًا للإطار. وحيث لا استبدال يبقى «حفظ» وحده فيَرِث البروز:
-       * زرٌّ وحيد ثانويّ المظهر يقرأ معطَّلًا.
+       * **«جرّب بديلًا» هو البارز حين يوجد — كما يرسمه `65:55` حرفيًّا.**
+       * وترتيب الأزرار في DOM يضع البارز أوّلًا فيقع يمينًا في RTL، مطابقًا
+       * للإطار. وحيث لا استبدال يبقى «حفظ» فيَرِث البروز — زرٌّ وحيد
+       * ثانويّ المظهر يقرأ معطَّلًا.
+       *
+       * **«توليد الدرجات» ثانويٌّ دومًا، بلا مرجع بصري يحسم موضعه** — انظر
+       * تعليق `onGenerateScale` في تعريف الأنواع أعلاه. يُدرَج بين البارز
+       * والحفظ حين يوجد.
        */}
       <footer class="rasd-ov-cp-actions">
         {onReplace ? (
-          <>
-            <button type="button" class="rasd-ov-cp-btn rasd-ov-cp-btn-primary" onClick={onReplace}>
-              <span>جرّب بديلًا</span>
-              <Icon name="color-replace" size="sm" />
-            </button>
-            <button type="button" class="rasd-ov-cp-btn" onClick={onSave}>
-              <span>حفظ</span>
-              <Icon name="swatches" size="sm" />
-            </button>
-          </>
-        ) : (
-          <button type="button" class="rasd-ov-cp-btn rasd-ov-cp-btn-primary" onClick={onSave}>
-            <span>حفظ</span>
-            <Icon name="swatches" size="sm" />
+          <button type="button" class="rasd-ov-cp-btn rasd-ov-cp-btn-primary" onClick={onReplace}>
+            <span>جرّب بديلًا</span>
+            <Icon name="color-replace" size="sm" />
           </button>
-        )}
+        ) : null}
+        {onGenerateScale ? (
+          <button type="button" class="rasd-ov-cp-btn" onClick={onGenerateScale}>
+            <span>توليد الدرجات</span>
+            <Icon name="gradient" size="sm" />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          class={onReplace ? 'rasd-ov-cp-btn' : 'rasd-ov-cp-btn rasd-ov-cp-btn-primary'}
+          onClick={onSave}
+        >
+          <span>حفظ</span>
+          <Icon name="swatches" size="sm" />
+        </button>
       </footer>
     </section>
   )

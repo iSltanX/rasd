@@ -171,6 +171,16 @@ export interface PalettePanelProps {
   readonly onExport?: (format: Exclude<PaletteFormat, 'text'>) => void
   readonly onSave?: () => void
   readonly onClose?: () => void
+  /**
+   * سببٌ يمنع الاستخراج حاليًّا لهذا المصدر بعينه — يحلّ محلّ الشبكة، لا
+   * يُضاف فوقها. **وليس هذا مكانًا لأخطاء الشبكة أو المحرّك** (تلك حالتها
+   * `extracting`/شبكة فارغة عادية بعد محاولة حقيقية)، بل لمصدرٍ **يُعرَض
+   * تبويبه ولا مسار كودٍ خلفه بعد** — نفس مبدأ سابقة المرحلة 7 («لا زرّ بلا
+   * محرّك خلفه») مطبَّقًا على تبويب لا زرّ: التبويب يبقى قابلًا للاختيار
+   * (حذفه كان سيخالف §6.1 الذي يسمّي المصادر الأربعة)، ونتيجة اختياره
+   * رسالةٌ صادقة بدل شبكة فارغة تُقرأ «استُخرجت فلم يوجد لون».
+   */
+  readonly unavailable?: string
 }
 
 /** بترتيب DOM المقيس من `122:211`: الظاهر (يمينًا) → عنصر → منطقة → من لقطة (يسارًا). */
@@ -251,6 +261,7 @@ export function PalettePanel({
   onExport,
   onSave,
   onClose,
+  unavailable,
 }: PalettePanelProps): JSX.Element {
   const isCustomCount = !COUNT_PRESETS.includes(count)
 
@@ -376,7 +387,7 @@ export function PalettePanel({
       <div class="rasd-ov-pal-results">
         <div class="rasd-ov-pal-results-head">
           <span class="rasd-ov-pal-results-label">المستخرَج</span>
-          {!extracting ? (
+          {!extracting && !unavailable ? (
             <span class="rasd-ov-pal-results-count">
               {/*
                * هنديّ — عدٌّ بشري (`§3.5` البند 1)، ويصحّح تناقضًا داخل
@@ -387,7 +398,9 @@ export function PalettePanel({
           ) : null}
         </div>
 
-        {extracting ? (
+        {unavailable ? (
+          <p class="rasd-ov-pal-status">{unavailable}</p>
+        ) : extracting ? (
           <p class="rasd-ov-pal-status">جارٍ الاستخراج…</p>
         ) : (
           <div class="rasd-ov-pal-grid">

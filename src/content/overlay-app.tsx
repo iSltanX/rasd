@@ -15,6 +15,7 @@ import { render } from 'preact'
 import { useEffect } from 'preact/hooks'
 
 import { describeRatio, HANDLES, handlePoint } from '@/modules/capture/selection'
+import { formatColour } from '@/modules/colour/formats'
 import { NUDGE_STEP_FAST_PX, NUDGE_STEP_PX } from '@/modules/compare/overlay'
 import { pxToRem } from '@/modules/measure/units'
 import { formatDimensions, formatUnit } from '@/shared/bidi'
@@ -41,6 +42,8 @@ import {
 } from '@/ui/overlay'
 import { AreaSelect, Countdown, type HandleSpot } from '@/ui/overlay/AreaSelect'
 import { ColourIdle, ColourPanel } from '@/ui/overlay/colour/ColourPanel'
+import { PalettePanel } from '@/ui/overlay/colour/PalettePanel'
+import { ScalePanel } from '@/ui/overlay/colour/ScalePanel'
 import { Crosshair } from '@/ui/overlay/Crosshair'
 import { at, box } from '@/ui/overlay/geometry'
 import { Loupe } from '@/ui/overlay/Loupe'
@@ -51,12 +54,15 @@ import { LOUPE_CELLS } from './sampler'
 import { measureRootFontSize } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
+import type { ColourPaletteTool } from './tools/colour-palette'
+import type { ColourScaleTool } from './tools/colour-scale'
 import type { ColourUsageTool } from './tools/colour-usage'
 import type { CompareTool } from './tools/compare'
 import type { ElementHoverTool } from './tools/element-hover'
 import type { EyedropperTool } from './tools/eyedropper'
 import type { InspectTool } from './tools/inspect'
 import type { MeasureTarget, MeasureTool } from './tools/measure'
+import type { PaletteFormat } from '@/modules/colour/export'
 import type { LiveDiff } from '@/shared/messaging/contract'
 import type { Mode } from '@/shared/modes'
 import type { CaptureKind, Viewport } from '@/shared/storage/schema'
@@ -110,8 +116,25 @@ export interface OverlayAppProps {
   /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة اللون. */
   /** أداة المرحلة 14 — اختيارية فلا تنكسر أي تركيبة قائمة بدونها. */
   colourUsage?: ColourUsageTool
+  /** أداة استخراج اللوحة (`colors / palette-extract`). */
+  colourPalette?: ColourPaletteTool
+  /** أداة توليد الدرجات (`colors / scale`). */
+  colourScale?: ColourScaleTool
   onScanColourUsage?: () => void
+  /**
+   * يُطلَب حين يضغط المستخدم «جرّب بديلًا» — **غير مُمرَّرة من `content/index.ts`
+   * بعد**، فالزرّ لا يظهر (نفس حراسة `onGenerateScale`/`usage` الاختيارية).
+   *
+   * `ReplacePanel.tsx` مبنيّ ومُختبَر كاملًا، لكن لا مسار مبنيّ يختار «اللون
+   * البديل» — لا منتقٍ داخل اللوحة، ولا سلك عائد إلى القطّارة. فجوة تفاعل
+   * حقيقية موثَّقة في `Rasd_Plan.md §6` صفّ 92، لا سهوًا في هذا الملفّ.
+   */
   onReplaceColour?: () => void
+  /** يُطلَب حين يضغط المستخدم «توليد الدرجات» على اللون المثبَّت. */
+  onGenerateScale?: () => void
+  /** يُطلَب بصيغة تصدير من `PalettePanel`/`ScalePanel` — الحمولة نفسها. */
+  onExportPalette?: (format: Exclude<PaletteFormat, 'text'>) => void
+  onExportScale?: (format: Exclude<PaletteFormat, 'text'>) => void
   onCopyColour?: (value: string, label: string) => void
   /** يُطلَب حين يحفظ المستخدم لونًا في المكتبة (`§6.15`). */
   onSaveColour?: () => void
@@ -553,20 +576,32 @@ function MeasureLayer({
 function ColourLayer({
   colour,
   usage,
+  palette,
+  scale,
   space,
   onCopy,
   onSave,
   onScanUsage,
   onReplace,
+  onGenerateScale,
+  onExportPalette,
+  onExportScale,
 }: {
   colour: EyedropperTool
   /** أداة المرحلة 14 — غيابها يُخفي كتلة الاستخدام وزرّ الاستبدال. */
   usage?: ColourUsageTool
+  /** أداة استخراج اللوحة — غيابها يعني عدم دعم شاشة `palette-extract` هنا. */
+  palette?: ColourPaletteTool
+  /** أداة توليد الدرجات — غيابها يُخفي زرّ «توليد الدرجات». */
+  scale?: ColourScaleTool
   space: Signal<CoordSpace>
   onCopy?: (value: string, label: string) => void
   onSave?: () => void
   onScanUsage?: () => void
   onReplace?: () => void
+  onGenerateScale?: () => void
+  onExportPalette?: (format: Exclude<PaletteFormat, 'text'>) => void
+  onExportScale?: (format: Exclude<PaletteFormat, 'text'>) => void
 }) {
   const live = colour.state.live.value
   const pinned = colour.state.pinned.value
@@ -591,6 +626,9 @@ function ColourLayer({
 
   const shown = pinned ?? null
   const hex = shown ? shown.formats.hex : live?.pixel ? hexOfPixel(live.pixel) : null
+
+  const paletteOpen = palette?.state.open.value ?? false
+  const scaleOpen = scale?.state.open.value ?? false
 
   return (
     <>
@@ -628,7 +666,48 @@ function ColourLayer({
         style={at({ x: PANEL_INSET, y: COLOUR_PANEL_TOP })}
         data-rasd-ov="colour-dock"
       >
-        {shown ? (
+        {/*
+         * **الثلاث شاشاتٌ بديلة لا كتلٌ إضافية — تشغل الرصيف نفسه.**
+         * `palette-extract`/`scale` إطاراهما في Figma مستقلّان تمامًا عن
+         * `sampling`/`idle` (`122:157`/`125:355` بلا مسرَح Mock Page في
+         * الثانية، بخلاف الأولى) — نفس بنية `mode` في `overlay-app.tsx`:
+         * فرعٌ واحد يُرسَم، لا تراكب. والترتيب أدناه أولويّة عرض لا حالات
+         * متزامنة مستحيلة: فتح اللوحة يُغلق السلّم ضمنيًّا (`open()` في كل
+         * أداة تكتب إشارتها هي وحدها)، فتزامنهما غير ممكن أصلًا.
+         */}
+        {paletteOpen && palette ? (
+          <PalettePanel
+            source={palette.state.source.value}
+            onSourceChange={(s) => palette.setSource(s)}
+            count={palette.state.count.value}
+            onCountChange={(c) => palette.setCount(c)}
+            readMethod={palette.state.readMethod.value}
+            onReadMethodChange={(m) => palette.setReadMethod(m)}
+            hideNeutrals={palette.state.hideNeutrals.value}
+            onHideNeutralsChange={(v) => palette.setHideNeutrals(v)}
+            separateSources={palette.state.separateSources.value}
+            onSeparateSourcesChange={(v) => palette.setSeparateSources(v)}
+            swatches={palette.state.swatches.value}
+            extracting={palette.state.extracting.value}
+            droppedNeutrals={palette.state.droppedNeutrals.value}
+            {...(palette.state.unavailable.value
+              ? { unavailable: palette.state.unavailable.value }
+              : {})}
+            {...(onExportPalette ? { onExport: onExportPalette } : {})}
+            onClose={() => palette.close()}
+          />
+        ) : scaleOpen && scale ? (
+          <ScalePanel
+            baseHex={scale.state.base.value?.rgb ? formatColour(scale.state.base.value).hex : ''}
+            baseSwatch={scale.state.base.value ? formatColour(scale.state.base.value).css : ''}
+            steps={scale.state.steps.value}
+            stops={scale.stripStops()}
+            sample={scale.sampleRows()}
+            onStepsChange={(n) => scale.setSteps(n)}
+            {...(onExportScale ? { onExport: onExportScale } : {})}
+            onClose={() => scale.close()}
+          />
+        ) : shown ? (
           <ColourPanel
             hex={shown.formats.hex}
             swatch={shown.formats.css}
@@ -648,6 +727,7 @@ function ColourLayer({
             {...(usage ? { onCancelScan: () => usage.cancel() } : {})}
             {...(usage ? { onHighlightAll: () => usage.highlightAll() } : {})}
             {...(onReplace ? { onReplace } : {})}
+            {...(onGenerateScale ? { onGenerateScale } : {})}
             onClose={() => colour.clear()}
           />
         ) : (
@@ -971,10 +1051,15 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           colour={props.colour}
           space={props.space}
           {...(props.colourUsage ? { usage: props.colourUsage } : {})}
+          {...(props.colourPalette ? { palette: props.colourPalette } : {})}
+          {...(props.colourScale ? { scale: props.colourScale } : {})}
           {...(props.onCopyColour ? { onCopy: props.onCopyColour } : {})}
           {...(props.onSaveColour ? { onSave: props.onSaveColour } : {})}
           {...(props.onScanColourUsage ? { onScanUsage: props.onScanColourUsage } : {})}
           {...(props.onReplaceColour ? { onReplace: props.onReplaceColour } : {})}
+          {...(props.onGenerateScale ? { onGenerateScale: props.onGenerateScale } : {})}
+          {...(props.onExportPalette ? { onExportPalette: props.onExportPalette } : {})}
+          {...(props.onExportScale ? { onExportScale: props.onExportScale } : {})}
         />
         {job}
       </>
