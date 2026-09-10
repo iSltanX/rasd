@@ -316,6 +316,47 @@ const rectNear = (a, b, tol = 2) =>
   near(a.w, b.w, tol) &&
   near(a.h, b.h, tol)
 
+/**
+ * نقطة تسليح داخل شبكة `#stress` الكثيفة (700..1000, 40..~310) — لا داخل
+ * `<body>`/`<html>`: كلاهما بلا ارتفاع في هذه العيّنة (كل الأبناء الأخرى
+ * `position: absolute` أو `display: contents`)، فلا يظهران في كومة
+ * `elementsFromPoint` أصلًا، وأيّ نقطة «فارغة» تستقرّ على مضيفنا نفسه —
+ * المُستبعَد بالهُويّة — فتعطي `null` دومًا لا لعلّة في التسليح. عنصر
+ * `<i>` 4×4 حقيقي هنا يثبت وصول الحدث بمعزل عن هذا الفخّ، وبعيدًا عن كل
+ * إحداثية تستعملها التأكيدات التالية.
+ */
+const NEUTRAL_POINT = { x: 710, y: 45 }
+
+/**
+ * يُسلِّح اتصال المؤشِّر بالطبقة فور تفعيل الوضع.
+ *
+ * سباق مثبَت لا مخمَّن: `setInteractive` يكتب `pointer-events: auto`
+ * تزامنيًّا، لكن اختبار الإصابة الذي يقرّر أين يستقرّ `Input.dispatchMouseEvent`
+ * يعتمد على شجرة رسمٍ لم تُحدَّث بعدُ — فأوّل حدث بعد `setMode` قد يستقرّ
+ * على مضيف الطبقة ولا ينزل إلى مستمعات جذر الظلّ المغلق. إطارا `moveTo`
+ * وحدهما لا يضمنان هذا: هما ضمانة **رسمة لاحقة**، لا **اختبار إصابة سابق**.
+ * مُثبَت بإرسال حركة إلى نفس الإحداثي مرّتين: الأولى لا تصل والثانية تصل،
+ * بلا تغيّر في المنتَج بينهما.
+ *
+ * التسليح: حركة إلى نقطة تسليح فيها عنصر `<i>` حقيقي (`#stress`)، ثم إثبات
+ * أن الطبقة رسمت إبرازًا فعلًا — يعني أن `pickAt` نُفِّذ داخل جذر الظلّ لا
+ * أنه بقي معلَّقًا على المضيف. بلا هذا الإثبات نسقط بصوت عالٍ عوض إكمال
+ * فحص لا معنى له فوق طبقة لم تستلم الحدث بعد — وهذا مقصود، لا عطل في
+ * التسليح: السباق نفسه متقطّع، فقد يقع هنا كما قد يقع على أي حدث أوّل.
+ * ممنوع هنا: `setTimeout` أعمى، أو رفع `tol` في `rectNear`، أو إعادة
+ * محاولة حول هذا التأكيد — كلّها تُخفي السباق بدل إثباته.
+ */
+async function armPointer(tabId, pageSession) {
+  await moveTo(pageSession, NEUTRAL_POINT.x, NEUTRAL_POINT.y)
+  const ov = await readOverlay(tabId)
+  if (!ov.drawn) {
+    throw new Error(
+      `armPointer: الطبقة لم تستلم حدث المؤشِّر بعد setMode — لا إبراز عند ` +
+        `(${NEUTRAL_POINT.x},${NEUTRAL_POINT.y}) رغم الحركة.`,
+    )
+  }
+}
+
 // ── الجولة ──────────────────────────────────────────────────────
 if (extId && sw && granted) {
   const tabId = await openTab('/picker/')
@@ -330,161 +371,173 @@ if (extId && sw && granted) {
     const pageSession = await attachToPage('/picker/')
     if (!pageSession) fail('تعذّر الاتصال بهدف الصفحة — لا يمكن إرسال أحداث مؤشِّر.')
     else {
-      const nodes = await inPage(tabId, `() => document.getElementsByTagName('*').length`)
-      note(`الصفحة: ${nodes} عقدة`)
-
-      // ── 1) هدف عادي: الإبراز يطابق العنصر ─────────────────────
-      await moveTo(pageSession, 140, 70)
-      let ov = await readOverlay(tabId)
-      let want = await pageRect(tabId, '#plain')
-      if (rectNear(ov.rect, want)) ok(`الإبراز يطابق العنصر العادي (${want.w}×${want.h})`)
-      else
-        fail(`الإبراز لا يطابق: رُسم ${JSON.stringify(ov.rect)} والمتوقَّع ${JSON.stringify(want)}`)
-
-      if (ov.actions === 2) ok('رقاقتان فقط — لا وعد بما لا محرّك له')
-      else fail(`عدد الإجراءات ${ov.actions} والمتوقَّع 2`)
-
-      // ── 2) التحويلات ──────────────────────────────────────────
-      await moveTo(pageSession, 140, 190)
-      ov = await readOverlay(tabId)
-      want = await pageRect(tabId, '#scaled')
-      if (rectNear(ov.rect, want)) ok(`الحدود تعكس scale(2) — ${want.w}×${want.h}`)
-      else fail(`scale: رُسم ${JSON.stringify(ov.rect)} والمتوقَّع ${JSON.stringify(want)}`)
-
-      await moveTo(pageSession, 390, 165)
-      ov = await readOverlay(tabId)
-      want = await pageRect(tabId, '#rotated')
-      if (rectNear(ov.rect, want)) ok(`الحدود تعكس rotate(45°) — صندوق محيط ${want.w}×${want.h}`)
-      else fail(`rotate: رُسم ${JSON.stringify(ov.rect)} والمتوقَّع ${JSON.stringify(want)}`)
-
-      // ── 3) القصّ: الفجوة المُعلَنة ─────────────────────────────
-      await moveTo(pageSession, 200, 350)
-      ov = await readOverlay(tabId)
-      want = await pageRect(tabId, '#clipped')
-      if (rectNear(ov.rect, want)) {
-        note(
-          `القصّ لا يُختصَر: الإبراز ${ov.rect.w}px بينما المرئي ~100px — حدّ مُعلَن (المرحلة 12)`,
-        )
-      } else {
-        note(`القصّ: رُسم ${JSON.stringify(ov.rect)}`)
+      let armed = true
+      try {
+        await armPointer(tabId, pageSession)
+      } catch (e) {
+        armed = false
+        fail(e.message)
       }
 
-      // ── 4) اختراق الظلّ المتعشّش ───────────────────────────────
-      await moveTo(pageSession, 100, 460)
-      ov = await readOverlay(tabId)
-      if (ov.label && ov.label.includes('leaf')) ok(`اخترق ظلّين متعشّشين — البطاقة: ${ov.label}`)
-      else fail(`الظلّ: البطاقة ${JSON.stringify(ov.label)} ولا تذكر الورقة`)
+      if (armed) {
+        const nodes = await inPage(tabId, `() => document.getElementsByTagName('*').length`)
+        note(`الصفحة: ${nodes} عقدة`)
 
-      // ── 5) النزول في إطار مطابق للأصل ─────────────────────────
-      // الإطار عند (340,430) بحدّ 10px ⇒ أصل المحتوى (350,440).
-      // العنصر الداخلي عند (20,100) محلّيًا ⇒ (370,540) في الأعلى.
-      await moveTo(pageSession, 400, 555)
-      ov = await readOverlay(tabId)
-      if (rectNear(ov.rect, { x: 370, y: 540, w: 120, h: 40 }, 3)) {
-        ok('نزل في الإطار المطابق للأصل وترجم الإحداثيات (370,540 · 120×40)')
-      } else {
-        fail(`الإطار: رُسم ${JSON.stringify(ov.rect)} والمتوقَّع {x:370,y:540,w:120,h:40}`)
-      }
+        // ── 1) هدف عادي: الإبراز يطابق العنصر ─────────────────────
+        await moveTo(pageSession, 140, 70)
+        let ov = await readOverlay(tabId)
+        let want = await pageRect(tabId, '#plain')
+        if (rectNear(ov.rect, want)) ok(`الإبراز يطابق العنصر العادي (${want.w}×${want.h})`)
+        else
+          fail(
+            `الإبراز لا يطابق: رُسم ${JSON.stringify(ov.rect)} والمتوقَّع ${JSON.stringify(want)}`,
+          )
 
-      // ── 6) المشي في الشجرة ↑↓ ─────────────────────────────────
-      await moveTo(pageSession, 140, 70)
-      const before = (await readOverlay(tabId)).rect
-      await send(
-        'Input.dispatchKeyEvent',
-        { type: 'rawKeyDown', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 },
-        pageSession,
-      )
-      await send(
-        'Runtime.evaluate',
-        {
-          expression: 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))',
-          awaitPromise: true,
-        },
-        pageSession,
-      )
-      const up = (await readOverlay(tabId)).rect
-      if (up && before && (up.w > before.w || up.h > before.h))
-        ok(`↑ صعد إلى الأب (${before.w}×${before.h} ← ${up.w}×${up.h})`)
-      else fail(`↑ لم يصعد: ${JSON.stringify(before)} → ${JSON.stringify(up)}`)
+        if (ov.actions === 2) ok('رقاقتان فقط — لا وعد بما لا محرّك له')
+        else fail(`عدد الإجراءات ${ov.actions} والمتوقَّع 2`)
 
-      await send(
-        'Input.dispatchKeyEvent',
-        { type: 'rawKeyDown', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 },
-        pageSession,
-      )
-      await send(
-        'Runtime.evaluate',
-        {
-          expression: 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))',
-          awaitPromise: true,
-        },
-        pageSession,
-      )
-      const down = (await readOverlay(tabId)).rect
-      if (rectNear(down, before)) ok('↓ عاد إلى نقطة البدء — التنقّل انعكاسي')
-      else fail(`↓ أعطى ${JSON.stringify(down)} بينما البدء ${JSON.stringify(before)}`)
+        // ── 2) التحويلات ──────────────────────────────────────────
+        await moveTo(pageSession, 140, 190)
+        ov = await readOverlay(tabId)
+        want = await pageRect(tabId, '#scaled')
+        if (rectNear(ov.rect, want)) ok(`الحدود تعكس scale(2) — ${want.w}×${want.h}`)
+        else fail(`scale: رُسم ${JSON.stringify(ov.rect)} والمتوقَّع ${JSON.stringify(want)}`)
 
-      // ── 6.5) البند 51 — التمرير التلقائي في المشي إلى أب خارج النافذة ──
-      // الهدف: تمرير الصفحة إلى موضع يُبقي `#offscreen-child` مرئيًا قرب
-      // أعلى النافذة بينما `#offscreen-parent` الأوسع يبدأ فوق حافّتها —
-      // يُحسَب من مستطيلي الصفحة الفعليَّين لا رقمًا ثابتًا، فلا ينكسر
-      // باختلاف ارتفاع نافذة المتصفّح الفعلي.
-      const vh = await inPage(tabId, `() => window.innerHeight`)
-      const childPage = await pageRect(tabId, '#offscreen-child')
-      const scrollTarget = childPage.y - 20
-      await send(
-        'Runtime.evaluate',
-        { expression: `window.scrollTo(0, ${scrollTarget})` },
-        pageSession,
-      )
-      const actualScroll = await inPage(tabId, `() => window.scrollY`)
-      await moveTo(
-        pageSession,
-        childPage.x + childPage.w / 2,
-        childPage.y - actualScroll + childPage.h / 2,
-      )
-      const childOv = (await readOverlay(tabId)).rect
-      if (childOv && childOv.y < vh && childOv.y >= 0) {
-        ok(`الابن مرئي بعد تمرير الصفحة يدويًا (y=${childOv.y})`)
-        const parentBefore = await pageRect(tabId, '#offscreen-parent')
-        const parentBeforeViewportY = parentBefore.y - actualScroll
-        if (parentBeforeViewportY >= 0) {
-          fail(`الإعداد فاسد: الأب مرئيّ أصلًا (y=${parentBeforeViewportY}) — لا يختبر شيئًا`)
+        await moveTo(pageSession, 390, 165)
+        ov = await readOverlay(tabId)
+        want = await pageRect(tabId, '#rotated')
+        if (rectNear(ov.rect, want)) ok(`الحدود تعكس rotate(45°) — صندوق محيط ${want.w}×${want.h}`)
+        else fail(`rotate: رُسم ${JSON.stringify(ov.rect)} والمتوقَّع ${JSON.stringify(want)}`)
+
+        // ── 3) القصّ: الفجوة المُعلَنة ─────────────────────────────
+        await moveTo(pageSession, 200, 350)
+        ov = await readOverlay(tabId)
+        want = await pageRect(tabId, '#clipped')
+        if (rectNear(ov.rect, want)) {
+          note(
+            `القصّ لا يُختصَر: الإبراز ${ov.rect.w}px بينما المرئي ~100px — حدّ مُعلَن (المرحلة 12)`,
+          )
         } else {
-          await send(
-            'Input.dispatchKeyEvent',
-            { type: 'rawKeyDown', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 },
-            pageSession,
-          )
-          await send(
-            'Runtime.evaluate',
-            {
-              expression: 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))',
-              awaitPromise: true,
-            },
-            pageSession,
-          )
-          const parentOv = (await readOverlay(tabId)).rect
-          if (parentOv && parentOv.y >= 0 && parentOv.y + parentOv.h <= vh) {
-            ok(
-              `↑ إلى أب خارج النافذة مرّر الصفحة تلقائيًا — صار كاملًا مرئيًا (y=${parentOv.y}, h=${parentOv.h})`,
-            )
-          } else {
-            fail(
-              `التمرير التلقائي لم يقع: الأب بعد المشي ${JSON.stringify(parentOv)} والنافذة ${vh}px — كان قبل المشي ${JSON.stringify(parentBefore)}`,
-            )
-          }
+          note(`القصّ: رُسم ${JSON.stringify(ov.rect)}`)
         }
-      } else {
-        fail(`تعذّر تهيئة الاختبار: الابن بعد تمرير الصفحة ${JSON.stringify(childOv)}`)
-      }
-      await send('Runtime.evaluate', { expression: 'window.scrollTo(0, 0)' }, pageSession)
 
-      // ── 7) الأداء فوق منطقة الضغط ─────────────────────────────
-      const perf = await send(
-        'Runtime.evaluate',
-        {
-          expression: `(async () => {
+        // ── 4) اختراق الظلّ المتعشّش ───────────────────────────────
+        await moveTo(pageSession, 100, 460)
+        ov = await readOverlay(tabId)
+        if (ov.label && ov.label.includes('leaf')) ok(`اخترق ظلّين متعشّشين — البطاقة: ${ov.label}`)
+        else fail(`الظلّ: البطاقة ${JSON.stringify(ov.label)} ولا تذكر الورقة`)
+
+        // ── 5) النزول في إطار مطابق للأصل ─────────────────────────
+        // الإطار عند (340,430) بحدّ 10px ⇒ أصل المحتوى (350,440).
+        // العنصر الداخلي عند (20,100) محلّيًا ⇒ (370,540) في الأعلى.
+        await moveTo(pageSession, 400, 555)
+        ov = await readOverlay(tabId)
+        if (rectNear(ov.rect, { x: 370, y: 540, w: 120, h: 40 }, 3)) {
+          ok('نزل في الإطار المطابق للأصل وترجم الإحداثيات (370,540 · 120×40)')
+        } else {
+          fail(`الإطار: رُسم ${JSON.stringify(ov.rect)} والمتوقَّع {x:370,y:540,w:120,h:40}`)
+        }
+
+        // ── 6) المشي في الشجرة ↑↓ ─────────────────────────────────
+        await moveTo(pageSession, 140, 70)
+        const before = (await readOverlay(tabId)).rect
+        await send(
+          'Input.dispatchKeyEvent',
+          { type: 'rawKeyDown', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 },
+          pageSession,
+        )
+        await send(
+          'Runtime.evaluate',
+          {
+            expression: 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))',
+            awaitPromise: true,
+          },
+          pageSession,
+        )
+        const up = (await readOverlay(tabId)).rect
+        if (up && before && (up.w > before.w || up.h > before.h))
+          ok(`↑ صعد إلى الأب (${before.w}×${before.h} ← ${up.w}×${up.h})`)
+        else fail(`↑ لم يصعد: ${JSON.stringify(before)} → ${JSON.stringify(up)}`)
+
+        await send(
+          'Input.dispatchKeyEvent',
+          { type: 'rawKeyDown', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 },
+          pageSession,
+        )
+        await send(
+          'Runtime.evaluate',
+          {
+            expression: 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))',
+            awaitPromise: true,
+          },
+          pageSession,
+        )
+        const down = (await readOverlay(tabId)).rect
+        if (rectNear(down, before)) ok('↓ عاد إلى نقطة البدء — التنقّل انعكاسي')
+        else fail(`↓ أعطى ${JSON.stringify(down)} بينما البدء ${JSON.stringify(before)}`)
+
+        // ── 6.5) البند 51 — التمرير التلقائي في المشي إلى أب خارج النافذة ──
+        // الهدف: تمرير الصفحة إلى موضع يُبقي `#offscreen-child` مرئيًا قرب
+        // أعلى النافذة بينما `#offscreen-parent` الأوسع يبدأ فوق حافّتها —
+        // يُحسَب من مستطيلي الصفحة الفعليَّين لا رقمًا ثابتًا، فلا ينكسر
+        // باختلاف ارتفاع نافذة المتصفّح الفعلي.
+        const vh = await inPage(tabId, `() => window.innerHeight`)
+        const childPage = await pageRect(tabId, '#offscreen-child')
+        const scrollTarget = childPage.y - 20
+        await send(
+          'Runtime.evaluate',
+          { expression: `window.scrollTo(0, ${scrollTarget})` },
+          pageSession,
+        )
+        const actualScroll = await inPage(tabId, `() => window.scrollY`)
+        await moveTo(
+          pageSession,
+          childPage.x + childPage.w / 2,
+          childPage.y - actualScroll + childPage.h / 2,
+        )
+        const childOv = (await readOverlay(tabId)).rect
+        if (childOv && childOv.y < vh && childOv.y >= 0) {
+          ok(`الابن مرئي بعد تمرير الصفحة يدويًا (y=${childOv.y})`)
+          const parentBefore = await pageRect(tabId, '#offscreen-parent')
+          const parentBeforeViewportY = parentBefore.y - actualScroll
+          if (parentBeforeViewportY >= 0) {
+            fail(`الإعداد فاسد: الأب مرئيّ أصلًا (y=${parentBeforeViewportY}) — لا يختبر شيئًا`)
+          } else {
+            await send(
+              'Input.dispatchKeyEvent',
+              { type: 'rawKeyDown', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 },
+              pageSession,
+            )
+            await send(
+              'Runtime.evaluate',
+              {
+                expression:
+                  'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))',
+                awaitPromise: true,
+              },
+              pageSession,
+            )
+            const parentOv = (await readOverlay(tabId)).rect
+            if (parentOv && parentOv.y >= 0 && parentOv.y + parentOv.h <= vh) {
+              ok(
+                `↑ إلى أب خارج النافذة مرّر الصفحة تلقائيًا — صار كاملًا مرئيًا (y=${parentOv.y}, h=${parentOv.h})`,
+              )
+            } else {
+              fail(
+                `التمرير التلقائي لم يقع: الأب بعد المشي ${JSON.stringify(parentOv)} والنافذة ${vh}px — كان قبل المشي ${JSON.stringify(parentBefore)}`,
+              )
+            }
+          }
+        } else {
+          fail(`تعذّر تهيئة الاختبار: الابن بعد تمرير الصفحة ${JSON.stringify(childOv)}`)
+        }
+        await send('Runtime.evaluate', { expression: 'window.scrollTo(0, 0)' }, pageSession)
+
+        // ── 7) الأداء فوق منطقة الضغط ─────────────────────────────
+        const perf = await send(
+          'Runtime.evaluate',
+          {
+            expression: `(async () => {
             const times = []
             let last = performance.now()
             let raf = 0
@@ -495,35 +548,36 @@ if (extId && sw && granted) {
             times.sort((a,b) => a-b)
             return { frames: times.length, median: times[Math.floor(times.length/2)], p95: times[Math.floor(times.length*0.95)] }
           })()`,
-          awaitPromise: true,
-          returnByValue: true,
-        },
-        pageSession,
-      )
-      // حركة مستمرّة فوق منطقة الـ5000 عقدة أثناء القياس
-      for (let i = 0; i < 40; i++) {
-        await send(
-          'Input.dispatchMouseEvent',
-          { type: 'mouseMoved', x: 700 + (i % 200), y: 60 + (i % 120), pointerType: 'mouse' },
+            awaitPromise: true,
+            returnByValue: true,
+          },
           pageSession,
         )
-      }
-      const p = perf.result?.value
-      if (p) {
-        const fps = 1000 / p.median
-        if (fps >= 55)
-          ok(
-            `الإطار فوق ${nodes} عقدة: وسيط ${p.median.toFixed(1)}ms ⇒ ${fps.toFixed(0)}fps (p95 ${p.p95.toFixed(1)}ms)`,
+        // حركة مستمرّة فوق منطقة الـ5000 عقدة أثناء القياس
+        for (let i = 0; i < 40; i++) {
+          await send(
+            'Input.dispatchMouseEvent',
+            { type: 'mouseMoved', x: 700 + (i % 200), y: 60 + (i % 120), pointerType: 'mouse' },
+            pageSession,
           )
-        else
-          fail(`الإطار بطيء: وسيط ${p.median.toFixed(1)}ms ⇒ ${fps.toFixed(0)}fps — الشرط ≥55fps`)
-      }
+        }
+        const p = perf.result?.value
+        if (p) {
+          const fps = 1000 / p.median
+          if (fps >= 55)
+            ok(
+              `الإطار فوق ${nodes} عقدة: وسيط ${p.median.toFixed(1)}ms ⇒ ${fps.toFixed(0)}fps (p95 ${p.p95.toFixed(1)}ms)`,
+            )
+          else
+            fail(`الإطار بطيء: وسيط ${p.median.toFixed(1)}ms ⇒ ${fps.toFixed(0)}fps — الشرط ≥55fps`)
+        }
 
-      // ── 8) الخروج يُنظّف ──────────────────────────────────────
-      await setMode(tabId, 'idle')
-      ov = await readOverlay(tabId)
-      if (!ov.drawn) ok('الخروج من الوضع يمحو الإبراز')
-      else fail('الإبراز باقٍ بعد الخروج من الوضع')
+        // ── 8) الخروج يُنظّف ──────────────────────────────────────
+        await setMode(tabId, 'idle')
+        ov = await readOverlay(tabId)
+        if (!ov.drawn) ok('الخروج من الوضع يمحو الإبراز')
+        else fail('الإبراز باقٍ بعد الخروج من الوضع')
+      }
     }
   }
 }

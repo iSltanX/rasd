@@ -327,6 +327,37 @@ async function clickAt(pageSession, x, y) {
 const near = (a, b, tol = 1.5) => Math.abs(a - b) <= tol
 
 /**
+ * نقطة تسليح داخل شبكة `#stress` الكثيفة (700..1000, 40..~310) — لا داخل
+ * `<body>`/`<html>`: كلاهما بلا ارتفاع في هذه العيّنة (كل الأبناء الأخرى
+ * `position: absolute` أو `display: contents`)، فلا يظهران في كومة
+ * `elementsFromPoint` أصلًا، وأيّ نقطة «فارغة» تستقرّ على مضيفنا نفسه —
+ * المُستبعَد بالهُويّة — فتعطي `null` دومًا لا لعلّة في التسليح. عنصر
+ * `<i>` 4×4 حقيقي هنا يثبت وصول الحدث بمعزل عن هذا الفخّ، وبعيدًا عن كل
+ * إحداثية تستعملها التأكيدات التالية.
+ */
+const NEUTRAL_POINT = { x: 710, y: 45 }
+
+/**
+ * يُسلِّح اتصال المؤشِّر بالطبقة فور تفعيل الوضع — انظر التوثيق الكامل في
+ * `verify-picker.mjs`، نفس السباق ونفس الإثبات هنا.
+ *
+ * `hover` غير `null` بعد الحركة يعني أن `pickAt` نُفِّذ داخل جذر الظلّ ووجد
+ * عنصر `<i>` حقيقيًا عند نقطة التسليح. بلا هذا الإثبات نسقط بصوت عالٍ.
+ * ممنوع هنا: `setTimeout` أعمى، أو رفع `tol`، أو إعادة محاولة حول هذا
+ * التأكيد.
+ */
+async function armPointer(tabId, pageSession) {
+  await moveTo(pageSession, NEUTRAL_POINT.x, NEUTRAL_POINT.y)
+  const st = await readMeasureState(tabId)
+  if (!st.hover) {
+    throw new Error(
+      `armPointer: الطبقة لم تستلم حدث المؤشِّر بعد setMode — لا hover عند ` +
+        `(${NEUTRAL_POINT.x},${NEUTRAL_POINT.y}) رغم الحركة.`,
+    )
+  }
+}
+
+/**
  * أوّل نقطة تُرجع `<body>`/`<html>` فعليًّا — لا نقطة مخمَّنة.
  *
  * عيّنة `picker/` عامرة (`#stress` وحدها 5000 عقدة قد يتجاوز صفّها ارتفاع
@@ -382,191 +413,217 @@ if (extId && sw && granted) {
     const pageSession = await attachToPage('/picker/')
     if (!pageSession) fail('تعذّر الاتصال بهدف الصفحة.')
     else {
-      // ── 1) التتبّع: المرور فوق عنصر يملأ hover بمستطيله الحقيقي ──
-      const plainRect = await pageRect(tabId, '#plain')
-      const cx1 = plainRect.x + plainRect.w / 2
-      const cy1 = plainRect.y + plainRect.h / 2
-      await moveTo(pageSession, cx1, cy1)
-      let st = await readMeasureState(tabId)
-      if (
-        st.hover &&
-        near(st.hover.rect.width, plainRect.w) &&
-        near(st.hover.rect.height, plainRect.h)
-      ) {
-        ok(`التتبّع: hover يطابق #plain الحقيقي (${st.hover.rect.width}×${st.hover.rect.height})`)
-      } else {
-        fail(
-          `التتبّع: hover=${JSON.stringify(st.hover?.rect)} بينما #plain=${JSON.stringify(plainRect)}`,
-        )
-      }
-      let drawn = await readDrawn(tabId)
-      if (drawn.highlights.includes('hover')) ok('الإبراز المرسوم يحمل data-role="hover"')
-      else fail(`لا إبراز hover مرسوم: ${JSON.stringify(drawn)}`)
-
-      // ── 2) تثبيت مرجع + مقارنة مع هدف حقيقي ثانٍ ──────────────
-      await clickAt(pageSession, cx1, cy1)
-      st = await readMeasureState(tabId)
-      if (st.reference && near(st.reference.rect.x, plainRect.x)) {
-        ok('نقرة على #plain ثبّتته مرجعًا')
-      } else {
-        fail(`لم يُثبَّت المرجع: ${JSON.stringify(st.reference)}`)
+      let armed = true
+      try {
+        await armPointer(tabId, pageSession)
+      } catch (e) {
+        armed = false
+        fail(e.message)
       }
 
-      const scaledRect = await pageRect(tabId, '#scaled')
-      const cx2 = scaledRect.x + scaledRect.w / 2
-      const cy2 = scaledRect.y + scaledRect.h / 2
-      await moveTo(pageSession, cx2, cy2)
-      st = await readMeasureState(tabId)
-
-      if (st.comparison) {
-        // القيمة المتوقَّعة من الهندسة الحقيقية بالصيغة نفسها في distance.ts.
-        const expected = {
-          top: plainRect.y - (scaledRect.y + scaledRect.h),
-          right: scaledRect.x - (plainRect.x + plainRect.w),
-          bottom: scaledRect.y - (plainRect.y + plainRect.h),
-          left: plainRect.x - (scaledRect.x + scaledRect.w),
+      if (armed) {
+        // ── 1) التتبّع: المرور فوق عنصر يملأ hover بمستطيله الحقيقي ──
+        const plainRect = await pageRect(tabId, '#plain')
+        const cx1 = plainRect.x + plainRect.w / 2
+        const cy1 = plainRect.y + plainRect.h / 2
+        await moveTo(pageSession, cx1, cy1)
+        let st = await readMeasureState(tabId)
+        if (
+          st.hover &&
+          near(st.hover.rect.width, plainRect.w) &&
+          near(st.hover.rect.height, plainRect.h)
+        ) {
+          ok(`التتبّع: hover يطابق #plain الحقيقي (${st.hover.rect.width}×${st.hover.rect.height})`)
+        } else {
+          fail(
+            `التتبّع: hover=${JSON.stringify(st.hover?.rect)} بينما #plain=${JSON.stringify(plainRect)}`,
+          )
         }
-        const g = st.comparison.gap
-        const matches =
-          near(g.top, expected.top, 2) &&
-          near(g.right, expected.right, 2) &&
-          near(g.bottom, expected.bottom, 2) &&
-          near(g.left, expected.left, 2)
-        if (matches) {
+        let drawn = await readDrawn(tabId)
+        if (drawn.highlights.includes('hover')) ok('الإبراز المرسوم يحمل data-role="hover"')
+        else fail(`لا إبراز hover مرسوم: ${JSON.stringify(drawn)}`)
+
+        // ── 2) تثبيت مرجع + مقارنة مع هدف حقيقي ثانٍ ──────────────
+        await clickAt(pageSession, cx1, cy1)
+        st = await readMeasureState(tabId)
+        if (st.reference && near(st.reference.rect.x, plainRect.x)) {
+          ok('نقرة على #plain ثبّتته مرجعًا')
+        } else {
+          fail(`لم يُثبَّت المرجع: ${JSON.stringify(st.reference)}`)
+        }
+
+        const scaledRect = await pageRect(tabId, '#scaled')
+        const cx2 = scaledRect.x + scaledRect.w / 2
+        const cy2 = scaledRect.y + scaledRect.h / 2
+        await moveTo(pageSession, cx2, cy2)
+        st = await readMeasureState(tabId)
+
+        if (st.comparison) {
+          // القيمة المتوقَّعة من الهندسة الحقيقية بالصيغة نفسها في distance.ts.
+          const expected = {
+            top: plainRect.y - (scaledRect.y + scaledRect.h),
+            right: scaledRect.x - (plainRect.x + plainRect.w),
+            bottom: scaledRect.y - (plainRect.y + plainRect.h),
+            left: plainRect.x - (scaledRect.x + scaledRect.w),
+          }
+          const g = st.comparison.gap
+          const matches =
+            near(g.top, expected.top, 2) &&
+            near(g.right, expected.right, 2) &&
+            near(g.bottom, expected.bottom, 2) &&
+            near(g.left, expected.left, 2)
+          if (matches) {
+            ok(
+              `الفجوة تطابق الهندسة الحقيقية بين #plain و#scaled (nearest=${g.nearest}, ${Math.round(g.nearestValue ?? -1)}px)`,
+            )
+          } else {
+            fail(
+              `فجوة غير مطابقة: حُسبت ${JSON.stringify(g)} والمتوقَّع ${JSON.stringify(expected)}`,
+            )
+          }
+          note(`المحاذاة: ${st.comparison.alignment.length} محورًا مكتشَفًا`)
+        } else {
+          fail('لا مقارنة رغم وجود مرجع وهدف تتبّع معًا')
+        }
+
+        drawn = await readDrawn(tabId)
+        if (drawn.gaps > 0) ok(`${drawn.gaps} خطّ قياس مرسوم فعليًّا بين المرجع والهدف`)
+        else fail('لا خطوط قياس مرسومة رغم وجود مقارنة')
+
+        // ── نقطة خلفية حقيقية — مُتحقَّق منها لا مُخمَّنة (انظر findEmptyPoint) ──
+        // مقاسا `--window-size` وصفتان اسميّتان لا حقيقيّتان: النافذة الحقيقية
+        // قِيست 1265×713 لا 1280×800 حتى بلا واجهة متصفّح (headless) — فتُقرَأ
+        // الأبعاد الفعلية بدل افتراضها، وإلا سقطت نقاط «الفراغ» خارج حدود
+        // الطبقة القابلة للتفاعل فعلًا (نفس عطل الاختبار الذي وقع هنا فعلًا).
+        const vw = await inPage(tabId, `() => window.innerWidth`)
+        const vh = await inPage(tabId, `() => window.innerHeight`)
+        note(`أبعاد النافذة الفعلية: ${vw}×${vh}`)
+        const bg = await findEmptyPoint(tabId, [
+          { x: vw - 20, y: vh - 20 },
+          { x: vw - 20, y: 20 },
+          { x: 20, y: vh - 20 },
+          { x: Math.round(vw * 0.9), y: Math.round(vh * 0.5) },
+        ])
+        if (!bg) {
+          fail('تعذّر إيجاد نقطة خلفية فارغة في العيّنة — تُخطَّى بقيّة اختبارات الخلفية.')
+        } else {
+          note(`نقطة الخلفية الفارغة المُتحقَّقة: (${bg.x}, ${bg.y})`)
+
+          // ── 3) مسح المرجع بنقرة على الخلفية ─────────────────────
+          await clickAt(pageSession, bg.x, bg.y)
+          st = await readMeasureState(tabId)
+          if (!st.reference) ok('نقرة على الخلفية مسحت المرجع')
+          else fail(`المرجع بقي بعد نقرة على الخلفية: ${JSON.stringify(st.reference.rect)}`)
+        }
+
+        // ── 4) القياس الحرّ بالسحب — بلا مرشَّحات التقاط قريبة ────
+        const freeStart = bg ?? { x: vw - 20, y: vh - 20 }
+        const freeEnd = { x: freeStart.x - 60, y: freeStart.y - 40 }
+        await send(
+          'Input.dispatchMouseEvent',
+          {
+            type: 'mousePressed',
+            ...freeStart,
+            button: 'left',
+            clickCount: 1,
+            pointerType: 'mouse',
+          },
+          pageSession,
+        )
+        await moveTo(pageSession, freeEnd.x, freeEnd.y)
+        st = await readMeasureState(tabId)
+        const expectFree = {
+          x: Math.min(freeStart.x, freeEnd.x),
+          y: Math.min(freeStart.y, freeEnd.y),
+          width: Math.abs(freeEnd.x - freeStart.x),
+          height: Math.abs(freeEnd.y - freeStart.y),
+        }
+        if (
+          st.freeRect &&
+          near(st.freeRect.x, expectFree.x) &&
+          near(st.freeRect.y, expectFree.y) &&
+          near(st.freeRect.width, expectFree.width) &&
+          near(st.freeRect.height, expectFree.height)
+        ) {
           ok(
-            `الفجوة تطابق الهندسة الحقيقية بين #plain و#scaled (nearest=${g.nearest}, ${Math.round(g.nearestValue ?? -1)}px)`,
+            `القياس الحرّ: ${Math.round(st.freeRect.width)}×${Math.round(st.freeRect.height)} — يطابق نقطتَي السحب`,
           )
         } else {
-          fail(`فجوة غير مطابقة: حُسبت ${JSON.stringify(g)} والمتوقَّع ${JSON.stringify(expected)}`)
+          fail(
+            `القياس الحرّ غير مطابق: ${JSON.stringify(st.freeRect)} والمتوقَّع ${JSON.stringify(expectFree)}`,
+          )
         }
-        note(`المحاذاة: ${st.comparison.alignment.length} محورًا مكتشَفًا`)
-      } else {
-        fail('لا مقارنة رغم وجود مرجع وهدف تتبّع معًا')
-      }
+        drawn = await readDrawn(tabId)
+        if (drawn.marquee) ok('مستطيل السحب الحرّ مرسوم (Marquee)')
+        else fail('لا Marquee مرسوم أثناء السحب الحرّ')
+        await send(
+          'Input.dispatchMouseEvent',
+          {
+            type: 'mouseReleased',
+            ...freeEnd,
+            button: 'left',
+            clickCount: 1,
+            pointerType: 'mouse',
+          },
+          pageSession,
+        )
 
-      drawn = await readDrawn(tabId)
-      if (drawn.gaps > 0) ok(`${drawn.gaps} خطّ قياس مرسوم فعليًّا بين المرجع والهدف`)
-      else fail('لا خطوط قياس مرسومة رغم وجود مقارنة')
-
-      // ── نقطة خلفية حقيقية — مُتحقَّق منها لا مُخمَّنة (انظر findEmptyPoint) ──
-      // مقاسا `--window-size` وصفتان اسميّتان لا حقيقيّتان: النافذة الحقيقية
-      // قِيست 1265×713 لا 1280×800 حتى بلا واجهة متصفّح (headless) — فتُقرَأ
-      // الأبعاد الفعلية بدل افتراضها، وإلا سقطت نقاط «الفراغ» خارج حدود
-      // الطبقة القابلة للتفاعل فعلًا (نفس عطل الاختبار الذي وقع هنا فعلًا).
-      const vw = await inPage(tabId, `() => window.innerWidth`)
-      const vh = await inPage(tabId, `() => window.innerHeight`)
-      note(`أبعاد النافذة الفعلية: ${vw}×${vh}`)
-      const bg = await findEmptyPoint(tabId, [
-        { x: vw - 20, y: vh - 20 },
-        { x: vw - 20, y: 20 },
-        { x: 20, y: vh - 20 },
-        { x: Math.round(vw * 0.9), y: Math.round(vh * 0.5) },
-      ])
-      if (!bg) {
-        fail('تعذّر إيجاد نقطة خلفية فارغة في العيّنة — تُخطَّى بقيّة اختبارات الخلفية.')
-      } else {
-        note(`نقطة الخلفية الفارغة المُتحقَّقة: (${bg.x}, ${bg.y})`)
-
-        // ── 3) مسح المرجع بنقرة على الخلفية ─────────────────────
-        await clickAt(pageSession, bg.x, bg.y)
+        // ── 5) الالتقاط اللحظي ضمن 4px، وتعطيله بـ⌥ ──────────────
+        await clickAt(pageSession, cx1, cy1) // #plain مرجعًا من جديد
+        const snapTargetX = plainRect.x + plainRect.w // الحافّة اليمنى لـ#plain
+        const dragOrigin = bg ?? { x: vw - 20, y: vh - 20 }
+        await send(
+          'Input.dispatchMouseEvent',
+          {
+            type: 'mousePressed',
+            ...dragOrigin,
+            button: 'left',
+            clickCount: 1,
+            pointerType: 'mouse',
+          },
+          pageSession,
+        )
+        await moveTo(pageSession, snapTargetX + 2, plainRect.y + 20) // ضمن 4px من الحافّة، بلا ⌥
         st = await readMeasureState(tabId)
-        if (!st.reference) ok('نقرة على الخلفية مسحت المرجع')
-        else fail(`المرجع بقي بعد نقرة على الخلفية: ${JSON.stringify(st.reference.rect)}`)
-      }
+        // الأصل (dragOrigin) على يمين الهدف، فالحافّة الملتقَطة تصير x اليسرى للمستطيل بعد normalizeRect — لا x+width.
+        if (st.freeRect && near(st.freeRect.x, snapTargetX, 0.5)) {
+          ok(
+            `الالتقاط اللحظي شدّ نهاية السحب إلى حافّة #plain اليمنى (${Math.round(snapTargetX)}px)`,
+          )
+        } else {
+          fail(
+            `لم يلتقط: نهاية السحب عند ${JSON.stringify(st.freeRect)} والحافّة المتوقَّعة ${snapTargetX}`,
+          )
+        }
 
-      // ── 4) القياس الحرّ بالسحب — بلا مرشَّحات التقاط قريبة ────
-      const freeStart = bg ?? { x: vw - 20, y: vh - 20 }
-      const freeEnd = { x: freeStart.x - 60, y: freeStart.y - 40 }
-      await send(
-        'Input.dispatchMouseEvent',
-        { type: 'mousePressed', ...freeStart, button: 'left', clickCount: 1, pointerType: 'mouse' },
-        pageSession,
-      )
-      await moveTo(pageSession, freeEnd.x, freeEnd.y)
-      st = await readMeasureState(tabId)
-      const expectFree = {
-        x: Math.min(freeStart.x, freeEnd.x),
-        y: Math.min(freeStart.y, freeEnd.y),
-        width: Math.abs(freeEnd.x - freeStart.x),
-        height: Math.abs(freeEnd.y - freeStart.y),
-      }
-      if (
-        st.freeRect &&
-        near(st.freeRect.x, expectFree.x) &&
-        near(st.freeRect.y, expectFree.y) &&
-        near(st.freeRect.width, expectFree.width) &&
-        near(st.freeRect.height, expectFree.height)
-      ) {
-        ok(
-          `القياس الحرّ: ${Math.round(st.freeRect.width)}×${Math.round(st.freeRect.height)} — يطابق نقطتَي السحب`,
+        await moveTo(pageSession, snapTargetX + 2, plainRect.y + 22, 1) // نفس النقطة تقريبًا، لكن بـ⌥ (bit 1)
+        st = await readMeasureState(tabId)
+        if (st.freeRect && !near(st.freeRect.x, snapTargetX, 0.5)) {
+          ok('⌥ عطّل الالتقاط اللحظي — النهاية بقيت عند نقطة المؤشِّر الفعلية')
+        } else {
+          fail(`⌥ لم يعطّل الالتقاط: ${JSON.stringify(st.freeRect)}`)
+        }
+        await send(
+          'Input.dispatchMouseEvent',
+          {
+            type: 'mouseReleased',
+            x: snapTargetX + 2,
+            y: plainRect.y + 22,
+            button: 'left',
+            clickCount: 1,
+            pointerType: 'mouse',
+          },
+          pageSession,
         )
-      } else {
-        fail(
-          `القياس الحرّ غير مطابق: ${JSON.stringify(st.freeRect)} والمتوقَّع ${JSON.stringify(expectFree)}`,
-        )
-      }
-      drawn = await readDrawn(tabId)
-      if (drawn.marquee) ok('مستطيل السحب الحرّ مرسوم (Marquee)')
-      else fail('لا Marquee مرسوم أثناء السحب الحرّ')
-      await send(
-        'Input.dispatchMouseEvent',
-        { type: 'mouseReleased', ...freeEnd, button: 'left', clickCount: 1, pointerType: 'mouse' },
-        pageSession,
-      )
 
-      // ── 5) الالتقاط اللحظي ضمن 4px، وتعطيله بـ⌥ ──────────────
-      await clickAt(pageSession, cx1, cy1) // #plain مرجعًا من جديد
-      const snapTargetX = plainRect.x + plainRect.w // الحافّة اليمنى لـ#plain
-      const dragOrigin = bg ?? { x: vw - 20, y: vh - 20 }
-      await send(
-        'Input.dispatchMouseEvent',
-        {
-          type: 'mousePressed',
-          ...dragOrigin,
-          button: 'left',
-          clickCount: 1,
-          pointerType: 'mouse',
-        },
-        pageSession,
-      )
-      await moveTo(pageSession, snapTargetX + 2, plainRect.y + 20) // ضمن 4px من الحافّة، بلا ⌥
-      st = await readMeasureState(tabId)
-      // الأصل (dragOrigin) على يمين الهدف، فالحافّة الملتقَطة تصير x اليسرى للمستطيل بعد normalizeRect — لا x+width.
-      if (st.freeRect && near(st.freeRect.x, snapTargetX, 0.5)) {
-        ok(`الالتقاط اللحظي شدّ نهاية السحب إلى حافّة #plain اليمنى (${Math.round(snapTargetX)}px)`)
-      } else {
-        fail(
-          `لم يلتقط: نهاية السحب عند ${JSON.stringify(st.freeRect)} والحافّة المتوقَّعة ${snapTargetX}`,
-        )
-      }
-
-      await moveTo(pageSession, snapTargetX + 2, plainRect.y + 22, 1) // نفس النقطة تقريبًا، لكن بـ⌥ (bit 1)
-      st = await readMeasureState(tabId)
-      if (st.freeRect && !near(st.freeRect.x, snapTargetX, 0.5)) {
-        ok('⌥ عطّل الالتقاط اللحظي — النهاية بقيت عند نقطة المؤشِّر الفعلية')
-      } else {
-        fail(`⌥ لم يعطّل الالتقاط: ${JSON.stringify(st.freeRect)}`)
-      }
-      await send(
-        'Input.dispatchMouseEvent',
-        {
-          type: 'mouseReleased',
-          x: snapTargetX + 2,
-          y: plainRect.y + 22,
-          button: 'left',
-          clickCount: 1,
-          pointerType: 'mouse',
-        },
-        pageSession,
-      )
-
-      // ── 6) الخروج ينظّف ────────────────────────────────────────
-      await setMode(tabId, 'idle')
-      drawn = await readDrawn(tabId)
-      if (drawn.highlights.length === 0 && drawn.gaps === 0 && !drawn.marquee) {
-        ok('الخروج من الوضع يمحو كل رسوم القياس')
-      } else {
-        fail(`رسوم باقية بعد الخروج: ${JSON.stringify(drawn)}`)
+        // ── 6) الخروج ينظّف ────────────────────────────────────────
+        await setMode(tabId, 'idle')
+        drawn = await readDrawn(tabId)
+        if (drawn.highlights.length === 0 && drawn.gaps === 0 && !drawn.marquee) {
+          ok('الخروج من الوضع يمحو كل رسوم القياس')
+        } else {
+          fail(`رسوم باقية بعد الخروج: ${JSON.stringify(drawn)}`)
+        }
       }
     }
   }
