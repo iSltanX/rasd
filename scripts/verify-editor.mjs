@@ -226,20 +226,22 @@ try {
 
 const ownOrigin = `chrome-extension://${extId}/`
 let sw = null
-for (let i = 0; i < 25 && extId; i++) {
-  const { targetInfos } = await send('Target.getTargets')
-  sw = targetInfos.find((t) => t.type === 'service_worker' && String(t.url).startsWith(ownOrigin))
-  if (sw) break
-  await new Promise((r) => setTimeout(r, 300))
-}
-
 let swSession = null
-if (sw) {
-  swSession = (await send('Target.attachToTarget', { targetId: sw.targetId, flatten: true }))
-    .sessionId
-  await send('Runtime.enable', {}, swSession)
-}
 
+/*
+ * **يُنتظَر سياقٌ حيّ لا هدفٌ موجود.**
+ *
+ * كان الكود يجد هدف الـservice worker ثمّ يرتبط به ويقيّم فيه فورًا —
+ * مفترضًا أن وجود الهدف يعني جهوز سياق الإضافة فيه. وليس كذلك: الهدف يظهر
+ * في `Target.getTargets` قبل أن يكتمل إقلاع العامل، فيقع التقييم في سياقٍ
+ * يُشغِّل JS **بلا ربط `chrome`**. على جهاز التطوير يسبق الإقلاعُ أوّلَ
+ * استطلاع فلا يظهر شيء؛ وعلى عدّاء CI يظهر متقطّعًا — وهو ما قِيس حرفيًّا:
+ * `الخطأ: chrome is not defined` في تشغيلٍ، ومرورٌ كامل في الذي يليه.
+ *
+ * فصار الانتظار على المحكّ الصحيح — `chrome.runtime.id` و`chrome.permissions`
+ * موجودان فعلًا — مع **إعادة استكشاف الهدف وإعادة الارتباط في كل دورة**:
+ * فالعامل قد يُستبدَل أثناء الإقلاع، فيصير المُرتبَط به هدفًا ميّتًا.
+ */
 async function inSW(expression) {
   const res = await send(
     'Runtime.evaluate',
@@ -248,6 +250,34 @@ async function inSW(expression) {
   )
   if (res.exceptionDetails) throw new Error(res.exceptionDetails.text)
   return res.result.value
+}
+
+if (extId) {
+  const deadline = Date.now() + 25_000
+  while (Date.now() < deadline) {
+    const { targetInfos } = await send('Target.getTargets')
+    const found = targetInfos.find(
+      (t) => t.type === 'service_worker' && String(t.url).startsWith(ownOrigin),
+    )
+    if (found) {
+      if (!sw || found.targetId !== sw.targetId) {
+        sw = found
+        swSession = (await send('Target.attachToTarget', { targetId: sw.targetId, flatten: true }))
+          .sessionId
+        await send('Runtime.enable', {}, swSession)
+      }
+      let live
+      try {
+        live = await inSW(
+          `typeof chrome !== 'undefined' && !!(chrome.runtime && chrome.runtime.id) && !!chrome.permissions`,
+        )
+      } catch {
+        // السياق يُستبدَل أثناء الإقلاع — تُعاد المحاولة، ولا يُبتلع الحكم
+      }
+      if (live === true) break
+    }
+    await new Promise((r) => setTimeout(r, 250))
+  }
 }
 
 /*
