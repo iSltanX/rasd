@@ -90,34 +90,43 @@ jobs:
     # الاختفاء الذي بُني هذا كلّه لإنهائه — يبقون ظاهرين مسمَّين بنتيجتهم
     # الحقيقية، ولا يحجبون الدمج حتى تُحسم أعطالهم.
     #
-    # ولكلٍّ سببه المقيس (‏`Rasd_Plan.md §6` صفّ 97):
-    #   measure · popup · picker  — تسقط **محليًّا وعلى لينكس**: أعطال قائمة
-    #     في الحارس أو المنتَج، كشفها أوّل تشغيل لهم منذ كتابتهم.
-    #   capture · compare · compare-diff · editor · load — تمرّ محليًّا وتسقط
-    #     أو تتقطّع على لينكس: سباقات باقية غير سباق الـSW المُصلَح.
+    # **والتصنيف من ثلاث جولات لا من مشاهدة واحدة.** أوّل تصنيف بُني على جولة
+    # واحدة فسقط في التي تليها: `activate` كان «حاجبًا مُثبَتًا» ثمّ سقط،
+    # و`compare`/`editor`/`picker` سقطوا ثمّ خضرّوا. فمجموعة الساقطين
+    # **تتبدّل بين الجولات** — أي أن أكثر ما هنا تقطّعٌ لا عطل حتميّ، وحارسٌ
+    # مرّ مرّةً ليس حارسًا مُثبَتًا. السجلّ المقيس (3 جولات، `§6` صفّ 97):
     #
-    # وموطنها بنصّ الخطّة **المرحلة 23** (‏Playwright E2E وتشغيل المتصفّح في
-    # CI). وحين يخضرّ حارسٌ منها بثبات، يُقلَب `blocking` إلى `true` — سطرٌ
-    # واحد، ويصير حاجبًا.
+    #   3/3 خضراء: colour · fullpage · inspect · library · lifecycle · overlay
+    #   2/3       : activate · capturing · compare · palette · picker
+    #   1/3       : editor
+    #   0/3       : capture · compare-diff · load · measure · popup
+    #
+    # فالحاجب هو **الثابت أخضر في الثلاث وحده**. وما دونه يعمل ويُعلن نتيجته
+    # ولا يحجب — لا يُحذف فيعود إلى الاختفاء الذي بُني هذا كلّه لإنهائه.
+    # وموطن حسمها بنصّ الخطّة **المرحلة 23** (‏Playwright E2E وتشغيل المتصفّح
+    # في CI). وقاعدة الترقية صريحة: **ثلاث جولات خضراء متتالية** تُقلَب معها
+    # `blocking` إلى `true` — لا مشاهدة واحدة.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { guard: activate, blocking: true }
-          - { guard: capturing, blocking: true }
+          # ثابتة خضراء في الجولات الثلاث — حاجبة
           - { guard: colour, blocking: true }
           - { guard: fullpage, blocking: true }
           - { guard: inspect, blocking: true }
           - { guard: library, blocking: true }
           - { guard: lifecycle, blocking: true }
           - { guard: overlay, blocking: true }
-          - { guard: palette, blocking: true }
+          # متقطّعة أو ثابتة حمراء — تعمل وتُعلن ولا تحجب
+          - { guard: activate, blocking: false }
           - { guard: capture, blocking: false }
+          - { guard: capturing, blocking: false }
           - { guard: compare, blocking: false }
           - { guard: compare-diff, blocking: false }
           - { guard: editor, blocking: false }
           - { guard: load, blocking: false }
           - { guard: measure, blocking: false }
+          - { guard: palette, blocking: false }
           - { guard: picker, blocking: false }
           - { guard: popup, blocking: false }
 
