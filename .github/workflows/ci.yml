@@ -90,42 +90,48 @@ jobs:
     # الاختفاء الذي بُني هذا كلّه لإنهائه — يبقون ظاهرين مسمَّين بنتيجتهم
     # الحقيقية، ولا يحجبون الدمج حتى تُحسم أعطالهم.
     #
-    # **والتصنيف من ثلاث جولات لا من مشاهدة واحدة.** أوّل تصنيف بُني على جولة
-    # واحدة فسقط في التي تليها: `activate` كان «حاجبًا مُثبَتًا» ثمّ سقط،
-    # و`compare`/`editor`/`picker` سقطوا ثمّ خضرّوا. فمجموعة الساقطين
-    # **تتبدّل بين الجولات** — أي أن أكثر ما هنا تقطّعٌ لا عطل حتميّ، وحارسٌ
-    # مرّ مرّةً ليس حارسًا مُثبَتًا. السجلّ المقيس (3 جولات، `§6` صفّ 97):
+    # **ولا حارس حاجبٌ اليوم — والقياس هو الذي منع ذلك مرّتين.**
     #
-    #   3/3 خضراء: colour · fullpage · inspect · library · lifecycle · overlay
-    #   2/3       : activate · capturing · compare · palette · picker
-    #   1/3       : editor
-    #   0/3       : capture · compare-diff · load · measure · popup
+    # أوّل تصنيف بُني على جولة واحدة وسمّى تسعةً «مُثبَتة»، فسقط `activate`
+    # منها في الجولة التالية. فأُعيد على ثلاث جولات وسمّى ستّة، فسقط منها
+    # `colour` و`inspect` و`lifecycle` في الرابعة — وخضّر فيها `measure`
+    # الذي كان أحمر في الثلاث. أي أن مجموعة الساقطين **تتحرّك في كل جولة**،
+    # وهذا لا يقول «سبعة عشر عطلًا مستقلًّا» بل سببًا مشتركًا في البيئة.
     #
-    # فالحاجب هو **الثابت أخضر في الثلاث وحده**. وما دونه يعمل ويُعلن نتيجته
-    # ولا يحجب — لا يُحذف فيعود إلى الاختفاء الذي بُني هذا كلّه لإنهائه.
-    # وموطن حسمها بنصّ الخطّة **المرحلة 23** (‏Playwright E2E وتشغيل المتصفّح
-    # في CI). وقاعدة الترقية صريحة: **ثلاث جولات خضراء متتالية** تُقلَب معها
-    # `blocking` إلى `true` — لا مشاهدة واحدة.
+    # السجلّ المقيس على أربع جولات (‏`§6` صفّ 97):
+    #   4/4: fullpage · library · overlay
+    #   3/4: activate · capturing · colour · compare · inspect · lifecycle · palette
+    #   2/4: editor · picker
+    #   1/4: measure
+    #   0/4: capture · compare-diff · load · popup
+    #
+    # وثلاثةٌ في أربع جولات ليست دليل ثبات — هي أضعف ممّا نقضته الرابعة
+    # نفسها. فالكلّ **يعمل ويُعلن نتيجته ولا يحجب**: لا يُحذف فيعود إلى
+    # الاختفاء الذي بُني هذا كلّه لإنهائه، ولا يحجب الدمج على تقطّعٍ لم
+    # يُحسم سببه المشترك بعد. وموطن حسمه بنصّ الخطّة **المرحلة 23**
+    # (‏Playwright E2E وتشغيل المتصفّح في CI).
+    #
+    # وقاعدة الترقية صريحة ومقصودة الصرامة: **عشر جولات خضراء متتالية**
+    # يُقلَب معها `blocking` إلى `true` — والعمود يبقى هنا لأن الترقية حينها
+    # سطرٌ واحد، ولأن القائمة نفسها تسجيلٌ لِما يُنتظَر منه أن يستقرّ.
     strategy:
       fail-fast: false
       matrix:
         include:
-          # ثابتة خضراء في الجولات الثلاث — حاجبة
-          - { guard: colour, blocking: true }
-          - { guard: fullpage, blocking: true }
-          - { guard: inspect, blocking: true }
-          - { guard: library, blocking: true }
-          - { guard: lifecycle, blocking: true }
-          - { guard: overlay, blocking: true }
-          # متقطّعة أو ثابتة حمراء — تعمل وتُعلن ولا تحجب
           - { guard: activate, blocking: false }
           - { guard: capture, blocking: false }
           - { guard: capturing, blocking: false }
+          - { guard: colour, blocking: false }
           - { guard: compare, blocking: false }
           - { guard: compare-diff, blocking: false }
           - { guard: editor, blocking: false }
+          - { guard: fullpage, blocking: false }
+          - { guard: inspect, blocking: false }
+          - { guard: library, blocking: false }
+          - { guard: lifecycle, blocking: false }
           - { guard: load, blocking: false }
           - { guard: measure, blocking: false }
+          - { guard: overlay, blocking: false }
           - { guard: palette, blocking: false }
           - { guard: picker, blocking: false }
           - { guard: popup, blocking: false }
