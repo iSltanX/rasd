@@ -19,6 +19,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
+import { waitForExtensionContext } from './live-sw.mjs'
+
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
 const PORT = 9338
@@ -197,6 +199,14 @@ if (sw) {
   swSession = (await send('Target.attachToTarget', { targetId: sw.targetId, flatten: true }))
     .sessionId
   await send('Runtime.enable', {}, swSession)
+  // الارتباط ليس جهوزًا — انظر ترويسة `live-sw.mjs`.
+  await waitForExtensionContext((expression) =>
+    send(
+      'Runtime.evaluate',
+      { expression, awaitPromise: true, returnByValue: true },
+      swSession,
+    ).then((r) => r?.result?.value),
+  )
   ws.addEventListener('message', (ev) => {
     const m = JSON.parse(ev.data)
     if (m.method === 'Runtime.consoleAPICalled' && m.sessionId === swSession) {

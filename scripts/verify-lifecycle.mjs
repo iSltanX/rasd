@@ -21,6 +21,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { PAGE_PATHS } from '../src/shared/page-paths.ts'
 
+import { waitForExtensionContext } from './live-sw.mjs'
+
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
 const PORT = 9388
@@ -199,6 +201,9 @@ if (!inWorker) {
   finish(1)
 }
 ok('الـservice worker يعمل')
+
+// الارتباط ليس جهوزًا — انظر ترويسة `live-sw.mjs`.
+await waitForExtensionContext((e) => inWorker.evaluate(e))
 
 // ── 2) صفحة الإضافة، تُفتح من داخل الإضافة ────────────────────────
 // التنقّل العلوي إلى صفحة إضافة من سياق خارجي يمنعه Chrome (ينتهي بـabout:blank)،

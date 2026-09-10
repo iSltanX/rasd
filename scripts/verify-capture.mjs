@@ -34,6 +34,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
+import { waitForExtensionContext } from './live-sw.mjs'
+
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
 const PORT = 9366
@@ -237,6 +239,9 @@ if (!sw) {
   finish(1)
 }
 ok('الـservice worker يعمل')
+
+// الارتباط ليس جهوزًا — انظر ترويسة `live-sw.mjs`.
+await waitForExtensionContext((e) => sw.evaluate(e))
 
 // ── الحزمة المشحونة بلا صلاحية مضيف ───────────────────────────────
 // تُقرأ من `dist/` الأصلي لا من نسخة الفحص المُرقَّعة: التصريح لا يجوز أن

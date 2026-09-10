@@ -27,6 +27,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
+import { attachLiveServiceWorker } from './live-sw.mjs'
+
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
 const PORT = 9342
@@ -167,21 +169,11 @@ try {
   fail(`Chrome رفض الحزمة: ${e.message}`)
 }
 
-const ownOrigin = `chrome-extension://${extId}/`
-let sw = null
-for (let i = 0; i < 25 && extId; i++) {
-  const { targetInfos } = await send('Target.getTargets')
-  sw = targetInfos.find((t) => t.type === 'service_worker' && String(t.url).startsWith(ownOrigin))
-  if (sw) break
-  await new Promise((r) => setTimeout(r, 300))
-}
-
-let swSession = null
-if (sw) {
-  swSession = (await send('Target.attachToTarget', { targetId: sw.targetId, flatten: true }))
-    .sessionId
-  await send('Runtime.enable', {}, swSession)
-}
+/*
+ * الارتباط بسياقٍ **حيّ** لا بهدفٍ موجود — انظر ترويسة `live-sw.mjs`:
+ * الهدف يظهر قبل اكتمال إقلاع العامل، فيقع التقييم بلا ربط `chrome`.
+ */
+const { sw, swSession } = await attachLiveServiceWorker(send, extId)
 
 async function inSW(expression) {
   const res = await send(

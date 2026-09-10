@@ -50,6 +50,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { PAGE_PATHS } from '../src/shared/page-paths.ts'
 
+import { waitForExtensionContext } from './live-sw.mjs'
+
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
 const PORT = 9344
@@ -281,6 +283,14 @@ if (sw) {
   swSession = (await send('Target.attachToTarget', { targetId: sw.targetId, flatten: true }))
     .sessionId
   await send('Runtime.enable', {}, swSession)
+  // الارتباط ليس جهوزًا — انظر ترويسة `live-sw.mjs`.
+  await waitForExtensionContext((expression) =>
+    send(
+      'Runtime.evaluate',
+      { expression, awaitPromise: true, returnByValue: true },
+      swSession,
+    ).then((r) => r?.result?.value),
+  )
 }
 
 /** ينفّذ تعبيرًا داخل الـservice worker ويعيد قيمته. */
