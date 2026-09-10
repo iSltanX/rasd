@@ -50,6 +50,12 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      # حارس الحزمة المبنيّة — ساكن وسريع، ولم يكن يعمل في CI رغم ذلك.
+      # موضعه هنا لا في وظيفة كروم: لا متصفّح يلزمه، وهو يفحص `dist/`
+      # التي بُنيت للتوّ في السطر أعلاه.
+      - name: Bundle gate
+        run: pnpm run verify:dist
+
       - name: Upload extension bundle
         uses: actions/upload-artifact@v4
         with:
@@ -65,10 +71,39 @@ jobs:
   # وقبل هذه الوظيفة لم يكن أيّ `verify:*` يعمل في CI إطلاقًا: كل ما قيس
   # في المراحل 6 إلى 15 كان يُقاس على جهاز المطوّر وحده، فانحدارٌ في سلوك
   # المتصفّح كان يمرّ إلى `main` بلا أن يوقفه شيء.
+  #
+  # **ومصفوفةٌ لا خطوات متتابعة.** كانت الوظيفة تشغّل حارسَين من سبعة عشر،
+  # فبقي خمسة عشر حارسًا مكتوبًا لا يعمل في البيئة التي يُفترض أن يحرسها —
+  # وهو عين ما كشفه أوّل تشغيل (الصفّان 95 و96 في `§6`): حارسٌ لم يُشغَّل
+  # في بيئته ليس حارسًا مُثبَتًا. ووظيفةٌ لكل حارس تعني: عزل الفشل (‏`fail-fast:
+  # false` — سقوط واحد لا يُسكِت البقيّة)، وتوازيًا يجعل زمن الجولة زمنَ
+  # أبطأ حارس لا مجموعهم، وسطرًا في صفحة الفحوص يسمّي الساقط بعينه.
   live:
-    name: verify:editor · verify:library · كروم حقيقي
+    name: كروم حقيقي · verify:${{ matrix.guard }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        guard:
+          - activate
+          - capture
+          - capturing
+          - colour
+          - compare
+          - compare-diff
+          - editor
+          - fullpage
+          - inspect
+          - library
+          - lifecycle
+          - load
+          - measure
+          - overlay
+          - palette
+          - picker
+          - popup
 
     steps:
       - uses: actions/checkout@v5
@@ -101,26 +136,20 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           google-chrome --version
 
-      - name: Editor engine in real Chrome
-        run: pnpm run verify:editor
-        env:
-          CHROME_PATH: /usr/bin/google-chrome
-
-      # نفس البناء يخدم الفحصين — صفحة المكتبة إضافة صرفة بلا صلاحية
-      # مضيف، فلا حاجة لخادم عيّنات كما يحتاج verify:editor.
-      - name: Library page in real Chrome
-        run: pnpm run verify:library
+      - name: verify:${{ matrix.guard }} in real Chrome
+        run: pnpm run verify:${{ matrix.guard }}
         env:
           CHROME_PATH: /usr/bin/google-chrome
 
       # لقطات المراجعة البصرية — تُرفَع ولا تُقارَن آليًّا. المقارنة بالعين
       # مقصودة: خطُّ أساسٍ بكسليّ على متصفّح يتغيّر شهريًّا يُنتج فشلًا
-      # كاذبًا أكثر ممّا يُنتج كشفًا.
+      # كاذبًا أكثر ممّا يُنتج كشفًا. واسم الأثر يحمل اسم الحارس لأن
+      # `upload-artifact@v4` يرفض تكرار الاسم بين وظائف المصفوفة.
       - name: Upload visual review shots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rasd-live-shots-${{ github.sha }}
+          name: rasd-live-shots-${{ matrix.guard }}-${{ github.sha }}
           path: artifacts/
           retention-days: 14
           if-no-files-found: ignore
@@ -131,7 +160,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rasd-a11y-baselines-${{ github.sha }}
+          name: rasd-a11y-baselines-${{ matrix.guard }}-${{ github.sha }}
           path: tests/visual-baselines/
           retention-days: 14
           if-no-files-found: ignore
