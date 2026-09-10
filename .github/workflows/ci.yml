@@ -170,8 +170,21 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           google-chrome --version
 
+      # **مهلة على الخطوة لا على الوظيفة وحدها — والفرق ليس تجميليًّا.**
+      #
+      # قِيس: `verify:load` علّق عشرين دقيقة كاملة (كروم لم يُقلع ولم يمت)
+      # حتى بلغ `timeout-minutes` الوظيفة، فخرجت **ملغاة** لا فاشلة —
+      # و`continue-on-error` **لا يشمل الإلغاء**: فأُلغيت الجولة كلّها رغم
+      # أن أحدًا من الحرّاس ليس حاجبًا. أي أن «غير حاجب» لم يكن يعني ما
+      # يقوله ما دام حارسٌ واحد قادرًا على ابتلاع الجولة بتعليقه.
+      #
+      # فمهلةُ الخطوة تجعل المعلَّق يسقط **فشلًا** يبتلعه `continue-on-error`.
+      # وستّ دقائق سقفٌ مقيس لا مقدَّر: أبطأ حارس ناجح على العدّاء أقلّ من
+      # دقيقتين (‏`verify:editor` ≈ 1m10s شاملًا البناء)، فالثلاثة أضعاف
+      # هامشٌ يميّز «بطيء» من «معلَّق».
       - name: verify:${{ matrix.guard }} in real Chrome
         run: pnpm run verify:${{ matrix.guard }}
+        timeout-minutes: 6
         env:
           CHROME_PATH: /usr/bin/google-chrome
 
