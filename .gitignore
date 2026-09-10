@@ -6,10 +6,12 @@ node_modules/
 dist/
 dist-zip/
 *.zip
+*.tsbuildinfo
 
 # generated
 coverage/
 .vite/
+.cache/
 stats.html
 
 # env & secrets
@@ -17,12 +19,20 @@ stats.html
 .env.*
 !.env.example
 
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
 # editors & OS
 .DS_Store
 .idea/
 .vscode/*
 !.vscode/extensions.json
 *.swp
+*.swo
+*~
+Thumbs.db
 
 # test artifacts
 # artifacts/ مخرَج فحوص الشغل الحيّ (لقطات للمراجعة البصرية) — يُعاد توليده
@@ -33,3 +43,6 @@ playwright-report/
 blob-report/
 .playwright/
 .playwright-mcp/
+
+# محلّي بحت — مسارات worktrees وإعدادات جلسات الأداة المحلية
+.claude/worktrees/
