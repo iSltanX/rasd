@@ -250,21 +250,49 @@ async function inSW(expression) {
   return res.result.value
 }
 
-let granted = false
+/*
+ * **يُفصح عن سبب المنع ولا يبتلعه.**
+ *
+ * كانت القراءة `‏.catch(() => false)` داخل الـSW و`catch {}` خارجها — طبقتا
+ * ابتلاع تُحوِّلان أيّ خطأ إلى «غير ممنوحة»، بلا فرق بين: منحٍ حجبه المتصفّح،
+ * ونمطٍ رفضه، وترقيعِ بيانٍ لم يصل الحزمة أصلًا. وحين سقط الفحص في CI ومرّ
+ * محليًّا بنفس إصدار Chrome، لم يكن في المخرَج ما يفرّق بين الثلاثة.
+ * فصار يُرجِع ما تراه الإضافة فعلًا: المصرَّح في بيانها، والممنوح لها، ونصّ
+ * الخطأ إن وقع.
+ */
+let probe = { has: false, error: 'لا جلسة service worker' }
 if (swSession) {
   try {
-    granted = await inSW(
-      `chrome.permissions.contains({ origins: ['${BASE}/*'] }).then(g => g).catch(() => false)`,
-    )
-  } catch {
-    granted = false
+    probe = await inSW(`(async () => {
+      try {
+        const m = chrome.runtime.getManifest()
+        return {
+          has: await chrome.permissions.contains({ origins: ['${BASE}/*'] }),
+          granted: (await chrome.permissions.getAll()).origins ?? [],
+          declared: m.host_permissions ?? [],
+          optional: m.optional_host_permissions ?? [],
+          error: null,
+        }
+      } catch (e) {
+        return { has: false, error: String((e && e.message) || e) }
+      }
+    })()`)
+  } catch (e) {
+    probe = { has: false, error: `تعذّر تنفيذ القراءة في الـSW: ${e.message}` }
   }
 }
+const granted = probe.has === true
 
 if (!extId || !sw) {
   fail('الإضافة أو الـservice worker لم يجهزا — لا يمكن الحقن بالمسار الحقيقي.')
 } else if (!granted) {
-  fail('صلاحية المضيف للعيّنات غير ممنوحة — الحقن عبر chrome.scripting غير ممكن.')
+  fail(
+    'صلاحية المضيف للعيّنات غير ممنوحة — الحقن عبر chrome.scripting غير ممكن.' +
+      ` المصرَّح: ${JSON.stringify(probe.declared ?? null)}` +
+      ` · الممنوح: ${JSON.stringify(probe.granted ?? null)}` +
+      ` · الاختياري: ${JSON.stringify(probe.optional ?? null)}` +
+      (probe.error ? ` · الخطأ: ${probe.error}` : ''),
+  )
 } else {
   ok(`نسخة الفحص محمَّلة، والصلاحية للعيّنات المحلّية وحدها (${BASE}/*)`)
 }

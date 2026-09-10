@@ -88,8 +88,18 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Chrome version
-        run: google-chrome --version
+      # Ubuntu 24.04 على العدّاءات يقيّد **user namespaces غير المميّزة**
+      # عبر AppArmor، وعليها يبني Chrome صندوقه الرملي. والأثر متقطّع لا
+      # قاطع: مرّةً لا يُقلع المتصفّح أصلًا (‏«تعذّر الاتصال بـDevTools»)،
+      # ومرّةً يُقلع ويُحمِّل الإضافة ثمّ يخرج سياق الـservice worker بلا
+      # ربط `chrome` (‏«chrome is not defined»). القيمة تُطبَع أوّلًا دليلًا،
+      # ثمّ تُرخى — فيبقى الصندوق الرملي **مفعَّلًا**، وهو أسلم من تعطيله
+      # بـ`--no-sandbox` في ثمانية عشر سكربتًا.
+      - name: Chrome version · وصندوق الرمل
+        run: |
+          echo "apparmor_restrict_unprivileged_userns = $(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 'غير معرَّف')"
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          google-chrome --version
 
       - name: Editor engine in real Chrome
         run: pnpm run verify:editor
