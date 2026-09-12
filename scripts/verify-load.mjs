@@ -31,6 +31,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 import * as PERMS from '../src/shared/permission-policy.ts'
 
+import { attachLiveServiceWorker } from './live-sw.mjs'
+
 /** نطاق المحارف العربية. ثابت مُسمّى: سطر يبدأ بـ`/` يُقرأ قسمةً لا تعبيرًا نمطيًا. */
 const ARABIC_RANGE = /[\u0600-\u06FF]/
 
@@ -229,10 +231,19 @@ if (loadRejection) {
 
   // ── حالة الصلاحيات وقت التشغيل ────────────────────────────────
   try {
-    const { sessionId } = await send('Target.attachToTarget', {
-      targetId: sw.targetId,
-      flatten: true,
-    })
+    /*
+     * **الارتباط بسياقٍ حيّ لا بهدفٍ موجود** — انظر ترويسة `live-sw.mjs`.
+     *
+     * كان هذا الملفّ الوحيد الباقي خارج تلك الوحدة: أربعة عشر حارسًا اعتمدوها
+     * حين حُسم السباق (‏`§6` صفّ 96) وبقي هو يرتبط بالهدف مباشرةً. والأثر
+     * قِيس هنا: `Target.attachToTarget` على عاملٍ يُستبدَل أثناء إقلاعه —
+     * أو أوّل تقييم بعده — يترك وعدًا معلَّقًا **بلا مهلة**، فبلغ الحارس
+     * مهلة الخطوة (ستّ دقائق) في CI مرّتين، ثمّ سمّت المهلةُ الصلبة موضعه
+     * بالضبط: «علّق بعد ✓ المعرّف يطابق المحسوب».
+     */
+    const { swSession } = await attachLiveServiceWorker(send, loadedId)
+    if (!swSession) throw new Error('سياق الـservice worker لم يصر حيًّا خلال المهلة')
+    const sessionId = swSession
     const evaluate = async (expression) => {
       const res = await send(
         'Runtime.evaluate',
