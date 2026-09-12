@@ -17,6 +17,7 @@ import {
   assignImageAsReference,
   findReferenceForPage,
 } from '@/modules/compare/reference'
+import { retentionSweep } from '@/modules/library/retention'
 import { base64ToBlob, blobToBase64 } from '@/shared/base64'
 import { isIncognitoContext, VERSION } from '@/shared/env'
 import {
@@ -46,6 +47,16 @@ import type { Viewport } from '@/shared/storage/schema'
 
 /** اسم منبّه الحارس. */
 const WATCHDOG_ALARM = 'rasd:watchdog'
+/** اسم منبّه الحذف الدوري (`§11` — «حذف السجلّ تلقائيًا بعد مدّة»). */
+const RETENTION_ALARM = 'rasd:retention'
+/**
+ * دورة الكنس: ساعة، لا دقيقة كالحارس.
+ *
+ * أقصر مدّة يعرضها الضابط سبعة أيام، فدورةٌ بالساعة تعطي دقّةً أعلى من
+ * المطلوب بمئة وثمانية وستّين ضعفًا وهي أصلًا أرخص ما يقبله الجدول عمليًّا.
+ * ودورة الدقيقة كانت ستفتح قاعدة البيانات 1,440 مرّة يوميًّا بلا مقابل.
+ */
+const RETENTION_MINUTES = 60
 /** أقصر فاصل يقبله Chrome للمنبّهات المتكرّرة. */
 const WATCHDOG_MINUTES = 1
 /** مهمة تجاوزت هذه المدّة بلا تقدّم تُعدّ معلَّقة. */
@@ -66,7 +77,8 @@ export function registerLifecycle() {
    * التي تقرأها `gate.ts` لكل قرار حقن) طريّة بلا إعادة تشغيل الـSW — الوحدة
    * 20.1. ويُطبَّق سياسة التصفّح الخاص فورًا لأي تغيّر، من أي سياق كتبه.
    */
-  watchSettings((settings) => setIncognitoWritePolicy(settings.privacy.blockIncognitoWrites))
+  watchSettings((settings) => setIncognitoWritePolicy(blocksWrites(settings)))
+  registerRetention()
 }
 
 /**
@@ -119,7 +131,7 @@ function registerRequestHandlers() {
      * `chrome.storage.onChanged` بلا ضمان توقيت. مستدعٍ ينتظر ردّ هذه
      * الرسالة يحتاج السياسة مطبَّقة فورًا، لا بعد دورة حدث إضافية.
      */
-    setIncognitoWritePolicy(result.value.privacy.blockIncognitoWrites)
+    setIncognitoWritePolicy(blocksWrites(result.value))
     return result.value
   })
 
@@ -460,8 +472,76 @@ function registerChannels() {
   })
 }
 
+/**
+ * هل تمنع سياسة التصفّح الخاص الكتابة الآن؟
+ *
+ * مشتقّة في موضع واحد لا مكرّرة في موضعَي الاستدعاء: «اسمح» وحدها تكتب،
+ * و«لا تحفظ» و«عطّل» كلتاهما تمنعان — و«عطّل» لا تصل الكتابة أصلًا لأن
+ * البوّابة منعت الحقن قبلها، فمنعُها هنا حزامٌ ثانٍ لا تكرارًا.
+ */
+function blocksWrites(settings: { privacy: { incognito: 'allow' | 'no-save' | 'off' } }): boolean {
+  return settings.privacy.incognito !== 'allow'
+}
+
+/**
+ * منبّه الحذف الدوري — مستمعٌ ثانٍ يرشّح باسمه، كالحارس تمامًا.
+ *
+ * الإنشاء غير مشروط بقيمة الإعداد: `sweepRetention` تخرج فورًا عند `0`،
+ * وجعلُ الجدولة نفسها مشروطةً كان سيُلزم إلغاءً وإعادة إنشاء عند كل تغيير
+ * إعداد — حالةٌ في موضعين تفترق عند أوّل خطأ.
+ */
+function registerRetention() {
+  void ensureAlarm(RETENTION_ALARM, RETENTION_MINUTES)
+
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name !== RETENTION_ALARM) return
+    void sweepRetention()
+  })
+}
+
+/**
+ * يُنشئ المنبّه **إن لم يكن قائمًا** — ولا يعيد إنشاءه إن كان.
+ *
+ * **العطل الذي بُنيت له، ورصدته مراجعة Gate B للوحدة 20.3:**
+ * `chrome.alarms.create` باسمٍ قائم **يستبدل المنبّه ويصفّر عدّاده من الصفر**.
+ * وservice worker في MV3 يُوقَظ ويُنهى عشرات المرّات في الساعة، و
+ * `registerLifecycle()` تُستدعى في كل إقلاع — فمنبّهٌ دورته ستّون دقيقة
+ * كان **لا يبلغها أبدًا**، والحذف الدوري ميّتٌ تمامًا لا بطيء. (‏`§6` صفّ 127.)
+ *
+ * والحارس القائم منذ المرحلة 3 يحمل العلّة نفسها بدورة دقيقة واحدة — أقصر
+ * فيقع أحيانًا، لكنه غير مضمون بالقدر نفسه. أُصلح معه هنا: سطرٌ واحد
+ * والعلّة واحدة، وتركُ المعروف مكسورًا بجوار إصلاحه أسوأ من إصلاحه.
+ */
+async function ensureAlarm(name: string, periodInMinutes: number): Promise<void> {
+  const existing = await chrome.alarms.get(name)
+  if (existing) return
+  await chrome.alarms.create(name, { periodInMinutes })
+}
+
+/**
+ * يقرأ المدّة المختارة ويكنس — تُصدَّر للاختبار، كـ`sweepStalledJobs`.
+ *
+ * القراءة من `getSettings()` لا من لقطةٍ محفوظة عند الإقلاع: `watchSettings`
+ * في `registerLifecycle` تُبقي الذاكرة المؤقّتة طريّة (الوحدة 20.1)، فتغيير
+ * المدّة من صفحة الإعدادات ينعكس على الدورة التالية بلا إعادة تشغيل الـSW.
+ */
+export async function sweepRetention(now = Date.now()): Promise<number> {
+  const { autoDeleteAfterDays } = (await getSettings()).privacy
+  if (autoDeleteAfterDays === 0) return 0
+
+  const swept = await retentionSweep(now, autoDeleteAfterDays)
+  if (!swept.ok) {
+    console.warn(`[رصد] تعذّر الحذف الدوري: ${swept.error.message}`)
+    return 0
+  }
+  if (swept.value > 0) {
+    console.debug(`[رصد] حُذفت ${swept.value} لقطة تجاوزت ${autoDeleteAfterDays} يومًا.`)
+  }
+  return swept.value
+}
+
 function registerWatchdog() {
-  void chrome.alarms.create(WATCHDOG_ALARM, { periodInMinutes: WATCHDOG_MINUTES })
+  void ensureAlarm(WATCHDOG_ALARM, WATCHDOG_MINUTES)
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name !== WATCHDOG_ALARM) return

@@ -184,14 +184,35 @@ export async function deleteReferenceWithBlob(id: string, blobId: string): Promi
   })
 }
 
+/**
+ * يحذف لقطةً وكلَّ ما يشير إليها في معاملة واحدة.
+ *
+ * **والمخزن الخامس (`guides`) أُضيف في الوحدة 20.3، وليس تجميلًا.**
+ * `GuideRecord.captureIds` مصفوفة مُعرِّفات تُعرَض للمستخدم عدّادًا
+ * («12 لقطة») في `GuideCard`. وحذف لقطة كان يتركها في المصفوفة، فيصير
+ * العدّاد يعِد بما لا وجود له. كان العطل نادرًا ما دام الحذف يدويًّا؛
+ * والحذف الدوري (`modules/library/retention.ts`) يحوّله من نادر إلى منهجيّ —
+ * فأُغلق في الوحدة التي أنشأت المنهجيّة. (‏`Rasd_Plan.md §6` صفّ 120.)
+ *
+ * والأدلّة تُقرأ وتُكتب داخل المعاملة نفسها: تنظيفٌ بعدها كان سيترك نافذةً
+ * تُقرأ فيها حالةٌ نصفُها محذوف.
+ */
 export async function deleteCaptureWithBlob(id: string): Promise<Result<null>> {
   return withDb(async (db) => {
-    const tx = db.transaction(['captures', 'blobs', 'annotations', 'thumbnails'], 'readwrite')
+    const tx = db.transaction(
+      ['captures', 'blobs', 'annotations', 'thumbnails', 'guides'],
+      'readwrite',
+    )
+    const guideStore = tx.objectStore('guides')
+    const affected = (await guideStore.getAll()).filter((guide) => guide.captureIds.includes(id))
     await Promise.all([
       tx.objectStore('captures').delete(id),
       tx.objectStore('blobs').delete(id),
       tx.objectStore('annotations').delete(id),
       tx.objectStore('thumbnails').delete(id),
+      ...affected.map((guide) =>
+        guideStore.put({ ...guide, captureIds: guide.captureIds.filter((c) => c !== id) }),
+      ),
       tx.done,
     ])
     return null

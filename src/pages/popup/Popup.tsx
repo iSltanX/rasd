@@ -99,7 +99,10 @@ export function Popup(): JSX.Element | null {
     void (async () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
       if (!tab?.id) return
-      const [partial, recent] = await Promise.all([loadPopupContext(tab.id, tab.url), loadRecent()])
+      const [partial, recent] = await Promise.all([
+        loadPopupContext(tab.id, tab.url, tab.incognito),
+        loadRecent(),
+      ])
       if (cancelled) return
       setLoaded({
         tabId: tab.id,

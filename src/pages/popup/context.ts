@@ -92,6 +92,23 @@ function excludedSitesFrom(reply: Awaited<ReturnType<typeof send<'settings/get'>
 }
 
 /**
+ * وضع التصفّح الخاص كما وصل — وردٌّ ساقط يُقرأ `no-save` لا `off`.
+ *
+ * **والاتجاه المتحفّظ هنا معكوسٌ عمدًا** عن `excludedSitesFrom` أعلاه، ولسببٍ
+ * واحد: هذا القرار في النافذة **استشاريّ لا حاسم** (‏ADR 0020 الحقيقة 1)،
+ * والردّ الساقط يُنتج `['*']` فيمنع كل شيء أصلًا — فلا حاجة لمنعٍ ثانٍ فوقه،
+ * وادّعاءُ `off` على ردٍّ لم يصل يعرض للمستخدم سببًا لم يختره.
+ */
+function incognitoModeFrom(
+  reply: Awaited<ReturnType<typeof send<'settings/get'>>>,
+): 'allow' | 'no-save' | 'off' {
+  if (!reply.ok) return 'no-save'
+  const privacy = (reply.value as { privacy?: { incognito?: unknown } }).privacy
+  const mode = privacy?.incognito
+  return mode === 'allow' || mode === 'off' ? mode : 'no-save'
+}
+
+/**
  * يبني `PopupContext` كاملًا لتبويب واحد.
  *
  * `online` وحدها لا تصل من هنا رغم كونها جزءًا من `PopupContext` — القيمة
@@ -102,6 +119,7 @@ function excludedSitesFrom(reply: Awaited<ReturnType<typeof send<'settings/get'>
 export async function loadPopupContext(
   tabId: number,
   url: string | undefined,
+  incognito = false,
 ): Promise<Omit<PopupContext, 'online'>> {
   // ثلاثتها متوازية لا متتالية: لا تعتمد إحداها على نتيجة الأخرى، وكل رحلة
   // إضافية قبل أول عرض تُحتسَب على ميزانية الـ100ms. ولهذا تُطلَب حاجة الإذن
@@ -113,7 +131,17 @@ export async function loadPopupContext(
     findPermissionNeed(url),
   ])
 
-  const decision = evaluateGate(url, excludedSitesFrom(settingsReply))
+  /*
+   * **يُحسَب السبب في موضعين لا موضع**: الخلفية تقرّر حاسمًا، والنافذة
+   * استشاريًّا قبل أول عرض. وانحرافهما يراه المستخدم مباشرةً — نافذةٌ تعرض
+   * أدواتٍ يرفضها `tool/activate` بعد نقرة. فـ`incognito` يُمرَّر من
+   * `chrome.tabs.query` الذي يملكه المستدعي أصلًا، بنفس مصدر
+   * `background/gate.ts` حرفًا بحرف.
+   */
+  const decision = evaluateGate(url, excludedSitesFrom(settingsReply), {
+    incognito,
+    incognitoMode: incognitoModeFrom(settingsReply),
+  })
   const restriction = decision.allowed
     ? { injectable: true as const }
     : { injectable: false as const, reason: decision.reason }

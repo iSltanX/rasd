@@ -12,6 +12,7 @@ import {
   REQUIRED_PERMISSIONS,
   requestHostPermission,
   requestPermission,
+  revokeHostPermission,
   revokePermission,
 } from '@/shared/permissions'
 
@@ -91,9 +92,24 @@ describe('requestPermission · hasPermission · revokePermission', () => {
     await expect(hasPermission(['tabs'])).resolves.toBe(true)
   })
 
-  it('يسحب الصلاحية', async () => {
+  /*
+   * النتيجة `'revoked'` لا `'granted'`: الدالّة كانت تُرجع `'granted'` عند
+   * **نجاح** السحب — «نجحت العملية» تُقرأ «الصلاحية ممنوحة» (‏`§6` صفّ 124).
+   */
+  it('يسحب الصلاحية ويقول إنها سُحبت لا إنها ممنوحة', async () => {
     api.remove.mockResolvedValue(true)
-    await expect(revokePermission(['desktopCapture'])).resolves.toBe('granted')
+    await expect(revokePermission(['desktopCapture'])).resolves.toBe('revoked')
+  })
+
+  it('السحب الذي لم يقع يُقرأ «باقية» لا «مرفوضة»', async () => {
+    api.remove.mockResolvedValue(false)
+    await expect(revokePermission(['desktopCapture'])).resolves.toBe('kept')
+  })
+
+  it('يسحب صلاحية المضيف كذلك', async () => {
+    api.remove.mockResolvedValue(true)
+    await expect(revokeHostPermission(['https://x.com/*'])).resolves.toBe('revoked')
+    expect(api.remove).toHaveBeenCalledWith({ origins: ['https://x.com/*'] })
   })
 })
 

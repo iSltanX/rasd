@@ -217,6 +217,18 @@ if (manifest) {
     ? ok('CSP بلا unsafe-eval ولا unsafe-inline ولا مصادر خارجية')
     : fail(`CSP غير آمنة أو مفقودة: "${csp}"`)
 
+  /*
+   * **فحص حضور لا غياب — أُضيف في الوحدة 20.3.** الشرط أعلاه يرفض أي مصدر
+   * خارجي في السياسة، لكن سياسةً **تحذف `connect-src` بالكامل** كانت تمرّ
+   * خضراء: الغياب ليس مطابقةً للنمط المرفوض. وشاشة الخصوصية تعرض للمستخدم
+   * أن «سياسة أمن المحتوى تحجب الاتصال الخارجي» — فادّعاءٌ معروض يجب أن
+   * يحرسه البناء لا النيّة. (‏`Rasd_Plan.md §6` صفّ 126.)
+   */
+  const connectSelf = /\bconnect-src\s+'self'/u
+  connectSelf.test(csp)
+    ? ok("CSP تحوي connect-src 'self' صراحةً — ادّعاء «لا اتصال خارجي» محروس")
+    : fail(`CSP بلا connect-src 'self' — الادّعاء المعروض في شاشة الخصوصية بلا حارس: "${csp}"`)
+
   manifest.incognito === 'split'
     ? ok('incognito = split')
     : fail(`incognito = ${manifest.incognito} — المطلوب "split"`)

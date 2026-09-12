@@ -1,0 +1,77 @@
+/**
+ * أنماط قائمة المواقع المستثناة — ما لا يوجد في `SettingsTab.module.css`.
+ *
+ * صفُّ الإعداد ووسومه وتلميحاته تأتي من الورقة المشتركة؛ هنا ما تخصّ القائمة
+ * وحدها: نموذج الإضافة، وصفوف القائمة، وصفّ النقل (تصدير/استيراد).
+ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-12);
+  padding-inline: var(--rasd-space-12);
+  padding-block-end: var(--rasd-space-16);
+}
+
+.addForm {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rasd-space-8);
+}
+
+.addForm > :first-child {
+  flex: 1;
+}
+
+.empty {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-secondary);
+  margin: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-8);
+  padding-block: var(--rasd-space-8);
+  border-block-end: var(--rasd-stroke-hairline) solid var(--rasd-border-subtle);
+}
+
+.item:last-child {
+  border-block-end: 0;
+}
+
+/* المضيف مقطع لاتيني داخل سياق عربي — يُعزل كي لا تنقلب نقاطه. */
+.host {
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-primary);
+}
+
+.suggested {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+}
+
+.suggestedRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-8);
+}
+
+.transferRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-8);
+}

@@ -1,9 +1,10 @@
 /**
  * صفحة الإعدادات — الحاوية الجذر.
  *
- * خمسة تبويبات: المظهر (20.1) والأربعة الباقية (`§12`: التصوير · التعليقات ·
- * الألوان · الاختصارات، الوحدة 20.2). التوجيه لم يُعَد بناؤه — أُضيفت فقط
- * إلى `TAB_ITEMS`/`TAB_VALUES` كما توقّع `Phase_20.md §8` تمامًا.
+ * ستّة تبويبات: المظهر (20.1)، وأربعة `§12` (التصوير · التعليقات · الألوان ·
+ * الاختصارات، الوحدة 20.2)، والخصوصية والصلاحيات (`§11`، الوحدة 20.3).
+ * التوجيه لم يُعَد بناؤه في أيٍّ منها — أُضيفت إلى `TAB_ITEMS`/`TAB_VALUES`
+ * وحدهما، كما توقّع `Phase_20.md §8` تمامًا.
  *
  * **الجذر يُطبَّق عليه المظهر مرّتين لا مرّة**: هذا المكوّن يعيش داخل صفحة
  * امتداد عادية، فتطبيق `applyTheme` هنا (عبر `watchSettings` في `main.tsx`)
@@ -15,10 +16,14 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import { Tabs, type TabItem } from '@/ui/components/Tabs/Tabs'
 
 import {
+  addExcludedSite,
+  importExcludedSites,
+  removeExcludedSite,
   saveAnnotation,
   saveAppearance,
   saveCapture,
   saveColors,
+  savePrivacy,
   saveShortcut,
   watchSettings,
   type Settings,
@@ -27,10 +32,11 @@ import { AnnotationTab } from './parts/AnnotationTab'
 import { AppearanceTab } from './parts/AppearanceTab'
 import { CaptureTab } from './parts/CaptureTab'
 import { ColorsTab } from './parts/ColorsTab'
+import { PrivacyTab } from './parts/PrivacyTab'
 import { ShortcutsTab } from './parts/ShortcutsTab'
 import styles from './Settings.module.css'
 
-type SettingsTab = 'capture' | 'annotation' | 'colors' | 'appearance' | 'shortcuts'
+type SettingsTab = 'capture' | 'annotation' | 'colors' | 'appearance' | 'shortcuts' | 'privacy'
 
 const TAB_ITEMS: readonly TabItem[] = [
   { value: 'capture', label: 'التصوير' },
@@ -38,6 +44,7 @@ const TAB_ITEMS: readonly TabItem[] = [
   { value: 'colors', label: 'الألوان' },
   { value: 'appearance', label: 'المظهر' },
   { value: 'shortcuts', label: 'الاختصارات' },
+  { value: 'privacy', label: 'الخصوصية' },
 ]
 const TAB_VALUES: readonly SettingsTab[] = [
   'capture',
@@ -45,6 +52,7 @@ const TAB_VALUES: readonly SettingsTab[] = [
   'colors',
   'appearance',
   'shortcuts',
+  'privacy',
 ]
 
 export function Settings() {
@@ -72,6 +80,15 @@ export function Settings() {
       ) : null}
       {activeTab === 'shortcuts' ? (
         <ShortcutsTab settings={settings} onSave={saveShortcut} />
+      ) : null}
+      {activeTab === 'privacy' ? (
+        <PrivacyTab
+          settings={settings}
+          onSave={savePrivacy}
+          onAddSite={addExcludedSite}
+          onRemoveSite={removeExcludedSite}
+          onImportSites={importExcludedSites}
+        />
       ) : null}
     </div>
   )

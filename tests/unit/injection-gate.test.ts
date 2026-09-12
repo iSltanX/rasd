@@ -59,9 +59,58 @@ describe('gateMessage', () => {
     expect(message).toMatch(/[؀-ۿ]/u)
   })
 
-  it('والسببان الجديدان يقولان للمستخدم ما يفعله، لا ما وقع فقط', () => {
+  it('والأسباب الثلاثة تقول للمستخدم ما يفعله، لا ما وقع فقط', () => {
     expect(gateMessage('excluded-site')).toContain('الإعدادات')
+    expect(gateMessage('incognito-off')).toContain('الخصوصية')
     expect(gateMessage('settings-unavailable')).toContain('أعد المحاولة')
+  })
+
+  /*
+   * الوحدة 20.3 — التصفّح الخاص عند البوّابة الخالصة. الترتيب مقصود
+   * ومُختبَر: قيد المنصّة أوّلًا (ADR 0020 البند 6)، ثمّ **السياق**، ثمّ
+   * الموقع — فمن عطّل رصدًا في النوافذ الخاصّة يُقال له ذلك لا يُرسَل يعدّل
+   * قائمةً ليست هي السبب في هذه النافذة.
+   */
+  describe('التصفّح الخاص', () => {
+    it('يمنع الحقن في نافذة خاصّة حين يكون الوضع «معطَّل»', () => {
+      expect(
+        evaluateGate('https://example.com/', [], { incognito: true, incognitoMode: 'off' }),
+      ).toEqual({ allowed: false, reason: 'incognito-off' })
+    })
+
+    it('«معطَّل» لا يمسّ النوافذ العادية', () => {
+      expect(
+        evaluateGate('https://example.com/', [], { incognito: false, incognitoMode: 'off' }),
+      ).toEqual({ allowed: true })
+    })
+
+    it.each(['allow', 'no-save'] as const)('الوضع «%s» يسمح بالحقن في نافذة خاصّة', (mode) => {
+      expect(
+        evaluateGate('https://example.com/', [], { incognito: true, incognitoMode: mode }),
+      ).toEqual({ allowed: true })
+    })
+
+    it('قيد المنصّة يسبق السياق — chrome:// تُمنع بسببها هي لا بالتصفّح الخاص', () => {
+      const decision = evaluateGate('chrome://settings', [], {
+        incognito: true,
+        incognitoMode: 'off',
+      })
+      expect(decision).not.toEqual({ allowed: false, reason: 'incognito-off' })
+      expect(decision.allowed).toBe(false)
+    })
+
+    it('السياق يسبق الموقع حين يصدق الاثنان', () => {
+      expect(
+        evaluateGate('https://bank.com/', ['bank.com'], {
+          incognito: true,
+          incognitoMode: 'off',
+        }),
+      ).toEqual({ allowed: false, reason: 'incognito-off' })
+    })
+
+    it('السياق الافتراضي لا يمنع شيئًا — مستدعٍ لا يمرّره لا يتغيّر سلوكه', () => {
+      expect(evaluateGate('https://example.com/', [])).toEqual({ allowed: true })
+    })
   })
 })
 
@@ -95,9 +144,12 @@ describe('canOperateOnTab', () => {
     })
   })
 
-  const openTab = (url: string) => tabsGet.mockResolvedValue({ id: 1, url })
+  const openTab = (url: string, incognito = false) =>
+    tabsGet.mockResolvedValue({ id: 1, url, incognito })
   const excluding = (...sites: string[]) =>
     storageGet.mockResolvedValue({ 'rasd:settings': { privacy: { excludedSites: sites } } })
+  const incognitoMode = (mode: 'allow' | 'no-save' | 'off') =>
+    storageGet.mockResolvedValue({ 'rasd:settings': { privacy: { incognito: mode } } })
 
   it('يسمح بصفحة سليمة وقائمة فارغة', async () => {
     openTab('https://example.com/')
@@ -158,5 +210,35 @@ describe('canOperateOnTab', () => {
     await activateResume(1)
 
     expect(executeScript, 'حُقنت شيفرة في موقع استثناه المستخدم').not.toHaveBeenCalled()
+  })
+
+  /*
+   * الوحدة 20.3 — الحقيقة تُقرأ من **التبويب** لا من `chrome.extension`.
+   *
+   * البديل الوحيد داخل `shared/` هو `isIncognitoContext()`، وهي تقرأ
+   * `chrome.extension.inIncognitoContext` — واجهةٌ توثّقها أنواع Chrome
+   * لصفحات الإضافة، والـservice worker ليس صفحة (`§6` صفّ 121). أمّا
+   * `Tab.incognito` فحقلٌ على الكائن الذي تقرؤه البوّابة أصلًا قبل كل قرار،
+   * فالاختبار يمرّره من حيث يأتي في الإنتاج تمامًا.
+   */
+  it('يمنع الحقن في تبويب نافذةٍ خاصّة حين يكون الوضع «معطَّل»', async () => {
+    incognitoMode('off')
+    openTab('https://example.com/', true)
+    expect(await canOperateOnTab(1)).toEqual({ allowed: false, reason: 'incognito-off' })
+  })
+
+  it('وينفّذ ذلك على مسار الاستئناف التلقائي كذلك — بلا إيماءة مستخدم', async () => {
+    incognitoMode('off')
+    openTab('https://example.com/', true)
+
+    await activateResume(1)
+
+    expect(executeScript, 'حُقنت شيفرة في نافذة خاصّة عطّلها المستخدم').not.toHaveBeenCalled()
+  })
+
+  it('والوضع «معطَّل» لا يمنع تبويبًا عاديًّا', async () => {
+    incognitoMode('off')
+    openTab('https://example.com/', false)
+    expect(await canOperateOnTab(1)).toEqual({ allowed: true })
   })
 })

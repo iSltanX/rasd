@@ -25,9 +25,10 @@ import { getSettingsResult } from '@/shared/settings'
  * المحاولة، لا صمتًا.
  */
 export async function canOperateOnTab(tabId: number): Promise<GateDecision> {
-  let url: string | undefined
+  let tab: chrome.tabs.Tab
   try {
-    url = (await chrome.tabs.get(tabId)).url
+    // قراءةٌ طازجة واحدة تحمل الحقلين — لا نداء ثانٍ ولا استنتاج سياق.
+    tab = await chrome.tabs.get(tabId)
   } catch {
     return { allowed: false, reason: 'invalid-url' }
   }
@@ -35,5 +36,9 @@ export async function canOperateOnTab(tabId: number): Promise<GateDecision> {
   const settings = await getSettingsResult()
   if (!settings.ok) return { allowed: false, reason: 'settings-unavailable' }
 
-  return evaluateGate(url, settings.value.privacy.excludedSites)
+  const { privacy } = settings.value
+  return evaluateGate(tab.url, privacy.excludedSites, {
+    incognito: tab.incognito,
+    incognitoMode: privacy.incognito,
+  })
 }

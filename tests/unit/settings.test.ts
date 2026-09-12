@@ -26,7 +26,7 @@ describe('القيم الافتراضية', () => {
     expect(s.colors.hideNeutrals).toBe(true)
     expect(s.appearance.language).toBe('ar')
     expect(s.appearance.theme).toBe('system')
-    expect(s.privacy.blockIncognitoWrites).toBe(true)
+    expect(s.privacy.incognito).toBe('no-save')
     expect(s.privacy.localOnly).toBe(true)
     expect(s.onboarding.completed).toBe(false)
     expect(s.shortcuts.toolKeys).toEqual({

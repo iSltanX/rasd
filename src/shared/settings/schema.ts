@@ -31,6 +31,20 @@ export const ThemeMode = v.picklist(['system', 'dark', 'light'])
 export const Language = v.picklist(['ar', 'en'])
 export const PinShape = v.picklist(['circle', 'square', 'pin'])
 
+/**
+ * `§11.1` — التصفّح الخاص، **ثلاث حالات على مقياس واحد لا بوليانان**.
+ *
+ * نصّ المواصفة (`Rasd_Ar.md §11.1`) يطلب حالتين متدرّجتين فوق حالة «لا شيء»:
+ * «منع الحفظ التلقائي … **مع إمكانية تعطيل الإضافة فيه بالكامل**». وبوليانان
+ * منفصلان يسمحان بتركيبة لا معنى لها («عطّل كليًّا» + «اسمح بالحفظ»)؛
+ * و`picklist` واحد يمنعها **بالبناء** لا بالانضباط.
+ *
+ * - `allow` — تعمل وتحفظ كالوضع العادي.
+ * - `no-save` — تعمل ولا تكتب شيئًا على القرص (‏`storage/db.ts`).
+ * - `off` — لا تُحقَن أصلًا؛ يُنفَّذ من بوّابة الحقن الواحدة (‏ADR 0020).
+ */
+export const IncognitoMode = v.picklist(['allow', 'no-save', 'off'])
+
 export const SettingsSchema = v.object({
   schemaVersion: v.optional(v.number(), 1),
 
@@ -115,9 +129,14 @@ export const SettingsSchema = v.object({
 
   privacy: v.optional(
     v.object({
-      /** يمنع طبقة التخزين من الكتابة في التصفّح الخاص. */
-      blockIncognitoWrites: v.optional(v.boolean(), true),
-      /** أنماط مواقع لا تعمل فيها الإضافة — تُنفَّذ في المرحلة 20. */
+      /**
+       * `§11.1` — سلوك الإضافة في التصفّح الخاص. حلَّ محلّ البولياني
+       * `blockIncognitoWrites` في الوحدة 20.3 (‏`migrateLegacyKeys` أدناه
+       * يحفظ اختيار من ضبطه سابقًا). الافتراضي `no-save` يطابق الافتراضي
+       * القديم `true` حرفًا بحرف.
+       */
+      incognito: v.optional(IncognitoMode, 'no-save'),
+      /** أنماط مواقع لا تعمل فيها الإضافة — تُنفَّذ عند بوّابة الحقن (20.0). */
       excludedSites: v.optional(v.array(v.string()), []),
       localOnly: v.optional(v.boolean(), true),
       stripMetadataOnExport: v.optional(v.boolean(), false),
@@ -143,24 +162,132 @@ export function defaultSettings(): Settings {
 }
 
 /**
+ * يُسقط مفتاحًا واحدًا **بمساره الكامل** من نسخة، بلا لمس الأصل.
+ *
+ * **ولماذا بالمسار الكامل لا بجذره.** كان الإنقاذ يحذف `path.split('.')[0]`،
+ * أي **القسم الأعلى كاملًا**: قيمة تالفة واحدة في `privacy.autoDeleteAfterDays`
+ * تمحو `privacy` كلّها فتصير `excludedSites` فارغة. والفراغ هنا ليس نقصًا
+ * محايدًا — `evaluateGate` تقرؤه **سماحًا** لا جهلًا، فينكسر ضمان
+ * [ADR 0020](../../../Docs/ADR/0020-injection-gate.md) البند 5 («قُرئت وهي
+ * فارغة ≠ لم تُقرأ») من بابٍ لا يمرّ بمسار الفشل الذي حرسه. وأسوأ من ذلك أن
+ * `patchSettings` تكتب النتيجة المُنقَذة على القرص، فينقلب الفقد من عابرٍ
+ * إلى دائم بصمت. (‏`Rasd_Plan.md §6` صفّ 119.)
+ *
+ * والمصفوفة تُرشَّح لا تُحذف بـ`delete`: الحذف بالفهرس يترك ثقبًا
+ * (`undefined`) يسقط في إعادة التحقّق نفسها التي جاء الإنقاذ ليمرّرها.
+ */
+function dropAtPath(node: unknown, segments: readonly string[]): unknown {
+  const [head, ...rest] = segments
+  if (head === undefined) return node
+
+  if (Array.isArray(node)) {
+    const items = node as unknown[]
+    const index = Number(head)
+    if (!Number.isInteger(index) || index < 0 || index >= items.length) return node
+    if (rest.length === 0) return items.filter((_, i) => i !== index)
+    const copy = [...items]
+    copy[index] = dropAtPath(copy[index], rest)
+    return copy
+  }
+
+  if (node && typeof node === 'object') {
+    const copy: Record<string, unknown> = { ...(node as Record<string, unknown>) }
+    if (rest.length === 0) {
+      delete copy[head]
+      return copy
+    }
+    if (!(head in copy)) return node
+    copy[head] = dropAtPath(copy[head], rest)
+    return copy
+  }
+
+  return node
+}
+
+/**
+ * يرتّب مسارات الأعطاب **تنازليًّا عند فهارس المصفوفات** قبل الإسقاط.
+ *
+ * **العطل الذي بُنيت له، ورصدته مراجعة Gate B للوحدة 20.3:** إسقاط عنصر من
+ * مصفوفة يُزيح فهارس ما بعده. فمصفوفةٌ فيها تالفان عند الفهرسين 1 و2 كانت
+ * تُعالَج بالترتيب: يُحذف 1 فيصير العنصر السليم عند 2، ثمّ يُحذف «2» فيُطيَّح
+ * **السليم** ويبقى التالف — فتفشل إعادة التحقّق، ويسقط الإنقاذ كلّه، وتعود
+ * **كل** الإعدادات إلى الافتراضي ومعها `excludedSites` فارغةً. أي أن الإصلاح
+ * الذي كتبته هذه الوحدة للصفّ 119 كان يُعيد إنتاج العطل نفسه عند تالفَين لا
+ * تالفٍ واحد. (‏`§6` صفّ 129.)
+ *
+ * والمعالجة من الأعلى إلى الأدنى تُبقي الفهارس الأصغر صحيحة دائمًا، لأن حذف
+ * الأكبر لا يزحزح ما قبله. والمقارنة رقميّة عند المقاطع الرقمية ونصّية عند
+ * غيرها — فـ`10` بعد `9` لا قبلها.
+ */
+function orderedIssuePaths(issues: readonly { readonly path?: unknown }[]): string[][] {
+  const paths: string[][] = []
+  for (const issue of issues) {
+    const dotted = v.getDotPath(issue as never)
+    if (dotted) paths.push(dotted.split('.'))
+  }
+  return paths.sort((a, b) => {
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      const x = a[i]
+      const y = b[i]
+      if (x === y) continue
+      if (x === undefined) return 1
+      if (y === undefined) return -1
+      const nx = Number(x)
+      const ny = Number(y)
+      if (Number.isInteger(nx) && Number.isInteger(ny)) return ny - nx
+      return x < y ? 1 : -1
+    }
+    return 0
+  })
+}
+
+/**
+ * يرحّل المفاتيح المهجورة — **على المدخَل الخام قبل التحقّق حصرًا**.
+ *
+ * `v.object` يحذف المفاتيح المجهولة بلا `issue` واحد (‏موثَّق في الحزمة
+ * نفسها)، فالمفتاح القديم لا يُرى إلّا هنا. وبلا هذا الترحيل يُمحى اختيار
+ * مستخدمٍ ضبط سلوك التصفّح الخاص سابقًا ويُستبدَل بالافتراضي صامتًا —
+ * وترقيةٌ صامتة نحو التشديد تبقى فقدانَ قرارٍ اتّخذه المستخدم بيده.
+ *
+ * ولا آلة ترحيل عامّة في المشروع: `schemaVersion` معرَّف في المخطّط وبلا
+ * قارئ واحد. فهذا أوّل ترحيل إعدادات، ويبقى بهذا الحجم حتى يوجد ثانٍ.
+ */
+function migrateLegacyKeys(input: unknown): unknown {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return input
+  const root = input as Record<string, unknown>
+  const privacy = root.privacy
+  if (!privacy || typeof privacy !== 'object' || Array.isArray(privacy)) return input
+
+  const section = privacy as Record<string, unknown>
+  if ('incognito' in section || !('blockIncognitoWrites' in section)) return input
+
+  // 20.3 — `blockIncognitoWrites: false` كان «اسمح بالحفظ»، وأي قيمة أخرى منعًا.
+  const legacy = section.blockIncognitoWrites
+  return {
+    ...root,
+    privacy: { ...section, incognito: legacy === false ? 'allow' : 'no-save' },
+  }
+}
+
+/**
  * يقرأ قيمة غير موثوقة ويُرجع إعدادات صالحة دائمًا.
  *
  * لا يرمي: القيمة التالفة تُستبدل بالافتراضي، والأسباب تُعاد للسجلّ.
  */
 export function parseSettings(input: unknown): { settings: Settings; issues: string[] } {
-  const result = v.safeParse(SettingsSchema, input ?? {})
+  const migrated = migrateLegacyKeys(input ?? {})
+  const result = v.safeParse(SettingsSchema, migrated)
   if (result.success) return { settings: result.output, issues: [] }
 
   const issues = result.issues.map(
     (issue) => `${v.getDotPath(issue) ?? '(الجذر)'}: ${issue.message}`,
   )
 
-  // محاولة إنقاذ جزئية: نُسقط المفاتيح المعطوبة ونعيد التحقّق.
-  if (input && typeof input === 'object') {
-    const salvaged: Record<string, unknown> = { ...(input as Record<string, unknown>) }
-    for (const issue of result.issues) {
-      const path = v.getDotPath(issue)
-      if (path) delete salvaged[path.split('.')[0] ?? '']
+  // محاولة إنقاذ جزئية: نُسقط المفاتيح المعطوبة وحدها ونعيد التحقّق.
+  if (migrated && typeof migrated === 'object') {
+    let salvaged: unknown = migrated
+    for (const path of orderedIssuePaths(result.issues)) {
+      salvaged = dropAtPath(salvaged, path)
     }
     const retry = v.safeParse(SettingsSchema, salvaged)
     if (retry.success) return { settings: retry.output, issues }

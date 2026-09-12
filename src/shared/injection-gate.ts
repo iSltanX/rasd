@@ -26,12 +26,35 @@ import { checkInjectable, restrictionMessage, type RestrictionReason } from './r
 import { isSiteExcluded } from './site-match'
 
 /**
- * سبب المنع — أسباب المتصفح، وسببان يخصّان البوّابة.
+ * سبب المنع — أسباب المتصفح، وثلاثة تخصّ البوّابة.
  *
  * `excluded-site`: قرار المستخدم صراحةً.
+ * `incognito-off`: قرار المستخدم كذلك، لكنه عن **السياق** لا عن الموقع.
  * `settings-unavailable`: **لم تُقرأ الإعدادات، فلا نعرف قائمته**.
  */
-export type GateReason = RestrictionReason | 'excluded-site' | 'settings-unavailable'
+export type GateReason =
+  RestrictionReason | 'excluded-site' | 'incognito-off' | 'settings-unavailable'
+
+/**
+ * سياق التبويب الذي لا يُقرأ من عنوانه — يُمرَّر ولا يُستنتَج.
+ *
+ * **ولماذا يُمرَّر `incognito` بدل قراءته هنا.** البديل الوحيد المتاح داخل
+ * `shared/` هو `isIncognitoContext()` (‏`shared/env.ts`)، وهي تقرأ
+ * `chrome.extension.inIncognitoContext` — واجهةٌ توثّقها أنواع Chrome
+ * لـ«صفحات الإضافة» والـservice worker ليس صفحة، فقيمتها داخل العامل **غير
+ * مقيسة في هذا المستودع** (‏`Rasd_Plan.md §6` صفّ 121). بينما
+ * `chrome.tabs.Tab.incognito` حقلٌ موثَّق على الكائن الذي يقرؤه
+ * `background/gate.ts` **أصلًا** قبل كل قرار — فالقرار يقوم على المقيس لا
+ * على المفترَض، ويبقى هذا الملفّ خالصًا كما هو.
+ */
+export interface GateContext {
+  /** هل التبويب في نافذة خاصّة؟ من `chrome.tabs.Tab.incognito`. */
+  readonly incognito: boolean
+  /** `privacy.incognito` كما هي في الإعدادات. */
+  readonly incognitoMode: 'allow' | 'no-save' | 'off'
+}
+
+const OPEN_CONTEXT: GateContext = { incognito: false, incognitoMode: 'no-save' }
 
 export type GateDecision =
   { readonly allowed: true } | { readonly allowed: false; readonly reason: GateReason }
@@ -53,9 +76,18 @@ const deny = (reason: GateReason): GateDecision => ({ allowed: false, reason })
 export function evaluateGate(
   url: string | undefined | null,
   excludedSites: readonly string[],
+  context: GateContext = OPEN_CONTEXT,
 ): GateDecision {
   const check = checkInjectable(url)
   if (!check.injectable) return deny(check.reason)
+
+  /*
+   * **السياق قبل الموقع** حين يصدق الاثنان. كلاهما قرار مستخدم، لكن
+   * «عطّلتُ رصدًا في التصفّح الخاص» يفسّر للمستخدم ما يراه الآن، بينما
+   * «هذا الموقع مستثنى» يرسله يعدّل قائمةً ليست هي السبب في هذه النافذة.
+   */
+  if (context.incognito && context.incognitoMode === 'off') return deny('incognito-off')
+
   // `url` نصٌّ صالح بالضرورة هنا — `checkInjectable` يمنع ما عداه.
   return isSiteExcluded(url as string, excludedSites) ? deny('excluded-site') : ALLOWED
 }
@@ -65,6 +97,8 @@ export function gateMessage(reason: GateReason): string {
   switch (reason) {
     case 'excluded-site':
       return 'هذا الموقع في قائمة المواقع المستثناة. عدّلها من الإعدادات.'
+    case 'incognito-off':
+      return 'رصد معطَّل في التصفّح الخاص باختيارك. غيّره من إعدادات الخصوصية.'
     case 'settings-unavailable':
       return 'تعذّرت قراءة إعدادات الخصوصية، فأُوقف الفحص احتياطًا. أعد المحاولة.'
     default:
