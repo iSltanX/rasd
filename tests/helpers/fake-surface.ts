@@ -89,7 +89,23 @@ const hexToRgb = (hex: string): readonly [number, number, number] => {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
 
-export function createFakeSurface(width: number, height: number): FakeSurface {
+/**
+ * خيارات السطح المزيَّف.
+ *
+ * `downgradeTo` يحاكي سلوكًا **مقيسًا** في كروم لا مفترَضًا: نوعٌ غير مدعوم
+ * لا يرمي، بل يُنتج PNG ويُعلن `image/png` في `blob.type` (قِيس على
+ * `image/heic` و`image/avif` والسلسلة الفارغة). وبلا محاكاته لا يمكن إثبات
+ * أن حارس `bake` يمسكه.
+ */
+export interface FakeSurfaceOptions {
+  readonly downgradeTo?: string
+}
+
+export function createFakeSurface(
+  width: number,
+  height: number,
+  options: FakeSurfaceOptions = {},
+): FakeSurface {
   const pixels = new Uint8ClampedArray(width * height * 4)
   const calls: string[] = []
   let m: Matrix = { ...IDENTITY }
@@ -308,10 +324,13 @@ export function createFakeSurface(width: number, height: number): FakeSurface {
     },
     alive: () => width > 0 && height > 0,
     encodeTarget: {
-      convertToBlob: () => {
+      convertToBlob: ({ type }) => {
         encoded++
         // البايتات هي بكسلات السطح — يكفي لمقارنة تفاضلية.
-        return Promise.resolve(new Blob([new Uint8ClampedArray(pixels)], { type: 'image/png' }))
+        // والنوع يُحترَم كما يفعل المُرمِّج الحقيقي، إلّا حين يُطلَب التدهور.
+        return Promise.resolve(
+          new Blob([new Uint8ClampedArray(pixels)], { type: options.downgradeTo ?? type }),
+        )
       },
     },
     dispose: () => {

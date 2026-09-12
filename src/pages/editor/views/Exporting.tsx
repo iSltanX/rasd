@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { planExport, type BakeReport } from '@/modules/editor/bake'
+import { CLIPBOARD_FORMAT } from '@/modules/export/format'
 
 import { copyBaked, startExport } from '../export'
 import { ExportProgress } from '../parts/ExportProgress'
@@ -40,6 +41,12 @@ export function Exporting(props: ExportingProps): JSX.Element {
       scene: props.scene,
       sourceBlob: props.sourceBlob,
       scale: props.scale,
+      /*
+       * **PNG لا الصيغة المختارة.** وجهة هذا المسار الحافظة وحدها، والحافظة
+       * ترفض WebP بالقياس (‏`NotAllowedError: Type image/webp not supported
+       * on write`). فالثابت يُقرأ من مصدره لا يُكتب هنا.
+       */
+      format: CLIPBOARD_FORMAT,
       style: props.style,
       layout: props.layout,
       client: props.client,

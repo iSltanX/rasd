@@ -29,6 +29,8 @@ import {
   type ExportBytes,
   type PixelRunner,
 } from '@/modules/editor/bake'
+import { qualityValue, type QualityLevel } from '@/modules/export/estimate'
+import { CLIPBOARD_FORMAT, mimeFor, type ExportFormat } from '@/modules/export/format'
 import { canvasAlive } from '@/shared/canvas-alive'
 import { err, ok, type Result } from '@/shared/result'
 
@@ -112,6 +114,10 @@ export interface ExportOptions {
   readonly scene: Scene
   readonly sourceBlob: Blob
   readonly scale: 1 | 2
+  /** صيغة الخروج — تُمرَّر إلى البوّابة، ولا تُقرَّر هنا. */
+  readonly format: ExportFormat
+  /** درجة الجودة؛ `png` تتجاهلها بحكم المُرمِّج. */
+  readonly quality?: QualityLevel
   readonly style: RenderStyle
   readonly layout: TextLayoutCache
   readonly client: BlurClient
@@ -138,6 +144,8 @@ export function startExport(options: ExportOptions): ExportRun {
   const done = bake({
     scene: options.scene,
     scale: options.scale,
+    format: options.format,
+    quality: qualityValue(options.quality ?? 'max'),
     surface: options.surface ?? createBakeSurface(),
     style: options.style,
     paletteMode: 'dark',
@@ -166,6 +174,13 @@ export type CopyOutcome = 'copied' | 'not-focused' | 'unsupported' | 'failed'
  *
  * **يُنادى متزامنًا داخل معالج النقرة، بالوعد لا بالبلوب.** انظر ترويسة
  * الملفّ: انتظارُ الخبز أوّلًا يُفقد التركيز فتفشل الكتابة.
+ *
+ * **والنوع ثابتٌ حسمه المتصفّح لا المستخدم.** قِيس في Chrome 152.0.7977.83:
+ * `ClipboardItem.supports('image/webp')` تعطي `false`، والكتابة ترمي
+ * `NotAllowedError: Type image/webp not supported on write`. ولا تُهرَّب تحت
+ * مفتاح آخر — الكتابة تقارن المفتاح ببلوبها وترمي عند الاختلاف. فالوعد
+ * المُمرَّر هنا يجب أن يكون **خبزةَ PNG** مهما كانت صيغة التنزيل المختارة،
+ * ومَن يستدعي هذه الدالّة يقول ذلك للمستخدم (`CLIPBOARD_NOTE`).
  */
 export async function copyBaked(pending: Promise<Blob>): Promise<Result<CopyOutcome>> {
   if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
@@ -173,7 +188,7 @@ export async function copyBaked(pending: Promise<Blob>): Promise<Result<CopyOutc
   }
 
   try {
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': pending })])
+    await navigator.clipboard.write([new ClipboardItem({ [mimeFor(CLIPBOARD_FORMAT)]: pending })])
     return ok('copied')
   } catch (thrown) {
     const name = thrown instanceof Error ? thrown.name : ''

@@ -113,6 +113,7 @@ async function bakeOn(
   const result = await bake({
     scene,
     scale: 1,
+    format: 'png',
     surface: { create: () => surface },
     style: STYLE,
     paletteMode: 'dark',
@@ -290,6 +291,7 @@ describe('دورة الحياة', () => {
     const result = await bake({
       scene,
       scale: 1,
+      format: 'png',
       surface: { create: () => surface },
       style: STYLE,
       paletteMode: 'dark',
@@ -318,6 +320,7 @@ describe('دورة الحياة', () => {
     const result = await bake({
       scene: sceneWith(),
       scale: 1,
+      format: 'png',
       surface: { create: () => dead },
       style: STYLE,
       paletteMode: 'dark',

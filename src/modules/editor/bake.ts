@@ -3,8 +3,15 @@
  *
  * كل بايت يغادر المحرر يمرّ من هنا، ولا مسار آخر. والوسم `ExportBytes` لا
  * يبنيه إلّا هذا الملفّ، وقاعدة لنت تحظر `toBlob`/`convertToBlob`/`toDataURL`
- * خارج ثلاثة ملفّات معروفة — فالحدّ مفروضٌ بالنوع وباللنت وبالاختبار، لا
- * بالمراجعة.
+ * خارج **أربعة** ملفّات معروفة — فالحدّ مفروضٌ بالنوع وباللنت وبالاختبار، لا
+ * بالمراجعة. (كان هذا السطر يقول «ثلاثة» بينما `ENCODE_ALLOWED` يعدّ أربعة
+ * منذ المرحلة 18؛ صُحِّح في الوحدة 19.1 — والعدد الحاكم هو المصفوفة لا هذا
+ * التعليق.)
+ *
+ * **والصيغة معاملٌ لا بوّابة ثانية.** الوحدة 19.1 أضافت WebP بتمريره إلى
+ * النداء الواحد أدناه، لا بموضع ترميزٍ جديد: `ENCODE_ALLOWED` لم يكبر، ولا
+ * محدِّد لنت طُرح. التعليل في
+ * [ADR 0021](../../../Docs/ADR/0021-second-format-one-gate.md).
  *
  * **والدرس منقول من eFail:** خاصيّةٌ أمنية تُعرَّف عند طبقة العرض تلتفّ
  * حولها كل مسارات الخروج الأخرى. فعدم القابلية للعكس هنا خاصيّةُ **البايتات
@@ -33,6 +40,7 @@
  * البكسل كلّها تُحقن.
  */
 
+import { formatFromMime, mimeFor, type ExportFormat } from '@/modules/export/format'
 import { deviceRect, type DeviceRect } from '@/shared/geometry'
 import { err, ok, type Result } from '@/shared/result'
 
@@ -79,6 +87,16 @@ export interface BakeReport {
   readonly height: number
   readonly bytes: number
   readonly obscured: readonly ObscureProof[]
+  /**
+   * الصيغة **المُنتَجة فعلًا**، لا المطلوبة.
+   *
+   * والفرق ليس تدقيقًا لفظيًّا: قِيس أن مُرمِّج المتصفّح **لا يرمي** على نوع
+   * غير مدعوم بل يتدهور صامتًا إلى PNG ويُعلن `image/png` في `blob.type`
+   * (‏`image/heic` و`image/avif` والسلسلة الفارغة، الثلاثة). فحقلٌ يحمل
+   * المطلوب كان سيقول «WebP» عن ملفّ PNG، والواجهة تبني عليه اسم الملفّ.
+   * الحقل يُملأ من البلوب، والاختلاف يُرَدّ عطلًا قبل أن يصل إلى هنا.
+   */
+  readonly format: ExportFormat
   /** نوعٌ حرفي: لا فرع «مرِّر بايتات المتصفّح كما هي» في هذه الدالّة. */
   readonly reencoded: true
   /** اللوحة مثبَّتة — الملفّ لا يتغيّر بسمة مؤلّفه. */
@@ -96,7 +114,7 @@ export interface BakeReport {
  * قابلًا للفرض. فالصفحة تُسلّم القماش، والنداء يقع هنا.
  */
 export interface EncodeTarget {
-  convertToBlob(options: { readonly type: string }): Promise<Blob>
+  convertToBlob(options: { readonly type: string; readonly quality?: number }): Promise<Blob>
 }
 
 /** سطحُ خبز مخصَّص — أقلّ ما يلزم، فلا يُربَط الملفّ بنوع قماش بعينه. */
@@ -156,6 +174,21 @@ export interface BakeRequest {
    */
   readonly sliceSource: (rect: DeviceRect) => Promise<BakeSlice>
   readonly scale: 1 | 2
+  /**
+   * صيغة الخروج — **معاملٌ يعبر البوّابة لا بوّابةٌ ثانية**.
+   *
+   * موضع النداء يبقى واحدًا (السطر أدناه)، فلا `ENCODE_ALLOWED` يكبر ولا
+   * محدِّد لنت يُطرَح. التعليل في [ADR 0021](../../../Docs/ADR/0021-second-format-one-gate.md).
+   */
+  readonly format: ExportFormat
+  /**
+   * جودة الترميج، أو `null` لغياب الوسيط أصلًا.
+   *
+   * **والغياب ليس مكافئًا لـ`1`**: قِيس أن حذف الوسيط وتمرير `1` يعطيان
+   * `VP8L` بلا فقد في Chrome، لكن التمييز محفوظ صراحةً لأنه ليس مضمونًا في
+   * كل مُرمِّج. وPNG تتجاهل الوسيط بالكامل.
+   */
+  readonly quality?: number | null
   readonly surface: BakeSurface
   readonly style: RenderStyle
   /**
@@ -371,7 +404,37 @@ export async function bake(
     if (aborted()) return err({ code: 'cancelled', message: 'أُلغي التصدير.' })
 
     // ── ٣. الترميز — دائمًا، بلا فرع «مرِّر البايتات» ───────────────
-    const blob = await target.encodeTarget.convertToBlob({ type: 'image/png' })
+    /*
+     * **موضع النداء واحد، والنوع معامل.** هذا هو السطر الذي يحرسه ADR 0015،
+     * وتعميمه بالصيغة لا يُضعفه: البكسلات ما زالت لا تخرج إلا من هنا.
+     *
+     * والجودة تُمرَّر **حين تُطلَب وحدها** لا بقيمة افتراضية: تمرير `quality`
+     * غير معرَّفة يختلف عن حذف المفتاح في بعض التنفيذات، وحذفه هو ما يُنتج
+     * `VP8L` بلا فقد مقيسًا.
+     */
+    const wanted = mimeFor(req.format)
+    const quality = req.quality
+    const blob = await target.encodeTarget.convertToBlob(
+      quality === null || quality === undefined ? { type: wanted } : { type: wanted, quality },
+    )
+
+    /*
+     * **ما أُنتج يُقارَن بما طُلب — لأن الفشل هنا صامت.**
+     *
+     * قِيس أن نوعًا غير مدعوم لا يرمي: `image/heic` و`image/avif` والسلسلة
+     * الفارغة أعطت ثلاثتها PNG وأعلنت `image/png`. فبلا هذه المقارنة يخرج
+     * ملفٌّ PNG باسم `.webp` ويُسجَّل في التقرير «WebP» — عطلٌ لا يكشفه أي
+     * فحصٍ يسأل «هل نجح التصدير».
+     */
+    const produced = formatFromMime(blob.type)
+    if (produced !== req.format) {
+      return err({
+        code: 'handler-failed',
+        message: 'المتصفّح لا يدعم هذه الصيغة — جرّب صيغة أخرى.',
+        detail: `طُلب ${wanted} وأُنتج ${blob.type || '(بلا نوع)'}`,
+      })
+    }
+
     req.onProgress?.(1)
 
     return ok({
@@ -381,6 +444,7 @@ export async function bake(
         height: decision.height,
         bytes: blob.size,
         obscured,
+        format: produced,
         reencoded: true,
         paletteMode: req.paletteMode,
         warnings,
