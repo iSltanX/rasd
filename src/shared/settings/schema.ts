@@ -42,6 +42,14 @@ export const SettingsSchema = v.object({
       openEditorAfter: v.optional(v.boolean(), true),
       copyToClipboard: v.optional(v.boolean(), false),
       delaySeconds: v.optional(v.picklist([0, 3, 5, 10]), 0),
+      /**
+       * `§12.1` — مكان الحفظ. المكتبة وحدها دائمًا الوجهة الفعلية اليوم
+       * (`putCaptureWithBlob`)؛ `library-and-downloads` ضابطٌ محفوظٌ ومقروء
+       * الآن، واستهلاكه في خط أنابيب الالتقاط خارج نطاق الوحدة 20.2
+       * (`Rasd_Plan.md §6` صفّ 115) — يحتاج صلاحية `downloads` الاختيارية
+       * نفسها التي بنتها المرحلة 19 لمسار التصدير، لا سلكًا جديدًا موازيًا.
+       */
+      saveLocation: v.optional(v.picklist(['library', 'library-and-downloads']), 'library'),
     }),
     {},
   ),
@@ -79,6 +87,28 @@ export const SettingsSchema = v.object({
       theme: v.optional(ThemeMode, 'system'),
       language: v.optional(Language, 'ar'),
       density: v.optional(v.picklist(['compact', 'comfortable']), 'comfortable'),
+    }),
+    {},
+  ),
+
+  shortcuts: v.optional(
+    v.object({
+      /**
+       * `§12.4` — «اختصار مستقلّ لكل أداة». مُعدِّل الأوضاع `⌥⇧` ثابت
+       * (`content/shortcuts.ts`)؛ القابل للتعديل هو الحرف وحده، مُخزَّنًا
+       * بموضعه الفيزيائي (`KeyboardEvent.code`) لا برمزه — نفس منطق
+       * `matches()` في `content/shortcuts.ts`. الافتراضات تطابق الخريطة
+       * الثابتة القائمة منذ المرحلة 6 حرفًا بحرف.
+       */
+      toolKeys: v.optional(
+        v.object({
+          inspect: v.optional(v.pipe(v.string(), v.regex(/^Key[A-Z]$/)), 'KeyI'),
+          measure: v.optional(v.pipe(v.string(), v.regex(/^Key[A-Z]$/)), 'KeyM'),
+          colour: v.optional(v.pipe(v.string(), v.regex(/^Key[A-Z]$/)), 'KeyC'),
+          compare: v.optional(v.pipe(v.string(), v.regex(/^Key[A-Z]$/)), 'KeyD'),
+        }),
+        {},
+      ),
     }),
     {},
   ),

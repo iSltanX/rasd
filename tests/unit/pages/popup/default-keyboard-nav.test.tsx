@@ -22,6 +22,9 @@ afterEach(() => {
     container.remove()
     container = null
   }
+  // غير مشروط بنجاح التوكيد: توكيدٌ فاشل بين stub وunstub كان يُسرّب
+  // `navigator` المُصطنَع إلى اختبارات لاحقة — رصدته مراجعة Gate B (20.2).
+  vi.unstubAllGlobals()
 })
 
 function mount(direction: 'rtl' | 'ltr', onTool: (tool: string) => void) {
@@ -48,8 +51,10 @@ function buttonLabels(root: HTMLElement, selector: string): string[] {
 
 /**
  * حرف الاختصار المطبوع على كل بطاقة — بترتيب `13 — Extension Popup` نفسه.
- * `T` لا `F` لبطاقة «منطقة»: Chrome يحجز ⇧⌘F صامتًا — انظر التعليق أعلى
- * `commands` في `manifest.config.ts`.
+ * بطاقة «منطقة» تعرض حرفًا يتبع المنصّة (`isMacPlatform`، الوحدة 20.2،
+ * `Rasd_Plan.md §6` صفّ 99): `T` على ماك، `Q` على غيرها — و`jsdom` في بيئة
+ * الاختبار هذه تُقرأ منصّة غير-ماك، فالمتوقَّع هنا `Q`. الفرعان كلاهما
+ * مختبَران في `tests/unit/shared/platform.test.ts` والاختبار أدناه.
  */
 function shortcutOrder(root: HTMLElement): string[] {
   return [...root.querySelectorAll('[aria-label="الالتقاط"] kbd')].map(
@@ -58,7 +63,13 @@ function shortcutOrder(root: HTMLElement): string[] {
 }
 
 describe('Default — ترتيب Tab لشبكة الالتقاط', () => {
-  it('ترتيب DOM: E عنصر، T منطقة، S صفحة كاملة، V الظاهر — كما في 13 — Extension Popup', () => {
+  it('ترتيب DOM: E عنصر، Q منطقة (غير-ماك)، S صفحة كاملة، V الظاهر — كما في 13 — Extension Popup', () => {
+    mount('rtl', () => undefined)
+    expect(shortcutOrder(container!)).toEqual(['E', 'Q', 'S', 'V'])
+  })
+
+  it('بطاقة «منطقة» تعرض T حين تكون المنصّة ماك', () => {
+    vi.stubGlobal('navigator', { userAgentData: { platform: 'macOS' } })
     mount('rtl', () => undefined)
     expect(shortcutOrder(container!)).toEqual(['E', 'T', 'S', 'V'])
   })

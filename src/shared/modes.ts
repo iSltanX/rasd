@@ -43,3 +43,22 @@ export const MODE_META: Record<Mode, ModeMeta> = {
   colour: { label: 'لون', icon: 'eyedropper', builtIn: 13 },
   compare: { label: 'مقارنة', icon: 'split-view', builtIn: 16 },
 }
+
+/**
+ * أوضاع الأدوات الأربعة القابلة لتعيين حرف اختصار مستقلّ — `§12.4`.
+ *
+ * هنا لا في `content/shortcuts.ts`: صفحة الإعدادات (`pages/`) تحتاج القائمة
+ * والافتراضات لعرضها وتعديلها، ومدير الاختصارات (`content/`) يحتاجها لبناء
+ * خريطة المفاتيح — و`content/` طبقة تشغيل تعيش داخل صفحة، لا مصدرًا تستورد
+ * منه `pages/` (‏[ADR 0008](../../Docs/ADR/0008-geometry-in-shared.md) يفرض
+ * الحدّ نفسه بين `modules/` و`content/`).
+ */
+export type ToolShortcutMode = 'inspect' | 'measure' | 'colour' | 'compare'
+
+/** الحروف الافتراضية — تطابق خريطة `content/shortcuts.ts` حرفًا بحرف. */
+export const DEFAULT_TOOL_KEYS: Readonly<Record<ToolShortcutMode, string>> = {
+  inspect: 'KeyI',
+  measure: 'KeyM',
+  colour: 'KeyC',
+  compare: 'KeyD',
+}

@@ -1,3 +1,5 @@
+import { isMacPlatform } from '@/shared/platform'
+
 import { CaptureCard } from '../parts/CaptureCard'
 import { InspectTool } from '../parts/InspectTool'
 import { RecentThumb } from '../parts/RecentThumb'
@@ -50,12 +52,15 @@ export function Default({
             onClick={() => onTool('element')}
           />
           {/*
-           * ⇧⌘T لا ⇧⌘F: Chrome يحجز F صامتًا لهذه التركيبة — اكتُشف تجريبيًا
-           * عبر `scripts/verify-popup.mjs`. انظر تعليق `commands` في
-           * `manifest.config.ts` لقائمة الحروف المحجوزة والمتاحة كاملةً.
+           * ⇧⌘T لا ⇧⌘F على ماك: Chrome يحجز F صامتًا لهذه التركيبة — اكتُشف
+           * تجريبيًا عبر `scripts/verify-popup.mjs`. وعلى لينكس/ويندوز `T`
+           * محجوزة هي الأخرى («إعادة فتح التبويب المغلق») — قِيس على عدّاء
+           * Linux حقيقي في الوحدة 20.2 (`Rasd_Plan.md §6` صفّ 99)، فالحرف هنا
+           * يتبع المنصّة الفعلية لا حرفًا واحدًا مفترَضًا للجميع. انظر تعليق
+           * `commands` في `manifest.config.ts` لقائمة الحروف المحجوزة كاملةً.
            */}
           <CaptureCard
-            shortcutKey="T"
+            shortcutKey={isMacPlatform() ? 'T' : 'Q'}
             icon="capture-area"
             title="منطقة"
             hint="اسحب للقص"

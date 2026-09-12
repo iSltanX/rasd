@@ -14,7 +14,7 @@
  * نلتقط شيئًا. سرقة حرف من المستخدم وهو يكتب عطل لا ميزة.
  */
 
-import type { Mode } from '@/shared/modes'
+import { DEFAULT_TOOL_KEYS, type Mode, type ToolShortcutMode } from '@/shared/modes'
 
 /** ما يمكن أن يطلبه مفتاح. */
 export type ShortcutAction =
@@ -44,22 +44,28 @@ export interface Binding {
  */
 export const BINDINGS: readonly Binding[] = [
   {
-    code: 'KeyI',
+    code: DEFAULT_TOOL_KEYS.inspect,
     alt: true,
     shift: true,
     action: { kind: 'mode', mode: 'inspect' },
     swallow: true,
   },
   {
-    code: 'KeyM',
+    code: DEFAULT_TOOL_KEYS.measure,
     alt: true,
     shift: true,
     action: { kind: 'mode', mode: 'measure' },
     swallow: true,
   },
-  { code: 'KeyC', alt: true, shift: true, action: { kind: 'mode', mode: 'colour' }, swallow: true },
   {
-    code: 'KeyD',
+    code: DEFAULT_TOOL_KEYS.colour,
+    alt: true,
+    shift: true,
+    action: { kind: 'mode', mode: 'colour' },
+    swallow: true,
+  },
+  {
+    code: DEFAULT_TOOL_KEYS.compare,
     alt: true,
     shift: true,
     action: { kind: 'mode', mode: 'compare' },
@@ -80,6 +86,25 @@ export const BINDINGS: readonly Binding[] = [
   { code: 'ArrowUp', action: { kind: 'step', delta: 1 }, swallow: false },
   { code: 'ArrowDown', action: { kind: 'step', delta: -1 }, swallow: false },
 ]
+
+/** أوضاع تبديل الأدوات وحدها — بقيّة `BINDINGS` (اللوحة · `Esc` · الأسهم) ثابتة. */
+const TOOL_MODES: readonly ToolShortcutMode[] = ['inspect', 'measure', 'colour', 'compare']
+
+/**
+ * تبني خريطة اختصارات مطابقة لـ`BINDINGS` مع استبدال حرف كل أداة بما تختاره
+ * الإعدادات (`shortcuts.toolKeys`، `§12.4`) — بقيّة الروابط (اللوحة · `Esc` ·
+ * الأسهم) بلا تغيير. الاستدعاء بلا وسيط يعيد `BINDINGS` بقيمتها حرفًا بحرف.
+ */
+export function buildBindings(
+  toolKeys: Partial<Record<ToolShortcutMode, string>> = {},
+): readonly Binding[] {
+  return BINDINGS.map((b) => {
+    const mode = b.action.kind === 'mode' ? (b.action.mode as ToolShortcutMode) : null
+    if (!mode || !TOOL_MODES.includes(mode)) return b
+    const code = toolKeys[mode]
+    return code && code !== b.code ? { ...b, code } : b
+  })
+}
 
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
 
@@ -128,6 +153,8 @@ export interface ShortcutOptions {
    */
   shouldSwallowEscape?: () => boolean
   doc?: Document
+  /** خريطة الروابط الفعلية — الافتراضي `BINDINGS`؛ مرّر ناتج `buildBindings` لتخصيص حروف الأدوات. */
+  bindings?: readonly Binding[]
 }
 
 /**
@@ -139,6 +166,7 @@ export interface ShortcutOptions {
 export function installShortcuts(options: ShortcutOptions): () => void {
   const doc = options.doc ?? document
   const win = doc.defaultView
+  const bindings = options.bindings ?? BINDINGS
   if (!win) return () => undefined
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -167,7 +195,7 @@ export function installShortcuts(options: ShortcutOptions): () => void {
       return
     }
 
-    for (const b of BINDINGS) {
+    for (const b of bindings) {
       if (!matches(e, b)) continue
       const swallow =
         b.action.kind === 'escape' ? (options.shouldSwallowEscape?.() ?? false) : b.swallow

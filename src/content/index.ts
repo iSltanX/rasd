@@ -32,7 +32,7 @@ import { createModeManager, type ModeManager } from './mode-manager'
 import { mountOverlayApp, requestCapture } from './overlay-app'
 import { startPersistence, type Persistence } from './persistence'
 import { saveTextFile } from './save-file'
-import { installShortcuts, type ShortcutAction } from './shortcuts'
+import { buildBindings, installShortcuts, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
 import { createColourPalette } from './tools/colour-palette'
@@ -1094,8 +1094,16 @@ async function bootOverlay(
     return { shown: true }
   })
 
+  /**
+   * تُقرأ هنا لا في `.then()` كبقيّة إعدادات الالتقاط أدناه: خريطة الاختصار
+   * يجب أن تكون صحيحة **قبل** أوّل ضغطة مفتاح، لا بعد ثانية إضافة —
+   * والإعدادات مخزَّنة مؤقّتًا أصلًا (`watchSettings` أعلاه قرأتها للتوّ).
+   */
+  const shortcutBindings = buildBindings((await getSettings()).shortcuts.toolKeys)
+
   const removeShortcuts = installShortcuts({
     doc,
+    bindings: shortcutBindings,
     // `Esc` يُبتلع فقط حين يكون له معنى عندنا — وإلا فهو مفتاح الصفحة.
     /*
      * `Esc` يُبتلع كذلك أثناء الالتقاط الكامل.

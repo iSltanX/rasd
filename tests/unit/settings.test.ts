@@ -21,6 +21,7 @@ describe('القيم الافتراضية', () => {
     const s = defaultSettings()
     expect(s.capture.format).toBe('png')
     expect(s.capture.scale).toBe(1)
+    expect(s.capture.saveLocation).toBe('library')
     expect(s.colors.defaultFormat).toBe('hex')
     expect(s.colors.hideNeutrals).toBe(true)
     expect(s.appearance.language).toBe('ar')
@@ -28,6 +29,12 @@ describe('القيم الافتراضية', () => {
     expect(s.privacy.blockIncognitoWrites).toBe(true)
     expect(s.privacy.localOnly).toBe(true)
     expect(s.onboarding.completed).toBe(false)
+    expect(s.shortcuts.toolKeys).toEqual({
+      inspect: 'KeyI',
+      measure: 'KeyM',
+      colour: 'KeyC',
+      compare: 'KeyD',
+    })
   })
 
   it('العربية هي اللغة الافتراضية لا الإنجليزية', () => {
@@ -45,10 +52,13 @@ describe('التحقّق من المخطّط', () => {
     ['صيغة غير معروفة', { capture: { format: 'gif' } }],
     ['جودة خارج المدى', { capture: { quality: 5 } }],
     ['مقياس غير مسموح', { capture: { scale: 3 } }],
+    ['مكان حفظ غير معروف', { capture: { saveLocation: 'cloud' } }],
     ['لون غير سداسي', { annotation: { color: 'ليس لونًا' } }],
     ['عدد ألوان أقلّ من الحدّ', { colors: { paletteSize: 1 } }],
     ['سمة غير معروفة', { appearance: { theme: 'neon' } }],
     ['نوع خاطئ تمامًا', { privacy: { excludedSites: 'ليست مصفوفة' } }],
+    ['حرف اختصار متعدّد الأحرف', { shortcuts: { toolKeys: { inspect: 'KeyAB' } } }],
+    ['حرف اختصار برمز', { shortcuts: { toolKeys: { measure: 'Digit1' } } }],
   ])('يرفض %s ويعود إلى الافتراضي', (_label, bad) => {
     const { settings, issues } = parseSettings(bad)
     expect(issues.length).toBeGreaterThan(0)
@@ -80,6 +90,34 @@ describe('القراءة والكتابة', () => {
     expect(s.capture.format).toBe('webp')
     expect(s.capture.quality).toBe(0.92)
     expect(s.colors.defaultFormat).toBe('hex')
+  })
+
+  it('capture.saveLocation: ضبطٌ ثم إعادة فتح يحفظ الحالة', async () => {
+    await patchSettings({ capture: { saveLocation: 'library-and-downloads' } } as never)
+    resetSettingsCache()
+    expect((await getSettings()).capture.saveLocation).toBe('library-and-downloads')
+  })
+
+  it('shortcuts.toolKeys: ضبطٌ ثم إعادة فتح يحفظ الحالة', async () => {
+    await patchSettings({ shortcuts: { toolKeys: { inspect: 'KeyJ' } } } as never)
+    resetSettingsCache()
+    expect((await getSettings()).shortcuts.toolKeys.inspect).toBe('KeyJ')
+  })
+
+  it('shortcuts.toolKeys: patchSettings لا تدمج المستوى الثاني — تخصيص سابق لأداة أخرى يُفقَد', async () => {
+    /*
+     * هذا الحدّ **مقصود التوثيق لا عطل**: `patchSettings` تدمج مستوًى واحدًا
+     * فقط (`shared/settings/index.ts`)، فتمرير جزء من `toolKeys` يستبدل
+     * الكائن كلّه — والقيمة الظاهرة لحقل لم يُذكر (`KeyM`) تأتي من افتراضي
+     * المخطّط لا من القيمة المحفوظة سابقًا. حفظ تخصيص سابق فعليًّا يمرّ من
+     * `saveShortcut` (`pages/settings/context.ts`)، لا من هذه الدالّة مباشرةً
+     * — انظر `tests/unit/pages/settings/context.test.ts` للحارس السالب هناك.
+     */
+    await patchSettings({ shortcuts: { toolKeys: { measure: 'KeyN' } } } as never)
+    await patchSettings({ shortcuts: { toolKeys: { inspect: 'KeyJ' } } } as never)
+    const s = await getSettings()
+    expect(s.shortcuts.toolKeys.inspect).toBe('KeyJ')
+    expect(s.shortcuts.toolKeys.measure).toBe('KeyM') // ليس 'KeyN' — عاد إلى افتراضي المخطّط
   })
 
   it('إعادة الضبط تعيد كل شيء', async () => {
