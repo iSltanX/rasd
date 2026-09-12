@@ -32,7 +32,15 @@ import { MAX_FREEHAND_POINTS } from './scene'
 export const RDP_EPSILON_PX = 1.2
 
 /** أقصى تصعيد للعتبة قبل الاستسلام والاقتطاع — حارس حلقة لا سياسة. */
-const MAX_EPSILON_PX = 64
+/**
+ * سقف تصعيد العتبة.
+ *
+ * **مُصدَّر كي يُشتقّ منه الاقتطاع لا كي يُكرَّر رقمُه.** `SmoothResult.truncated`
+ * لا يُحفَظ في العقدة، فاستخراجه لاحقًا من المشهد يحتاج هذا السقف بعينه —
+ * ونسخُ `64` في `modules/export/signals.ts` كان يجعل رفعَه هنا يُسكِت الإشارة
+ * هناك صامتًا.
+ */
+export const MAX_EPSILON_PX = 64
 
 /** جولات شايكن. اثنتان تكفيان: الثالثة تغيّر أقلّ من نصف بكسل وتضاعف الحجم. */
 export const CHAIKIN_PASSES = 2
