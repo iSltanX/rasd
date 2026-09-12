@@ -476,6 +476,27 @@ describe('المضيف — التركيب والتفكيك', () => {
     expect(layer.hasAttribute('data-rasd-interactive')).toBe(false)
   })
 
+  it('حقن ثانٍ على المستند نفسه: setInteractive يفتح المضيف والطبقة معًا أيضًا — البند 56', async () => {
+    const first = await mountHost()
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+
+    // نداء ثانٍ على المستند نفسه يعيد `toPublic(existing)` — هذا هو المسار
+    // الذي كان ينسى `layer.setAttribute` (البند 56 في `§6`).
+    const second = await mountHost()
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    expect(second.value.hostEl).toBe(first.value.hostEl)
+
+    second.value.setInteractive(true)
+    expect(second.value.hostEl.style.pointerEvents).toBe('auto')
+    expect(second.value.layer.getAttribute('data-rasd-interactive')).toBe('true')
+
+    second.value.setInteractive(false)
+    expect(second.value.hostEl.style.pointerEvents).toBe('none')
+    expect(second.value.layer.hasAttribute('data-rasd-interactive')).toBe(false)
+  })
+
   it('يركّب جذر ظلّ مغلق ولا يترك اسمًا يمكن استهدافه', async () => {
     const r = await mountHost()
     expect(r.ok).toBe(true)

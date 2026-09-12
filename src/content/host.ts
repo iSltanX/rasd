@@ -340,8 +340,16 @@ function toPublic(i: Installed): OverlayHost {
     level: i.hostEl.matches(':popover-open') ? 'top-layer' : 'fixed',
     layer,
     reassert: () => i.reassert(),
+    /**
+     * **البند 56 في `Rasd_Plan.md §6`**: هذا المسار (حقن ثانٍ على المستند نفسه —
+     * `mountHost` يعيد `toPublic(existing)`) كان يفتح `hostEl` وحده وينسى
+     * `layer`، فيسقط أي وضع تفاعلي صامتًا بعد إعادة تفعيل. يُطابق `setInteractive`
+     * الأصلية في `mountHost` أعلاه سطرًا بسطر — يُفتَح الاثنان معًا أو لا يصل شيء.
+     */
     setInteractive: (on) => {
       i.hostEl.style.setProperty('pointer-events', on ? 'auto' : 'none', 'important')
+      if (on) layer.setAttribute('data-rasd-interactive', 'true')
+      else layer.removeAttribute('data-rasd-interactive')
     },
     hide: () =>
       new Promise<void>((resolve) => {
