@@ -1,16 +1,16 @@
-import { restrictionMessage, type RestrictionReason } from '@/shared/restricted'
+import { gateMessage, type GateReason } from '@/shared/injection-gate'
 
 import { MessageState } from '../parts/MessageState'
 
 import type { JSX } from 'preact'
 
 export interface RestrictedProps {
-  reason: RestrictionReason
+  reason: GateReason
   onManageSites: () => void
   onWhy: () => void
 }
 
-/** `restricted` — `isInjectable()` رفضت هذا العنوان؛ السبب يُشرح لا يُعمَّم. */
+/** `restricted` — البوّابة رفضت هذا التبويب؛ السبب يُشرح لا يُعمَّم. */
 export function Restricted({ reason, onManageSites, onWhy }: RestrictedProps): JSX.Element {
   return (
     <MessageState
@@ -21,7 +21,7 @@ export function Restricted({ reason, onManageSites, onWhy }: RestrictedProps): J
       primaryVariant="secondary"
       secondary={{ label: 'لماذا؟', onClick: onWhy }}
     >
-      {restrictionMessage(reason)}
+      {gateMessage(reason)}
     </MessageState>
   )
 }

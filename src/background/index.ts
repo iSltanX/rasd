@@ -1,5 +1,4 @@
 import { IS_DEV, PRODUCT_NAME, VERSION, isIncognitoContext } from '@/shared/env'
-import { checkInjectable } from '@/shared/restricted'
 
 import { activateTool, COMMAND_TOOL } from './commands'
 import { registerContextMenus } from './context-menus'
@@ -29,21 +28,6 @@ chrome.runtime.onInstalled.addListener((details) => {
 chrome.runtime.onStartup.addListener(() => {
   log(`onStartup — v${VERSION}`)
 })
-
-/**
- * البوّابة الوحيدة للحقن.
- *
- * كل مسار يريد تشغيل شيء داخل صفحة يمرّ من هنا. الحقن الفعلي في
- * `commands.ts#activateTool` — المرحلة 6.
- */
-export function canOperateOnTab(tab: chrome.tabs.Tab): boolean {
-  const check = checkInjectable(tab.url)
-  if (!check.injectable) {
-    log(`حقن مرفوض (${check.reason}): ${tab.url ?? '—'}`)
-    return false
-  }
-  return true
-}
 
 chrome.commands.onCommand.addListener((command, tab) => {
   if (!tab?.id) return

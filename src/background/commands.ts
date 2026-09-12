@@ -15,10 +15,10 @@ import {
   type ChannelDown,
   type ToolName,
 } from '@/shared/messaging'
-import { checkInjectable } from '@/shared/restricted'
 
 import { saveFullPage } from './capture-service'
 import { startFullPage } from './full-page-job'
+import { canOperateOnTab } from './gate'
 
 import type { CaptureKind } from '@/shared/storage/schema'
 import type { ActiveMode } from '@/shared/storage/session'
@@ -91,9 +91,8 @@ async function bootOverlay(tabId: number): Promise<boolean> {
  * وضعه ولا يبني شيئًا ثانيًا.
  */
 export async function activateTool(tabId: number, tool: ToolName): Promise<ActivateResult> {
-  const tab = await chrome.tabs.get(tabId)
-  const check = checkInjectable(tab.url)
-  if (!check.injectable) return { started: false, reason: check.reason }
+  const gate = await canOperateOnTab(tabId)
+  if (!gate.allowed) return { started: false, reason: gate.reason }
 
   await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] })
 
@@ -166,8 +165,7 @@ export async function activateTool(tabId: number, tool: ToolName): Promise<Activ
  * يعني «لا شيء يُستأنَف»، لا خطأً يُبلَّغ عنه أحد.
  */
 export async function activateResume(tabId: number): Promise<void> {
-  const tab = await chrome.tabs.get(tabId)
-  if (!checkInjectable(tab.url).injectable) return
+  if (!(await canOperateOnTab(tabId)).allowed) return
   try {
     await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] })
   } catch {
