@@ -7,7 +7,8 @@
  *      يترك `shortcut` فارغًا صامتًا؛ هذا ما يكشفه `chrome.commands.getAll()`
  *      مقروءًا من الـservice worker الحيّ — وهذا بالضبط ما كشف مشكلة `⇧⌘F`
  *      المُوثَّقة في تناقض رقم 15 بـ`Rasd_Plan.md §6`.
- *   2. زمن الوصول إلى أول عرض (`[data-popup-state]` يظهر في DOM) أقلّ من 100ms.
+ *   2. زمن الوصول إلى أول عرض أقلّ من 100ms — مقيسًا بجدول أزمنة الرسم في
+ *      الصفحة نفسها (`first-contentful-paint`) لا بلحظة مشاهدتنا له.
  *
  * **ما لا يثبته هذا الفحص عمدًا، ولماذا:**
  *
@@ -42,7 +43,7 @@
  *      التحقّق البصري المباشر من الحالتين يقع بدلًا من ذلك عبر جولة يدوية
  *      بمتصفح Claude — انظر `Docs/Phases/Phase_07.md`.
  *
- * غير مُدرج في CI — المرحلة 23 تملك تشغيل المتصفح. يُشغَّل محليًا:
+ * يُشغَّل في CI وفي جهاز التطوير بالأمر نفسه:
  *   pnpm verify:popup
  */
 import { spawn } from 'node:child_process'
@@ -53,6 +54,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { PAGE_PATHS } from '../src/shared/page-paths.ts'
 
+import { ensureFixturesServer } from './live-fixtures.mjs'
 import { waitForExtensionContext } from './live-sw.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -69,21 +71,10 @@ const HARD_TIMEOUT_MS = 60_000
  * صفحة "عادية" محلّية — `scripts/fixtures-serve.mjs` (المرحلة 2) بدل موقع
  * حقيقي: بيئة التشغيل لا تملك بالضرورة وصولًا شبكيًا خارجيًا، وموقع حقيقي
  * يعني فحصًا يتذبذب بتذبذب الشبكة لا بسلوك الإضافة. الخادم صامت شبكيًا
- * ويجب تشغيله يدويًا أولًا: `pnpm fixtures:serve`.
+ * ويُضمَن هنا عبر `live-fixtures.mjs` لا يُشترَط مُشغَّلًا سلفًا.
  */
-const FIXTURES_PORT = process.env.RASD_FIXTURES_PORT ?? 5399
+const FIXTURES_PORT = Number(process.env.RASD_FIXTURES_PORT ?? 5399)
 const NORMAL_URL = `http://127.0.0.1:${FIXTURES_PORT}/rtl-ar/`
-
-try {
-  const res = await fetch(NORMAL_URL)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-} catch (e) {
-  console.error(
-    `خادم العيّنات المحلي غير مُشغَّل على ${NORMAL_URL} (${e.message}).\n` +
-      'شغّله في نافذة أخرى أولًا: pnpm fixtures:serve',
-  )
-  process.exit(1)
-}
 
 const CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -102,6 +93,10 @@ if (!chromePath) {
   console.error('لم يُعثر على Chrome. مرّر المسار عبر CHROME_PATH.')
   process.exit(1)
 }
+
+// خادم العيّنات يُضمَن بعد الخروجَين المبكرَين لا قبلهما — وإلا بقي
+// مولودًا يتيمًا حين يخرج الفحص لغياب `dist/` أو Chrome.
+const fixtures = await ensureFixturesServer({ port: FIXTURES_PORT })
 
 const profile = mkdtempSync(join(tmpdir(), 'rasd-popup-'))
 const proc = spawn(
@@ -129,6 +124,7 @@ const fail = (m) => {
 }
 
 function finish(code) {
+  fixtures.stop()
   try {
     proc.kill('SIGKILL')
   } catch {
@@ -281,14 +277,31 @@ try {
 // النافذة وحده في كل محاولة، يعزل ما يُقاس فعلًا: زمن النافذة، لا زمن دورة
 // حياة نافذة Chrome كاملة حولها.
 //
-// الزمن يُقاس بساعة الصفحة نفسها (`performance.timeOrigin + performance.now()`)
-// لا بساعة Node عند كل استطلاع (polling) — استطلاع Node عرضة لجيتر رحلة CDP
-// ذهابًا وإيابًا، وهذا جيتر أداة القياس لا الإضافة. كلا الساعتين على الجهاز
-// نفسه فمقارنتهما بالحقبة (epoch) مباشرة صحيحة.
+// **والزمن يُقاس بلحظة الرسم لا بلحظة المشاهدة — والفرق كان يقاس بالمئات.**
+//
+// كانت القراءة `performance.timeOrigin + performance.now()` **عند استطلاعنا**:
+// ساعة الصفحة نعم، لكن مقروءةً في اللحظة التي وصلنا فيها إليها لا في اللحظة
+// التي ظهر فيها العرض. وبين اللحظتين يقع `findAndAttach` الذي يستطلع الهدف
+// **كل 150ms** — فالقياس يُقنَّن إلى مضاعفات مهلته. المقيس محليًّا: متوسّط
+// 421ms على ميزانية 100ms، بينما الرسم نفسه يقع في عشرات الميلي‑ثانية.
+//
+// فصار المقروء **جدول أزمنة الرسم** (`PerformanceObserver`/`paint`) الذي
+// تسجّله الصفحة لحظةَ وقوعه ونقرؤه متى شئنا بعده:
+//
+//   الزمن = (‏`timeOrigin` − لحظة طلب الفتح) + `first-contentful-paint`
+//
+// أي: ما استغرقه Chrome حتى بدأ مستند النافذة + ما استغرقته النافذة حتى
+// رسمت. كلا الطرفين على ساعة الجهاز نفسه، ولا نصيب لأداة القياس في أيّهما.
+// وإن غاب جدول الرسم في هذه البيئة، **يُعلَن غيابه ويسقط الحارس** — ولا
+// يُستبدَل صامتًا بقياس المشاهدة الذي بُني هذا كلّه لإسقاطه.
 async function openPopupOnce(windowId) {
   const startedAt = Date.now()
+  // **مرئيّة لا خفيّة** — وإلا لم يقع رسمٌ أصلًا: Chrome لا يرسم تبويبًا غير
+  // ظاهر، فجدول أزمنة الرسم يبقى فارغًا ويصير «أول عرض» اسمًا لشيء لم يحدث.
+  // (النافذة الحقيقية مرئية حين تُفتح، فهذا هو المطابق لا المُجمِّل. وقيمة
+  // `data-popup-state` غير مقروءة هنا أصلًا — القياس زمنيّ بحت.)
   const popupTabJson = await sw.evaluate(
-    `chrome.tabs.create({ url: chrome.runtime.getURL(${JSON.stringify(PAGE_PATHS.popup)}), windowId: ${windowId}, active: false })
+    `chrome.tabs.create({ url: chrome.runtime.getURL(${JSON.stringify(PAGE_PATHS.popup)}), windowId: ${windowId}, active: true })
       .then((t) => JSON.stringify({ id: t.id }))`,
   )
   const popupTab = JSON.parse(popupTabJson)
@@ -304,11 +317,14 @@ async function openPopupOnce(windowId) {
   for (let i = 0; i < 200; i++) {
     const raw = await popupTarget.evaluate(`JSON.stringify({
       state: document.querySelector("[data-popup-state]")?.getAttribute("data-popup-state") ?? null,
-      readAtEpoch: performance.timeOrigin + performance.now(),
+      timeOrigin: performance.timeOrigin,
+      paintMs: performance.getEntriesByType("paint")
+        .filter((e) => e.name === "first-contentful-paint")
+        .map((e) => e.startTime)[0] ?? null,
     })`)
     const reading = JSON.parse(raw)
-    if (reading.state) {
-      elapsedMs = reading.readAtEpoch - startedAt
+    if (reading.state && reading.paintMs !== null) {
+      elapsedMs = reading.timeOrigin + reading.paintMs - startedAt
       break
     }
     await new Promise((r) => setTimeout(r, 2))

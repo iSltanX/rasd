@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
+import { ensureFixturesServer } from './live-fixtures.mjs'
 import { attachLiveServiceWorker } from './live-sw.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -45,11 +46,7 @@ if (!chrome) {
 }
 
 // ── خادم العيّنات ────────────────────────────────────────────────
-const fixtures = spawn(process.execPath, [join(root, 'scripts', 'fixtures-serve.mjs')], {
-  stdio: 'ignore',
-  env: { ...process.env, RASD_FIXTURES_PORT: String(FIXTURES) },
-})
-await new Promise((r) => setTimeout(r, 600))
+const fixtures = await ensureFixturesServer({ port: FIXTURES })
 
 const stage = mkdtempSync(join(tmpdir(), 'rasd-measure-ext-'))
 cpSync(dist, stage, { recursive: true })
@@ -79,7 +76,7 @@ let stderr = ''
 proc.stderr.on('data', (d) => (stderr += d.toString()))
 
 async function cleanup() {
-  fixtures.kill('SIGKILL')
+  fixtures.stop()
   proc.kill('SIGKILL')
   rmSync(stage, { recursive: true, force: true })
   for (let i = 0; i < 10; i++) {
@@ -233,11 +230,19 @@ async function inOverlay(tabId, fnSource) {
   }).then(r => r[0].result)`)
 }
 
+/**
+ * يضبط وضع الطبقة — **ويُعيد حكم `modes.set` لا `true` دائمًا**.
+ *
+ * `set()` تُرجع `errWith('cancelled', …)` حين تكون الطبقة منشغلة
+ * (`content/mode-manager.ts:83`)، فانتقالٌ مرفوض كان يُقرأ نجاحًا ثمّ يُنسَب
+ * سقوط التأكيد التالي إلى المؤشِّر أو إلى المنتج. نفس التصحيح في
+ * `verify-picker.mjs`.
+ */
 const setMode = (tabId, mode) =>
   inOverlay(
     tabId,
-    `() => { globalThis.__rasdMeasure.modes.set(${JSON.stringify(mode)}); return true }`,
-  )
+    `() => JSON.stringify(globalThis.__rasdMeasure.modes.set(${JSON.stringify(mode)}))`,
+  ).then((raw) => JSON.parse(raw))
 
 /** حالة أداة القياس مباشرة من الإشارات — لا انتظار قراءة DOM. */
 const readMeasureState = (tabId) =>
@@ -346,15 +351,17 @@ const NEUTRAL_POINT = { x: 710, y: 45 }
  * ممنوع هنا: `setTimeout` أعمى، أو رفع `tol`، أو إعادة محاولة حول هذا
  * التأكيد.
  */
+const ARM_ATTEMPTS = 20
+
 async function armPointer(tabId, pageSession) {
-  await moveTo(pageSession, NEUTRAL_POINT.x, NEUTRAL_POINT.y)
-  const st = await readMeasureState(tabId)
-  if (!st.hover) {
-    throw new Error(
-      `armPointer: الطبقة لم تستلم حدث المؤشِّر بعد setMode — لا hover عند ` +
-        `(${NEUTRAL_POINT.x},${NEUTRAL_POINT.y}) رغم الحركة.`,
-    )
+  for (let attempt = 1; attempt <= ARM_ATTEMPTS; attempt++) {
+    await moveTo(pageSession, NEUTRAL_POINT.x, NEUTRAL_POINT.y)
+    if ((await readMeasureState(tabId)).hover) return attempt
   }
+  throw new Error(
+    `armPointer: الطبقة لم تستلم حدث المؤشِّر بعد ${ARM_ATTEMPTS} حركة إلى ` +
+      `(${NEUTRAL_POINT.x},${NEUTRAL_POINT.y}) — وهذا ليس سباق الحدث الأوّل بل انقطاعٌ قائم.`,
+  )
 }
 
 /**
@@ -396,7 +403,8 @@ if (extId && sw && granted) {
     fail(`تعذّر بدء الطبقة: ${injected} / ${JSON.stringify(started)}`)
   } else {
     ok(`الطبقة بدأت (${started.level})`)
-    await setMode(tabId, 'measure')
+    const modeSet = await setMode(tabId, 'measure')
+    if (!modeSet?.ok) fail(`رُفض الانتقال إلى وضع «measure»: ${JSON.stringify(modeSet)}`)
     const diag = await inOverlay(
       tabId,
       `() => {
@@ -415,7 +423,8 @@ if (extId && sw && granted) {
     else {
       let armed = true
       try {
-        await armPointer(tabId, pageSession)
+        const attempts = await armPointer(tabId, pageSession)
+        note(`التسليح: وصل المؤشِّر إلى الطبقة بعد ${attempts} حركة (السقف ${ARM_ATTEMPTS})`)
       } catch (e) {
         armed = false
         fail(e.message)

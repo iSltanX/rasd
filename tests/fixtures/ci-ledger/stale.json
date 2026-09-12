@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "repo": "iSltanX/rasd",
+  "promotionStreak": 10,
+  "window": 20,
+  "capturedAt": "2026-09-12T00:00:00.000Z",
+  "runs": [],
+  "guards": {
+    "overlay": {
+      "results": ["green", "green", "green", "red", "green"],
+      "scripts": [null, null, null, null, null],
+      "streak": 3,
+      "eligible": false
+    }
+  }
+}

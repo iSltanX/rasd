@@ -23,3 +23,6 @@ Docs/ADR/
 # مخرجات مشتقّة من §9 — تكتبها `phases-sync.mjs` ويحرسها `--check`
 STATUS.md
 Docs/Phases/INDEX.md
+
+# سجلّ ترقية الحرّاس — يكتبه `guards-sync.mjs` ويحرسه `--check`
+.github/guards-ledger.json

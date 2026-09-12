@@ -89,6 +89,16 @@ const STEPS = [
         stdio: 'inherit',
       }),
   },
+  {
+    // عمود `blocking` في `ci.yml` كان يُكتَب بيد وقاعدتُه تعليقًا لا يقرؤه شيء.
+    // الحارس يجعله مشتقًّا من سجلٍّ مقيس — بلا شبكة، فلا يُدخِل CI في دور.
+    name: 'حارس سجلّ ترقية الحرّاس',
+    run: () =>
+      execFileSync(process.execPath, ['scripts/guards-sync.mjs', '--check'], {
+        cwd: root,
+        stdio: 'inherit',
+      }),
+  },
 ]
 
 const started = Date.now()

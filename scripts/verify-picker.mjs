@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
+import { ensureFixturesServer } from './live-fixtures.mjs'
 import { attachLiveServiceWorker } from './live-sw.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -43,11 +44,7 @@ if (!chrome) {
 }
 
 // ── خادم العيّنات ────────────────────────────────────────────────
-const fixtures = spawn(process.execPath, [join(root, 'scripts', 'fixtures-serve.mjs')], {
-  stdio: 'ignore',
-  env: { ...process.env, RASD_FIXTURES_PORT: String(FIXTURES) },
-})
-await new Promise((r) => setTimeout(r, 600))
+const fixtures = await ensureFixturesServer({ port: FIXTURES })
 
 // نسخة الفحص: `dist/` كما هي + صلاحية مضيف للعيّنات المحلّية.
 const stage = mkdtempSync(join(tmpdir(), 'rasd-picker-ext-'))
@@ -78,7 +75,7 @@ let stderr = ''
 proc.stderr.on('data', (d) => (stderr += d.toString()))
 
 async function cleanup() {
-  fixtures.kill('SIGKILL')
+  fixtures.stop()
   proc.kill('SIGKILL')
   rmSync(stage, { recursive: true, force: true })
   for (let i = 0; i < 10; i++) {
@@ -243,12 +240,19 @@ async function inOverlay(tabId, fnSource) {
   }).then(r => r[0].result)`)
 }
 
-/** يضبط وضع الطبقة. */
+/**
+ * يضبط وضع الطبقة — **ويُعيد حكم `modes.set` لا `true` دائمًا**.
+ *
+ * كان النداء يهمل الناتج: و`set()` تُرجع `errWith('cancelled', …)` حين تكون
+ * الطبقة منشغلة (`content/mode-manager.ts:83`)، فانتقالٌ **مرفوض** كان يُقرأ
+ * نجاحًا، ثمّ يُنسَب سقوط التأكيد التالي إلى المؤشِّر أو إلى المنتج. سببٌ
+ * مغلوط أسوأ من عطل ظاهر.
+ */
 const setMode = (tabId, mode) =>
   inOverlay(
     tabId,
-    `() => { globalThis.__rasdPicker.modes.set(${JSON.stringify(mode)}); return true }`,
-  )
+    `() => JSON.stringify(globalThis.__rasdPicker.modes.set(${JSON.stringify(mode)}))`,
+  ).then((raw) => JSON.parse(raw))
 
 /** حدود عنصر الإبراز كما رسمه المتصفّح، ونصّ البطاقة. */
 const readOverlay = (tabId) =>
@@ -340,21 +344,31 @@ const NEUTRAL_POINT = { x: 710, y: 45 }
  *
  * التسليح: حركة إلى نقطة تسليح فيها عنصر `<i>` حقيقي (`#stress`)، ثم إثبات
  * أن الطبقة رسمت إبرازًا فعلًا — يعني أن `pickAt` نُفِّذ داخل جذر الظلّ لا
- * أنه بقي معلَّقًا على المضيف. بلا هذا الإثبات نسقط بصوت عالٍ عوض إكمال
- * فحص لا معنى له فوق طبقة لم تستلم الحدث بعد — وهذا مقصود، لا عطل في
- * التسليح: السباق نفسه متقطّع، فقد يقع هنا كما قد يقع على أي حدث أوّل.
- * ممنوع هنا: `setTimeout` أعمى، أو رفع `tol` في `rectNear`، أو إعادة
- * محاولة حول هذا التأكيد — كلّها تُخفي السباق بدل إثباته.
+ * أنه بقي معلَّقًا على المضيف.
+ *
+ * **وحُسم في المرحلة 23.1 — التسليح ينتظر إشارةً، والتأكيدات تبقى طلقةً واحدة.**
+ * كان التسليح طلقةً واحدة تسقط بصوت عالٍ، عمدًا، إلى أن تملك مرحلةٌ حسمَ
+ * السباق. وهذه هي: القياس يقول إن الحركة الأولى تضيع في نحو ثلث الجولات
+ * والثانية تصل بلا تغيّر في المنتَج بينهما — فالمنتَج ليس فيه ما يُصلَح،
+ * والمستخدم لا يرى هذا أصلًا (‏المؤشِّر الحقيقي يُصدر عشرات الحركات في
+ * الثانية؛ لا يراه إلا حارسٌ يرسل حدثًا واحدًا).
+ *
+ * فصار التسليح **حلقةَ جهوز محدودة السقف** تُعلن عدد محاولاتها — فارتفاعه
+ * انحدارٌ مرئي لا صمت. والمنع على حاله لما بعده: ممنوع `setTimeout` أعمى،
+ * أو رفع `tol` في `rectNear`، أو إعادة محاولة حول **أي تأكيد على المنتَج** —
+ * الحلقة هنا حول الجهوز وحده، وهذا هو الفرق بين انتظار الجهوز وإخفاء السباق.
  */
+const ARM_ATTEMPTS = 20
+
 async function armPointer(tabId, pageSession) {
-  await moveTo(pageSession, NEUTRAL_POINT.x, NEUTRAL_POINT.y)
-  const ov = await readOverlay(tabId)
-  if (!ov.drawn) {
-    throw new Error(
-      `armPointer: الطبقة لم تستلم حدث المؤشِّر بعد setMode — لا إبراز عند ` +
-        `(${NEUTRAL_POINT.x},${NEUTRAL_POINT.y}) رغم الحركة.`,
-    )
+  for (let attempt = 1; attempt <= ARM_ATTEMPTS; attempt++) {
+    await moveTo(pageSession, NEUTRAL_POINT.x, NEUTRAL_POINT.y)
+    if ((await readOverlay(tabId)).drawn) return attempt
   }
+  throw new Error(
+    `armPointer: الطبقة لم تستلم حدث المؤشِّر بعد ${ARM_ATTEMPTS} حركة إلى ` +
+      `(${NEUTRAL_POINT.x},${NEUTRAL_POINT.y}) — وهذا ليس سباق الحدث الأوّل بل انقطاعٌ قائم.`,
+  )
 }
 
 // ── الجولة ──────────────────────────────────────────────────────
@@ -367,13 +381,15 @@ if (extId && sw && granted) {
     fail(`تعذّر بدء الطبقة: ${injected} / ${JSON.stringify(started)}`)
   } else {
     ok(`الطبقة بدأت (${started.level})`)
-    await setMode(tabId, 'element')
+    const modeSet = await setMode(tabId, 'element')
+    if (!modeSet?.ok) fail(`رُفض الانتقال إلى وضع «element»: ${JSON.stringify(modeSet)}`)
     const pageSession = await attachToPage('/picker/')
     if (!pageSession) fail('تعذّر الاتصال بهدف الصفحة — لا يمكن إرسال أحداث مؤشِّر.')
     else {
       let armed = true
       try {
-        await armPointer(tabId, pageSession)
+        const attempts = await armPointer(tabId, pageSession)
+        note(`التسليح: وصل المؤشِّر إلى الطبقة بعد ${attempts} حركة (السقف ${ARM_ATTEMPTS})`)
       } catch (e) {
         armed = false
         fail(e.message)

@@ -16,12 +16,15 @@
  * الخطوة الثانية هي ما يحوّل «قارِن قائمة الصلاحيات المعروضة عند التثبيت يدويًا»
  * إلى فحص قابل للتكرار: الصلاحيات الممنوحة فعلًا، لا المعلَنة في البيان فقط.
  *
- * غير مُدرج في CI — المرحلة 23 تملك تشغيل المتصفح. يُشغَّل محليًا:
+ * **تصحيح 2026-09-12 (الوحدة 23.1):** كان هنا «غير مُدرج في CI — المرحلة 23
+ * تملك تشغيل المتصفح»، وصار مُدرجًا فعلًا منذ مصفوفة الحرّاس. و`§6` صفّ 97
+ * يقتبس السطر القديم حرفيًّا حجّةً، فيبقى اقتباسه صحيحًا عن وقته لا عن اليوم —
+ * والصفّ 98 يسجّل النقض. يُشغَّل في البيئتين بالأمر نفسه:
  *   pnpm verify:load
  */
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
@@ -64,6 +67,9 @@ if (!existsSync(dist)) {
   console.error('dist/ غير موجود — شغّل `pnpm build` أولًا.')
   process.exit(1)
 }
+
+/** اللغة الافتراضية كما يعلنها البيان المبنيّ — تُقرأ ولا تُفترَض. */
+const DEFAULT_LOCALE = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8')).default_locale
 if (!chrome) {
   console.error('لم يُعثر على Chrome. مرّر المسار عبر CHROME_PATH.')
   process.exit(1)
@@ -211,14 +217,47 @@ if (loadRejection) {
     const info = await evaluate(`(async () => {
       const m = chrome.runtime.getManifest()
       const granted = await chrome.permissions.getAll()
-      return JSON.stringify({ name: m.name, version: m.version, granted })
+      return JSON.stringify({ name: m.name, version: m.version, ui: chrome.i18n.getUILanguage(), granted })
     })()`)
-    const { name, version, granted } = JSON.parse(info)
+    const { name, version, ui, granted } = JSON.parse(info)
 
-    // اسم إضافة Chrome المكوّنة لن يكون عربيًا — فحص مزدوج ضد الالتباس.
-    ARABIC_RANGE.test(name)
-      ? ok(`الاسم بعد حلّ i18n: ${name} — النسخة ${version}`)
-      : fail(`الاسم ليس عربيًا: "${name}" — هل اتّصلنا بإضافة أخرى؟`)
+    /*
+     * **الاسم يُقاس ضدّ لغة المتصفّح، لا ضدّ لغة جهاز المطوّر.**
+     *
+     * البيان يعلن `__MSG_extName__` و`default_locale: "ar"`، وChrome يحلّه
+     * بلغة واجهته هو. فادّعاء «الاسم عربي» كان يمرّ على جهاز عربي ويسقط على
+     * عدّاء إنجليزي بالاسم الصحيح تمامًا — وهذا ما قِيس في CI أربع جولات:
+     * `الاسم ليس عربيًا: "Rasd"`، وهو الاسم الذي **يجب** أن يظهر هناك.
+     *
+     * فما يُثبَت هنا أدقّ وأقوى معًا: الاسم المحلول يطابق `extName` في
+     * **ملفّ الترجمة الذي تختاره لغة هذا المتصفّح** (وإلّا فملفّ اللغة
+     * الافتراضية). فيبقى الفحص المزدوج ضدّ الالتباس («هل اتّصلنا بإضافة
+     * أخرى؟») قائمًا، ويصير عربيّةُ الاسم مقيسةً حيث تصحّ: في `ar` وحدها،
+     * وهي `default_locale` المعلَنة — تُقرأ من القرص لا من المتصفّح.
+     */
+    const uiLocale = String(ui ?? '').replace('-', '_')
+    const localeDir = [uiLocale, uiLocale.split('_')[0], DEFAULT_LOCALE].find((c) =>
+      existsSync(join(dist, '_locales', c, 'messages.json')),
+    )
+    const expectedName = localeDir
+      ? JSON.parse(readFileSync(join(dist, '_locales', localeDir, 'messages.json'), 'utf8')).extName
+          ?.message
+      : null
+    name === expectedName
+      ? ok(
+          `الاسم بعد حلّ i18n: ${name} — يطابق _locales/${localeDir} للغة ${ui} · النسخة ${version}`,
+        )
+      : fail(
+          `الاسم "${name}" لا يطابق extName في _locales/${localeDir} ("${expectedName}") — هل اتّصلنا بإضافة أخرى؟`,
+        )
+
+    // والعربية تُقاس في موضعها: اللغة الافتراضية المعلَنة في البيان.
+    const arabicName = JSON.parse(
+      readFileSync(join(dist, '_locales', DEFAULT_LOCALE, 'messages.json'), 'utf8'),
+    ).extName?.message
+    ARABIC_RANGE.test(arabicName ?? '')
+      ? ok(`اللغة الافتراضية «${DEFAULT_LOCALE}» تحمل اسمًا عربيًا: ${arabicName}`)
+      : fail(`اسم اللغة الافتراضية ليس عربيًا: "${arabicName}" — والمنتج عربي أوّلًا`)
 
     // هذا هو المعيار الحاسم للمرحلة 2، مقروءًا من المتصفح لا من الملف.
     const origins = granted.origins ?? []

@@ -1,0 +1,8 @@
+# عِدل — حارسٌ مُرقّى وسلسلته دون العتبة.
+# يُقرأ عبر RASD_GUARDS_CI. ليس ملفّ سير عمل: لا يشغّله GitHub ولا يُستورَد.
+jobs:
+  live:
+    strategy:
+      matrix:
+        include:
+          - { guard: overlay, blocking: true }

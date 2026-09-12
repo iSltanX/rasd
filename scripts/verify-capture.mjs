@@ -24,8 +24,7 @@
  * بإيماءة. والفحص يقرأ بيان `dist/` **الأصلي** ويثبت أنه بلا صلاحية مضيف —
  * فلا يُخفي التصريحُ ما جاء ليثبته.
  *
- * غير مُدرج في CI — المرحلة 23 تملك تشغيل المتصفح. يُشغَّل محليًا:
- *   pnpm fixtures:serve   (في نافذة أخرى)
+ * يُشغَّل في CI وفي جهاز التطوير بالأمر نفسه — خادم العيّنات يُضمَن لا يُشترَط:
  *   pnpm verify:capture
  */
 import { spawn } from 'node:child_process'
@@ -34,6 +33,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
+import { ensureFixturesServer } from './live-fixtures.mjs'
 import { waitForExtensionContext } from './live-sw.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -41,19 +41,8 @@ const dist = join(root, 'dist')
 const PORT = 9366
 const HARD_TIMEOUT_MS = 120_000
 
-const FIXTURES_PORT = process.env.RASD_FIXTURES_PORT ?? 5399
+const FIXTURES_PORT = Number(process.env.RASD_FIXTURES_PORT ?? 5399)
 const PAGE_URL = `http://127.0.0.1:${FIXTURES_PORT}/rtl-ar/`
-
-try {
-  const res = await fetch(PAGE_URL)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-} catch (e) {
-  console.error(
-    `خادم العيّنات المحلي غير مُشغَّل على ${PAGE_URL} (${e.message}).\n` +
-      'شغّله في نافذة أخرى أولًا: pnpm fixtures:serve',
-  )
-  process.exit(1)
-}
 
 const CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -72,6 +61,11 @@ if (!chromePath) {
   console.error('لم يُعثر على Chrome. مرّر المسار عبر CHROME_PATH.')
   process.exit(1)
 }
+
+// خادم العيّنات يُضمَن هنا ولا يُشترَط مُشغَّلًا سلفًا: اشتراطُه كان يعني
+// **صفرًا في كل جولات CI** — لا خطوة تشغّله هناك، فيخرج الحارس 1 قبل أن
+// يفحص شيئًا. انظر ترويسة `live-fixtures.mjs`.
+const fixtures = await ensureFixturesServer({ port: FIXTURES_PORT })
 
 /*
  * نسخة الفحص: `dist/` كما هي + `<all_urls>` في `host_permissions`.
@@ -121,6 +115,7 @@ const fail = (m) => {
 const note = (m) => lines.push(`  · ${m}`)
 
 function finish(code) {
+  fixtures.stop()
   try {
     proc.kill('SIGKILL')
   } catch {

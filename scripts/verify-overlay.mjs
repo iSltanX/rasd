@@ -24,6 +24,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
+import { ensureFixturesServer } from './live-fixtures.mjs'
 import { attachLiveServiceWorker } from './live-sw.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -50,11 +51,7 @@ if (!chrome) {
 }
 
 // ── خادم العيّنات ────────────────────────────────────────────────
-const fixtures = spawn(process.execPath, [join(root, 'scripts', 'fixtures-serve.mjs')], {
-  stdio: 'ignore',
-  env: { ...process.env, RASD_FIXTURES_PORT: String(FIXTURES) },
-})
-await new Promise((r) => setTimeout(r, 600))
+const fixtures = await ensureFixturesServer({ port: FIXTURES })
 
 // نسخة الفحص: `dist/` كما هي + صلاحية مضيف للعيّنات المحلّية.
 const stage = mkdtempSync(join(tmpdir(), 'rasd-overlay-ext-'))
@@ -85,7 +82,7 @@ let stderr = ''
 proc.stderr.on('data', (d) => (stderr += d.toString()))
 
 async function cleanup() {
-  fixtures.kill('SIGKILL')
+  fixtures.stop()
   proc.kill('SIGKILL')
   rmSync(stage, { recursive: true, force: true })
   for (let i = 0; i < 10; i++) {
