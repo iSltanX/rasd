@@ -869,27 +869,39 @@ if (!cmpSession) {
          * بحجم ملفَّيهما في السطر نفسه. فصار المحكّ **مقام العدّ > 0** —
          * أي أن حسابًا وقع فعلًا — ثمّ استقرار النصّ فوقه.
          */
+        /*
+         * **وقراءةٌ واحدة لا ثلاث.** هُويّة الصفحة والمقام والنسبة تُقرأ في
+         * **تقييمٍ واحد**: قراءتُها في ثلاث رحلات CDP متتابعة تسمح بأن تُقرأ
+         * الهُويّة من مستند والرقم من غيره. والمقام هنا **معلومٌ سلفًا**
+         * — 4000×3000 = 12000000 — فيُشترَط بعينه لا «أكبر من صفر»: الأخير
+         * يقبل مقام مقارنةٍ سابقة ما يزال في الصفحة.
+         */
+        const PERF_PIXELS = 4000 * 3000
+        const perfReadExpr = `(() => {
+          const d = document.querySelector('[class*="ratioDetail"]')?.textContent ?? ''
+          const m = d.match(/من\\s+(\\d+)/)
+          return JSON.stringify({
+            onPage: location.search.includes('${PERF_A}'),
+            total: m ? Number(m[1]) : 0,
+            ratio: document.querySelector('[class*="ratioValue"]')?.textContent ?? null,
+          })
+        })()`
+
         async function waitForStableRatio(timeoutMs = 15000) {
           const start = Date.now()
           let lastText = null
           let stableCount = 0
           while (Date.now() - start < timeoutMs) {
-            const onNewPage = await evalIn(S, `location.search.includes('${PERF_A}')`).catch(
-              () => false,
-            )
-            if (onNewPage) {
-              const text = await evalIn(
-                S,
-                `document.querySelector('[class*="ratioValue"]')?.textContent ?? null`,
-              ).catch(() => null)
-              if (text !== null && text === lastText) {
-                stableCount++
-                if (stableCount >= 3) return text
-              } else {
-                stableCount = 0
-              }
-              lastText = text
+            const raw = await evalIn(S, perfReadExpr).catch(() => null)
+            const r = raw ? JSON.parse(raw) : null
+            const text = r && r.onPage && r.total === PERF_PIXELS ? r.ratio : null
+            if (text !== null && text === lastText) {
+              stableCount++
+              if (stableCount >= 3) return text
+            } else {
+              stableCount = 0
             }
+            lastText = text
             await new Promise((r) => setTimeout(r, 150))
           }
           return null
