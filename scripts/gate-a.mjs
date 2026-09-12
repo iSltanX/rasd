@@ -57,7 +57,10 @@ const IMPACT = [
     scripts: ['verify:load'],
   },
   // توثيق وسكربتات وخطّة: لا أثر تشغيلي — تُستثنى صراحةً لا صمتًا.
-  { match: /^(Docs\/|scripts\/|tests\/|Rasd_Plan\.md|README\.md|package\.json)/u, scripts: [] },
+  {
+    match: /^(Docs\/|scripts\/|tests\/|Rasd_Plan\.md|README\.md|STATUS\.md|package\.json)/u,
+    scripts: [],
+  },
 ]
 
 const STEPS = [

@@ -19,3 +19,7 @@ Docs/Rasd_Ar.md
 Rasd_Plan.md
 Docs/Phases/Phase_*.md
 Docs/ADR/
+
+# مخرجات مشتقّة من §9 — تكتبها `phases-sync.mjs` ويحرسها `--check`
+STATUS.md
+Docs/Phases/INDEX.md

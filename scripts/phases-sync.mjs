@@ -34,12 +34,42 @@
  *   node scripts/phases-sync.mjs           # يكتب، ويقول ماذا صحّح، ويفشل إن بقي ما لا يُصلَح آليًّا
  *   node scripts/phases-sync.mjs --check   # يفشل عند الانحراف (البوّابة A)
  */
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const PLAN = `${root}Rasd_Plan.md`
 const DASH = `${root}Docs/Phases/Dashboard.html`
+
+/**
+ * مخرَجان مشتقّان ثانيان — علّتهما كلفة القراءة لا نقص المعلومة.
+ *
+ * `Rasd_Plan.md` بلغ 243,300 حرفًا في 2,647 سطرًا، وجدول §9 وحده 45,949 حرفًا.
+ * فجلسةٌ تفتح الملفّ لتعرف «أين وصلنا» تدفع الكلفة كاملةً قبل أن تكتب سطرًا،
+ * وحاجتها الفعلية سطران: ما المرحلة التالية، وما حالة السابقة.
+ *
+ * فلا مصدر ثانٍ يُنشأ: §9 يبقى المصدر الوحيد، وهذان مشتقّان منه كما اللوحة —
+ * `STATUS.md` يجيب السطرين، و`INDEX.md` يعطي نطاق أسطر كل مرحلة كي تُقرأ
+ * بـ`sed -n 'من,إلىp'` بدل فتح الملفّ كلّه.
+ *
+ * **ولماذا `INDEX.md` ملفٌّ مستقلّ لا قسمٌ في `Rasd_Plan.md`:** الفهرس يسجّل
+ * أرقام أسطرٍ في الملفّ نفسه، فوضعُه داخله يزيح ما يسجّله — كل توليدٍ يغيّر
+ * الأرقام التي وُلِّد ليثبّتها، فلا يستقرّ على نقطة ثابتة. وملفٌّ خارجه يسلم
+ * من ذلك بالبناء. والمكسب الثاني أن `docs-lint` يمسح `Rasd_Plan.md` كلّه بحثًا
+ * عن صفوف `| <رقم> |`، فجدولٌ جديد داخله سطحُ تصادمٍ بلا مقابل.
+ */
+const STATUS_MD = `${root}STATUS.md`
+const INDEX_MD = `${root}Docs/Phases/INDEX.md`
+
+/**
+ * سقفٌ صلب على `STATUS.md` — الغاية كلّها أن يُقرأ رخيصًا.
+ *
+ * ملفٌّ يتضخّم يصير `Rasd_Plan.md` ثانيًا فينقض سبب وجوده، والتضخّم يقع صامتًا
+ * (مرحلةٌ تُضاف، عنوانٌ يطول). فيُفشَل التوليد صراحةً بدل الكتابة — والفشل هنا
+ * خبرٌ صحيح: «المخرَج تجاوز غايته» لا «العملية تعطّلت».
+ */
+const STATUS_MAX_LINES = 40
+const STATUS_MAX_CHARS = 4000
 
 const check = process.argv.includes('--check')
 
@@ -49,6 +79,8 @@ const auto = []
 const manual = []
 /** ما لا مصدر مفرد له فلا يُحرَس — يُعلَن سببه ولا يُفشِل البوّابة. */
 const notices = []
+/** مخرَجٌ مشتقٌّ انحرف عن §9 — تُصلحه الكتابة بإعادة توليده كاملًا. */
+const derived = []
 
 /** قيمة حقلٍ لا مصدر مفرد له في §9؛ تُميَّز عن `null` التي تعني «المصدر يقول: لا شيء». */
 const UNGUARDED = Symbol('غير محروس')
@@ -227,6 +259,141 @@ function readDashboard() {
   return { lines, blocks }
 }
 
+/**
+ * يقرأ نطاق أسطر كل مرحلة في `Rasd_Plan.md` — من عنوانها إلى ما قبل ما يليها.
+ *
+ * **والعنوانان الفرعيّان جزءٌ من المرحلة لا فاصلٌ بينها وبين ما بعدها.** المرحلة
+ * 26 تحمل `### 26أ —` و`### 26ب —` داخل جسمها؛ فلو أنهى الفهرسُ المرحلةَ عند
+ * أوّل `###` يليها لأعطى نطاقًا يقطعها في منتصفها، وهو أسوأ من لا فهرس: يقرأ
+ * القارئ نصف مرحلة وهو يظنّه كلّها. فالنهاية أوّل عنوانٍ **يبدأ شيئًا آخر**:
+ * مرحلةً تالية، أو قسمًا (`##`)، أو عنوانًا أعلى.
+ *
+ * ويُقلَّم الذيل من الأسطر الفارغة وفاصل `---`: لا معلومة فيهما، ووجودهما يجعل
+ * كل `sed` ينتهي بسطرين لا يقرأهما أحد.
+ */
+function readPhaseSpans() {
+  const lines = readFileSync(PLAN, 'utf8').split('\n')
+  const PHASE = /^### المرحلة (\d+) — (.+)$/
+  const heads = []
+  for (let i = 0; i < lines.length; i++) {
+    const m = PHASE.exec(lines[i])
+    if (m) heads.push({ n: m[1], title: m[2].trim(), start: i })
+  }
+  if (heads.length === 0) throw new Error('لم يُعثر على عنوان مرحلة واحد في Rasd_Plan.md')
+
+  // حدٌّ يُنهي مرحلة: مرحلةٌ تالية أو قسمٌ أو عنوانٌ أعلى — لا عنوان فرعي داخلها.
+  const ends = new Set()
+  for (let i = 0; i < lines.length; i++) {
+    if (PHASE.test(lines[i]) || /^#{1,2} /.test(lines[i])) ends.add(i)
+  }
+
+  return heads.map((h) => {
+    let end = lines.length - 1
+    for (let j = h.start + 1; j < lines.length; j++) {
+      if (ends.has(j)) {
+        end = j - 1
+        break
+      }
+    }
+    while (end > h.start && (lines[end].trim() === '' || lines[end].trim() === '---')) end--
+    return { n: h.n, title: h.title, from: h.start + 1, to: end + 1 }
+  })
+}
+
+/**
+ * رابط اللوحة المنشورة كما هو في §9 — لا يُكتب بيد في مخرَجٍ مشتقّ.
+ *
+ * والبحث يبدأ من عنوان §9 لا من أوّل الملفّ: روابط المعارض في خانات الجدول
+ * وفي §10 تطابق الشكل نفسه، وأوّل إصابةٍ قبل القسم تعطي رابط مرحلةٍ مكان
+ * رابط اللوحة — كذبةٌ صامتة في ملفٍّ غايته أن يُقرأ وحده.
+ */
+function readBoardUrl() {
+  const text = readFileSync(PLAN, 'utf8')
+  const at = text.indexOf(HEADING)
+  if (at < 0) return null
+  const m = /<(https:\/\/claude\.ai\/code\/artifact\/[0-9a-f-]+)>/.exec(text.slice(at))
+  return m ? m[1] : null
+}
+
+const STATUS_MARK = { done: '✅', next: '▶', pending: '—' }
+const STATUS_WORD = { done: 'مكتملة', next: 'قيد التنفيذ', pending: 'لم تبدأ' }
+
+/**
+ * يبني `STATUS.md` — السطران اللذان تحتاجهما الجلسة في مستهلّها.
+ *
+ * **والتالية تُشتقّ ولا تُكتب:** إن حمل صفٌّ حالة «التالية» صراحةً فهو المقصود،
+ * وإلّا فأوّل صفٍّ غير مكتمل في ترتيب الجدول — و§9 مرتَّب بترتيب التنفيذ
+ * المعتمد (ADR 0013) لا بالترتيب الرقمي، فالأوّل غير المكتمل هو التالي بالتعريف.
+ *
+ * والعدّاد على المراحل المطويّة (28) لا على الصفوف (30) كي لا يُخترَع عددٌ ثالث
+ * يخالف اللوحة و§9 معًا؛ والجدول يعرض الصفوف كما تُكتب. والأرقام غربية كما في
+ * اللوحة: §3.5 معيار قبولٍ لواجهة المنتج (12–19) عبر `src/shared/bidi/`، لا
+ * لوثيقةٍ مولَّدة.
+ */
+function renderStatus({ rows, total, doneCount, boardUrl }) {
+  const next = rows.find((r) => r.status === 'next') ?? rows.find((r) => r.status !== 'done')
+  const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
+  const nextText = next
+    ? `المرحلة ${next.n} — ${next.title} · \`${next.model} 5\``
+    : 'لا شيء — كل المراحل مكتملة'
+
+  // كل سطرٍ هنا محسوبٌ في السقف، فالترويسة أربعة أسطر لا تسعة: الغاية أن تُقرأ
+  // الحالة في نظرة، والنثر الزائد يزاحم الجدول الذي جاء القارئ لأجله.
+  const board = boardUrl ? `<${boardUrl}>` : '— (لا رابط في §9)'
+  const out = [
+    '# حالة رصد',
+    '',
+    '> **مشتقٌّ آليًّا من `Rasd_Plan.md §9` — لا يُحرَّر بيد.** يكتبه `pnpm phases:sync` ويحرسه `--check` في بوّابة A؛ وعند أي تعارض **§9 هو الصحيح**.',
+    '',
+    `**التالية:** ${nextText}`,
+    `**المكتمل:** ${doneCount} من ${total} مرحلة (${pct}%) · ${rows.length} صفًّا — 20 و26 مُقسَّمتان`,
+    `**اللوحة:** ${board}`,
+    '',
+    '| # | المرحلة | المودل | الحالة |',
+    '| --- | --- | --- | --- |',
+    ...rows.map(
+      (r) =>
+        `| ${r.n} | ${r.title} | \`${r.model} 5\` | ${STATUS_MARK[r.status]} ${STATUS_WORD[r.status]} |`,
+    ),
+    '',
+  ]
+  return out.join('\n')
+}
+
+/** يبني `Docs/Phases/INDEX.md` — نطاق أسطر كل مرحلة في `Rasd_Plan.md`. */
+function renderIndex(spans) {
+  return [
+    '# فهرس أسطر المراحل',
+    '',
+    '> **مشتقٌّ آليًّا من `Rasd_Plan.md` — لا يُحرَّر بيد.** يكتبه `pnpm phases:sync`،',
+    '> ويحرسه `--check` في بوّابة A. وهو يتقادم مع أي تحرير في الخطّة، فالحارس',
+    '> هو ما يمنع قراءة نطاقٍ صار يشير إلى غير مرحلته.',
+    '',
+    "**الاستعمال:** `sed -n '<من>,<إلى>p' Rasd_Plan.md` — تُقرأ المرحلة وحدها بدل",
+    'فتح الملفّ كلّه. والنطاق يشمل الأجزاء الفرعية داخل المرحلة (26أ · 26ب).',
+    '',
+    '| # | المرحلة | من | إلى |',
+    '| --- | --- | --- | --- |',
+    ...spans.map((p) => `| ${p.n} | ${p.title} | ${p.from} | ${p.to} |`),
+    '',
+  ].join('\n')
+}
+
+/**
+ * يقارن مخرَجًا مشتقًّا بما على القرص، ويكتبه عند الانحراف.
+ *
+ * الغياب انحرافٌ كالاختلاف: ملفٌّ لم يُولَّد بعدُ ليس حالةً خاصّة تُغتفَر، بل
+ * أشدّ صور الانحراف — قارئٌ يبحث عنه فلا يجده يعود إلى الملفّ الكبير.
+ */
+function syncDerived(path, label, want) {
+  const have = existsSync(path) ? readFileSync(path, 'utf8') : null
+  if (have === want) return
+  derived.push(
+    have === null ? `${label}: غير موجود — يُولَّد` : `${label}: انحرف عن مصدره — يُعاد توليده`,
+  )
+  if (!check) writeFileSync(path, want)
+}
+
 const quote = (s) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
 
 /** كتابة المعرض كما تكتبه اللوحة: `ART + '<uuid>'` لا الرابط كاملًا. */
@@ -292,6 +459,12 @@ function foldSplit(base, parts) {
 }
 
 const { rows: plan, mangled, unreadable, gateAfter } = readPlan()
+
+// صفوف §9 بترتيبها الخام — تُلتقط **قبل** الطيّ لأن `foldSplit` يُلحق `20` و`26`
+// بذيل الـ`Map`، فقراءتها بعده تعطي ترتيبًا ليس ترتيب الجدول. و`STATUS.md` يعرض
+// الصفوف كما تُكتب في §9 لا مطويّةً: الطيّ يُسقط عنوان المرحلة المُقسَّمة
+// (`title` بلا مصدر مفرد)، وجدولٌ بخانة عنوانٍ فارغة أسوأ من صفّين.
+const ordered = [...plan.values()]
 
 // اطوِ `20أ`/`20ب` → `20` قبل المقارنة، فاللوحة تعرض الرقم لا الجزء.
 const split = new Map()
@@ -465,6 +638,35 @@ for (const anchor of anchors) {
   }
 }
 
+// ── المخرَجان المشتقّان الثانيان ────────────────────────────────
+//
+// موضعهما هنا لا أعلى: `total` و`doneCount` و«التالية» تُشتقّ من الجدول
+// المقروء، ومراسي اللوحة تُصحَّح قبلهما فتبقى المخرجات الثلاثة عن حالةٍ واحدة.
+//
+// وصفٌّ مشوَّه في §9 يوقفهما كما يوقف المراسي: مخرَجٌ «رخيص القراءة» مبنيٌّ على
+// جدولٍ نصفُه غير مقروء يُسكِت الانحراف في مكانٍ أقرب إلى القارئ لا أبعد.
+if (unreadable > 0) {
+  notices.push(`STATUS.md وINDEX.md غير محروسَين: ${unreadable} صفًّا في §9 لم يُقرأ`)
+} else {
+  const status = renderStatus({
+    rows: ordered,
+    total,
+    doneCount,
+    boardUrl: readBoardUrl(),
+  })
+  const lineCount = status.split('\n').length - 1
+  if (lineCount > STATUS_MAX_LINES || status.length > STATUS_MAX_CHARS) {
+    manual.push(
+      `STATUS.md تجاوز سقفه (${lineCount} سطرًا · ${status.length} حرفًا — السقف ` +
+        `${STATUS_MAX_LINES} · ${STATUS_MAX_CHARS}) — لم يُكتب. غايته أن يُقرأ رخيصًا، ` +
+        `فتضخّمه ينقض سببه: قلّم الجدول أو ارفع السقف بقرار مكتوب.`,
+    )
+  } else {
+    syncDerived(STATUS_MD, 'STATUS.md', status)
+  }
+  syncDerived(INDEX_MD, 'Docs/Phases/INDEX.md', renderIndex(readPhaseSpans()))
+}
+
 console.log('\nمزامنة خريطة المراحل (§9 ← اللوحة):')
 console.log(
   `  قُرئ من §9: ${total} مرحلة · مكتملة: ${doneCount} · بوّابة MVP بعد ${show(gateAfter)}`,
@@ -472,20 +674,23 @@ console.log(
 console.log(`  كتل اللوحة: ${blocks.length}`)
 for (const note of notices) console.log(`  ⓘ ${note}`)
 
+const fixable = auto.length + derived.length
+
 if (check) {
-  if (auto.length + manual.length === 0) {
-    console.log('  ✓ اللوحة مطابقة للجدول — لا انحراف.\n')
+  if (fixable + manual.length === 0) {
+    console.log('  ✓ اللوحة والمشتقّان مطابقون للجدول — لا انحراف.\n')
     process.exit(0)
   }
-  console.error(`\n✗ ${auto.length + manual.length} انحرافًا عن §9:\n`)
+  console.error(`\n✗ ${fixable + manual.length} انحرافًا عن §9:\n`)
   for (const d of auto) console.error(`  · ${d}`)
+  for (const d of derived) console.error(`  · ${d}`)
   for (const d of manual) console.error(`  ✋ ${d}`)
   // لا تَعِد بما لا تفعله الكتابة: توجيهٌ إلى `phases:sync` لانحرافٍ لا يُصلَح
   // آليًّا يُبلّغ نجاحًا كاذبًا — وهو الصمت نفسه في ثوب رسالة.
-  if (auto.length > 0) console.error(`\nشغّل \`pnpm run phases:sync\` — يُصلح ${auto.length} منها.`)
+  if (fixable > 0) console.error(`\nشغّل \`pnpm run phases:sync\` — يُصلح ${fixable} منها.`)
   if (manual.length > 0) {
     console.error(
-      `${auto.length > 0 ? 'و' : '\n'}${manual.length} منها لا تُصلَح آليًّا (✋): تُعالَج باليد في اللوحة أو في §9.`,
+      `${fixable > 0 ? 'و' : '\n'}${manual.length} منها لا تُصلَح آليًّا (✋): تُعالَج باليد في اللوحة أو في §9.`,
     )
   }
   console.error('')
@@ -501,6 +706,13 @@ if (auto.length > 0) {
   console.log('  ✓ لا انحراف في القيم.')
 }
 if (styleOnly > 0) console.log(`  ✓ وُحِّد شكل ${styleOnly} حقلًا (بلا انحراف في القيمة).`)
+
+if (derived.length > 0) {
+  console.log(`  ✓ أُعيد توليد ${derived.length} مخرَجًا مشتقًّا:`)
+  for (const d of derived) console.log(`    − ${d}`)
+} else {
+  console.log('  ✓ المشتقّان (STATUS.md · INDEX.md) مطابقان لمصدرهما.')
+}
 
 // الكتابة لا تُغلق ما لا تفتحه: ما بقي يُقال، ويخرج بغير صفر كي لا تُقرأ
 // التشغيلة نجاحًا وهي نصف نجاح.
