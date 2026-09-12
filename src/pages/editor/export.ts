@@ -118,6 +118,8 @@ export interface ExportOptions {
   readonly format: ExportFormat
   /** درجة الجودة؛ `png` تتجاهلها بحكم المُرمِّج. */
   readonly quality?: QualityLevel
+  /** `privacy.stripMetadataOnExport` — تُمرَّر إلى البوّابة كما هي، لا تُقرَّر هنا. */
+  readonly stripMetadata?: boolean
   readonly style: RenderStyle
   readonly layout: TextLayoutCache
   readonly client: BlurClient
@@ -146,6 +148,7 @@ export function startExport(options: ExportOptions): ExportRun {
     scale: options.scale,
     format: options.format,
     quality: qualityValue(options.quality ?? 'max'),
+    stripMetadata: options.stripMetadata ?? false,
     surface: options.surface ?? createBakeSurface(),
     style: options.style,
     paletteMode: 'dark',

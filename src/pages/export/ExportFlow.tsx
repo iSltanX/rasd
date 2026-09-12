@@ -7,6 +7,7 @@ import { exportFilename } from '@/modules/export/filename'
 import { CLIPBOARD_FORMAT, type ExportFormat } from '@/modules/export/format'
 import { collectSignals, type ExportSignal } from '@/modules/export/signals'
 import { hasPermission, requestPermission } from '@/shared/permissions'
+import { watchSettings } from '@/shared/settings'
 
 import { copyBaked, startExport } from '../editor/export'
 import { ExportProgress } from '../editor/parts/ExportProgress'
@@ -73,6 +74,18 @@ export function ExportFlow(props: ExportFlowProps): JSX.Element {
   const permission = useRef<PermissionState>('unknown')
   const cancelRef = useRef<() => void>(() => undefined)
   const urlRef = useRef<string | null>(null)
+  /**
+   * `privacy.stripMetadataOnExport` — تُقرأ عبر `watchSettings` لا قراءةً
+   * واحدة. **خلافًا لـ`permission` أعلاه**: ذاك مرجعٌ يُستطلَع مرّةً بحكم
+   * قيدٍ حقيقي (طلب الصلاحية يجب أن يبدأ متزامنًا من داخل إيماءة نقرة، فلا
+   * `await` قبله)، وهذا القيد لا ينطبق هنا — `stripMetadata` مجرّد قيمة
+   * تُمرَّر إلى `runBake` بلا أي تسلسل إيماءة يُكسَر. ولا شاشة إعدادات تكتب
+   * هذا المفتاح بعد (المرحلة 20)، فتغيّره اليوم غير ممكن أصلًا؛ لكن قراءةً
+   * واحدة كانت ستُخطئ حين تُبنى تلك الشاشة — تبويبٌ آخر يغيّر الإعداد ثمّ
+   * هذه النافذة تُصدِّر بالقيمة القديمة. `watchSettings` يُصلح ذلك بلا
+   * تعديل هنا لاحقًا: القيمة الحيّة دائمًا في المرجع.
+   */
+  const stripMetadata = useRef(false)
 
   useEffect(() => {
     let live = true
@@ -89,6 +102,12 @@ export function ExportFlow(props: ExportFlowProps): JSX.Element {
       live = false
     }
   }, [])
+
+  useEffect(
+    () =>
+      watchSettings((settings) => (stripMetadata.current = settings.privacy.stripMetadataOnExport)),
+    [],
+  )
 
   // عنوان الكائن يعيش حتى تُغلَق النافذة — الرابط يُعرض ويُنقَر بعد الخبز.
   useEffect(
@@ -111,6 +130,7 @@ export function ExportFlow(props: ExportFlowProps): JSX.Element {
         scale,
         format: chosen,
         quality: chosenQuality,
+        stripMetadata: stripMetadata.current,
         style: props.style,
         layout: props.layout,
         client: props.client,

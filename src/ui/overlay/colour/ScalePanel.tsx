@@ -112,10 +112,12 @@ export interface ScalePanelProps {
 const EXPORT_BUTTONS: readonly {
   readonly format: Exclude<PaletteFormat, 'text'>
   readonly label: string
+  /** تنزيلٌ لا نسخ منذ 19.2 — تلميحٌ لا زرّ إضافي، النصّ المرئي اسم صيغة مجرَّد. */
+  readonly title: string
 }[] = [
-  { format: 'json', label: 'JSON' },
-  { format: 'tailwind', label: 'Tailwind config' },
-  { format: 'css', label: 'CSS Variables' },
+  { format: 'json', label: 'JSON', title: 'تنزيل ملفّ JSON' },
+  { format: 'tailwind', label: 'Tailwind config', title: 'تنزيل ملفّ Tailwind' },
+  { format: 'css', label: 'CSS Variables', title: 'تنزيل ملفّ CSS' },
 ]
 
 export function ScalePanel({
@@ -262,6 +264,7 @@ export function ScalePanel({
               key={b.format}
               type="button"
               class="rasd-ov-scl-btn"
+              title={b.title}
               onClick={() => onExport?.(b.format)}
             >
               <TechnicalValue kind="format" variant="mono-xs">

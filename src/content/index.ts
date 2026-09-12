@@ -12,7 +12,7 @@
 import { computed, signal } from '@preact/signals'
 
 import { captureKindFor, type CaptureSource } from '@/modules/capture/kind'
-import { exportPalette, exportScale } from '@/modules/colour/export'
+import { exportPalette, exportScale, type PaletteFormat } from '@/modules/colour/export'
 import { revertAll } from '@/modules/colour/replace'
 import { classifyViewport, VIEWPORT_ORDER } from '@/modules/compare/viewport'
 import { toCss, toJson, toTailwindText } from '@/modules/style-export/css'
@@ -30,6 +30,7 @@ import { adoptTeardown, mountHost, type OverlayHost } from './host'
 import { createModeManager, type ModeManager } from './mode-manager'
 import { mountOverlayApp, requestCapture } from './overlay-app'
 import { startPersistence, type Persistence } from './persistence'
+import { saveTextFile } from './save-file'
 import { installShortcuts, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
@@ -758,28 +759,84 @@ async function bootOverlay(
   })
 
   /**
-   * ينسخ مخرَج الفحص إلى الحافظة.
-   *
-   * الحدود تُكتب في النصّ المنسوخ نفسه لا في اللوحة وحدها: المستخدم يلصقه
-   * في مكان آخر، فيجب أن يحمل معه ما لم نجزم به.
+   * يبني نصّ مخرَج الفحص بصيغة معطاة — الجسم المشترك بين النسخ والتنزيل،
+   * فلا يُكتب مرّتين ولا يفترق مخرَجاهما.
    */
-  const copyInspect = (
+  const inspectText = (
+    tool: ReturnType<typeof createInspect>,
+    kind: 'css' | 'tailwind' | 'json',
+  ): string | null => {
+    const detail = tool.state.detail.peek()
+    if (!detail) return null
+    const rootPx = Number.parseFloat(win.getComputedStyle(doc.documentElement).fontSize) || 16
+    return kind === 'css'
+      ? toCss(detail.snapshot)
+      : kind === 'tailwind'
+        ? toTailwindText(detail.snapshot, rootPx)
+        : JSON.stringify(toJson(detail.snapshot, rootPx), null, 2)
+  }
+
+  /**
+   * ينزِّل مخرَج الفحص ملفًّا — الوحدة 19.2.
+   *
+   * **تنزيلٌ لا نسخ، على الزرّ نفسه لا زرٍّ إضافي**: `InspectPanel.tsx`
+   * محسوبة الأزرار كـ`PalettePanel.tsx` (انظر تعليقها)، فتغيَّرت الوجهة لا
+   * العدد. والحدود التي كانت تُكتب في النصّ المنسوخ («العنصر بلا تخطيط»
+   * ونحوها) تبقى في الملفّ نفسه للعلّة نفسها: من يفتحه لاحقًا يجب أن يحمل
+   * معه ما لم نجزم به.
+   */
+  const DOWNLOAD_MIME: Readonly<Record<'css' | 'tailwind' | 'json', string>> = {
+    css: 'text/css',
+    tailwind: 'text/plain',
+    json: 'application/json',
+  }
+  const DOWNLOAD_NAME: Readonly<Record<'css' | 'tailwind' | 'json', string>> = {
+    css: 'rasd-inspect.css',
+    tailwind: 'rasd-inspect.tailwind.txt',
+    json: 'rasd-inspect.json',
+  }
+  const downloadInspect = (
     tool: ReturnType<typeof createInspect>,
     kind: 'css' | 'tailwind' | 'json',
   ) => {
-    const detail = tool.state.detail.peek()
-    if (!detail) return
-    const rootPx = Number.parseFloat(win.getComputedStyle(doc.documentElement).fontSize) || 16
-    const text =
-      kind === 'css'
-        ? toCss(detail.snapshot)
-        : kind === 'tailwind'
-          ? toTailwindText(detail.snapshot, rootPx)
-          : JSON.stringify(toJson(detail.snapshot, rootPx), null, 2)
+    const text = inspectText(tool, kind)
+    if (text === null) return
+    saveTextFile(DOWNLOAD_NAME[kind], DOWNLOAD_MIME[kind], text, doc)
+  }
 
-    void navigator.clipboard?.writeText(text).catch(() => {
-      console.warn('[رصد] تعذّر نسخ مخرَج الفحص إلى الحافظة.')
-    })
+  /**
+   * تصديرات المطوّر ملفّاتٍ — اللوحة والسلّم (الوحدة 19.2).
+   *
+   * **تنزيلٌ لا نسخ، على الأزرار الأربعة القائمة نفسها لا زرٍّ خامس**:
+   * `PalettePanel.tsx` تقيس أزرارها الأربعة (تصدير × 3 + حفظ) مقابل Figma
+   * `122:157`/`122:211` وتنصّ صراحةً «لا خامس» — فتغيَّرت وجهة الأزرار
+   * الثلاثة من الحافظة إلى ملفّ، ولم يُضَف زرّ تنزيل موازٍ.
+   *
+   * **`text` مُستبعَدة عمدًا**: `§6.14` تصفها بلا وجهة كودية أصلًا («تُنسَخ
+   * إلى محادثة أو ملاحظة»، انظر ترويسة `colour/export.ts`)، فلا ملفّ يُطابق
+   * صيغة نصٍّ بشري.
+   *
+   * **`dtcg` بلا زرّ حيّ هنا كذلك — بالعلّة نفسها.** أزرار التصدير المقيسة
+   * ثلاثة (CSS/JSON/Tailwind) لا أربعة، فإضافة `dtcg` زرًّا رابعًا تخالف
+   * القياس نفسه الذي منع زرّ التنزيل الموازي. الدالّة مبنيّة ومختبَرة في
+   * `colour/export.ts` وتقبل `dtcg` هنا لو استُدعيت — لكن لا مسار حيّ يطلبها
+   * حتى يُصحَّح إطار Figma أو يُقرَّر استبدال زرٍّ قائم.
+   */
+  type FileFormat = Exclude<PaletteFormat, 'text'>
+  const PALETTE_DOWNLOAD_MIME: Readonly<Record<FileFormat, string>> = {
+    css: 'text/css',
+    json: 'application/json',
+    tailwind: 'text/css',
+    dtcg: 'application/json',
+  }
+  const paletteDownloadName = (kind: 'palette' | 'scale', format: FileFormat): string => {
+    const ext: Readonly<Record<FileFormat, string>> = {
+      css: 'css',
+      json: 'json',
+      tailwind: 'tailwind.css',
+      dtcg: 'tokens.json',
+    }
+    return `rasd-${kind}.${ext[format]}`
   }
 
   const app = mountOverlayApp(host.layer, {
@@ -818,23 +875,20 @@ async function bootOverlay(
       if (pinned) colourScale.open(pinned.reading)
     },
     /**
-     * تصدير اللوحة/السلّم — نسخٌ إلى الحافظة، على نمط `onCopyColour` أدناه.
-     * لا تنزيل ملفّ: `§6.14` تصف صيغًا **تُلصَق**، ومسار التنزيل الصريح
-     * («downloads اختيارية بتدفّق طلب صريح») معيار إتمام المرحلة 19 لا 14.
+     * تصدير اللوحة/السلّم — تنزيل ملفّ، على الأزرار الأربعة القائمة نفسها
+     * (الوحدة 19.2؛ انظر ترويسة `paletteDownloadName` أعلاه). كانت نسخًا
+     * إلى الحافظة حتى إغلاق 19.1 («لا تنزيل ملفّ... معيار إتمام المرحلة 19
+     * لا 14») — وهذا بالضبط ما أنجزته 19.2.
      */
     onExportPalette: (format) => {
       const text = exportPalette(colourPalette.state.swatches.peek(), format)
-      void navigator.clipboard?.writeText(text).catch(() => {
-        console.warn('[رصد] تعذّر نسخ تصدير اللوحة إلى الحافظة.')
-      })
+      saveTextFile(paletteDownloadName('palette', format), PALETTE_DOWNLOAD_MIME[format], text, doc)
     },
     onExportScale: (format) => {
       const text = exportScale(colourScale.state.stops.peek(), format)
-      void navigator.clipboard?.writeText(text).catch(() => {
-        console.warn('[رصد] تعذّر نسخ تصدير السلّم إلى الحافظة.')
-      })
+      saveTextFile(paletteDownloadName('scale', format), PALETTE_DOWNLOAD_MIME[format], text, doc)
     },
-    onCopyInspect: (kind) => copyInspect(inspect, kind),
+    onCopyInspect: (kind) => downloadInspect(inspect, kind),
     onCopyColour: (value: string) => {
       void navigator.clipboard?.writeText(value).catch(() => {
         console.warn('[رصد] تعذّر نسخ قيمة اللون إلى الحافظة.')

@@ -436,24 +436,45 @@ export function PalettePanel({
       </div>
 
       {/* الأيقونة أوّلًا في DOM في الأزرار الأربعة كلّها — مقيسٌ من `122:157`؛ انظر ترويسة الملفّ. */}
+      {/*
+       * `title` على الثلاثة — لا أيقونة ولا نصٍّ جديد يخالف عدّ Figma
+       * الأربعة، لكنّها صارت تُنزِّل ملفًّا لا تنسخ (الوحدة 19.2)، والتلميح
+       * وحده كان يكفي هنا لأن النصّ المرئي اسم صيغة مجرَّد بلا فعل («CSS»
+       * لا «نسخ CSS») — فلا كلمة صريحة عليه تحتاج تصحيحًا كما في لوحة الفحص.
+       */}
       <footer class="rasd-ov-pal-actions">
         <button type="button" class="rasd-ov-pal-btn" data-primary="true" onClick={onSave}>
           <Icon name="swatches" size="sm" />
           <span>احفظ اللوحة</span>
         </button>
-        <button type="button" class="rasd-ov-pal-btn" onClick={() => onExport?.('tailwind')}>
+        <button
+          type="button"
+          class="rasd-ov-pal-btn"
+          title="تنزيل ملفّ Tailwind"
+          onClick={() => onExport?.('tailwind')}
+        >
           <Icon name="file-code" size="xs" />
           <TechnicalValue kind="format" variant="mono-xs">
             Tailwind
           </TechnicalValue>
         </button>
-        <button type="button" class="rasd-ov-pal-btn" onClick={() => onExport?.('json')}>
+        <button
+          type="button"
+          class="rasd-ov-pal-btn"
+          title="تنزيل ملفّ JSON"
+          onClick={() => onExport?.('json')}
+        >
           <Icon name="file-code" size="xs" />
           <TechnicalValue kind="format" variant="mono-xs">
             JSON
           </TechnicalValue>
         </button>
-        <button type="button" class="rasd-ov-pal-btn" onClick={() => onExport?.('css')}>
+        <button
+          type="button"
+          class="rasd-ov-pal-btn"
+          title="تنزيل ملفّ CSS"
+          onClick={() => onExport?.('css')}
+        >
           <Icon name="file-code" size="xs" />
           <TechnicalValue kind="format" variant="mono-xs">
             CSS

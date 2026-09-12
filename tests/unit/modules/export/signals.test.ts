@@ -16,6 +16,7 @@ const REPORT = (warnings: readonly string[] = []): BakeReport => ({
   format: 'png',
   reencoded: true,
   paletteMode: 'dark',
+  metadataStripped: false,
   warnings,
 })
 

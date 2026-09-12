@@ -1,10 +1,19 @@
 /**
- * تصدير لوحة الألوان — CSS Variables · JSON · Tailwind Config · نص قابل للنسخ.
+ * تصدير لوحة الألوان — CSS Variables · JSON · Tailwind Config · نص قابل
+ * للنسخ · W3C DTCG.
  *
- * `Rasd_Ar.md §6.14` ينصّ على الصيغ الأربع حرفيًّا، بلا أي تفصيل بنيوي
- * لأيّها: «تصدير اللوحة بصيغ: CSS Variables · JSON · Tailwind Config · نص
- * قابل للنسخ». فالبنية قرار هذا الملفّ وحده، وكل قرار فيه معلَّل أدناه أو
- * عند موضعه.
+ * `Rasd_Ar.md §6.14` ينصّ على الصيغ **الأربع** الأولى حرفيًّا، بلا أي تفصيل
+ * بنيوي لأيّها: «تصدير اللوحة بصيغ: CSS Variables · JSON · Tailwind Config
+ * · نص قابل للنسخ». فالبنية قرار هذا الملفّ وحده، وكل قرار فيه معلَّل أدناه
+ * أو عند موضعه.
+ *
+ * **`dtcg` مصدرها مختلف — نصّ المرحلة 19 لا `§6.14`.** «تصديرات المطوّر:
+ * CSS · JSON · Tailwind · Design Tokens (W3C)» (`Rasd_Plan.md` سطر 1250)،
+ * وحُسم بناؤها صراحةً في الوحدة 19.2 («الناقص صيغة W3C DTCG وحدها»). وخلافًا
+ * لـ`json` (سجلّ `rasd.*` الخاصّ، يحمل `share`/`count`/`neutral`) فـ`dtcg`
+ * **مطابقة للمواصفة القياسية بلا امتداد**: `$type`/`$value` فقط، لأن غايتها
+ * التشغيل البيني مع أدوات خارجية (Style Dictionary وأمثالها) لا توثيق
+ * بيانات رصد الداخلية.
  *
  * **مسار تصدير كود لا مسار معلومة — وهذا يحكم القرار الأهمّ هنا.**
  * `colour/tailwind.ts` **يُسمّي** الألوان (`blue-500`) لأنه مسار معلومة
@@ -25,7 +34,7 @@ import { TAILWIND_VERSION } from './tailwind-palette'
 import type { ScaleStop } from './scale'
 import type { PaletteSwatch } from '@/shared/messaging/contract'
 
-export type PaletteFormat = 'css' | 'json' | 'tailwind' | 'text'
+export type PaletteFormat = 'css' | 'json' | 'tailwind' | 'text' | 'dtcg'
 
 export interface ExportOptions {
   /**
@@ -218,13 +227,42 @@ function copyText(swatches: readonly PaletteSwatch[]): string {
     .join('\n')
 }
 
+/** توكن لون واحد — `$type`/`$value` فقط، مطابقةً للمواصفة بلا امتداد. */
+export interface DtcgColorToken {
+  readonly $type: 'color'
+  readonly $value: string
+}
+
+/** الشكل الكامل لمخرَج DTCG — كائن مسطَّح، اسم المتغيّر مفتاحًا. */
+export type DtcgExport = Readonly<Record<string, DtcgColorToken>>
+
 /**
- * يصدّر لوحةً بصيغة واحدة من الأربع.
+ * W3C DTCG — مسطَّحة بلا مجموعات متداخلة، واسم المتغيّر نفسه مفتاحَ التوكن.
+ *
+ * **لا `share`/`count`/`neutral` هنا** — انظر ترويسة الملفّ: هذه الصيغة
+ * للتشغيل البيني مع أدوات خارجية تقرأ `$type`/`$value` وحدهما، فحقلٌ زائد
+ * غير معياري يخاطر بكسر محلِّلها. ومصدر القيمة `s.hex` مباشرةً كـ`cssVariables`
+ * لا `readSwatch(s).oklch` — DTCG هنا سداسي كـCSS Variables لا مُحوَّل كـTailwind.
+ */
+function dtcgTokens(
+  swatches: readonly { readonly hex: string }[],
+  prefix: string,
+  nameOf: (index: number) => string = (i) => variableName(prefix, i),
+): DtcgExport {
+  const out: Record<string, DtcgColorToken> = {}
+  swatches.forEach((s, i) => {
+    out[nameOf(i)] = { $type: 'color', $value: s.hex }
+  })
+  return out
+}
+
+/**
+ * يصدّر لوحةً بصيغة واحدة من الخمس.
  *
  * **قرار 7 — لوحة فارغة (`swatches.length === 0`) لا تُرمى في أي صيغة**:
  * كل دالّة فرعية أعلاه تبني من مصفوفة فارغة بنيةً خاليةً صالحة لصيغتها
- * (`:root {}` · `{"swatches":[]}` · `@theme {}` · سلسلة فارغة) — لا حالة
- * خاصّة إضافية هنا، لأن كل دالّة صحيحة أصلًا عند طول صفر.
+ * (`:root {}` · `{"swatches":[]}` · `@theme {}` · سلسلة فارغة · `{}`) — لا
+ * حالة خاصّة إضافية هنا، لأن كل دالّة صحيحة أصلًا عند طول صفر.
  */
 export function exportPalette(
   swatches: readonly PaletteSwatch[],
@@ -242,6 +280,8 @@ export function exportPalette(
       return tailwindConfig(swatches, prefix)
     case 'text':
       return copyText(swatches)
+    case 'dtcg':
+      return JSON.stringify(dtcgTokens(swatches, prefix), null, 2)
   }
 }
 
@@ -310,5 +350,7 @@ export function exportScale(
       }
       return JSON.stringify(json, null, 2)
     }
+    case 'dtcg':
+      return JSON.stringify(dtcgTokens(stops, prefix, nameOf), null, 2)
   }
 }

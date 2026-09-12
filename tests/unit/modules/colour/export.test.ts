@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   exportPalette,
   exportScale,
+  type DtcgExport,
   type PaletteExportJson,
   type PaletteFormat,
   type ScaleExportJson,
@@ -173,8 +174,34 @@ describe('exportPalette — نص قابل للنسخ', () => {
   })
 })
 
-describe('exportPalette — الصيغ الأربع كلّها لا ترمي على لوحة فارغة', () => {
-  const formats: readonly PaletteFormat[] = ['css', 'json', 'tailwind', 'text']
+describe('exportPalette — W3C DTCG', () => {
+  it('كائن مسطَّح، اسم المتغيّر مفتاحًا، $type/$value فقط', () => {
+    const dtcg = JSON.parse(exportPalette(THREE, 'dtcg', { prefix: 'brand' })) as DtcgExport
+    expect(dtcg).toEqual({
+      'brand-1': { $type: 'color', $value: '#2b7fff' },
+      'brand-2': { $type: 'color', $value: '#00c950' },
+      'brand-3': { $type: 'color', $value: '#f5f5f5' },
+    })
+  })
+
+  it('لا حقول رصد الخاصّة (share/count/neutral) — مطابقة للمواصفة بلا امتداد', () => {
+    const dtcg = exportPalette(THREE, 'dtcg')
+    expect(dtcg).not.toMatch(/share|count|neutral|حياد/)
+  })
+
+  it('القيمة سداسية مباشرة — لا OKLCH كما في Tailwind', () => {
+    const parsed = JSON.parse(exportPalette(THREE, 'dtcg')) as DtcgExport
+    expect(parsed['palette-1']?.$value).toBe('#2b7fff')
+  })
+
+  it('لوحة فارغة تعطي كائنًا فارغًا، بلا رمي', () => {
+    expect(() => exportPalette([], 'dtcg')).not.toThrow()
+    expect(JSON.parse(exportPalette([], 'dtcg'))).toEqual({})
+  })
+})
+
+describe('exportPalette — الصيغ الخمس كلّها لا ترمي على لوحة فارغة', () => {
+  const formats: readonly PaletteFormat[] = ['css', 'json', 'tailwind', 'text', 'dtcg']
   it.each(formats)('الصيغة %s', (format) => {
     expect(() => exportPalette([], format)).not.toThrow()
   })
@@ -230,12 +257,21 @@ describe('exportScale', () => {
     expect(exportScale(STOPS, 'css')).toContain(`--palette-${String(STOPS[0]!.step)}:`)
   })
 
+  it('DTCG: التسمية بالدرجة كنظيرتيها CSS/Tailwind — لا رتبة مسرَّبة', () => {
+    const dtcg = JSON.parse(exportScale(STOPS, 'dtcg', { prefix: 'brand' })) as DtcgExport
+    for (const s of STOPS) {
+      expect(dtcg[`brand-${String(s.step)}`]).toEqual({ $type: 'color', $value: s.hex })
+    }
+    expect(dtcg['brand-1']).toBeUndefined()
+  })
+
   it('سلّم فارغ لا يرمي في أي صيغة', () => {
-    const formats: readonly Exclude<PaletteFormat, 'text'>[] = ['css', 'json', 'tailwind']
+    const formats: readonly Exclude<PaletteFormat, 'text'>[] = ['css', 'json', 'tailwind', 'dtcg']
     for (const format of formats) {
       expect(() => exportScale([], format)).not.toThrow()
     }
     expect(exportScale([], 'json')).toContain('"stops": []')
+    expect(JSON.parse(exportScale([], 'dtcg'))).toEqual({})
   })
 
   it('صيغتا CSS/Tailwind للوحة المستخرَجة لم تتأثّرا بتعميم الدالّتين — نفس مخرَج `exportPalette` حرفًا بحرف', () => {

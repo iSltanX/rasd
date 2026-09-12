@@ -50,6 +50,7 @@ import { normaliseBox } from './hit-test'
 import { clampToBuffer, distinctColours, regionVariance, type PixelRect } from './pixel-ops'
 import { opForNode, sampleRect } from './redact'
 import { isHideable, isIrreversible, type ObscureMode, type NodeId, type Scene } from './scene'
+import { stripWebpIccp } from './webp-strip'
 
 import type { ObscureOp } from './blur-protocol'
 import type { Ctx2D, RenderStyle } from './renderer'
@@ -101,6 +102,15 @@ export interface BakeReport {
   readonly reencoded: true
   /** اللوحة مثبَّتة — الملفّ لا يتغيّر بسمة مؤلّفه. */
   readonly paletteMode: 'dark'
+  /**
+   * حُذف مقطع `ICCP` فعلًا؟ لا تعني «طُلب الحذف» بل «وُجد ما يُحذف وحُذف».
+   *
+   * **دائمًا `false` لـPNG** — لا مقطع فيها أصلًا (`§6` صفّ 103أ). ولـWebP:
+   * `false` حين `stripMetadata` لم تُطلَب، أو طُلبت على حاويةٍ لسببٍ ما بلا
+   * `ICCP`. الحقل يقرأ نتيجة `stripWebpIccp` لا الطلب — فشاشة `export / done`
+   * تعرض الحالة الفعلية لا وعدًا (`Docs/Phases/Phase_19.md §4`).
+   */
+  readonly metadataStripped: boolean
   /** حدودٌ **تُعلَن** لا تُبتلَع: ما لم يُرسَم، وما لم يُدمَّر. */
   readonly warnings: readonly string[]
 }
@@ -189,6 +199,15 @@ export interface BakeRequest {
    * كل مُرمِّج. وPNG تتجاهل الوسيط بالكامل.
    */
   readonly quality?: number | null
+  /**
+   * `privacy.stripMetadataOnExport` — يُحقَن من المستدعي، لا يُقرأ هنا من
+   * التخزين: `modules/` لا `chrome.*` (انظر ترويسة الملفّ).
+   *
+   * يُنفَّذ على WebP وحدها اليوم: مقطع `ICCP` هو البند الموروث من 19.1
+   * (`webp-strip.ts`). وPNG لا تحتاجه — تخرج بصفر مقطع دائمًا بحكم
+   * المُرمِّج، بلا علاقة بهذا المفتاح.
+   */
+  readonly stripMetadata?: boolean
   readonly surface: BakeSurface
   readonly style: RenderStyle
   /**
@@ -264,6 +283,8 @@ const noYield = (): Promise<void> => Promise.resolve()
  *      أوّل عقدة: شريحةٌ تُرسَم بعد تدميرٍ تُعيد البكسلات السليمة فوقه.
  *   ٣. مرور واحد بالترتيب: متّجهة تُرسم، وحجب يُدمِّر.
  *   ٤. الترميز، **ثمّ** التحرير — لا العكس.
+ *   ٥. حذف `ICCP` من WebP — **بعد** التحقّق من الصيغة المُنتَجة لا قبله،
+ *      وبطلب `stripMetadata` صريح لا افتراضًا (`webp-strip.ts`).
  */
 export async function bake(
   req: BakeRequest,
@@ -435,18 +456,37 @@ export async function bake(
       })
     }
 
+    /*
+     * ── ٤. حذف البيانات الوصفية — WebP وحدها، وبطلب صريح ─────────────
+     *
+     * **بعد المقارنة أعلاه لا قبلها**: التحقّق من الصيغة المُنتَجة يحكم
+     * `blob` الأصلي، فتمريره عبر التنظيف أوّلًا كان يخاطر بإخفاء تدهورٍ
+     * صامت خلف بايتات مُعاد بناؤها. والتنظيف **لا يرمي على فشل** (انظر
+     * `webp-strip.ts`) — تعثّره لا يُسقط تصديرًا نجح.
+     */
+    let finalBlob = blob
+    let metadataStripped = false
+    if (produced === 'webp' && req.stripMetadata === true) {
+      const stripped = stripWebpIccp(new Uint8Array(await blob.arrayBuffer()))
+      if (stripped.removed) {
+        finalBlob = new Blob([stripped.bytes], { type: blob.type })
+        metadataStripped = true
+      }
+    }
+
     req.onProgress?.(1)
 
     return ok({
-      blob: blob as ExportBytes,
+      blob: finalBlob as ExportBytes,
       report: {
         width: decision.width,
         height: decision.height,
-        bytes: blob.size,
+        bytes: finalBlob.size,
         obscured,
         format: produced,
         reencoded: true,
         paletteMode: req.paletteMode,
+        metadataStripped,
         warnings,
       },
     })

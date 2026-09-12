@@ -46,6 +46,11 @@ export interface InspectPanelProps {
   /** محتوى كل تبويب — يُبنى في طبقة المحتوى لا هنا. */
   groups: Readonly<Record<InspectTabId, readonly InspectGroupView[]>>
   onClose?: () => void
+  /**
+   * يُطلَب بصيغة مخرَج الفحص — تنزيل ملفّ لا نسخ حافظة (الوحدة 19.2).
+   * الاسم بقي `onCopy` تفاديًا لسلكٍ عبر عدّة ملفّات لفارقٍ داخلي بحت؛
+   * النصوص المعروضة صادقة («تنزيل» لا «نسخ»).
+   */
   onCopy?: (kind: 'css' | 'tailwind' | 'json') => void
 }
 
@@ -125,11 +130,11 @@ export function InspectPanel({
           <button
             type="button"
             class="rasd-ov-insp-icon"
-            aria-label="انسخ CSS"
-            title="انسخ CSS"
+            aria-label="نزّل CSS"
+            title="نزّل CSS"
             onClick={() => onCopy?.('css')}
           >
-            <Icon name="copy" size="sm" />
+            <Icon name="download" size="sm" />
           </button>
           <button
             type="button"
@@ -214,7 +219,7 @@ export function InspectPanel({
           Tailwind
         </button>
         <button type="button" class="rasd-ov-insp-btn" onClick={() => onCopy?.('css')}>
-          نسخ CSS
+          تنزيل CSS
         </button>
       </div>
     </div>

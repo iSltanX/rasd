@@ -117,7 +117,14 @@ export interface OverlayAppProps {
    * صفّ 80). تبديلٌ مباشر مثل زرّ نافذة الإضافة تمامًا، لا مسار خاصّ.
    */
   onSwitchMode?: (mode: Mode) => void
-  /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة الفحص. */
+  /**
+   * يُطلَب حين يضغط المستخدم زرّ صيغة في لوحة الفحص.
+   *
+   * **تنزيلٌ لا نسخ — الوحدة 19.2.** الاسم بقي `onCopyInspect` تفاديًا
+   * لتغيير سلكٍ عبر خمسة ملفّات لفارقٍ داخلي بحت، لكن المستدعي الفعلي في
+   * `content/index.ts` ينزِّل ملفًّا اليوم. النصّ المعروض للمستخدم صادقٌ
+   * («تنزيل» لا «نسخ») — انظر `InspectPanel.tsx`.
+   */
   onCopyInspect?: (kind: 'css' | 'tailwind' | 'json') => void
   /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة اللون. */
   /** أداة المرحلة 14 — اختيارية فلا تنكسر أي تركيبة قائمة بدونها. */
@@ -138,7 +145,13 @@ export interface OverlayAppProps {
   onReplaceColour?: () => void
   /** يُطلَب حين يضغط المستخدم «توليد الدرجات» على اللون المثبَّت. */
   onGenerateScale?: () => void
-  /** يُطلَب بصيغة تصدير من `PalettePanel`/`ScalePanel` — الحمولة نفسها. */
+  /**
+   * يُطلَب بصيغة تصدير من `PalettePanel`/`ScalePanel` — الحمولة نفسها.
+   *
+   * **تنزيلٌ لا نسخ — الوحدة 19.2.** `PalettePanel`/`ScalePanel` أزرارهما
+   * أربعة بالضبط بقياس Figma (`122:157`/`122:211`، ترويسة `PalettePanel.tsx`)
+   * — فلا زرّ خامس أُضيف؛ نفس الأزرار غيّرت وجهتها من الحافظة إلى ملفّ.
+   */
   onExportPalette?: (format: Exclude<PaletteFormat, 'text'>) => void
   onExportScale?: (format: Exclude<PaletteFormat, 'text'>) => void
   onCopyColour?: (value: string, label: string) => void
