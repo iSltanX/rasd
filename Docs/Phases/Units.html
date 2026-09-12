@@ -584,7 +584,7 @@
     <dl class="facts">
       <div class="fact">
         <dt>الحالة العامّة</dt>
-        <dd>قيد التنفيذ — ستّ وحدات مغلقة</dd>
+        <dd>قيد التنفيذ — سبع وحدات مغلقة</dd>
       </div>
       <div class="fact">
         <dt>النموذج القائد</dt>
@@ -592,19 +592,19 @@
       </div>
       <div class="fact">
         <dt>الوحدة التالية</dt>
-        <dd><span class="tv">20.2</span> — تبويبات §12</dd>
+        <dd><span class="tv">20.3</span> — شاشة الخصوصية والصلاحيات</dd>
       </div>
       <div class="fact">
         <dt>موضعها في §10.1</dt>
-        <dd>السابعة من <span class="tv">34</span></dd>
+        <dd>الثامنة من <span class="tv">34</span></dd>
       </div>
       <div class="fact">
         <dt>بوّابة A</dt>
-        <dd style="color: var(--success)">خضراء · <span class="tv">38s</span> / 48s</dd>
+        <dd style="color: var(--success)">خضراء · <span class="tv">36s</span> / 48s</dd>
       </div>
       <div class="fact">
         <dt>الاختبارات</dt>
-        <dd><span class="tv">2861</span> خضراء · <span class="tv">152</span> ملفًّا</dd>
+        <dd><span class="tv">2881</span> خضراء · <span class="tv">154</span> ملفًّا</dd>
       </div>
       <div class="fact">
         <dt>حرّاس حاجبون</dt>
@@ -614,7 +614,7 @@
       </div>
       <div class="fact">
         <dt>آخر تحديث</dt>
-        <dd>٢٠٢٦-٠٩-١٢</dd>
+        <dd>٢٠٢٦-٠٩-١٣</dd>
       </div>
     </dl>
 
@@ -643,19 +643,19 @@
           <strong
             >وحدات المتبقّي <span class="src">— المصدر <code>§10.1</code></span></strong
           >
-          <span class="pct" dir="ltr">18%</span>
+          <span class="pct" dir="ltr">21%</span>
         </div>
         <div
           class="bar"
           role="img"
-          aria-label="ستّ وحدات من أصل أربع وثلاثين مغلقة، ووحدتان قبل بوّابة MVP"
+          aria-label="سبع وحدات من أصل أربع وثلاثين مغلقة، ووحدة واحدة قبل بوّابة MVP"
         >
-          <span class="done" style="width: 17.6%"></span>
-          <span class="gate" style="width: 5.9%"></span>
+          <span class="done" style="width: 20.6%"></span>
+          <span class="gate" style="width: 2.9%"></span>
         </div>
         <div class="legend">
-          <span><i style="background: var(--accent)"></i>مغلقة — ٦</span>
-          <span><i style="background: var(--warning); opacity: 0.55"></i>قبل بوّابة MVP — ٢</span>
+          <span><i style="background: var(--accent)"></i>مغلقة — ٧</span>
+          <span><i style="background: var(--warning); opacity: 0.55"></i>قبل بوّابة MVP — ١</span>
           <span
             ><i style="background: var(--surface-2); border: 1px solid var(--line-strong)"></i>بعد
             البوّابة — ٢٦</span
@@ -1021,7 +1021,7 @@
       id: '20.2',
       ph: '20',
       model: 'Sonnet 5',
-      status: 'next',
+      status: 'done',
       title: 'تبويبات §12 الأربعة',
       goal: 'كل بند في §12 قابلًا للضبط: التصوير · التعليقات · الألوان · الاختصارات.',
       scope: 'أربعة تبويبات فوق هيكل 20.1، وتوسيع المخطَّط بالمفاتيح الغائبة',
@@ -1036,12 +1036,24 @@
       verify: 'وحدة لكل مفتاح جديد · تكامل: ضبطٌ ثم إعادة فتح يحفظ الحالة',
       gate: 'جدول §12 بندًا ببند، كلٌّ بمرجع الضابط في الشيفرة',
       why: 'عملٌ متجانس على مفاتيح قائمة — أنسب ما يُسنَد إلى Sonnet بجهد منخفض',
+      done: {
+        hash: '1abd6d5',
+        date: '2026-09-13',
+        rows: '§6 صفوف 99 · 111 · 112 حُسمت؛ 115 · 116 · 117 جديدة · Phase_20.md §20.2',
+        results: [
+          'اختصار «تصوير منطقة» على غير ماك أُصلح بقياس حقيقي لا تخمين: أربعة حروف مرشَّحة (W·Q·Y·U) اختُبرت معًا على عدّاء Linux حقيقي في CI (استعارة وقتية للأوامر الأربعة)؛ W محجوزة أيضًا («إغلاق النافذة»)، وQ اعتُمدت. مصدر الافتراق عن ماك: Chrome يبني اختصارات لينكس/ويندوز من جدول Views المشترك، وماك من جدول Cocoa منفصل — غير مقيس على ويندوز فعليًّا ولا على ChromeOS إطلاقًا، ومُعلَنٌ بالاسم.',
+          'حدّ مكوّن Tabs («4 variant» في التعليق) تبيّن أنه توثيقي بحت — الشيفرة (inline-flex + items.length) بلا سقف عدد أصلًا؛ خمسة تبويبات تعمل الآن، والفارق عن محور Figma انحرافٌ مُسجَّل يحسمه 26.1.',
+          'scripts/verify-popup.mjs يرسل page/open حقيقية لأربع الصفحات الآن (كان لا يستدعيها إطلاقًا) — من نافذة الإضافة لا من الـSW نفسه، بعد أن قِيس أن الإرسال الذاتي من الـSW إلى مستمعه يفشل بـ"Receiving end does not exist"؛ ويتحقّق من رسم محتوًى فعليّ لا من الملاحة وحدها.',
+          'مراجعة عدائية (Gate B) — أوجبتها manifest.config.ts (منطقة حسّاسة). علّة مرتفعة حقيقية أُثبتت تجريبيًّا بوكيل المراجعة: saveShortcut (كانت خريطة كاملة تُدمَج من props غير حيّة) تُعيد إنتاج علّة saveAppearance من 20.1 بالضبط — أُصلحت بنفس نمط الإصلاح (قراءة current داخل الدالّة وقت الكتابة الفعلية)، واختُبرت سلبًا. أربع ملاحظات أصغر أُصلحت أيضًا (فحص رسم page/open · تسريب تنظيف · تسريب stub اختبار).',
+          '2881 اختبارًا في 154 ملفًّا (كانت 2861 و152) · verify:load/verify:activate/verify:popup الثلاثة خضراء في Chrome حقيقي · بوّابة A في 36s · حجم الحزمة 1068.3 KB عبر 72 ملفًّا.',
+        ],
+      },
     },
     {
       id: '20.3',
       ph: '20',
       model: 'Opus 5',
-      status: 'idle',
+      status: 'next',
       title: 'شاشة الخصوصية والصلاحيات',
       goal: 'إغلاق نصف §11 الذي يدخل بوّابة MVP: إدارة المواقع المستثناة، والتصفّح الخاص، وشاشة الصلاحيات الصادقة.',
       scope: 'privacy / controls · شاشة الصلاحيات. القفل والحذف الكامل ليسا هنا.',
