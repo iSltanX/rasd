@@ -272,6 +272,9 @@ const readOverlay = (tabId) =>
         rect: r ? { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) } : null,
         label: label ? label.textContent : null,
         actions: layer.querySelectorAll('[data-rasd-ov="quick-actions"] button').length,
+        actionLabels: [...layer.querySelectorAll('[data-rasd-ov="quick-actions"] button')].map(
+          (b) => b.getAttribute('aria-label'),
+        ),
       }
     }`,
   )
@@ -413,8 +416,16 @@ if (extId && sw && granted) {
             `الإبراز لا يطابق: رُسم ${JSON.stringify(ov.rect)} والمتوقَّع ${JSON.stringify(want)}`,
           )
 
-        if (ov.actions === 2) ok('رقاقتان فقط — لا وعد بما لا محرّك له')
-        else fail(`عدد الإجراءات ${ov.actions} والمتوقَّع 2`)
+        // `Rasd_Plan.md §6` صفّ 80: أربع رقاقات الآن — قياس · شيفرة · نسخ ·
+        // التقاط، بترتيب الملفّ المصدري (`59:123`). كانت رقاقتان فقط حين
+        // كُتب هذا الفحص أوّل مرّة، قبل أن يوجد محرّكا القياس والفحص.
+        const wantLabels = ['قياس', 'شيفرة', 'انسخ المحدِّد', 'التقط العنصر']
+        if (ov.actions === 4 && JSON.stringify(ov.actionLabels) === JSON.stringify(wantLabels))
+          ok('أربع رقاقات بترتيبها الصحيح — قياس · شيفرة · نسخ · التقاط')
+        else
+          fail(
+            `الإجراءات: عدد ${ov.actions} (متوقَّع 4)، تسميات ${JSON.stringify(ov.actionLabels)} (متوقَّع ${JSON.stringify(wantLabels)})`,
+          )
 
         // ── 2) التحويلات ──────────────────────────────────────────
         await moveTo(pageSession, 140, 190)

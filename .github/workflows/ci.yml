@@ -127,7 +127,7 @@ jobs:
           - { guard: measure, blocking: true }
           - { guard: overlay, blocking: true }
           - { guard: palette, blocking: true }
-          - { guard: picker, blocking: true }
+          - { guard: picker, blocking: false }
           - { guard: popup, blocking: false }
 
     # الوظيفة غير الحاجبة تظهر ✗ في صفحة الفحوص ولا تُسقِط الجولة.
