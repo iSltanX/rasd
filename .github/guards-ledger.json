@@ -3,8 +3,20 @@
   "repo": "iSltanX/rasd",
   "promotionStreak": 10,
   "window": 20,
-  "capturedAt": "2026-09-12T01:45:27.335Z",
+  "capturedAt": "2026-09-12T01:58:52.596Z",
   "runs": [
+    {
+      "id": 34666125025,
+      "sha": "bfb5ee7f7731d5bc0afae402c9131b2f8763c27b",
+      "event": "workflow_dispatch",
+      "createdAt": "2026-09-12T01:53:20Z"
+    },
+    {
+      "id": 34665957750,
+      "sha": "bfb5ee7f7731d5bc0afae402c9131b2f8763c27b",
+      "event": "push",
+      "createdAt": "2026-09-12T01:49:50Z"
+    },
     {
       "id": 34440613420,
       "sha": "9a87fb9f80deda95bec30462755dd4b7b6bd1a4f",
@@ -41,22 +53,28 @@
       "results": [
         "green",
         "green",
+        "green",
+        "green",
         "hole",
         "hole",
         "hole"
       ],
       "scripts": [
+        "d3883e3cc53d05d690063a68bec35f5cd0196282",
+        "d3883e3cc53d05d690063a68bec35f5cd0196282",
         "46cfc222d25adbde975e4aa10b5afe993dfebf6a",
         "46cfc222d25adbde975e4aa10b5afe993dfebf6a",
         "79e7e413cac3456b66e2dd85a8f04789753986f7",
         "79e7e413cac3456b66e2dd85a8f04789753986f7",
         "79e7e413cac3456b66e2dd85a8f04789753986f7"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "capture": {
       "results": [
+        "green",
+        "green",
         "red",
         "red",
         "hole",
@@ -64,35 +82,43 @@
         "hole"
       ],
       "scripts": [
+        "a508007cb170e271a62e1b860bc376a4f0529980",
+        "a508007cb170e271a62e1b860bc376a4f0529980",
         "557fa8f3c2ffc18a26d025593b8c5a575d18617e",
         "557fa8f3c2ffc18a26d025593b8c5a575d18617e",
         "a27e59099dc3d292d1cf010cb6603cdcf5c1c342",
         "a27e59099dc3d292d1cf010cb6603cdcf5c1c342",
         "a27e59099dc3d292d1cf010cb6603cdcf5c1c342"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "capturing": {
       "results": [
         "green",
         "green",
+        "green",
+        "green",
         "hole",
         "hole",
         "hole"
       ],
       "scripts": [
+        "6a358acf6b676a9b752e200fd001b70f585ee004",
+        "6a358acf6b676a9b752e200fd001b70f585ee004",
         "18e38bf21d05cd9b66097ef7f2993eaa6bf5c38d",
         "18e38bf21d05cd9b66097ef7f2993eaa6bf5c38d",
         "84d27deac64415a5db2d6891bdf5d5fccb34e2ce",
         "84d27deac64415a5db2d6891bdf5d5fccb34e2ce",
         "84d27deac64415a5db2d6891bdf5d5fccb34e2ce"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "colour": {
       "results": [
+        "green",
+        "green",
         "green",
         "green",
         "hole",
@@ -100,17 +126,21 @@
         "hole"
       ],
       "scripts": [
+        "3c15aaab707001bab24d0a5884185ca4ddf93e4d",
+        "3c15aaab707001bab24d0a5884185ca4ddf93e4d",
         "74422393587c34208e8abd0776e3723a27d10054",
         "74422393587c34208e8abd0776e3723a27d10054",
         "81b45cb7c2c5a41850459197db432a8e5da61c09",
         "81b45cb7c2c5a41850459197db432a8e5da61c09",
         "81b45cb7c2c5a41850459197db432a8e5da61c09"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "compare": {
       "results": [
+        "red",
+        "green",
         "green",
         "red",
         "hole",
@@ -118,6 +148,8 @@
         "hole"
       ],
       "scripts": [
+        "20e1af6f6d51d0b324244c353890e89f7969af00",
+        "20e1af6f6d51d0b324244c353890e89f7969af00",
         "38b4af9a233074ac1f01f0884e6b9b2998d0ec7b",
         "38b4af9a233074ac1f01f0884e6b9b2998d0ec7b",
         "161c6da4bba952f79680e300d77f8cc929ed8e02",
@@ -131,11 +163,15 @@
       "results": [
         "red",
         "red",
+        "red",
+        "red",
         "hole",
         "hole",
         "hole"
       ],
       "scripts": [
+        "8c9b1513c41137d90df028a07a4a27cb9e0b648f",
+        "8c9b1513c41137d90df028a07a4a27cb9e0b648f",
         "332f53195f59115cceba5609e8377aa2af7f71fb",
         "332f53195f59115cceba5609e8377aa2af7f71fb",
         "332f53195f59115cceba5609e8377aa2af7f71fb",
@@ -149,76 +185,94 @@
       "results": [
         "green",
         "green",
+        "green",
+        "green",
         "hole",
         "hole",
         "hole"
       ],
       "scripts": [
+        "38c2af8de67fb0c0b13a90549c9791b0ed8af35c",
+        "38c2af8de67fb0c0b13a90549c9791b0ed8af35c",
         "805c18c8b35e37e0534dc6af7052c50752ae6829",
         "805c18c8b35e37e0534dc6af7052c50752ae6829",
         "805c18c8b35e37e0534dc6af7052c50752ae6829",
         "d6a26a7610b8a675929605ee79a01c2492f19964",
         "2e3b044c8992a6ac632c481bf12cedae29c4c564"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "fullpage": {
       "results": [
         "green",
         "green",
+        "green",
+        "green",
         "hole",
         "hole",
         "hole"
       ],
       "scripts": [
+        "7d0abfb54a40d043dbf563e536413c40eaffb56e",
+        "7d0abfb54a40d043dbf563e536413c40eaffb56e",
         "4701243954b83cbece017c7413ba05a4f2175de3",
         "4701243954b83cbece017c7413ba05a4f2175de3",
         "fc4b0e42a89c761971ac10ef95e07747565a3b90",
         "fc4b0e42a89c761971ac10ef95e07747565a3b90",
         "fc4b0e42a89c761971ac10ef95e07747565a3b90"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "inspect": {
       "results": [
         "green",
         "green",
+        "green",
+        "green",
         "hole",
         "hole",
         "hole"
       ],
       "scripts": [
+        "f66933b975e9c14644d5861dd1e5cbb1333be64a",
+        "f66933b975e9c14644d5861dd1e5cbb1333be64a",
         "c28f30b4d62b3ed2d6c3aa097bb0c432af05d9ea",
         "c28f30b4d62b3ed2d6c3aa097bb0c432af05d9ea",
         "43016d21f355cdc67081e628ab35bf0c25bf51e1",
         "43016d21f355cdc67081e628ab35bf0c25bf51e1",
         "43016d21f355cdc67081e628ab35bf0c25bf51e1"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "library": {
       "results": [
         "green",
         "green",
+        "green",
+        "green",
         "hole",
         "hole",
         "hole"
       ],
       "scripts": [
+        "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
+        "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
         "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
         "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
         "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
         "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
         "8d606211ae4c4111e874a0b2e69c2543b0f02eeb"
       ],
-      "streak": 2,
+      "streak": 4,
       "eligible": false
     },
     "lifecycle": {
       "results": [
+        "green",
+        "green",
         "green",
         "green",
         "hole",
@@ -226,6 +280,8 @@
         "hole"
       ],
       "scripts": [
+        "1d91798f947df7f8e2acc8eebbf2e1cb442a4d0b",
+        "1d91798f947df7f8e2acc8eebbf2e1cb442a4d0b",
         "992a4b88a18e0d54e67673cc12c0b1967e22568f",
         "992a4b88a18e0d54e67673cc12c0b1967e22568f",
         "29f25b2247b2aa770ba5e539365bd24fe8c9a3a4",
@@ -237,42 +293,52 @@
     },
     "load": {
       "results": [
+        "green",
+        "green",
         "red",
-        "red",
+        "hole",
         "hole",
         "hole",
         "hole"
       ],
       "scripts": [
+        "882c47b39d6bdd3fbbe40f7016dcc1fb2b3360eb",
+        "882c47b39d6bdd3fbbe40f7016dcc1fb2b3360eb",
         "272503c63b6c77acf1deafeb72fd2e965027a925",
         "272503c63b6c77acf1deafeb72fd2e965027a925",
         "272503c63b6c77acf1deafeb72fd2e965027a925",
         "272503c63b6c77acf1deafeb72fd2e965027a925",
         "272503c63b6c77acf1deafeb72fd2e965027a925"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "measure": {
       "results": [
         "green",
         "green",
+        "green",
+        "green",
         "hole",
         "hole",
         "hole"
       ],
       "scripts": [
+        "1a541f20073c4dff9994a759a694e715c45032f0",
+        "1a541f20073c4dff9994a759a694e715c45032f0",
         "11b3dcdc8015c3da2388c735b5490df1ca7ae629",
         "11b3dcdc8015c3da2388c735b5490df1ca7ae629",
         "77233a5a82aadfd6c0e9177a0b2ec3d3c4163d8f",
         "77233a5a82aadfd6c0e9177a0b2ec3d3c4163d8f",
         "77233a5a82aadfd6c0e9177a0b2ec3d3c4163d8f"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "overlay": {
       "results": [
+        "red",
+        "green",
         "green",
         "green",
         "hole",
@@ -280,6 +346,8 @@
         "hole"
       ],
       "scripts": [
+        "d415a2e890f34447c4e7308986d69920fea49d20",
+        "d415a2e890f34447c4e7308986d69920fea49d20",
         "d95f1b83dc6fecca84e1e3bf5e784e1897b621d9",
         "d95f1b83dc6fecca84e1e3bf5e784e1897b621d9",
         "6a4df8aba258ccfb32a1e5ace5f900eb062400a3",
@@ -293,22 +361,28 @@
       "results": [
         "green",
         "green",
+        "green",
+        "green",
         "hole",
         "hole",
         "hole"
       ],
       "scripts": [
+        "08ca05be656f8817aa58a4a03f7cd44057b9c8c4",
+        "08ca05be656f8817aa58a4a03f7cd44057b9c8c4",
         "443ddc62998a0f8fdc2360318279a9422f77c23b",
         "443ddc62998a0f8fdc2360318279a9422f77c23b",
         "55fb815d6b7136576dfbe0ef8117b82ba3c33bfa",
         "55fb815d6b7136576dfbe0ef8117b82ba3c33bfa",
         "55fb815d6b7136576dfbe0ef8117b82ba3c33bfa"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "picker": {
       "results": [
+        "green",
+        "green",
         "red",
         "red",
         "hole",
@@ -316,17 +390,21 @@
         "hole"
       ],
       "scripts": [
+        "7b6d4f08c706ffb4b6397d7280a7d6c5a244e6db",
+        "7b6d4f08c706ffb4b6397d7280a7d6c5a244e6db",
         "dfd34fda5a8744cdac327e1bbf95d21fc0b9e3a1",
         "dfd34fda5a8744cdac327e1bbf95d21fc0b9e3a1",
         "87e57e093bd75f468852b14ae1af13cce6dbe2d6",
         "87e57e093bd75f468852b14ae1af13cce6dbe2d6",
         "87e57e093bd75f468852b14ae1af13cce6dbe2d6"
       ],
-      "streak": 0,
+      "streak": 2,
       "eligible": false
     },
     "popup": {
       "results": [
+        "red",
+        "red",
         "red",
         "red",
         "hole",
@@ -334,6 +412,8 @@
         "hole"
       ],
       "scripts": [
+        "e3301dd6d766a481aeb41fc269a215ae5406944a",
+        "e3301dd6d766a481aeb41fc269a215ae5406944a",
         "71ff8202226829164d04d17fcaebe66f3031fac0",
         "71ff8202226829164d04d17fcaebe66f3031fac0",
         "fc513c2efc498755034400f46cac7a423651ada5",

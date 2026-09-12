@@ -28,10 +28,13 @@
  * معروفة: `sha1("blob " + الطول + "\0" + المحتوى)` — فيبقى الفحص حتميًّا
  * حتى على نسخة سطحية أو شجرةٍ بلا تاريخ.
  *
- * **3. ثلاث حالات لا اثنتان.** `success` ⇐ أخضر · `failure`/`timed_out`/
- * `cancelled` ⇐ أحمر · و`skipped` أو **غياب الوظيفة من الجولة** ⇐ **ثغرة**.
- * والثغرة تكسر السلسلة ولا تجسرها: الترقية على أدلّة لم تُجمَع أسوأ من
- * تركها. وأن `cancelled` حالةٌ واقعة هنا لا افتراضية أثبتته جولة 34439026069.
+ * **3. ثلاث حالات لا اثنتان.** `success` ⇐ أخضر · `failure`/`timed_out` ⇐ أحمر ·
+ * و`cancelled` أو `skipped` أو **غياب الوظيفة من الجولة** ⇐ **ثغرة**.
+ * والثغرة تكسر السلسلة ولا تجسرها: الترقية على أدلّة لم تُجمَع أسوأ من تركها.
+ * **ولماذا الإلغاء ثغرةٌ لا حمرة**: وظيفةٌ أُلغيت لم تُصدر حكمًا — تسجيلها
+ * حمراء ادّعاءٌ بأن الحارس سقط، وهو كذب. والإلغاء واقعٌ هنا لا افتراضي:
+ * `cancel-in-progress: true` يُلغي جولةً كاملة عند أي دفعٍ يعلوها (وقع في
+ * الجولة 34439026069)، وذاك حدثٌ في تدفّق العمل لا في الحارس.
  */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -280,7 +283,9 @@ function check() {
  * خضراء — و`cancelled` حمراءُ لا ثغرة: الإلغاء وقع فعلًا وأخفى نتيجةً.
  */
 export function classify(conclusion) {
-  if (conclusion === undefined || conclusion === 'skipped') return 'hole'
+  if (conclusion === undefined || conclusion === 'skipped' || conclusion === 'cancelled') {
+    return 'hole'
+  }
   return conclusion === 'success' ? 'green' : 'red'
 }
 

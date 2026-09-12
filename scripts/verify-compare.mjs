@@ -591,16 +591,32 @@ if (extId && sw && granted) {
       }
 
       // ── 5) عجلة الفأرة تُكبِّر/تُصغِّر فعليًّا ───────────────────
+      //
+      // **قراءةٌ واحدة فورية ليست قياسًا — هي سباق.** قِيس في CI (جولة
+      // 34666125025): `العجلة لم تغيّر التحجيم: 1 → 1` على عدّاء بنواتين،
+      // والأمرُ نفسه أخضر محليًّا. فالحدث **يُرسَل مرّةً واحدة** — لا تُعاد
+      // العجلة فيتضاعف ما يُقاس — ثمّ تُستطلَع الحالة حتى تتغيّر أو ينفد
+      // السقف. فإن نفد، فالرسالة تقول كم قراءةً استغرقت: «وصل متأخّرًا»
+      // و«لم يصل» عطلان مختلفان ولا يصحّ خلطهما.
       st = await readCompareState(tabId)
       const scaleBefore = st.transform.scale
       await wheelAt(pageSession, bg.x, bg.y, -240) // دلتا سالبة = تكبير، انظر compare.ts
-      st = await readCompareState(tabId)
+      const WHEEL_READS = 20
+      let reads = 0
+      for (; reads < WHEEL_READS; reads++) {
+        st = await readCompareState(tabId)
+        if (st.transform.scale !== scaleBefore) break
+        await new Promise((r) => setTimeout(r, 50))
+      }
       if (st.transform.scale > scaleBefore) {
         ok(
           `عجلة الفأرة كبّرت المرجع (${scaleBefore.toFixed(3)} → ${st.transform.scale.toFixed(3)})`,
         )
       } else {
-        fail(`العجلة لم تغيّر التحجيم: ${scaleBefore} → ${st.transform.scale}`)
+        fail(
+          `العجلة لم تغيّر التحجيم: ${scaleBefore} → ${st.transform.scale} بعد ${reads} قراءة — ` +
+            `الحدث لم يصل أصلًا، لا تأخّر`,
+        )
       }
 
       // ── 6) لوحة المفاتيح: 1px عاديًا، 10px مع ⇧ (مرجع موجود الآن) ──

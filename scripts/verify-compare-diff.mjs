@@ -902,6 +902,11 @@ if (!cmpSession) {
           fail(`مقارنة 4000×3000 لم يستقرّ ناتجها خلال المهلة (${elapsedMs}ms)`)
         } else {
           note(`مقارنة 4000×3000 اكتملت (تنقّل+تحميل+فكّ+حساب شاملًا) في ${elapsedMs}ms`)
+          // تفصيل العدّ منطوقًا: يفرّق بين «لم يُحسب» و«حُسب على بكسلات فعلية
+          // فوجد صفرًا» — وهما سببان مختلفان تمامًا لنسبة «0%».
+          note(
+            `تفصيل العدّ الكبير: "${await evalIn(S, `document.querySelector('[class*="ratioDetail"]')?.textContent ?? ''`).catch(() => '—')}"`,
+          )
           if (elapsedMs <= 3000) {
             ok(`الأداء يفي بالهدف: ${elapsedMs}ms ≤ 3000ms`)
           } else {
