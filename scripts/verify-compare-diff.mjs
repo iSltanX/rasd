@@ -81,7 +81,11 @@ async function cleanup() {
 
 async function connect() {
   let wsUrl = null
-  for (let i = 0; i < 40 && !wsUrl; i++) {
+  // **ميزانية انتظار DevTools — ستّون ثانية لا عشر.** قِيس: كروم يُقلع على
+  // عدّاء بنواتين تحت ضغط فلا يفتح منفذ التنقيح خلال 10s، فيخرج الحارس
+  // «تعذّر الاتصال بـDevTools» — وهو إخفاق بيئة لا حكمٌ على المنتَج. والسقف
+  // الحقيقي مهلةُ الخطوة (6 دقائق)، فانتظارٌ أطول يميّز «بطيء» من «ميّت».
+  for (let i = 0; i < 240 && !wsUrl; i++) {
     try {
       const res = await fetch(`http://127.0.0.1:${PORT}/json/version`)
       if (res.ok) wsUrl = (await res.json()).webSocketDebuggerUrl
