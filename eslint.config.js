@@ -150,6 +150,56 @@ export const dimensionIsolationSelector = {
   message: 'أبعادٌ داخل RTL بلا عزل تنقلب بصريًّا — لُفّها بـ<TechnicalValue kind="dimension">.',
 }
 
+/**
+ * بوّابة الحقن — **مُقرِّرٌ واحد، لا ثمانية نسخ من الشرط.**
+ *
+ * `checkInjectable` كاشفُ صفحاتٍ مقيّدة، لا إذنٌ بالحقن. وكان يُنادى مباشرةً
+ * من ثمانية مواضع، بينما `canOperateOnTab` — الموصوفة في مصدرها بأنها
+ * «البوّابة الوحيدة» — **بلا مستدعٍ واحد**. فمن أضاف قيدًا أمنيًّا لاحقًا
+ * (المواقع المستثناة) كان عليه أن يجده في ثمانية مواضع ولا يخطئ في أحدها،
+ * وهو بالضبط صنف الإغفال الذي تُبنى الحرّاس لإلغائه لا لتقليله.
+ *
+ * فالقاعدة تحظر **النداء** — لا ذكر الاسم ولا استيراد النوع: `contract.ts`
+ * يستورد `GateReason` نوعًا، وذاك مشروع.
+ *
+ * **وثلاثة محدِّدات لا واحد**، على درس بوّابة الترميز المقيس: النداء بالنقطة
+ * والنداء المحسوب والنداء العاري ثلاثة أشكال، وحظر واحدٍ منها يترك البابين
+ * الآخرين مفتوحين واللنت أخضر.
+ */
+const gateMessage =
+  'البوّابة الوحيدة هي canOperateOnTab() في background/gate.ts، أو evaluateGate() الخالصة — لا تنادِ checkInjectable مباشرةً.'
+
+export const gateBareSelector = {
+  selector: 'CallExpression[callee.name=/^(checkInjectable|isInjectable)$/]',
+  message: gateMessage,
+}
+
+export const gateMemberSelector = {
+  selector: 'CallExpression[callee.property.name=/^(checkInjectable|isInjectable)$/]',
+  message: gateMessage,
+}
+
+export const gateComputedSelector = {
+  selector:
+    'CallExpression[callee.computed=true][callee.property.value=/^(checkInjectable|isInjectable)$/]',
+  message: gateMessage,
+}
+
+export const gateSelectors = [gateBareSelector, gateMemberSelector, gateComputedSelector]
+
+/**
+ * المستثنون من بوّابة الحقن — بالاسم، وهما اثنان لا شجرة.
+ *
+ * `restricted.ts` يعرّف الدالّة وينادي نفسه فيها، و`injection-gate.ts` هو
+ * المُركِّب الوحيد المأذون له. وملفّ اختبار الكاشف يفحص الدالّة ذاتها،
+ * فذكرُها فيه هو موضوعه لا تجاوزٌ لها.
+ */
+export const GATE_ALLOWED = [
+  'src/shared/restricted.ts',
+  'src/shared/injection-gate.ts',
+  'tests/unit/restricted.test.ts',
+]
+
 export const restrictedSyntax = [
   {
     selector: "NewExpression[callee.name='Function']",
@@ -185,6 +235,7 @@ export const restrictedSyntax = [
       "CallExpression[callee.name='formatHuman'] > MemberExpression[property.name=/^(width|height|size|dpr|ratio|bytes|padding|margin|gap|radius|scale|offset)$/]",
     message: 'هذا قياس لا عدّ بشري — استخدم formatMeasure().',
   },
+  ...gateSelectors,
 ]
 
 /**
@@ -340,6 +391,12 @@ export default tseslint.config(
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       'no-console': ['warn', { allow: ['warn', 'error', 'debug'] }],
       eqeqeq: ['error', 'always'],
+      /*
+       * العلامات المركّبة **موضوعُ** `site-match.ts` لا خطأً فيه: يحذف حركات
+       * عربية وعلامات اتجاه تنجو من اللصق. والقاعدة تحرس من كتابتها حرفًا
+       * بلا قصد، فيُسمح بالشكل المهروب وحده — وهو الشكل المقروء أصلًا.
+       */
+      'no-misleading-character-class': ['error', { allowEscape: true }],
       // الرسائل الخام تمرّ من طبقة الرسائل وحدها — انظر ADR 0006.
       // تُكتب كمحدِّدات AST لا كـ`no-restricted-properties`: تلك القاعدة تطابق
       // المُعرِّف المباشر فقط، و`chrome.runtime.sendMessage` أعمق بمستوى.
@@ -369,6 +426,25 @@ export default tseslint.config(
   {
     files: ENCODE_ALLOWED,
     rules: { 'no-restricted-syntax': ['error', ...restrictedSyntax] },
+  },
+
+  /*
+   * مُعرِّف البوّابة ومُركِّبها — يُستثنيان من محدِّدات البوّابة الثلاثة وحدها.
+   *
+   * القاعدة تُعاد كاملةً ناقصةً ثلاثة محدِّدات، ولا تُطفأ: الملفّان يبقيان
+   * محروسَين من النداءات الخام وبوّابة الترميز وبقيّة القائمة. وهذا هو
+   * الفرق الذي أثبتته حادثة `ENCODE_ALLOWED`: إطفاء القاعدة على ملفّ يُسقط
+   * معها كل حراسةٍ أخرى فيه.
+   */
+  {
+    files: GATE_ALLOWED,
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...restrictedSyntax.filter((s) => !gateSelectors.includes(s)),
+        ...encodeSelectors,
+      ],
+    },
   },
 
   /*
