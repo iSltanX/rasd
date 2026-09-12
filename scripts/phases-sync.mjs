@@ -232,13 +232,30 @@ function readPlan() {
 }
 
 /**
+ * علامة توقّف صريحة — لوحةٌ حملتها لم تعد مصدرًا حيًّا، فمزامنتها مُتخطّاة لا
+ * مفشِلة. `Docs/Phases/Dashboard.html` حملها في 19.2 حين استُبدل بملاحظة
+ * تُحيل إلى `Docs/Phases/Units.html`؛ ودونها كان الاستبدال يُسقط بوّابة A على
+ * ملفٍّ متروك عمدًا — واختراقٌ صامتٌ للعلامة هنا (لا مطابقة نصّية) كان يعيد
+ * نفس السقوط لو مُحيت العلامة سهوًا.
+ */
+const DASHBOARD_DEPRECATED_MARKER = 'phases-sync: deprecated'
+
+/**
  * يقرأ كتلة كل مرحلة في اللوحة، بحدودها السطرية، لتُرقَّع في موضعها.
  *
  * وسطرُ `n:` الذي لا يطابق الشكل ليس سطرًا غريبًا يُتخطّى: هو رأس كتلةٍ كاملة،
  * وتخطّيه يُخرج مرحلةً من الحراسة في الاتجاهين معًا بلا أن يظهر ذلك في العدّ.
  */
 function readDashboard() {
-  const lines = readFileSync(DASH, 'utf8').split('\n')
+  const raw = readFileSync(DASH, 'utf8')
+  const lines = raw.split('\n')
+  if (raw.includes(DASHBOARD_DEPRECATED_MARKER)) {
+    notices.push(
+      'Docs/Phases/Dashboard.html متروك بعلامة توقّف صريحة — مزامنة كتله وأعلامه ' +
+        'مُتخطّاة؛ Docs/Phases/Units.html مصدر اللوحة الحيّة الآن (§8 بند 9).',
+    )
+    return { lines, blocks: [], deprecated: true }
+  }
   const blocks = []
   for (let i = 0; i < lines.length; i++) {
     if (!/^\s*n:/.test(lines[i])) continue
@@ -259,7 +276,7 @@ function readDashboard() {
     }
     blocks.push({ n: m[2], start: i, end, indent: m[1] })
   }
-  return { lines, blocks }
+  return { lines, blocks, deprecated: false }
 }
 
 /**
@@ -629,7 +646,7 @@ for (const [base, parts] of split) {
   plan.set(base, foldSplit(base, parts))
 }
 
-const { lines, blocks } = readDashboard()
+const { lines, blocks, deprecated } = readDashboard()
 
 let styleOnly = 0
 let writes = 0
@@ -694,10 +711,13 @@ for (const block of blocks) {
 
 // الاتجاه المعاكس: صفٌّ في §9 بلا كتلة في اللوحة. لا تُولَّد الكتلة آليًّا لأن
 // نثرها (`oneliner` · `units` · `completion`) لا مصدر له — لكنّ غيابها يُقال.
-const onBoard = new Set(blocks.map((b) => b.n))
-for (const key of plan.keys()) {
-  if (/[أب]$/.test(key)) continue // جزء لا مرحلة: اللوحة تعرض الرقم المطوي
-  if (!onBoard.has(key)) manual.push(`المرحلة ${key} في §9 بلا كتلة في اللوحة (تُكتب يدويًّا)`)
+// (ومُتخطّاة كلّيًّا حين تحمل اللوحة علامة التوقّف — كل صفّ كان سيُعلَن غائبًا.)
+if (!deprecated) {
+  const onBoard = new Set(blocks.map((b) => b.n))
+  for (const key of plan.keys()) {
+    if (/[أب]$/.test(key)) continue // جزء لا مرحلة: اللوحة تعرض الرقم المطوي
+    if (!onBoard.has(key)) manual.push(`المرحلة ${key} في §9 بلا كتلة في اللوحة (تُكتب يدويًّا)`)
+  }
 }
 
 const phases = [...plan.entries()].filter(([key]) => !/[أب]$/.test(key))
@@ -770,8 +790,10 @@ if (unreadable > 0) {
     `الإجمالي وعدّاد المكتملة وموضع البوّابة غير محروسة: ${unreadable} صفًّا في §9 لم يُقرأ`,
   )
 }
+// (المراسي الرقمية مُتخطّاة كذلك حين تحمل اللوحة علامة التوقّف — لا وسم منها
+// موجود في ملاحظة الاستبدال، وكل واحدٍ كان سيُعلَن غائبًا ثمانيَ مرّات.)
 for (const anchor of anchors) {
-  if (unreadable > 0) break
+  if (unreadable > 0 || deprecated) break
   if (anchor.want === null) continue // موضع البوّابة بلا مصدر — أُعلن أعلاه
   const m = anchor.re.exec(text)
   if (!m) {

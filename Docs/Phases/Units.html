@@ -1,0 +1,1514 @@
+<title>لوحة تنفيذ رصد</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&family=Cairo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+/>
+<style>
+  :root {
+    --ground: #f4f7f9;
+    --surface: #ffffff;
+    --surface-2: #e8eef1;
+    --ink: #192024;
+    --ink-soft: #52636d;
+    --ink-faint: #687c87;
+    --line: #d3dce2;
+    --line-strong: #b8c7cf;
+    --accent: #007063;
+    --accent-wash: #dffff8;
+    --accent-ink: #003932;
+    --success: #007533;
+    --success-wash: #e5ffe9;
+    --warning: #7e5900;
+    --warning-wash: #fff6e6;
+    --danger: #b70011;
+    --danger-wash: #fff4f2;
+    --f-display: 'Almarai', 'Segoe UI', system-ui, sans-serif;
+    --f-text: 'Cairo', 'Segoe UI', system-ui, sans-serif;
+    --f-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --pad: clamp(1rem, 4vw, 2.5rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --ground: #070b0d;
+      --surface: #0e1416;
+      --surface-2: #192024;
+      --ink: #f4f7f9;
+      --ink-soft: #b8c7cf;
+      --ink-faint: #7f94a0;
+      --line: #223037;
+      --line-strong: #3c4a52;
+      --accent: #00e3c9;
+      --accent-wash: #0e2a26;
+      --accent-ink: #6bf3e1;
+      --success: #00ea6e;
+      --success-wash: #0d2517;
+      --warning: #fdb500;
+      --warning-wash: #2a2007;
+      --danger: #ffaba1;
+      --danger-wash: #2c1512;
+    }
+  }
+  :root[data-theme='dark'] {
+    --ground: #070b0d;
+    --surface: #0e1416;
+    --surface-2: #192024;
+    --ink: #f4f7f9;
+    --ink-soft: #b8c7cf;
+    --ink-faint: #7f94a0;
+    --line: #223037;
+    --line-strong: #3c4a52;
+    --accent: #00e3c9;
+    --accent-wash: #0e2a26;
+    --accent-ink: #6bf3e1;
+    --success: #00ea6e;
+    --success-wash: #0d2517;
+    --warning: #fdb500;
+    --warning-wash: #2a2007;
+    --danger: #ffaba1;
+    --danger-wash: #2c1512;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  html {
+    color-scheme: light dark;
+  }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-text);
+    line-height: 1.7;
+    direction: rtl;
+    text-align: right;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 74rem;
+    margin-inline: auto;
+    padding: var(--pad);
+  }
+  code,
+  .tv {
+    font-family: var(--f-mono);
+    font-size: 0.86em;
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── الترويسة ───────────────────────────────── */
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+  }
+  .mark {
+    flex: none;
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 800;
+    font-size: clamp(1.5rem, 4vw, 2.1rem);
+    margin: 0;
+    letter-spacing: 0;
+    text-wrap: balance;
+  }
+  .sub {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    overflow: hidden;
+  }
+  .fact {
+    background: var(--surface);
+    padding: 0.85rem 1rem;
+  }
+  .fact dt {
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    margin: 0 0 0.2rem;
+  }
+  .fact dd {
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.98rem;
+  }
+  .fact dd .tv {
+    font-weight: 500;
+  }
+
+  /* ── شريط التقدّم ───────────────────────────── */
+  .progress-block {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+  .track {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .progress-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .progress-head strong {
+    font-family: var(--f-display);
+    font-size: 1.02rem;
+  }
+  .progress-head .src {
+    color: var(--ink-faint);
+    font-size: 0.78rem;
+    font-weight: 400;
+  }
+  .pct {
+    font-family: var(--f-mono);
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .bar {
+    height: 0.6rem;
+    border-radius: 99px;
+    background: var(--surface-2);
+    overflow: hidden;
+    display: flex;
+  }
+  .bar span {
+    display: block;
+    height: 100%;
+  }
+  .bar .done {
+    background: var(--accent);
+  }
+  .bar .gate {
+    background: var(--warning);
+    opacity: 0.55;
+  }
+  .legend {
+    display: flex;
+    gap: 1.1rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+  .legend i {
+    display: inline-block;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 2px;
+    margin-inline-end: 0.35rem;
+    vertical-align: middle;
+  }
+
+  /* ── الأقسام ────────────────────────────────── */
+  h2 {
+    font-family: var(--f-display);
+    font-size: 1.15rem;
+    margin: 2.5rem 0 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  h2::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+  .note {
+    color: var(--ink-soft);
+    font-size: 0.88rem;
+    margin: 0 0 1rem;
+  }
+
+  .gate-rule {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 1.5rem 0;
+    padding: 0.7rem 1rem;
+    border: 1px dashed var(--warning);
+    background: var(--warning-wash);
+    border-radius: 0.6rem;
+    color: var(--warning);
+    font-weight: 700;
+    font-family: var(--f-display);
+    font-size: 0.95rem;
+  }
+  .gate-rule small {
+    font-weight: 400;
+    font-family: var(--f-text);
+    color: var(--ink-soft);
+  }
+
+  /* ── بطاقة الوحدة ───────────────────────────── */
+  .units {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  details.unit {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0.6rem;
+    overflow: hidden;
+  }
+  details.unit[open] {
+    border-color: var(--line-strong);
+  }
+  details.unit.closed > summary .utitle {
+    color: var(--ink-soft);
+  }
+  details.unit > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 0.7rem 0.95rem;
+    display: grid;
+    grid-template-columns: 3.4rem 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  details.unit > summary::-webkit-details-marker {
+    display: none;
+  }
+  summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .uid {
+    font-family: var(--f-mono);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-wash);
+    border-radius: 0.35rem;
+    padding: 0.15rem 0;
+    text-align: center;
+    direction: ltr;
+  }
+  details.unit.closed .uid {
+    color: var(--success);
+    background: var(--success-wash);
+  }
+  .utitle {
+    font-weight: 600;
+    font-size: 0.96rem;
+  }
+  .meta {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .pill {
+    font-size: 0.72rem;
+    padding: 0.12rem 0.5rem;
+    border-radius: 99px;
+    border: 1px solid var(--line-strong);
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .pill.model {
+    font-family: var(--f-mono);
+    direction: ltr;
+  }
+  .pill.s-idle {
+    background: var(--surface-2);
+  }
+  .pill.s-run {
+    background: var(--warning-wash);
+    color: var(--warning);
+    border-color: var(--warning);
+    font-weight: 600;
+  }
+  .pill.s-done {
+    background: var(--success-wash);
+    color: var(--success);
+    border-color: var(--success);
+    font-weight: 600;
+  }
+  .pill.s-stop {
+    background: var(--danger-wash);
+    color: var(--danger);
+    border-color: var(--danger);
+    font-weight: 600;
+  }
+  .pill.hot {
+    background: var(--accent-wash);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .body {
+    padding: 0 0.95rem 1rem;
+    border-top: 1px solid var(--line);
+  }
+  .body dl {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    gap: 0.45rem 0.9rem;
+    margin: 0.9rem 0 0;
+    font-size: 0.9rem;
+  }
+  .body dt {
+    color: var(--ink-faint);
+    font-size: 0.78rem;
+    padding-top: 0.15rem;
+  }
+  .body dd {
+    margin: 0;
+  }
+  .body ul {
+    margin: 0.2rem 0 0;
+    padding-inline-start: 1.1rem;
+  }
+  .body li {
+    margin-bottom: 0.2rem;
+  }
+  .gate {
+    margin-top: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--accent-wash);
+    border-inline-start: 3px solid var(--accent);
+    border-radius: 0.4rem;
+    font-size: 0.88rem;
+  }
+  .gate b {
+    color: var(--accent-ink);
+    font-family: var(--f-display);
+  }
+  .shut {
+    margin-top: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--success-wash);
+    border-inline-start: 3px solid var(--success);
+    border-radius: 0.4rem;
+    font-size: 0.88rem;
+  }
+  .shut b {
+    color: var(--success);
+    font-family: var(--f-display);
+  }
+  .shut ul {
+    margin: 0.4rem 0 0;
+    padding-inline-start: 1.1rem;
+  }
+
+  /* ── مخاطر ──────────────────────────────────── */
+  .risks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 0.6rem;
+  }
+  .risk {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-inline-start: 3px solid var(--danger);
+    border-radius: 0.5rem;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.88rem;
+  }
+  .risk.mid {
+    border-inline-start-color: var(--warning);
+  }
+  .risk.shutdown {
+    border-inline-start-color: var(--success);
+  }
+  .risk h3 {
+    margin: 0 0 0.3rem;
+    font-size: 0.92rem;
+    font-family: var(--f-display);
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+  .risk h3 .tag {
+    font-size: 0.68rem;
+    font-family: var(--f-text);
+    font-weight: 700;
+    padding: 0.05rem 0.45rem;
+    border-radius: 99px;
+    background: var(--success-wash);
+    color: var(--success);
+    border: 1px solid var(--success);
+  }
+  .risk h3 .tag.part {
+    background: var(--warning-wash);
+    color: var(--warning);
+    border-color: var(--warning);
+  }
+  .risk p {
+    margin: 0;
+    color: var(--ink-soft);
+  }
+  .risk .owner {
+    display: inline-block;
+    margin-top: 0.4rem;
+    font-size: 0.76rem;
+    color: var(--accent);
+    font-family: var(--f-mono);
+    direction: ltr;
+  }
+  .risk.shutdown .owner {
+    color: var(--success);
+  }
+
+  /* ── جدول ───────────────────────────────────── */
+  .scroll {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 0.6rem;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.86rem;
+    background: var(--surface);
+  }
+  th,
+  td {
+    padding: 0.5rem 0.75rem;
+    text-align: right;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    background: var(--surface-2);
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    color: var(--ink-faint);
+    font-size: 0.82rem;
+  }
+  a {
+    color: var(--accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+  @media (max-width: 34rem) {
+    details.unit > summary {
+      grid-template-columns: 3.2rem 1fr;
+    }
+    .meta {
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+    }
+    .body dl {
+      grid-template-columns: 1fr;
+      gap: 0.15rem;
+    }
+    .body dt {
+      padding-top: 0.5rem;
+    }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg
+        class="mark"
+        width="52"
+        height="36"
+        viewBox="0 0 1300 900"
+        fill="none"
+        aria-hidden="true"
+      >
+        <g
+          stroke="var(--accent)"
+          stroke-width="100"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          fill="none"
+        >
+          <path d="M 350 150 L 150 450 L 350 750" />
+          <path d="M 950 150 L 1150 450 L 950 750" />
+          <rect x="500" y="300" width="300" height="300" rx="100" />
+        </g>
+      </svg>
+      <div>
+        <h1>رصد — لوحة التنفيذ</h1>
+        <p class="sub">أداة فحص بصري للمتصفح · Manifest V3 · عربية RTL</p>
+      </div>
+    </div>
+
+    <dl class="facts">
+      <div class="fact">
+        <dt>الحالة العامّة</dt>
+        <dd>قيد التنفيذ — أربع وحدات مغلقة</dd>
+      </div>
+      <div class="fact">
+        <dt>النموذج القائد</dt>
+        <dd><span class="tv">Opus 5</span></dd>
+      </div>
+      <div class="fact">
+        <dt>الوحدة التالية</dt>
+        <dd><span class="tv">19.2</span> — حذف البيانات الوصفية</dd>
+      </div>
+      <div class="fact">
+        <dt>موضعها في §10.1</dt>
+        <dd>الخامسة من <span class="tv">34</span></dd>
+      </div>
+      <div class="fact">
+        <dt>بوّابة A</dt>
+        <dd style="color: var(--success)">خضراء · <span class="tv">34s</span> / 48s</dd>
+      </div>
+      <div class="fact">
+        <dt>الاختبارات</dt>
+        <dd><span class="tv">2829</span> خضراء · <span class="tv">147</span> ملفًّا</dd>
+      </div>
+      <div class="fact">
+        <dt>حرّاس حاجبون</dt>
+        <dd style="color: var(--warning)">
+          <span class="tv">11</span> من <span class="tv">19</span>
+        </dd>
+      </div>
+      <div class="fact">
+        <dt>آخر تحديث</dt>
+        <dd>٢٠٢٦-٠٩-١٢</dd>
+      </div>
+    </dl>
+
+    <div class="progress-block">
+      <div class="track">
+        <div class="progress-head">
+          <strong
+            >المراحل المغلقة <span class="src">— المصدر <code>§9</code></span></strong
+          >
+          <span class="pct" dir="ltr">64%</span>
+        </div>
+        <div class="bar" role="img" aria-label="ثماني عشرة مرحلة من أصل ثمان وعشرين مغلقة">
+          <span class="done" style="width: 64.3%"></span>
+        </div>
+        <div class="legend">
+          <span><i style="background: var(--accent)"></i>١٨ مرحلة مغلقة</span>
+          <span
+            ><i style="background: var(--surface-2); border: 1px solid var(--line-strong)"></i>١٠
+            مفتوحة</span
+          >
+        </div>
+      </div>
+
+      <div class="track">
+        <div class="progress-head">
+          <strong
+            >وحدات المتبقّي <span class="src">— المصدر <code>§10.1</code></span></strong
+          >
+          <span class="pct" dir="ltr">12%</span>
+        </div>
+        <div
+          class="bar"
+          role="img"
+          aria-label="أربع وحدات من أصل أربع وثلاثين مغلقة، وأربع قبل بوّابة MVP"
+        >
+          <span class="done" style="width: 11.8%"></span>
+          <span class="gate" style="width: 11.8%"></span>
+        </div>
+        <div class="legend">
+          <span><i style="background: var(--accent)"></i>مغلقة — ٤</span>
+          <span><i style="background: var(--warning); opacity: 0.55"></i>قبل بوّابة MVP — ٤</span>
+          <span
+            ><i style="background: var(--surface-2); border: 1px solid var(--line-strong)"></i>بعد
+            البوّابة — ٢٦</span
+          >
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <h2>المخاطر — سبعة أسطح، واحدٌ أُغلق</h2>
+  <p class="note">
+    ستّة أسطح لم تكن لأيٍّ منها مرحلة مستقبِلة قبل إعادة الهيكلة (<code>§10.5</code>)، وسابعٌ كشفته
+    الوحدة <span class="tv">19.1</span>. أُغلق منها <strong>واحد</strong> إغلاقًا تامًّا (البوّابة
+    الواحدة للحقن)، واثنان جزئيّان — وأحدهما <strong>ارتدّ</strong> بحمرةٍ حقيقية في CI.
+  </p>
+  <div class="risks">
+    <div class="risk mid">
+      <h3>الحرّاس يحجبون — والعدد نزل بحمرةٍ حقيقية <span class="tag part">جزئيّ</span></h3>
+      <p>
+        كان السبعة عشر كلّهم <code>blocking: false</code>؛ صاروا <strong>ثلاثة عشر</strong> بعد
+        23.1. ثمّ سقط <code>editor</code> و<code>compare-diff</code> في جولة إغلاق 20.0 فقلبهما
+        <code>guards:sync</code> آليًّا — <strong>أحد عشر من تسعة عشر</strong> اليوم.
+        <strong>والسكربت عمل صوابًا</strong>: الثلاثة خضراء محليًّا، والسببان مسمّيان.
+      </p>
+      <span class="owner">→ 22.2 · 23.2 · §6 صفّ 106</span>
+    </div>
+    <div class="risk shutdown">
+      <h3>البوّابة الواحدة للحقن بُنيت <span class="tag">أُغلق</span></h3>
+      <p>
+        <code>canOperateOnTab</code> كانت بلا مستدعٍ و<code>checkInjectable</code> في ثمانية ملفّات.
+        صار تعريفٌ واحد ونداءٌ واحد، ومُطابِقٌ بلا <code>RegExp</code> مُثبَتًا على
+        <span class="tv">64</span> متجهًا، وحارسٌ لنتي يمنع أي نداء خارج البوّابة (<code
+          >ADR 0020</code
+        >).
+      </p>
+      <span class="owner">✓ 20.0 · bc735cd</span>
+    </div>
+    <div class="risk mid">
+      <h3>مفتاحا خصوصية ميّتان من ثلاثة <span class="tag part">جزئيّ</span></h3>
+      <p>
+        <code>excludedSites</code> صار مُنفَّذًا عند البوّابة. و<code>localOnly</code>
+        <strong>أُجِّل بحكمٍ مكتوب</strong>: هو بوّابة <em>خروج</em> لا حقن. و<code
+          >stripMetadataOnExport</code
+        >
+        ما زال بصفر موضع قراءة — <strong>وورث بندًا مقيسًا</strong>: مقطع <code>ICCP</code> بـ456
+        بايتًا في كل مخرَج WebP.
+      </p>
+      <span class="owner">→ 19.2 · 21.x</span>
+    </div>
+    <div class="risk">
+      <h3>‏SVG في التصميم بلا مالك في الخطّة</h3>
+      <p>
+        مُنتقي الصيغ في إطار <code>73:2</code> يعرض أربعًا: SVG · PDF · WebP · PNG. وPDF تملكها
+        19.3، و<strong>SVG لا تملكها أي وحدة في <code>§10.1</code></strong> — فجوةٌ في الخطّة لا في
+        الشيفرة. معروضةٌ معطَّلة بسببها اليوم.
+      </p>
+      <span class="owner">→ بلا مالك · §6 صفّ 105</span>
+    </div>
+    <div class="risk">
+      <h3>تناقض ثلاثي حول CSP</h3>
+      <p>
+        البيان يعلن <code>connect-src 'self'</code>، و<code>verify-dist</code> يُسقط البناء على أي
+        مصدر خارجي، والمرحلة 21 تحتاج <code>api.github.com</code>. ثلاثتها لا تصدق معًا.
+      </p>
+      <span class="owner">→ ADR في 21.2</span>
+    </div>
+    <div class="risk mid">
+      <h3>قرار متأخّر: شكل حزمة المحتوى</h3>
+      <p>
+        كان مستحقًّا عند المرحلة 12 المغلقة منذ ٢٠٢٦-٠٨-٣٠. البناء ما زال <code>iife</code> أحاديًا،
+        والقياس <span class="tv">88.2</span> من <span class="tv">120 KB</span>.
+      </p>
+      <span class="owner">→ 24.1</span>
+    </div>
+    <div class="risk mid">
+      <h3>لا انحدار بصري قائم</h3>
+      <p>خمسة مجلّدات خطوط أساس موجودة، ولا يقرؤها أي كود — فالمقارنة البصرية ادّعاء لا بوّابة.</p>
+      <span class="owner">→ 26.2</span>
+    </div>
+  </div>
+
+  <h2>الوحدات — قبل بوّابة MVP</h2>
+  <p class="note">
+    ثماني وحدات، أربعٌ منها مغلقة. الترتيب يقدّم المخاطر المجهولة على العمل المعروف — ولذلك جاءت
+    <span class="tv">23.1</span> أوّلًا، و<span class="tv">20.0</span> قبل المرحلة 19.
+  </p>
+  <div class="units" id="pre"></div>
+
+  <div class="gate-rule">
+    ⟨ بوّابة MVP ⟩
+    <small>وسم إصداري لا محطة توقّف — العمل يستمرّ مباشرةً في الوحدة التالية</small>
+  </div>
+
+  <h2>الوحدات — بعد البوّابة</h2>
+  <p class="note">ستٌّ وعشرون وحدة. تُكتب أقسامها الثمانية كاملةً عند بدء كلٍّ منها، وفق §8.</p>
+  <div class="units" id="post"></div>
+
+  <h2>المراحل المغلقة</h2>
+  <p class="note">
+    ثماني عشرة مرحلة أُغلقت بمعيار اكتمالها. المصدر الوحيد لحالتها هو <code>Rasd_Plan.md §9</code>.
+  </p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>المرحلة</th>
+          <th>النموذج</th>
+          <th>التاريخ</th>
+        </tr>
+      </thead>
+      <tbody id="closed"></tbody>
+    </table>
+  </div>
+
+  <h2>خريطة القديم إلى الجديد</h2>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>المرحلة المجمَّدة</th>
+          <th>ما جرى لها</th>
+          <th>الوحدات</th>
+        </tr>
+      </thead>
+      <tbody id="map"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    <p>
+      الحاكم: <code>Rasd_Plan.md</code> — §9 لحالة المراحل، §10 لخطّة المتبقّي · القرارات:
+      <code>ADR 0018</code> · <code>0019</code> · <code>0020</code> · الأدلّة المقيسة:
+      <code>Docs/Restructure/</code> · المنقضي: <code>archive/previous-plans/</code>
+    </p>
+    <p>
+      أرقام العدّ البشري هندية، وكل قياس وبُعد ونسبة غربيّ — معيار <code>§3.5</code>. وأرقام التقدّم
+      هنا مشتقّة من مصدرَيها بالاسم: المراحل من <code>§9</code>، والوحدات من <code>§10.1</code> —
+      بدل عدّادٍ مركَّب لا مصدر له في أيّهما.
+    </p>
+  </footer>
+</div>
+
+<script>
+  const PRE = [
+    {
+      id: '23.1',
+      ph: '23',
+      model: 'Opus 5',
+      status: 'done',
+      title: 'استقرار حرّاس المتصفّح',
+      goal: 'حارسٌ سلوكي واحد على الأقلّ يحجب الدمج، والسبب المشترك لتقطّع السبعة عشر مُسمًّى أو منفيٌّ بالقياس.',
+      scope:
+        'ci.yml · live-sw.mjs · سكربتات verify. لا شيفرة منتج إلا إصلاح عطل يثبت الفحص أنه عطل منتج.',
+      deps: 'لا شيء — تعمل على المستودع كما هو',
+      work: [
+        'إعادة إنتاج السجلّ المقيس (§6 صفّ 97) على جولات جديدة',
+        'اختبار فرضية تنازع الموارد: 17 وظيفة تُقلع كرومًا بلا max-parallel',
+        'فرز الثلاثة الساقطة محليًّا (measure · picker · popup) بوصفها أعطال منتج',
+        'رفع ما يستقرّ إلى blocking: true، وكتابة قاعدة الترقية آليًّا لا تعليقَ YAML',
+      ],
+      success:
+        'حكمٌ مكتوب يسمّي السبب أو ينفيه · ثلاثة أعطال محليّة مفروزة · حارسٌ حاجبٌ واحد فأكثر',
+      verify:
+        'عشر جولات CI متتالية مُسجَّلة · اختبار العكس على الحارس المُرقّى: يُعطَّل ما يحرسه فيجب أن يحمرّ',
+      gate: 'blocking: true على حارس واحد على الأقلّ، مع صفّ §6 يحمل أمر إثباته الموجب والسالب',
+      why: 'البند الوحيد في المتبقّي الذي سببه مُعترَفٌ بجهله — والمخاطر المجهولة تُقدَّم لا تُؤجَّل',
+      done: {
+        hash: '5ddf6b6',
+        date: '2026-09-12',
+        rows: '§6 صفوف 98 · 99 · 100 · ADR 0019 · Phase_23.md',
+        results: [
+          'فرضية «السبب المشترك» منفيّة بالقياس: طبعُ boot_id أعطى سبعة عشر مُعرِّفًا لسبع عشرة وظيفة — سبع عشرة آلة لا حصصًا من آلة.',
+          'أربعة أسباب خاصّة مسمّاة بدل سببٍ واحد مفترَض، ونمطٌ واحد يجمعها: حالةٌ مفترَضة تُقرأ جهوزًا.',
+          'النتيجة المقيسة 17/17 خضراء محليًّا، و13 حارسًا حاجبًا في CI بعد عشر جولات متتالية — قلَبَهم السكربت لا اليد.',
+          'ADR 0019: عمود blocking مشتقٌّ من سجلّ مقيس، و--check يسقط في الاتجاهين، وتنكسر السلسلة بتغيّر ملفّ الحارس.',
+          'عطلان جديدان اكتُشفا وأُسنِدا لا أُسقِطا: اختصار «تصوير منطقة» ميت على لينكس/ويندوز (→ 20.2)، وميزانية أول عرض تنقسم بالعتاد (→ 24.2).',
+        ],
+      },
+    },
+    {
+      id: 'ذ1',
+      ph: '—',
+      model: 'Sonnet 5',
+      status: 'done',
+      title: 'ذيول المراحل المغلقة — المداخل الحيّة الغائبة',
+      goal: 'إغلاق صنف «آليّة مبنيّة ومختبَرة بلا مدخل حيّ» — لا تملكه أي مرحلة في الخطّة المجمَّدة.',
+      scope: '§6 صفوف 87ب · 89 · 92 · 93هـ · 72 · 73 · 56 · 80 · 51. لا ميزات جديدة.',
+      deps: '23.1',
+      work: [
+        'زرّ «طابق العرض» — رياضياته مختبَرة بالكامل ولا مستدعٍ لها (صفّ 89)',
+        'تدوير المرجع ومحاذاته للحواف — rotateAt مختبَرة بلا مدخل (صفّ 87ب)',
+        'مصدرا «عنصر»/«منطقة» في استخراج اللوحة — العقد يدعمهما والواجهة لا تصلهما (صفّ 92)',
+        'Icon.tsx: dangerouslySetInnerHTML و<title> على العنصر نفسه فيسقط الاسم المتاح صامتًا',
+        'ProgressBar بلا tone · toPublic() يقتل التفاعل بعد حقنٍ ثانٍ · رقاقتا «قياس» و«شيفرة»',
+      ],
+      success:
+        'كل بند إمّا مدخل حيّ يعمل، أو صفّ §6 يعلن إسقاطه بتعليل. صفر بند يبقى «مبنيًّا بلا مشغِّل».',
+      verify: 'اختبار وحدة لكل مدخل جديد · جولة حارس على السطح المعني · pnpm check',
+      gate: 'الصفوف التسعة كلّها تحمل إمّا التزام تنفيذها أو التزام إعلان إسقاطها',
+      why: 'وحدة جديدة خارج الترقيم — لا مرحلة مجمَّدة تملك هذا العمل',
+      done: {
+        hash: 'da8084d',
+        date: '2026-09-12',
+        rows: '§6 صفّ 101',
+        results: [
+          'من الصفوف التسعة: خمسة ثبت بالتحقّق المباشر من الشيفرة أنها مُغلَقة سلفًا — لا حاجة لتعديل، والادّعاء نُقض لا نُقل.',
+          'أربعة نُفِّذت هنا: setInteractive الناقصة في toPublic (56) · نقل title إلى الـsvg نفسه (72) · tone لـProgressBar (73) · رقاقتا «قياس»/«شيفرة» (80).',
+          'مراجعة عدائية بوكيل لم يكتب الكود: صفر ملاحظة حرجة أو مرتفعة.',
+          'أثر جانبي صحيح لا عطل: تصحيح فرضية verify-picker غيّر بلوبه فاستأنف سلسلته من الصفر — تطبيقًا لقاعدة «حارس أُعيدت كتابته لا يرث سجلّ سلفه».',
+        ],
+      },
+    },
+    {
+      id: '20.0',
+      ph: '20',
+      model: 'Opus 5',
+      status: 'done',
+      title: 'البوّابة الواحدة للحقن وإنفاذ excludedSites',
+      goal: 'أن يصير لادّعاء «الخصوصية أولًا» سندٌ في الشيفرة: موقعٌ مستثنًى لا يُحقَن أصلًا، من طبقة الحقن لا من الواجهة.',
+      scope:
+        'src/background/ · shared/restricted.ts · مُطابِق أنماط جديد. واجهة إدارة القائمة في 20.3 لا هنا.',
+      deps: '23.1',
+      work: [
+        'بناء البوّابة الواحدة أوّلًا — canOperateOnTab بلا مستدعٍ، وcheckInjectable في ثمانية ملفّات',
+        'مُطابِق أنماط خالص: *.bank.com مقابل bank.com، والمسارات الفرعية، والنطاقات المشابهة الخادعة',
+        'إنفاذ excludedSites عند البوّابة، وlocalOnly على كل مسار رفع',
+        'حسم activateResume() — يحقن اليوم بلا إيماءة مستخدم، خلافًا لتدفّق ADR 0005',
+        'حارس معماري يمنع أي موضع جديد من نداء checkInjectable مباشرةً',
+      ],
+      success:
+        'مستدعٍ واحد للبوّابة · موقع مستثنًى يرفض الحقن · localOnly مقروء · حكم مكتوب في activateResume',
+      verify:
+        'وحدة للمُطابِق على الحالات الخادعة · تكامل من طبقة الحقن · اختبار عكس · حارس المصدر والناتج معًا',
+      gate: 'grep يعطي تعريفًا واحدًا ونداءً واحدًا من البوّابة؛ واختبار الموقع المستثنى ينقلب أحمر عند تعطيل الإنفاذ',
+      why: 'بند 🔴 مسحوب من المرحلة 20 نصًّا، وتبيّن أنه أكبر: البوّابة التي يفترضها غير موجودة',
+      done: {
+        hash: 'bc735cd',
+        date: '2026-09-12',
+        rows: 'ADR 0020 · verify:gate',
+        results: [
+          'بوّابة واحدة: قرارٌ خالص، ومُطابِقُ أنماطٍ بلا RegExp — 64 متجهًا من خمس عدسات حمراء مستقلّة، 62 تمرّ كما وُلِّدت، وانحرافان مُسجَّلان في موضعهما، وصفر تجاوز.',
+          'حارس معماري لنتي: نداء checkInjectable خارج البوّابة يُسقط اللنت — مُثبَتٌ بتشغيله على نصّ لا بتأكيدٍ على شكل مصفوفته.',
+          'حارس حيّ verify:gate في Chrome حقيقي، والسالب مُثبَت على التبويب نفسه: الاستئناف التلقائي لا يحقن على موقع مستثنًى، والتفعيل الصريح يُرفض بـexcluded-site، ثمّ يعمل عند رفع الاستثناء.',
+          'localOnly لم تُنفَّذ عمدًا وبحكمٍ مكتوب: هي بوّابة خروج لا حقن، وسلكها هنا كان يمنع الحقن على كل صفحة لكل مستخدم — انقلابٌ في المعنى لا تشديدٌ له.',
+        ],
+      },
+    },
+    {
+      id: '19.1',
+      ph: '19',
+      model: 'Opus 5',
+      status: 'done',
+      title: 'قناة الخروج: الحافظة · PNG · WebP · تدفّق downloads',
+      goal: 'أن يخرج ما يُنتَج بالصيغ الثلاث، وأن يعمل طلب صلاحية downloads الاختيارية ويتدهور رفضُه بلطف.',
+      scope: 'src/modules/export/ (جديد) · src/pages/export/ · شاشتا export / modal وexport / done',
+      deps: '15 (مغلقة) · 20.0 (مغلقة)',
+      work: [
+        'src/modules/export/ — لا وجود له اليوم رغم أنه سطر الوحدات في نصّ المرحلة',
+        'حسم اصطدام WebP بـADR 0015 قبل كتابته: bake() يثبّت PNG، وeslint يمنع toBlob/convertToBlob/toDataURL خارج مخرجٍ واحد',
+        'الحافظة: وجهتاها مبنيّتان — تُوصَلان لا تُعاد كتابتهما',
+        'تدفّق downloads: بطاقة ← request من الإيماءة ← عند الرفض تدهورٌ إلى <a download> مع إعلان ما فُقد',
+        'إظهار BakeReport.warnings التي حسبتها المرحلة 15 ولم يقرأها أحد',
+      ],
+      success: 'الصيغ الثلاث تُنتج ملفًّا صالحًا · الرفض لا يُفشل التصدير · معيار §3.5 محقَّق',
+      verify:
+        'وحدة بالتوقيع السحري وفكّ ترميز فعلي · 2× يعطي ضعف الأبعاد بالضبط · verify-export.mjs جديد بثنائيّته',
+      gate: 'pnpm verify:export أخضر، ويحمرّ عند تعطيل تدهور الرفض',
+      why: 'أول أجزاء المرحلة 19 داخل بوّابة MVP وفق جدول الاعتماديات المُشرَّح',
+      done: {
+        hash: 'bc24825',
+        date: '2026-09-12',
+        rows: '§6 صفوف 102 · 103 · 104 · 105 · 106 · ADR 0021 · Phase_19.md',
+        results: [
+          'تأطير السؤال في الخطّة منقوض: واجهة الترميز مُعامَلة منذ كُتبت، وthumbnail-encoder يرمّز WebP منذ المرحلة 18. فأُضيف format معاملًا — ولم يُمَسّ eslint.config.js ولا ENCODE_ALLOWED ولا محدِّد واحد.',
+          'وحكمٌ في ADR 0015 §5 نقضه القياس: «إعادة الترميز تنظّف مجّانًا» صحيحة لـPNG (صفر مقطع) ومنقوضة لـWebP — ICCP بـ456 بايتًا في كل مخرَج. صُحِّحت بحاشية، والحذف أُسنِد إلى 19.2.',
+          'ورقاقة «أصغر» في إطار 73:2 نقضها القياس: WebP بلا فقد أكبر من PNG في 14 من 16 لقطة واجهة حقيقية (1.98×). صارت «أصغر عند خفض الجودة»، والتقدير يعرض الرقم المقيس.',
+          'والخطر الفعلي مقيس لا متوقَّع: نوعٌ غير مدعوم لا يرمي بل يتدهور صامتًا إلى PNG ويكذب في blob.type. فالبوّابة تقارن المُنتَج بالمطلوب وتردّ الاختلاف عطلًا.',
+          'والحافظة ترفض WebP بنيويًّا — فوجهتها PNG دائمًا، ويُعلَن ذلك بدل أن يُعطى المستخدم غير ما اختار.',
+          'والوعد الأمني صامد: الاختبار التفاضلي (ADR 0015 §8) موجبٌ وسالب عند ستّ إعدادات جودة، ومعمَّم بحلقة فصيغةٌ ثالثة لا تدخل بلا برهانها.',
+          'والإشارات الثلاث التي حسبتها المرحلة 15 (warnings · truncated · overflow) تُعرَض لأوّل مرّة — وكانت بصفر مستهلك إنتاجي.',
+          'verify:export أخضر باثني عشر بندًا، وأحمر باختبار عكسه. و19/19 حارسًا خضراء محليًّا · 2829 اختبارًا · بوّابة A في 34s.',
+        ],
+      },
+    },
+    {
+      id: '19.2',
+      ph: '19',
+      model: 'Sonnet 5',
+      status: 'next',
+      title: 'حذف البيانات الوصفية وتصديرات المطوّر ملفّاتٍ',
+      goal: 'أن يصير stripMetadataOnExport مفتاحًا نافذًا على مستوى بايتات الملفّ، وأن تخرج تصديرات المطوّر ملفّاتٍ لا نصًّا في الحافظة.',
+      scope: 'إنفاذ الحذف · صيغة W3C DTCG · كتابة الملفّات',
+      deps: '19.1 (مغلقة) · 13 و14 (مغلقتان)',
+      work: [
+        'stripMetadataOnExport معلَن في مخطَّط المرحلة 3 وبصفر موضع قراءة — يُنفَّذ',
+        'ثلاث من صيغ المطوّر الأربع مبنيّة ومختبَرة فعلًا — تُوصَل ككتابة ملفّ. الناقص W3C DTCG وحدها',
+        'png-chunks.ts محلّل PNG كامل مكتوب في المرحلة 15 — هو أداة الإثبات، لا يُعاد بناؤه',
+        'بندٌ موروث من 19.1 بالقياس: مُرمِّج WebP يكتب ICCP بـ456 بايتًا في كل مخرَج — يُحذف أو يُعلَن إبقاؤه بتعليل',
+      ],
+      success:
+        'فحص البايتات لا يعطي url ولا title ولا EXIF ولا اسم مشروع · الصيغ الأربع تُستهلَك في مشروع حقيقي',
+      verify:
+        'اختبار أمني على البايتات · إعادة تشغيل فحص verify-editor.mjs الحيّ القائم · وحدة لكل صيغة',
+      gate: 'اختبار البايتات أخضر ويحمرّ عند تعطيل الحذف',
+      why: 'يفصل السطح الأمني (الحذف) عن السباكة، ويعترف بأن ثلاث صيغ من أربع مبنيّة',
+    },
+    {
+      id: '20.1',
+      ph: '20',
+      model: 'Sonnet 5',
+      status: 'idle',
+      title: 'هيكل الإعدادات والانتشار الحيّ والمظهر',
+      goal: 'صفحة إعدادات حيّة، وتغييرٌ ينعكس فورًا في كل السياقات المفتوحة.',
+      scope:
+        'src/pages/settings/ (فيها index.html وحده اليوم) · توصيل watchSettings وapplyTheme · تبويب المظهر',
+      deps: '5 و7 (مغلقتان)',
+      work: [
+        'watchSettings وapplyTheme مكتوبتان وبصفر مستدعٍ إنتاجي — التوصيل هو العمل',
+        'هيكل الصفحة وتوجيه التبويبات فوق Tabs القائم',
+        'المظهر: داكن/فاتح/النظام والكثافة',
+        'حسم كتالوج i18n — ADR معلَّق: يُبنى الكتالوج إن شُحنت الإنجليزية، أو يُعلَن إسقاطها ويُحذف المجلّد الفارغ',
+      ],
+      success:
+        'تغيير إعداد ينعكس في النافذة والطبقة والخلفية بلا إعادة تحميل · قرار اللغة مكتوب في ADR',
+      verify: 'تكامل على الانتشار عبر السياقات · جولة حارس على الصفحة',
+      gate: 'اختبار الانتشار أخضر ويحمرّ عند فكّ المستمع',
+      why: 'كل تبويب لاحق يُبنى داخل هذا الهيكل، والانتشار عقدٌ يُختبَر مرّة',
+    },
+    {
+      id: '20.2',
+      ph: '20',
+      model: 'Sonnet 5',
+      status: 'idle',
+      title: 'تبويبات §12 الأربعة',
+      goal: 'كل بند في §12 قابلًا للضبط: التصوير · التعليقات · الألوان · الاختصارات.',
+      scope: 'أربعة تبويبات فوق هيكل 20.1، وتوسيع المخطَّط بالمفاتيح الغائبة',
+      deps: '20.1',
+      work: [
+        'أربع شاشات نموذجية فوق مكوّنات مبنيّة بالكامل (Toggle · Radio · Slider · SegmentedControl · Input)',
+        'إضافة المفاتيح التي يطلبها §12 ولا وجود لها: capture.saveLocation و«اختصار مستقلّ لكل أداة»',
+        'مسح المحجوز على لينكس/ويندوز واعتماد بديلٍ لاختصار «تصوير منطقة» الميت (§6 صفّ 99)',
+        'رابط chrome://extensions/shortcuts مع شرح سبب القيد',
+      ],
+      success: 'كل بند في §12 له ضابط يعمل ويُحفَظ ويُقرأ · معيار §3.5 محقَّق',
+      verify: 'وحدة لكل مفتاح جديد · تكامل: ضبطٌ ثم إعادة فتح يحفظ الحالة',
+      gate: 'جدول §12 بندًا ببند، كلٌّ بمرجع الضابط في الشيفرة',
+      why: 'عملٌ متجانس على مفاتيح قائمة — أنسب ما يُسنَد إلى Sonnet بجهد منخفض',
+    },
+    {
+      id: '20.3',
+      ph: '20',
+      model: 'Opus 5',
+      status: 'idle',
+      title: 'شاشة الخصوصية والصلاحيات',
+      goal: 'إغلاق نصف §11 الذي يدخل بوّابة MVP: إدارة المواقع المستثناة، والتصفّح الخاص، وشاشة الصلاحيات الصادقة.',
+      scope: 'privacy / controls · شاشة الصلاحيات. القفل والحذف الكامل ليسا هنا.',
+      deps: '20.0 (مغلقة — الإنفاذ) · 20.1 (الهيكل)',
+      work: [
+        'واجهة إدارة القائمة: إضافة/حذف/استيراد/تصدير + قائمة مقترحة مبدئية',
+        'وضع التصفّح الخاص · «الحفظ المحلي بالكامل» معلنًا',
+        'شاشة تعرض كل صلاحية وسببها بالعربية وما يتوقّف عند رفضها وزرّ منح/سحب',
+        'حذف السجلّ تلقائيًا بعد مدّة قابلة للاختيار',
+      ],
+      success: 'القائمة تُدار وتُنفَّذ · كل صلاحية معروضة بسببها الحقيقي لا الموروث',
+      verify: 'تكامل: إضافة موقع ثم محاولة حقن · قراءة شجرة الإتاحة للشاشتين',
+      gate: 'بنود §11 الداخلة في MVP مغلقة بندًا ببند، والاستثناء مُثبَت من طبقة الحقن',
+      why: 'نصوص أسباب الصلاحيات تُنسَخ حرفيًّا إلى المتجر في 27.2 — فالدقّة هنا سطح مراجعة',
+    },
+  ]
+
+  const POST = [
+    [
+      '19.3',
+      '19',
+      'Opus 5',
+      'PDF وتقرير المقارنة',
+      'PDF بصفحة ومتعدّد، وتقرير مقارنة قابل للإرسال',
+      'pdf-lib · ترقيم RTL · تقرير المرحلة 17',
+      '19.2 · 17',
+      'ملفّ PDF صالح بترتيب RTL صحيح، ونظيف من البيانات الوصفية عند تفعيل الحذف',
+    ],
+    [
+      '19.4',
+      '19',
+      'Opus 5',
+      'دليل الخطوات بصيغه الأربع والقوالب',
+      'دليل مرقَّم يخرج بأربع صيغ، وقوالب تصدير محفوظة',
+      'ترحيل GuideRecord · PDF/ZIP/Markdown/صفحة مستقلّة',
+      '19.3 · 18',
+      'الصفحة المستقلّة تُفتح بلا إنترنت وتعرض كل الصور، وترقيمها صحيح في RTL',
+    ],
+    [
+      '20.4',
+      '20',
+      'Sonnet 5',
+      'الاستيراد/التصدير وحذف كل البيانات',
+      'ضبطٌ يُنقَل بين الأجهزة، وحذفٌ كامل موثوق',
+      'JSON · إفراغ IndexedDB وchrome.storage معًا',
+      '20.2',
+      'تصديرٌ ثم استيراد يعيد الحالة نفسها؛ والحذف يُفرغ المخزنين مُثبَتًا',
+    ],
+    [
+      '20.5',
+      '20',
+      'Opus 5',
+      'قفل المكتبة',
+      'حماية اختيارية برمز على كامل واجهة المكتبة',
+      '§11.6 · اشتقاق المفتاح · قفل القراءة',
+      '20.4 · 18',
+      'القراءة ممتنعة قبل فكّ القفل، مُثبَتًا من طبقة البيانات لا الواجهة',
+    ],
+    [
+      '20.6',
+      '20',
+      'Sonnet 5',
+      'التأهيل',
+      'تجربة أول تشغيل تشرح القيمة والصلاحيات بصدق',
+      'onboarding / step-1..4',
+      '20.3',
+      'يظهر مرّة واحدة عند أول تثبيت، وتخطّيه صريح وإعادته من الإعدادات',
+    ],
+    [
+      '21.1',
+      '21',
+      'Sonnet 5',
+      'المسار المحلي للمشاركة',
+      'إخراج الملاحظة بلا خادم ولا شبكة',
+      'share / modal · share / link-created',
+      '19.4',
+      'يعمل بصفر طلب شبكة؛ والمؤجَّل معلَّم «قريبًا» لا مخفيّ ولا موعود كذبًا',
+    ],
+    [
+      '21.2',
+      '21',
+      'Opus 5',
+      'حسم CSP، وخزنة الرمز، وعميل GitHub',
+      'أساس ثقة مكتوب قبل أول نداء شبكة',
+      'ADR أوّلًا · crypto.subtle · نطاق مضيف مسمًّى · إنفاذ localOnly على مسار الرفع',
+      '21.1 · 25.1',
+      'ADR منشور يحسم التناقض الثلاثي؛ والرمز لا يظهر نصًّا صريحًا',
+    ],
+    [
+      '21.3',
+      '21',
+      'Sonnet 5',
+      'مؤلِّف الـIssue وشاشة الاتصالات',
+      'من ملاحظة بصرية إلى Issue في المستودع',
+      'integrations / connections بحالاته الأربع',
+      '21.2',
+      'لا إرسال دون تأكيد صريح؛ وكل صنف فشل برسالة مميّزة',
+    ],
+    [
+      '22.1',
+      '22',
+      'Sonnet 5',
+      'إصلاح مقياس التغطية ورفع العتبات',
+      'تغطية تُقاس وتُلزِم',
+      'رفع مهلة الاختبار الساقط · العتبات · الملفّات بلا غطاء',
+      '21.3',
+      'pnpm test:coverage يخرج بصفر، والعتبات مفروضة في CI',
+    ],
+    [
+      '22.2',
+      '22',
+      'Sonnet 5',
+      'الاختبار التوليدي ودورتا التكامل',
+      'ما لم تنتجه التراكمية بطبعها',
+      'property-based · content ↔ background · قياس التقطّع',
+      '22.1',
+      'صفر اختبار متقطّع في عشر تشغيلات، مقيسًا آليًّا لا انطباعًا',
+    ],
+    [
+      '23.2',
+      '23',
+      'Sonnet 5',
+      'نواة CDP المشتركة ومصفوفة العيّنات',
+      'نواة واحدة بدل تكرارها في سبعة عشر سكربتًا',
+      'scripts/lib/cdp.mjs · العيّنات الخمس الناقصة · أصل ثانٍ',
+      '22.2 · 23.1',
+      'جدول المواءمة مثبَّت (عشرة مجلّدات لا تسعة)، والسبعة عشر فوق النواة',
+    ],
+    [
+      '23.3',
+      '23',
+      'Opus 5',
+      'سيناريوهات E2E ومصفوفة dpr',
+      'إثبات أن رصد يعمل على أنواع المواقع الحقيقية',
+      'tests/e2e/ · Playwright · المسارات الأربعة',
+      '23.2',
+      'المسارات الأربعة خضراء عند dpr = 1 و2',
+    ],
+    [
+      '24.1',
+      '24',
+      'Opus 5',
+      'ميزانية الحزمة وشكل حزمة المحتوى',
+      'ميزانية مفروضة، وقرار متأخّر عن المرحلة 12 محسومًا',
+      'bundle-budget · قرار شكل الحزمة',
+      '23.3',
+      'الميزانيتان مفروضتان في CI؛ وقرار شكل الحزمة في ADR',
+    ],
+    [
+      '24.2',
+      '24',
+      'Sonnet 5',
+      'ميزانيات وقت التشغيل',
+      'أرقام تدعم ادّعاء الخفّة — ومنها حسم انقسام ميزانية «أول عرض» بالعتاد (§6 صفّ 100)',
+      'فتح · دخول الفحص · CPU الخامل · fps · بحث',
+      '24.1',
+      'كل ميزانية في جدول المرحلة 24 مقيسة بأمر يُعاد تشغيله',
+    ],
+    [
+      '24.3',
+      '24',
+      'Opus 5',
+      'ملف الذاكرة وصفر تسريب',
+      'إثبات أن الأوضاع تُغلَق فعلًا',
+      '50 دورة · لقطات كومة · عدّ المستمعين',
+      '24.2',
+      'صفر تسريب عبر 50 دورة، وذروة ≤ 400MB',
+    ],
+    [
+      '24.4',
+      '24',
+      'Sonnet 5',
+      'بوّابة Lighthouse — أثر الحقن',
+      'كم تكلّف الإضافة الصفحة؟',
+      'Lighthouse قبل الحقن وبعده على كل عيّنة',
+      '24.3',
+      'CLS المضاف = صفر، وتدهور LCP/TBT ≤ 5%',
+    ],
+    [
+      '25.1',
+      '25',
+      'Opus 5',
+      'إغلاق ملفّ الصلاحيات والبيان',
+      'لا صلاحية بلا مستهلك، ولا مبرِّر متخلّف',
+      'مصير offscreen · نصّ المبرِّر · ADRان معلَّقان',
+      '24.4',
+      'لا صلاحية في البيان بلا مستهلك، ولا قشرة بلا صلاحية',
+    ],
+    [
+      '25.2',
+      '25',
+      'Sonnet 5',
+      'الإتاحة — الآلية ثم المراجعة البشرية',
+      'صفر مخالفة إتاحة حرجة',
+      'axe-core · التباين · لوحة المفاتيح · قارئ الشاشة',
+      '25.1',
+      'صفر مخالفة حرجة، وLighthouse a11y ≥ 95 على كل صفحة',
+    ],
+    [
+      '25.3',
+      '25',
+      'Opus 5',
+      'الأمان والخصوصية بالدليل',
+      'ادّعاء «لا شبكة» مُثبَتًا لا مذكورًا',
+      'مراجعة الحقن · CSP · الأسرار · سياسة الخصوصية',
+      '25.2',
+      'صفر طلب صادر في كل المسارات المحلية، مُراقَبًا لا مفترَضًا',
+    ],
+    [
+      '26.1',
+      '26',
+      'Opus 5',
+      'إغلاق مصدر Figma',
+      'مرجعٌ مطابق لما بُني — ومقارنةُ البناء بمرجع معيب تنتج تصحيحات خاطئة',
+      'ستة عشر صفًّا في §6 · صفّ 10 (التباين)',
+      'لا شيء — موازية في أي وقت',
+      'كل صفّ مطبَّق في المصدر أو مسجَّل رفضه بتعليل',
+    ],
+    [
+      '26.2',
+      '26',
+      'Sonnet 5',
+      'أرضية خطوط الأساس والانحدار البصري',
+      'انحدار بصري قائم فعلًا لا مجلّدات لا يقرؤها أحد',
+      'خطوط الأساس الغائبة للمراحل 6 · 9 · 10 · 11 · 14 · 16 · 17',
+      '25.3 · 26.1',
+      'خطوط الأساس مثبَّتة ويقرؤها كود — اليوم لا يقرؤها شيء',
+    ],
+    [
+      '26.3',
+      '26',
+      'Sonnet 5',
+      'مقارنة الإطارات وبوّابات التوكنز والنصوص',
+      'الستون إطارًا مراجَعة وموثَّقة',
+      'المقارنة · التوكنز · النصوص · الأرقام',
+      '26.2',
+      'صفر انحراف غير معلَّل · صفر قيمة حرفية · صفر مخالفة أرقام',
+    ],
+    [
+      '27.1',
+      '27',
+      'Sonnet 5',
+      'بناء الإصدار وتقوية الحزمة',
+      'حزمة قابلة للرفع ومحروسة',
+      'بناء قابل للتكرار · zip.mjs (لا يفحص شيئًا اليوم)',
+      '26.3',
+      'بناءان متتاليان ببصمة متطابقة، وzip يرفض حزمة لا تمرّ verify:dist',
+    ],
+    [
+      '27.2',
+      '27',
+      'Sonnet 5',
+      'قائمة المتجر والأصول والسياسات',
+      'قائمة كاملة بالعربية والإنجليزية',
+      'الأصول · النصوص · السياسات · CHANGELOG',
+      '27.1',
+      'قائمة السياسات مراجَعة بندًا ببند، والأصول بأبعادها بالضبط',
+    ],
+    [
+      '28.1',
+      '28',
+      'Opus 5',
+      'مرشَّح الإصدار ومصفوفة القبول',
+      'مرشَّح مختبَر على أجهزة حقيقية',
+      'مصفوفة القبول · الترقية · التثبيت النظيف · الإلغاء',
+      '27.2',
+      'صفر عطل مانع، ومصفوفة القبول مغطّاة',
+    ],
+    [
+      '28.2',
+      '28',
+      'Opus 5',
+      'النشر المتدرّج وإغلاق 1.0',
+      'رصد 1.0 منشورًا',
+      'نشر متدرّج · وسم · فتح 1.1 · تصفية الأرشيف',
+      '28.1',
+      'وسم v1.0.0 موجود، ومسار 1.1 مفتوح، وarchive/ مُصفّى',
+    ],
+  ]
+
+  const CLOSED = [
+    ['1', 'تهيئة المشروع وسلسلة البناء', 'Opus 5', '2026-08-28'],
+    ['2', 'Manifest V3 وهيكل الإضافة والصلاحيات', 'Opus 5', '2026-08-28'],
+    ['3', 'الرسائل والحالة والتخزين', 'Opus 5', '2026-08-28'],
+    ['4', 'نظام التصميم والتوكنز والاتجاه ثنائي اللغة', 'Opus 5', '2026-08-28'],
+    ['5', 'مكتبة مكوّنات الواجهة وحالاتها', 'Sonnet 5', '2026-08-28'],
+    ['6', 'طبقة العرض فوق الصفحة ومدير الأوضاع', 'Opus 5', '2026-08-29'],
+    ['7', 'نافذة الإضافة والاختصارات', 'Sonnet 5', '2026-08-29'],
+    ['8', 'محرك الالتقاط: الجزء الظاهر والمنطقة', 'Opus 5', '2026-08-29'],
+    ['9', 'كشف عناصر DOM والتقاط العنصر', 'Opus 5', '2026-08-29'],
+    ['10', 'التقاط الصفحة كاملة والتجميع', 'Opus 5', '2026-08-29'],
+    ['11', 'فاحص DOM والأنماط المحسوبة ومتغيّرات CSS', 'Opus 5', '2026-08-30'],
+    ['12', 'محرك القياس', 'Sonnet 5', '2026-08-30'],
+    ['13', 'محرك الألوان: الاختيار والصيغ والتباين', 'Opus 5', '2026-08-30'],
+    ['15', 'محرك التعليق والتحرير', 'Opus 5', '2026-08-30'],
+    ['18', 'المكتبة والمشاريع والبحث', 'Sonnet 5', '2026-08-31'],
+    ['16', 'المرجع فوق الصفحة والعرض المنقسم', 'Sonnet 5', '2026-08-31'],
+    ['17', 'مقارنة لقطتين وفرق البكسلات', 'Sonnet 5', '2026-09-06'],
+    ['14', 'اللوحات والدرجات والاستبدال المؤقت', 'Opus 5', '2026-09-09'],
+  ]
+
+  const MAP = [
+    [
+      '19',
+      'قُسِّمت أربعًا — كانت تجمع سبعة مخرجات غير متجانسة، أحدها يستلزم ترحيل تخزين لم تذكره الخطّة',
+      '19.1 · 19.2 · 19.3 · 19.4',
+    ],
+    [
+      '20أ',
+      'قُسِّمت أربعًا، وسُحب منها بندٌ إلى الأوّل — وكبر لأن البوّابة التي يفترضها غير موجودة',
+      '20.0 · 20.1 · 20.2 · 20.3',
+    ],
+    [
+      '20ب',
+      'قُسِّمت ثلاثًا — القفل سطح أمني مستقلّ، والحذف عملية على المخزنين، والتأهيل نطاق مضاف',
+      '20.4 · 20.5 · 20.6',
+    ],
+    [
+      '21',
+      'قُسِّمت ثلاثًا، وضُمَّ حسم CSP إلى أوّل وحدة تصطدم به بدل إفراده',
+      '21.1 · 21.2 · 21.3',
+    ],
+    [
+      '22',
+      'قُسِّمت اثنتين بدل خمسة بنود — أوّلها إصلاح المقياس نفسه، فهو لا يعمل اليوم',
+      '22.1 · 22.2',
+    ],
+    ['23', 'قُسِّمت ثلاثًا، وتقدّم جزؤها الأوّل إلى رأس الترتيب كلّه', '23.1 · 23.2 · 23.3'],
+    [
+      '24',
+      'قُسِّمت أربعًا — ساكنها لا يحتاج متصفّحًا، وثلاثتها الباقية ثلاث منظومات قياس مختلفة',
+      '24.1 · 24.2 · 24.3 · 24.4',
+    ],
+    [
+      '25',
+      'قُسِّمت ثلاثًا — البنود الموروثة نصوصٌ وقرارات، والإتاحة والأمان منظومتان',
+      '25.1 · 25.2 · 25.3',
+    ],
+    ['26أ', 'بقيت كما هي، وضاق نطاقها: أربعة من بنودها أُغلقت فعلًا في جولة الشعار', '26.1'],
+    ['26ب', 'قُسِّمت اثنتين — أرضية خطوط الأساس شرطٌ قبليّ لا خطوة أولى', '26.2 · 26.3'],
+    ['27', 'قُسِّمت اثنتين — شيفرة مقابل قائمة وسياسات', '27.1 · 27.2'],
+    ['28', 'قُسِّمت اثنتين', '28.1 · 28.2'],
+    [
+      '—',
+      'وحدة جديدة لعملٍ لم تملكه أي مرحلة: خمس فجوات «مبنيّ بلا مدخل حيّ» وأربعة أعطال مشخَّصة',
+      'ذ1',
+    ],
+  ]
+
+  const STATUS = {
+    idle: ['لم تبدأ', 's-idle'],
+    next: ['التالية', 'hot'],
+    run: ['قيد التنفيذ', 's-run'],
+    done: ['مكتملة', 's-done'],
+    stop: ['متوقّفة', 's-stop'],
+  }
+
+  const esc = (s) =>
+    String(s).replace(
+      /[&<>"]/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c],
+    )
+
+  function unitEl(u, open) {
+    const [label, cls] = STATUS[u.status] || STATUS.idle
+    const d = document.createElement('details')
+    d.className = u.status === 'done' ? 'unit closed' : 'unit'
+    if (open) d.open = true
+
+    const closure = u.done
+      ? '<p class="shut"><b>أُغلقت — </b>' +
+        '<span class="tv">' +
+        esc(u.done.date) +
+        '</span> · هاش الإغلاق <span class="tv">' +
+        esc(u.done.hash) +
+        '</span> · ' +
+        esc(u.done.rows) +
+        '<ul>' +
+        u.done.results.map((r) => '<li>' + esc(r) + '</li>').join('') +
+        '</ul></p>'
+      : '<p class="gate"><b>Gate الإكمال — </b>' + esc(u.gate) + '</p>'
+
+    d.innerHTML =
+      '<summary>' +
+      '<span class="uid">' +
+      esc(u.id) +
+      '</span>' +
+      '<span class="utitle">' +
+      esc(u.title) +
+      '</span>' +
+      '<span class="meta">' +
+      '<span class="pill">مرحلة ' +
+      esc(u.ph) +
+      '</span>' +
+      '<span class="pill model">' +
+      esc(u.model) +
+      '</span>' +
+      '<span class="pill ' +
+      cls +
+      '">' +
+      label +
+      '</span>' +
+      '</span>' +
+      '</summary>' +
+      '<div class="body"><dl>' +
+      '<dt>الهدف</dt><dd>' +
+      esc(u.goal) +
+      '</dd>' +
+      '<dt>النطاق</dt><dd>' +
+      esc(u.scope) +
+      '</dd>' +
+      '<dt>الاعتماديات</dt><dd>' +
+      esc(u.deps) +
+      '</dd>' +
+      '<dt>العمل المطلوب</dt><dd><ul>' +
+      u.work.map((w) => '<li>' + esc(w) + '</li>').join('') +
+      '</ul></dd>' +
+      '<dt>شروط النجاح</dt><dd>' +
+      esc(u.success) +
+      '</dd>' +
+      '<dt>التحقّق</dt><dd>' +
+      esc(u.verify) +
+      '</dd>' +
+      '<dt>لماذا هنا</dt><dd>' +
+      esc(u.why) +
+      '</dd>' +
+      '</dl>' +
+      closure +
+      '</div>'
+    return d
+  }
+
+  function briefEl(row) {
+    const [id, ph, model, title, goal, scope, deps, gate] = row
+    const d = document.createElement('details')
+    d.className = 'unit'
+    d.innerHTML =
+      '<summary>' +
+      '<span class="uid">' +
+      esc(id) +
+      '</span>' +
+      '<span class="utitle">' +
+      esc(title) +
+      '</span>' +
+      '<span class="meta">' +
+      '<span class="pill">مرحلة ' +
+      esc(ph) +
+      '</span>' +
+      '<span class="pill model">' +
+      esc(model) +
+      '</span>' +
+      '<span class="pill s-idle">لم تبدأ</span>' +
+      '</span>' +
+      '</summary>' +
+      '<div class="body"><dl>' +
+      '<dt>الهدف</dt><dd>' +
+      esc(goal) +
+      '</dd>' +
+      '<dt>النطاق</dt><dd>' +
+      esc(scope) +
+      '</dd>' +
+      '<dt>الاعتماديات</dt><dd>' +
+      esc(deps) +
+      '</dd>' +
+      '</dl>' +
+      '<p class="gate"><b>Gate الإكمال — </b>' +
+      esc(gate) +
+      '</p>' +
+      '</div>'
+    return d
+  }
+
+  const pre = document.getElementById('pre')
+  PRE.forEach((u) => pre.appendChild(unitEl(u, u.status === 'next')))
+
+  const post = document.getElementById('post')
+  POST.forEach((r) => post.appendChild(briefEl(r)))
+
+  document.getElementById('closed').innerHTML = CLOSED.map(
+    (r) =>
+      '<tr><td class="tv">' +
+      r[0] +
+      '</td><td>' +
+      esc(r[1]) +
+      '</td><td class="tv">' +
+      r[2] +
+      '</td><td class="tv">' +
+      r[3] +
+      '</td></tr>',
+  ).join('')
+
+  document.getElementById('map').innerHTML = MAP.map(
+    (r) =>
+      '<tr><td class="tv">' +
+      esc(r[0]) +
+      '</td><td>' +
+      esc(r[1]) +
+      '</td><td class="tv">' +
+      esc(r[2]) +
+      '</td></tr>',
+  ).join('')
+</script>
