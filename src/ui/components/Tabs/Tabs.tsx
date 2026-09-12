@@ -17,7 +17,17 @@ export interface TabsProps {
   class?: string | undefined
 }
 
-/** `Tabs` — 4 variant: التبويب المحدَّد 1 إلى 4. */
+/**
+ * `Tabs` — الشيفرة بلا حدّ عدد: تُخطِط فوق `items` أيًّا كان طولها، ولا شكل
+ * فيها ولا في `Tabs.module.css` يفترض عددًا (تخطيط `inline-flex` بفجوة، لا
+ * `grid-template-columns` بعدد ثابت).
+ *
+ * **محور Figma «Selected: 1 إلى 4» لا يوثِّق حدًّا في الشيفرة — بل حدًّا في
+ * عدد الحالات التي رسمها المكوّن.** صفحة الإعدادات تستعمل خمسة تبويبات منذ
+ * الوحدة 20.2 (المظهر + أربعة `§12`)، وهي انحرافٌ مُسجَّل لا صامت —
+ * `Rasd_Plan.md §6` صفّ 111 — تحسمه الوحدة **26.1** بإضافة الحالة الخامسة
+ * في Figma نفسه، لا بتقييد هذا المكوّن.
+ */
 export function Tabs({ items, selected = 0, onChange, class: className }: TabsProps): JSX.Element {
   const move = (from: number, delta: number) => {
     const next = (from + delta + items.length) % items.length

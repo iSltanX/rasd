@@ -12,7 +12,7 @@ import {
   type SegmentedOption,
 } from '@/ui/components/SegmentedControl/SegmentedControl'
 
-import styles from './AppearanceTab.module.css'
+import styles from './SettingsTab.module.css'
 
 import type { Result } from '@/shared/result'
 import type { Settings } from '@/shared/settings'
