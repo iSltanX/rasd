@@ -49,9 +49,12 @@ export function Icon({
       data-mirror={mirrored ? 'true' : 'false'}
       role={title ? 'img' : undefined}
       aria-hidden={title ? undefined : 'true'}
+      aria-label={title}
+      title={title}
+      // `dangerouslySetInnerHTML` و children لا يجتمعان على العنصر نفسه في
+      // Preact — الأول يبتلع الثاني بصمت (`Rasd_Plan.md §6` صفّ 72). الاسم
+      // المتاح هنا `aria-label`/`title` على الـsvg نفسه، لا عنصر `<title>` كابن.
       dangerouslySetInnerHTML={{ __html: entry.markup }}
-    >
-      {title ? <title>{title}</title> : null}
-    </svg>
+    />
   )
 }

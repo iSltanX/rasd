@@ -71,10 +71,8 @@ export function Card({
           <Icon name={KIND_ICON[record.kind]} size="xl" class={styles.thumbFallback} />
         )}
         {record.favorite ? (
-          // `Icon`’s `title` prop لا يُرسَم فعليًا (dangerouslySetInnerHTML يبتلع children —
-          // بند مبلَّغ عنه لإصلاحه في Icon.tsx نفسها). الاسم الحقيقي هنا على غلاف نتحكّم فيه.
-          <span class={styles.favoriteBadge} role="img" aria-label="مفضَّلة">
-            <Icon name="star" size="xs" />
+          <span class={styles.favoriteBadge}>
+            <Icon name="star" size="xs" title="مفضَّلة" />
           </span>
         ) : null}
         <span
