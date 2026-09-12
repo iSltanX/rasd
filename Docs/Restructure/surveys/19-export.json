@@ -1,0 +1,381 @@
+{
+  "area": "19-export",
+  "whatExistsAlready": [
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/content/clipboard.ts",
+      "what": "Clipboard image copy from the HOST page (destination 1 of 2 named in the Phase 19 body). 125 lines. base64→Blob, `clipboardUsable()` guard (ClipboardItem + navigator.clipboard.write + isSecureContext), `writeBlob()` mapping NotAllowedError→'cancelled'/'permission-denied', 8MB payload cap (MAX_CLIPBOARD_BYTES), and a one-shot focus/pointerdown listener that completes the copy when the page regains focus. Save-before-copy is honoured at the call site.",
+      "evidence": "`ls -la src/content/clipboard.ts` → 5007 bytes, Aug 29. WIRED: `grep -rn copyCaptureToClipboard src/` → src/content/index.ts:25 (import) and src/content/index.ts:257 (call inside `runCaptureNow`, guarded by `copyAfterCapture`, after `requestCapture` succeeds, with the comment «النسخ **بعد** الحفظ لا بدلًا منه»).",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/pages/editor/export.ts",
+      "what": "Clipboard destination 2 (the editor, the focused fallback for http pages). `copyBaked(pending: Promise<Blob>)` writes `new ClipboardItem({'image/png': pending})` — passing the PROMISE, not an awaited blob, with an A/B measurement in the header proving the focus gate is evaluated at write() call time. Also `createBakeSurface()`, `createSliceSource(blob)`, `pixelRunnerFor(client)`, `startExport()` returning `{bytes, done, cancel}`.",
+      "evidence": "Full file read. `copyBaked` at the tail; `startExport` calls `bake({...scale, surface, paletteMode:'dark', sliceSource, runPixels, signal})`.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/modules/editor/bake.ts",
+      "what": "THE canvas→blob path, and the only one for the editor. `bake()` returns `Result<{blob: ExportBytes; report: BakeReport}>`. `ExportBytes = Blob & {readonly __baked: unique symbol}` — a brand only this file can mint. `planExport(scene, scale: 1|2) → ExportDecision {ok,width,height,bytes,bound,reason}` already implements the 1×/2× resolution decision with Arabic refusal strings. `BakeReport` carries `{width,height,bytes,obscured: ObscureProof[], reencoded: true, paletteMode:'dark', warnings}`.",
+      "evidence": "src/modules/editor/bake.ts:56 (ExportBytes), :178 (ExportDecision), :208 (planExport), :235 (bake), :374 `const blob = await target.encodeTarget.convertToBlob({ type: 'image/png' })`.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/eslint.config.js",
+      "what": "The single-encode-exit lint gate (ADR 0015). Three AST selectors ban `toBlob`/`convertToBlob`/`toDataURL` by dotted call, by computed member access, and by bare string literal. `ENCODE_ALLOWED` is exactly four files: modules/editor/bake.ts, background/image-ops.ts, background/stitch.ts, pages/library/thumbnail-encoder.ts — and only `encodeSelector` (the dotted form) is relaxed for them.",
+      "evidence": "eslint.config.js:231/236/241 (the three selectors), the `ENCODE_ALLOWED` array (4 entries), and `tests/unit/architecture-boundaries.test.ts` which runs ESLint on fixtures to prove the gate actually fails a build.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/pages/editor/views/Annotating.tsx",
+      "what": "The already-shipped no-permission download fallback that Phase 19's `downloads`-denial path is supposed to degrade to: `<a href={props.exported.url} download=\"rasd.png\" data-export-url=… data-export-guaranteed=… data-export-reencoded=…>احفظ الصورة (W × H)</a>`, plus the two `انسخ الصورة 1×/2×` buttons.",
+      "evidence": "src/pages/editor/views/Annotating.tsx:173 `download=\"rasd.png\"`, :181 the label. Object URL lifecycle handled in src/pages/editor/Editor.tsx:399-405 (revoke previous, createObjectURL(blob)).",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/modules/style-export/",
+      "what": "Developer exports — PARTIAL coverage of the Phase 19 line «تصديرات المطوّر: CSS · JSON · Tailwind · Design Tokens (W3C)». Two files only: css.ts (5816 B) and tailwind.ts (10783 B). Exports: `toCss(snapshot)` (CSS block with Arabic limit comments), `toJson(snapshot, rootPx) → InspectJson {schema:'rasd.inspect/1', at, element, rect, styles, tailwind, limits, notes}`, `toTailwindText(snapshot, rootPx)`, and the Tailwind v4 mapper (`mapSpacing`, `mapProperty`, `toTailwind`, `TAILWIND_TARGET = 4`) with a three-way `Mapped` result (scale | arbitrary | untranslatable) that refuses to invent class names. SOURCE: inspect data only — it takes an `InspectSnapshot` (Phase 11), never a palette.",
+      "evidence": "`grep -n '^export ' src/modules/style-export/*.ts`. Consumers: only `src/content/index.ts:18` (`import { toCss, toJson, toTailwindText }`). Tests: tests/unit/modules/style-export/outputs.test.ts.",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/modules/colour/export.ts",
+      "what": "The OTHER half of the developer exports — from the colour palette, not from inspect data. `PaletteFormat = 'css' | 'json' | 'tailwind' | 'text'`; `exportPalette(swatches, format, options)` and `exportScale(stops, format)` (the latter excludes 'text'). Emits `--{prefix}-{n}` variables, deliberately refusing to guess Tailwind palette names for extracted colours.",
+      "evidence": "src/modules/colour/export.ts:28 (PaletteFormat), :229 (exportPalette), :287 (exportScale). Wired at src/content/index.ts:820 (`onExportPalette`) and :826 (`onExportScale`) — both copy to clipboard as text, no file. tests/unit/modules/colour/export.test.ts.",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/shared/permission-policy.ts",
+      "what": "The single source for permission lists, imported by manifest.config.ts, src/shared/permissions.ts and scripts/verify-dist.mjs. `downloads` is already in `OPTIONAL_PERMISSIONS = ['tabs','downloads','desktopCapture']` (line 27) and already has its Arabic rationale in `OPTIONAL_PERMISSION_RATIONALE.downloads = 'لحفظ اللقطات والتقارير في مجلّد التنزيلات باسم تختاره.'` (line 58).",
+      "evidence": "Full file read. manifest.config.ts:58 `optional_permissions: [...OPTIONAL_PERMISSIONS]`. Docs/ADR/permissions.md:33 and Docs/Phases/Phase_02.md:240 both record «تُطلب عند أول تنزيل (المرحلة 19)».",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/shared/permissions.ts",
+      "what": "Runtime permission helpers, already written and already unit-tested: `requestPermission(perms) → 'granted'|'denied'|'error'`, `hasPermission`, `revokePermission`, `requestHostPermission`, `originPatternFor`.",
+      "evidence": "Full head read. tests/unit/permissions.test.ts:79 already asserts `requestPermission(['downloads'])` resolves 'granted'. BUT no production caller: `grep -rn 'requestPermission|hasPermission(' src/ | grep -v permissions.ts` returns only `src/pages/popup/Popup.tsx:277 requestHostPermission` — i.e. the downloads flow is untriggered.",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/tests/helpers/png-chunks.ts",
+      "what": "A full PNG frame parser written as a TEST helper in Phase 15, and it is exactly the instrument Phase 19's «فحص بايتات الملف» security test needs: `PNG_SIGNATURE`, `METADATA_CHUNK_TYPES = ['tEXt','iTXt','zTXt','eXIf']`, `parsePng`, `parsePngBlob`, `crc32`, `trailingBytes`, `endsAtIend(info, size?)` (the aCropalypse assertion), `metadataChunks`, `ancillaryChunks`, `chunkTypes`, `allCrcsValid`.",
+      "evidence": "Full file read. Exercised by tests/unit/modules/editor/png-chunks.test.ts (5 cases incl. «ومقاطع البيانات الوصفية تُسمّى» and the 11-trailing-byte aCropalypse case).",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/verify-editor.mjs",
+      "what": "A LIVE byte-level metadata check already running against the real exported file in Chrome: parses PNG chunks in-page, asserts `trailing === 0` after IEND, and asserts no `tEXt|iTXt|zTXt|eXIf` survived. This is the prototype a `verify:export` guard would extend.",
+      "evidence": "scripts/verify-editor.mjs:1250-1281; line 1275 `const meta = bytes.types.filter((t) => ['tEXt','iTXt','zTXt','eXIf'].includes(t))`, line 1279 `fail('مقاطع بيانات وصفية نجت إلى الملفّ: …')`.",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/background/image-ops.ts",
+      "what": "PNG-always storage enforcement for the crop path, with the reason written in the code: «PNG دائمًا — لا WebP ولا JPEG … صيغة يختارها المستخدم شأن التصدير (المرحلة 19) لا التخزين».",
+      "evidence": "src/background/image-ops.ts:103-107, `const blob = await canvas.convertToBlob({ type: 'image/png' })`. Same rule at src/background/stitch.ts:134 `async finish(type = 'image/png')` and src/modules/editor/bake.ts:374. Recorded as contradiction 23 in Rasd_Plan.md:1998 and Docs/Phases/Phase_08.md:87.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/shared/storage/schema.ts",
+      "what": "Blob handling: metadata and bytes are separate stores. `CaptureRecord {id,createdAt,origin,url,title,kind,status,projectId,tags,width,height,devicePixelRatio,favorite,archived,trashedAt}` (line 22) and `BlobRecord {id, blob: Blob, mime, bytes}` (line 42), joined by the same id, written atomically. `AnnotationRecord.redaction {total, irreversible}` exists specifically so «التصدير في 19» can read the redaction summary without deserialising the scene. DB_NAME='rasd', DB_VERSION=2.",
+      "evidence": "Full head read; AnnotationRecord comment names «والتصدير في 19» explicitly.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/shared/storage/schema.ts",
+      "what": "`GuideRecord {id, title, projectId, captureIds: string[], createdAt}` at line 113, with a `guides` object store indexed on projectId. The library already has a full read-side for step guides: tab «أدلة الخطوات», `searchGuides`, `GuideCard` (list-view icon, capture count), bulk delete, move-to-project.",
+      "evidence": "src/shared/storage/schema.ts:113 and :169; src/shared/storage/migrations.ts:53-54; src/modules/library/search.ts:29/72/104-107; src/pages/library/Library.tsx:102/687-692; src/pages/library/parts/GuideCard.tsx. NOTHING CREATES A GUIDE: `grep -rn 'guides.put|guides.add|createGuide' src/` returns only src/pages/library/projects.ts:142 and :208, both of which reassign `projectId` on an existing record.",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/shared/settings/schema.ts",
+      "what": "`privacy.stripMetadataOnExport: v.optional(v.boolean(), false)` at line 93 — the Phase 19 toggle is already in the settings schema. Also `capture.format: CaptureFormat` = picklist(['png','webp']) at line 28/39, the user-facing format choice that per contradiction 23 belongs to export, not storage.",
+      "evidence": "sed of src/shared/settings/schema.ts:25-105. DEAD SETTING: `grep -rn stripMetadataOnExport src/ tests/ scripts/ Docs/ Rasd_Plan.md` returns exactly ONE hit — the schema line itself. No reader, no writer, no UI, no test.",
+      "completeness": "stub"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/pages/compare/parts/Header.tsx",
+      "what": "The compare report's export affordance exists as a deliberately disabled button with a Phase 19 title attribute: `<span title=\"تصدير التقرير كملف — يُضاف في المرحلة 19.\"><Button variant=\"secondary\" size=\"s\" icon=\"download\" state=\"disabled\">تصدير التقرير</Button></span>`.",
+      "evidence": "src/pages/compare/parts/Header.tsx:46-51.",
+      "completeness": "stub"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/shared/bidi/numerals.ts",
+      "what": "The numeral/bidi helpers the §3.5 language criterion is measured against, already built: formatHuman (Eastern-Arabic human counts), formatMeasure (Western measurements), formatUnit, formatDimensions, formatRatio, formatPercent, formatBytes, formatRelativeTime, plural. A lint rule already rejects `formatHuman(x.width|height|size|bytes|scale|…)` as «هذا قياس لا عدّ بشري».",
+      "evidence": "`grep -n '^export ' src/shared/bidi/numerals.ts`; eslint.config.js:~185 restricted-syntax entry.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/shared/page-paths.ts",
+      "what": "The single registry a new export page would have to join: `PAGE_PATHS` (popup, editor, library, settings, onboarding, offscreen, compare) — consumed by manifest.config.ts, vite.config.ts (rollupOptions.input), src/shared/pages.ts (pageUrl) and scripts/verify-dist.mjs. `page/open` messages route through `PageName`.",
+      "evidence": "Full file read; vite.config.ts:53-67 input map; Docs/EntryPoints.md:52 «فتح صفحة (مكتبة · محرّر · إعدادات · مقارنة) | page/open ← chrome.tabs.create».",
+      "completeness": "full"
+    }
+  ],
+  "whatIsMissing": [
+    {
+      "deliverable": "`src/modules/export/` — the module directory named in the Phase 19 body («الوحدات: src/modules/export/ · src/modules/export/pdf.ts · src/modules/export/guide.ts · src/pages/export/»). Nothing of it exists.",
+      "evidenceOfAbsence": "`ls src/modules/export` → \"No such file or directory\". `ls src/modules/` lists exactly: README.md a11y capture colour compare computed-style dom-picker editor library measure style-export var-trace.",
+      "sizeEstimate": "large",
+      "risk": "low",
+      "riskReason": "Greenfield inside an already-enforced layer (`modules/` = pure logic, no chrome.*, no ui/ imports — enforced by import-x/no-restricted-paths and proven by tests/unit/architecture-boundaries.test.ts). The shape is dictated by existing neighbours.",
+      "dependsOn": [
+        "src/modules/editor/bake.ts (ExportBytes + BakeReport)",
+        "src/modules/style-export/",
+        "src/modules/colour/export.ts"
+      ]
+    },
+    {
+      "deliverable": "`src/pages/export/` — the export page. Absent. Note the plan ALSO says the screens are «export / modal» و«export / done», i.e. a modal, so whether this is a standalone page or an overlay inside editor/library/compare is an unresolved design question, not a settled one.",
+      "evidenceOfAbsence": "`ls src/pages/export` → \"No such file or directory\". `ls src/pages/` → capture-preview, compare, editor, gallery, library, onboarding, popup, popup-preview, settings. `PAGE_PATHS` in src/shared/page-paths.ts has no `export` key; vite.config.ts input map has no export entry.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "A new page costs four coordinated edits (page-paths.ts, vite.config.ts input, manifest/verify-dist, page/open contract). A modal costs none of those but must be built three times (editor, library, compare) or hoisted into a shared component.",
+      "dependsOn": [
+        "src/shared/page-paths.ts",
+        "vite.config.ts",
+        "scripts/verify-dist.mjs"
+      ]
+    },
+    {
+      "deliverable": "WebP export. `bake()` hardcodes `convertToBlob({ type: 'image/png' })`; there is no format parameter anywhere on the export path, and no quality parameter.",
+      "evidenceOfAbsence": "src/modules/editor/bake.ts:374 literal 'image/png'. `ExportOptions` in src/pages/editor/export.ts carries `scale: 1|2` and no `format`/`quality`. Phase_15.md:108 declares it: «التصدير PNG عند 1× أو 2× فقط | لا اختيار صيغة ولا جودة ولا تنزيل عبر chrome.downloads | المرحلة 19».",
+      "sizeEstimate": "small",
+      "risk": "medium",
+      "riskReason": "Small in lines but it touches the ADR-0015 single-exit gate: any new encode site must either live inside bake.ts or be added to `ENCODE_ALLOWED` in eslint.config.js (currently 4 files), and that list is asserted by tests/unit/architecture-boundaries.test.ts. Changing it is an architectural decision, not a line edit.",
+      "dependsOn": [
+        "src/modules/editor/bake.ts",
+        "eslint.config.js ENCODE_ALLOWED"
+      ]
+    },
+    {
+      "deliverable": "PDF export via pdf-lib — single- and multi-page, correct page size and orientation, Arabic in the metadata.",
+      "evidenceOfAbsence": "CONFIRMED ABSENT. `package.json` dependencies are exactly: @preact/signals 2.11.1, culori 4.0.2, idb 8.0.3, pixelmatch 6.0.0, preact 10.29.8, valibot 1.4.2. No pdf-lib, no jspdf. `grep -rn 'pdf' src/` finds no PDF code.",
+      "sizeEstimate": "large",
+      "risk": "high",
+      "riskReason": "(a) First new runtime dependency since Phase 1 — bundle size lands in the Chrome Web Store package and Phase 27's build gate. (b) pdf-lib writes Producer/Creator/CreationDate/ModDate by default, so the «حذف البيانات الوصفية … يُتحقَّق بفحص بايتات الملف» claim needs a PDF byte-inspector that does NOT exist (only the PNG one does). (c) Arabic text in PDF needs font embedding + shaping; pdf-lib does not shape Arabic on its own.",
+      "dependsOn": [
+        "pdf-lib in package.json",
+        "a PDF byte-inspector test helper (analogue of tests/helpers/png-chunks.ts)",
+        "src/modules/editor/bake.ts for the raster source"
+      ]
+    },
+    {
+      "deliverable": "Metadata-stripping implementation — the toggle that removes url, title, date, browser info and project name from the FILE, not just the view.",
+      "evidenceOfAbsence": "No implementation anywhere: `grep -rn 'EXIF|exif|iTXt|stripMetadata' src/` returns zero production hits. `stripMetadataOnExport` (src/shared/settings/schema.ts:93) has exactly one occurrence in the whole repo — its own declaration; nothing reads it.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "The honest finding is that the PNG path currently has nothing to strip — Chrome's convertToBlob emits no tEXt/eXIf, and bake.ts writes no product metadata, and verify-editor.mjs:1275 already proves that live. So today the toggle would be a no-op that LOOKS implemented. The real work appears the moment PDF (pdf-lib Producer/CreationDate), the standalone HTML guide (embeds url/title by design), and download FILENAMES (which today would carry the page title) exist. Shipping the toggle before those three is a false security claim.",
+      "dependsOn": [
+        "PDF export",
+        "standalone HTML guide",
+        "filename generation"
+      ]
+    },
+    {
+      "deliverable": "`downloads` optional-permission request flow: card explaining the permission → `chrome.permissions.request` from the user gesture → on denial degrade to `<a download>` with an explicit notice of what was lost (folder + filename choice) → denial not re-asked in the same session.",
+      "evidenceOfAbsence": "`requestPermission()` exists (src/shared/permissions.ts) and is unit-tested with 'downloads' (tests/unit/permissions.test.ts:79) but has ZERO production callers: `grep -rn 'requestPermission\\|hasPermission(' src/ | grep -v permissions.ts` → only `requestHostPermission` at src/pages/popup/Popup.tsx:277. `grep -rn 'chrome.downloads' src/` → zero hits. No session-scoped denial memory exists anywhere.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "The degradation target already exists and works (Annotating.tsx:173 `<a download=\"rasd.png\">`), and the helper + rationale string are written — so the plumbing is short. The risk is the per-session denial memory: the service worker is not a durable session, so «لا يُعاد سؤاله في الجلسة نفسها» needs a decision about where that lives.",
+      "dependsOn": [
+        "src/shared/permissions.ts requestPermission",
+        "src/shared/permission-policy.ts OPTIONAL_PERMISSION_RATIONALE",
+        "a UI surface to host the rationale card"
+      ]
+    },
+    {
+      "deliverable": "Design Tokens (W3C DTCG) format — the fourth developer export format.",
+      "evidenceOfAbsence": "`grep -rn '\\$value|\\$type|design-token|designToken|w3c' src/` → zero hits (the only W3C mention is src/modules/colour/contrast.ts:4 about WCAG). `PaletteFormat` (src/modules/colour/export.ts:28) is `'css'|'json'|'tailwind'|'text'`; style-export exports only toCss/toJson/toTailwindText.",
+      "sizeEstimate": "small",
+      "risk": "low",
+      "riskReason": "Pure data transform over two existing, tested sources (InspectSnapshot and PaletteSwatch[]); the DTCG shape is a published spec and the modules/ layer forbids nothing it needs.",
+      "dependsOn": [
+        "src/modules/colour/export.ts",
+        "src/modules/style-export/css.ts"
+      ]
+    },
+    {
+      "deliverable": "Developer exports as FILES. Today every developer export is clipboard-text only, from inside the page overlay. There is no file path and no export screen for them.",
+      "evidenceOfAbsence": "src/content/index.ts:820/826 both do `navigator.clipboard?.writeText(text)`. The comment at src/content/index.ts:815-817 says so explicitly: «لا تنزيل ملفّ: §6.14 تصف صيغًا تُلصَق، ومسار التنزيل الصريح … معيار إتمام المرحلة 19 لا 14».",
+      "sizeEstimate": "small",
+      "risk": "low",
+      "riskReason": "Text→Blob→download is trivial once a download helper exists. Note Phase_14.md:196 leaves an explicit open question for this phase about the missing fourth «نص قابل للنسخ» format in PalettePanel.",
+      "dependsOn": [
+        "downloads permission flow",
+        "src/modules/colour/export.ts",
+        "src/modules/style-export/"
+      ]
+    },
+    {
+      "deliverable": "The step guide (دليل الخطوات) as a creatable entity plus its four output formats: numbered PDF in correct RTL order, sequential images in a ZIP, Markdown with base64-embedded or sidecar images, and a self-contained shareable HTML page with zero external dependencies that opens offline.",
+      "evidenceOfAbsence": "`GuideRecord` (src/shared/storage/schema.ts:113) has only `{id,title,projectId,captureIds,createdAt}` — no per-step caption, no explicit order field beyond array position. No creation path exists (`grep -rn 'guides.put'` → only two projectId reassignments in src/pages/library/projects.ts). The library open handler is `noopOpen` for guides (src/pages/library/Library.tsx:690) with the comment «اللوحة والمرجع والدليل بلا وجهة مبنيّة بعد (تحتاج مقارنة/تصدير من مراحل لاحقة)». No ZIP writer exists in src/ (scripts/zip.mjs shells out to the `zip` CLI in Node and is unusable in the extension); no jszip/fflate in package.json.",
+      "sizeEstimate": "xlarge",
+      "risk": "high",
+      "riskReason": "Four independent encoders (PDF, ZIP, Markdown, HTML), a new authoring UI, AND a storage migration: GuideRecord needs step captions, so DB_VERSION goes 2→3 with a migration in src/shared/storage/migrations.ts. The standalone HTML page additionally carries the only Lighthouse target in the phase (≥95 on Performance/Accessibility/Best-Practices) while being a single file with base64 images — a genuine tension, since embedded base64 rasters are exactly what a Performance audit penalises.",
+      "dependsOn": [
+        "src/shared/storage/migrations.ts (DB_VERSION 2→3)",
+        "a ZIP writer dependency or hand-rolled store-only ZIP",
+        "pdf-lib",
+        "src/modules/editor/pins.ts for ordinal ordering"
+      ]
+    },
+    {
+      "deliverable": "Compare report as an exportable artifact: diff image + percentage + region list + both captures' metadata.",
+      "evidenceOfAbsence": "The button is present and disabled: src/pages/compare/parts/Header.tsx:47. Docs/Phases/Phase_17.md:82-85 states it plainly — «تقرير المقارنة غير موجود ككيان. النسبة والمناطق وبيانات اللقطتين معروضة، لكن لا تجميع لها في مستند قابل للإرسال — وزرّ تصدير التقرير معطَّل بعنوانٍ يقول يُضاف في المرحلة 19».",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "Phase_17.md:86-90 declares a second gap that bites here: «مستطيل التظليل فوق مصغَّرة المعرض — LiveDiff يحمل عدد المناطق لا صناديقها — تُحسب في الخلفية ثمّ تُختزَل قبل عبور السلك». So the region LIST the report must contain does not cross the message wire today; producing it needs the compare worker/contract widened, not just a report template.",
+      "dependsOn": [
+        "src/pages/compare/",
+        "the LiveDiff message contract in src/shared/messaging/contract.ts:68",
+        "a document format (HTML or PDF)"
+      ]
+    },
+    {
+      "deliverable": "Saved export templates (قوالب التصدير) — a named, reusable settings bundle.",
+      "evidenceOfAbsence": "No store, no schema, no UI. `src/shared/storage/schema.ts` stores are captures, blobs, projects, colors, palettes, references, annotations, guides, tags, thumbnails — no templates. Explicitly v1.0-only per the Phase 19 dependency table and the §4 table row «التعليقات … | قوالب التصدير» (deferred).",
+      "sizeEstimate": "small",
+      "risk": "low",
+      "riskReason": "Self-contained and explicitly outside the MVP gate; it can be a settings sub-object rather than a new store.",
+      "dependsOn": ["the export options shape being settled first"]
+    },
+    {
+      "deliverable": "`scripts/verify-export.mjs` + a `verify:export` package script.",
+      "evidenceOfAbsence": "`ls scripts/` → 22 verify-*.mjs files; there is no verify-export.mjs. `package.json` scripts list 20 `verify:*` entries; none is `verify:export`.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "A real guard here must assert on BYTES, not on UI. Concretely it would need to: (1) drive a real export in Chrome via CDP like verify-editor.mjs does; (2) for PNG, reuse the existing chunk walk (verify-editor.mjs:1250-1281) to assert trailing===0 and no tEXt/iTXt/zTXt/eXIf; (3) for WebP, assert the RIFF/WEBP magic and no EXIF/XMP chunk; (4) for PDF, assert the %PDF- header, %%EOF trailer, and that the Info dictionary carries no Producer/Title/CreationDate leaking url/title/project when stripMetadata is on; (5) assert 2× produces exactly doubled dimensions read from IHDR, not from the UI label; (6) open the exported standalone HTML with the network blocked and assert every <img> has naturalWidth>0 and console is clean; (7) assert the downloads-denial path still yields a file via <a download>. Items (3),(4),(6) have no existing helper — only the PNG walk exists.",
+      "dependsOn": [
+        "scripts/verify-editor.mjs as the pattern",
+        "tests/helpers/png-chunks.ts",
+        "the export implementation itself"
+      ]
+    },
+    {
+      "deliverable": "Surfacing of three computed-but-unread signals that Phase 15 explicitly deferred to this phase: `BakeReport.warnings`, `SmoothResult.truncated`, `WrapResult.overflow`.",
+      "evidenceOfAbsence": "Docs/Phases/Phase_15.md:102-103 — «BakeReport.warnings لا تُعرَض … التحذير الوحيد المنتَج — منطقة حجب خارج نافذة التصدير — لا يراه أحد | المرحلة 19» and «SmoothResult.truncated وWrapResult.overflow … ولا مستهلك لهما | المرحلة 19».",
+      "sizeEstimate": "tiny",
+      "risk": "low",
+      "riskReason": "The values already exist on BakeReport; this is display wiring in the export/done screen. But it is a named completion item, easy to drop silently.",
+      "dependsOn": ["the export / done screen"]
+    },
+    {
+      "deliverable": "Visual comparison of `export / modal` and `export / done` against Figma frames `73:2` and `129:1249`.",
+      "evidenceOfAbsence": "`grep -rn '73:2|129:1249|export / modal|export / done' Rasd_Plan.md Docs/` returns only the two plan lines themselves (Rasd_Plan.md:1261 and :1299). The node ids appear nowhere else in the repo — the same pattern Phase_15.md:95 flagged for its own three frames («المعرّفات الثلاثة لا تظهر في المستودع خارج سطر الخطّة نفسه») before deferring the comparison to Phase 26.",
+      "sizeEstimate": "small",
+      "risk": "medium",
+      "riskReason": "Phase 15 hit this exact wall and deferred to Phase 26. If Phase 19 plans to actually do it, the frames must be fetched from Figma first; if not, it should be declared deferred up front rather than discovered at Gate B.",
+      "dependsOn": ["Figma MCP access", "the built screens"]
+    }
+  ],
+  "naturalSplitPoints": [
+    {
+      "title": "19أ — مسار الخروج: الحافظة · PNG · WebP · تدفّق `downloads`",
+      "contains": [
+        "Format+quality parameter threaded through bake.ts (the ONLY legal encode site) so `convertToBlob` takes 'image/png' | 'image/webp' instead of a literal — with the ADR-0015 gate and ENCODE_ALLOWED left untouched",
+        "A `src/modules/export/` module holding the pure pieces: filename generation, format/quality/scale option type, and the metadata policy object",
+        "The `downloads` optional-permission flow end to end: rationale card from OPTIONAL_PERMISSION_RATIONALE.downloads → requestPermission(['downloads']) from the click → chrome.downloads.download on grant → degrade to the existing `<a download>` on denial with an explicit notice → session-scoped denial memory",
+        "The `export / modal` and `export / done` screens (decide page vs modal here, once, for all later parts)",
+        "Surfacing BakeReport.warnings / SmoothResult.truncated / WrapResult.overflow in export / done (Phase_15.md:102-103)",
+        "Making `privacy.stripMetadataOnExport` a real, read setting — and stating honestly in the phase doc that for PNG/WebP it is currently a no-op because Chrome's encoder emits no metadata chunks (proven at verify-editor.mjs:1275)"
+      ],
+      "whyThisBoundary": "This is exactly the MVP slice the plan's own dependency table carves out: «الحافظة · PNG · WebP» + «حذف البيانات الوصفية» depend only on 15 and the blobs layer, and are the only ✅ rows inside the MVP gate. It is also the only part with a working skeleton already on disk — clipboard.ts is wired, copyBaked is measured, planExport handles 1×/2×, `<a download>` ships. And it settles two cross-cutting decisions (page-vs-modal, format parameter through the encode gate) that every later part inherits.",
+      "verifiableBy": "New `pnpm verify:export` driving a real export in Chrome: asserts PNG chunk walk has trailing===0 and no tEXt/iTXt/zTXt/eXIf (lift verify-editor.mjs:1250-1281); asserts WebP bytes start with RIFF....WEBP and carry no EXIF/XMP chunk; asserts 2× dimensions read from IHDR are exactly double the 1× IHDR; asserts denial of `downloads` still produces a file through `<a download>`. Plus `pnpm exec vitest run tests/unit/modules/export/` and `pnpm check`.",
+      "estimatedContextWeight": "moderate"
+    },
+    {
+      "title": "19ب — تصديرات المطوّر: CSS · JSON · Tailwind · Design Tokens كملفّات",
+      "contains": [
+        "Add the W3C DTCG Design Tokens format to both sources: src/modules/colour/export.ts (PaletteFormat gains 'tokens') and src/modules/style-export/ (a toTokens over InspectSnapshot)",
+        "Route all four formats to FILES through the 19أ download helper, replacing the clipboard-only path at src/content/index.ts:820/826",
+        "Resolve the open question Phase_14.md:196 hands to this phase: does the fourth «نص قابل للنسخ» format get added to PalettePanel too, or stay confined to the extraction panel?",
+        "Unit tests that actually parse the output: JSON.parse for JSON, a DTCG shape assertion for tokens, and the existing refusal invariant that Tailwind never invents a scale name for an off-scale value"
+      ],
+      "whyThisBoundary": "Its dependencies (13, 14, 11) are all complete and its two source modules are already written and tested — src/modules/colour/export.ts and src/modules/style-export/ need one new format each plus a file sink. It shares nothing with PDF, ZIP or guides beyond the download helper from 19أ, and it is a text-only path: no canvas, no encode gate, no new dependency, no storage migration. Splitting it out keeps the heavy binary work from blocking a part that is nearly free.",
+      "verifiableBy": "`pnpm exec vitest run tests/unit/modules/colour/export.test.ts tests/unit/modules/style-export/` — every format round-trips through a real parser (JSON.parse, a CSS custom-property regex, DTCG $value/$type presence), and the tokens output validates against the DTCG shape. Plus a verify:export case that downloads each of the four and checks the file's first bytes and extension.",
+      "estimatedContextWeight": "light"
+    },
+    {
+      "title": "19ج — PDF وتقرير المقارنة",
+      "contains": [
+        "Add pdf-lib to dependencies and build `src/modules/export/pdf.ts`: single and multi-page, correct page size and orientation, Arabic font embedding for the metadata",
+        "A PDF byte-inspector test helper — the analogue of tests/helpers/png-chunks.ts: %PDF- header, %%EOF, and Info-dictionary key enumeration, so the metadata claim is proven on bytes not on intent",
+        "Make stripMetadataOnExport actually strip: suppress pdf-lib's default Producer/Creator/CreationDate/ModDate, and strip url/title/project from generated filenames",
+        "The compare report as a real document: diff image + percentage + region list + both captures' metadata, wiring the disabled button at src/pages/compare/parts/Header.tsx:47",
+        "Widening the LiveDiff contract (src/shared/messaging/contract.ts:68) so region BOXES cross the wire, not just the count — the gap Phase_17.md:86-90 declares"
+      ],
+      "whyThisBoundary": "PDF is where this phase's security claim becomes real. Everything before it has nothing to strip; pdf-lib is the first writer that stamps product metadata into a file by default, so the byte-inspector and the strip toggle must land together with it. The compare report rides along because it is the phase's first multi-element DOCUMENT and PDF is its natural container — and because its blocker (region boxes never crossing the wire) is a contract change, better done once next to the document work than twice. This part is entirely outside the MVP gate (§4: «PDF · الأدلة · تصديرات المطوّر» all deferred to v1.0), so it can be sequenced after the gate without holding anything up.",
+      "verifiableBy": "`pnpm exec vitest run tests/unit/modules/export/pdf.test.ts` asserting on real bytes: %PDF- magic, %%EOF terminator, page count and MediaBox dimensions, and — with stripMetadata on — that the Info dictionary contains no Producer, no CreationDate, and no occurrence of the source url/title/project name anywhere in the byte stream. Plus a verify:export case opening the exported compare report and reading its region count against the live diff.",
+      "estimatedContextWeight": "heavy"
+    },
+    {
+      "title": "19د — دليل الخطوات بصيغه الأربع + قوالب التصدير",
+      "contains": [
+        "Extend GuideRecord with per-step captions and explicit order; DB_VERSION 2→3 migration in src/shared/storage/migrations.ts",
+        "A guide authoring surface and a real creation path (today `guides.put` is only ever called to reassign projectId; the library's guide card opens `noopOpen`)",
+        "Numbered PDF in correct RTL order — human Eastern-Arabic ordinals per §3.5, reusing the ordinal logic of src/modules/editor/pins.ts",
+        "Sequential images in a ZIP — needs a store-only ZIP writer (no dependency exists; scripts/zip.mjs shells out to the `zip` CLI and is Node-only)",
+        "Markdown with base64-embedded or sidecar images",
+        "The self-contained shareable HTML page: single file, zero external dependencies, correct RTL, opens with no network",
+        "Saved export templates (قوالب التصدير)",
+        "Lighthouse ≥95 on Performance / Accessibility / Best Practices for the exported page — the only Lighthouse task in the whole phase (Rasd_Plan.md:193)"
+      ],
+      "whyThisBoundary": "The step guide is the one part that needs a STORAGE MIGRATION and a new authoring UI, not just an encoder — GuideRecord today has no place to put a step's text. It is also the only part carrying a Lighthouse gate, and that gate is in real tension with the single-file base64 requirement, so it deserves its own measurement pass rather than being appended to another part's Gate B. Export templates land here because templates can only be designed once every option they must capture exists — and by this point they all do.",
+      "verifiableBy": "A verify:export case that opens the exported standalone HTML with the network blocked (CDP Network.emulateNetworkConditions offline) and asserts every <img> reports naturalWidth>0 and the console is clean; a Lighthouse run on that same file asserting ≥95 in all three categories; `pnpm exec vitest run tests/unit/modules/export/guide.test.ts` asserting RTL ordinal order and that the ZIP's central directory lists exactly N entries in step order; plus a migration test proving a DB_VERSION 2 database with existing guides upgrades without data loss.",
+      "estimatedContextWeight": "heavy"
+    }
+  ],
+  "planClaimsRefutedByCode": [
+    {
+      "claim": "«الشاشات `export / modal` و`export / done` منفَّذة» is listed under التنفيذ as a deliverable, and «بصري: export / modal و export / done تُقارَنان بإطاري Figma 73:2 و129:1249» under الاختبارات.",
+      "claimLocation": "Rasd_Plan.md:1261 and Rasd_Plan.md:1299",
+      "reality": "The two Figma node ids exist nowhere in the repository other than those two plan lines. There is no frame export, no screenshot, no inventory entry, no design token reference tying them to anything. This is the identical situation Phase 15 hit and resolved by deferring its own three frames (70:2, 99:415, 128:133) to Phase 26.",
+      "evidence": "`grep -rn '73:2|129:1249|export / modal|export / done' Rasd_Plan.md Docs/` returns exactly two lines, both from Rasd_Plan.md itself. Compare Docs/Phases/Phase_15.md:95: «المقارنة البصرية بإطارات Figma 70:2 · 99:415 · 128:133 | لم تجرِ. المعرّفات الثلاثة لا تظهر في المستودع خارج سطر الخطّة نفسه … | المرحلة 26»."
+    },
+    {
+      "claim": "The phase is described as needing metadata stripping «من الملف نفسه لا من العرض فقط، ويُتحقَّق بفحص بايتات الملف» — framed as the phase's security claim, and §2 justifies assigning Sonnet 5 to the phase precisely because «الادّعاء محكوم باختبار بوّابة يفحص بايتات الملف».",
+      "claimLocation": "Rasd_Plan.md:1248 (التنفيذ) and Rasd_Plan.md:216 (model assignment rationale)",
+      "reality": "For the formats inside the MVP gate (PNG, and WebP once added) there is currently nothing to strip, and this is already PROVEN on live bytes. bake.ts writes no url, title, date, browser info or project name into the file; Chrome's convertToBlob emits no tEXt/iTXt/zTXt/eXIf; and a live guard already asserts exactly that. The metadata risk does not exist until pdf-lib (which stamps Producer/CreationDate by default), the standalone HTML guide (which embeds url/title by design), and download filenames exist — all of which are v1.0, outside the MVP gate. Shipping the toggle against PNG alone would be a no-op that reads as an implemented security feature.",
+      "evidence": "src/modules/editor/bake.ts:374 is the whole encode: `const blob = await target.encodeTarget.convertToBlob({ type: 'image/png' })` — no metadata written anywhere in the file. scripts/verify-editor.mjs:1275-1280 already runs the byte check against a real exported file in Chrome and passes: «ولا مقاطع بيانات وصفية — المقاطع: …». tests/unit/modules/editor/png-chunks.test.ts:53 asserts `metadataChunks(parsePng(CLEAN))` is `[]`."
+    },
+    {
+      "claim": "«حذف البيانات الوصفية» is listed in the dependency table as depending on 15 and being ✅ inside the MVP gate, i.e. a shippable MVP feature.",
+      "claimLocation": "Rasd_Plan.md dependency table in المرحلة 19 (row «حذف البيانات الوصفية | 15 | ✅»)",
+      "reality": "Its own settings key already exists and is completely dead. `privacy.stripMetadataOnExport` was declared in Phase 3's settings schema and has never had a reader, a writer, a UI, or a test in the entire repo — one occurrence, its own declaration line.",
+      "evidence": "`grep -rn stripMetadataOnExport src/ tests/ scripts/ Docs/ Rasd_Plan.md` → exactly one hit: `src/shared/settings/schema.ts:93: stripMetadataOnExport: v.optional(v.boolean(), false),`"
+    },
+    {
+      "claim": "«تصديرات المطوّر: CSS · JSON · Tailwind · Design Tokens (W3C) — من لوحة الألوان ومن بيانات الفحص» is written as one undifferentiated bullet, and the dependency table gives it a single row depending on «13 و14».",
+      "claimLocation": "Rasd_Plan.md:1250 and the dependency table row «تصديرات المطوّر (CSS/JSON/Tailwind/Design Tokens) | 13 و14 | ❌ v1.0»",
+      "reality": "Three of the four formats are already built, tested and shipping — from TWO separate modules with two different input types, not one. src/modules/style-export/ covers CSS/JSON/Tailwind over an InspectSnapshot (Phase 11, not 13/14), and src/modules/colour/export.ts covers CSS/JSON/Tailwind/text over PaletteSwatch[] (Phase 13/14). Only Design Tokens (W3C) is genuinely absent from both. The remaining gap is not «build developer exports» but «add one format to two modules, and give all of them a file sink instead of the clipboard».",
+      "evidence": "`grep -n '^export ' src/modules/style-export/*.ts` → toCss, toJson, toTailwindText, mapSpacing, mapProperty, toTailwind, TAILWIND_TARGET. src/modules/colour/export.ts:28 `export type PaletteFormat = 'css' | 'json' | 'tailwind' | 'text'`, :229 exportPalette, :287 exportScale. Both are wired and live (src/content/index.ts:18, :820, :826) and both have unit tests. `grep -rn '\\$value|\\$type|design-token|w3c' src/` → zero hits for DTCG."
+    },
+    {
+      "claim": "The phase's المهام/التنفيذ section lists the step guide as one bullet with four formats, at the same altitude as «الحافظة» or «PDF»; the الوحدات line implies it is one file, `src/modules/export/guide.ts`.",
+      "claimLocation": "Rasd_Plan.md:1252-1257 and the الوحدات line at Rasd_Plan.md:1263",
+      "reality": "The guide is the only part of Phase 19 that requires a STORAGE MIGRATION, and the plan does not mention it. `GuideRecord` is `{id, title, projectId, captureIds, createdAt}` — there is no field for a step's caption or note, which the numbered-guide feature requires by definition. Adding one means DB_VERSION 2→3. Additionally, Phase 18 shipped the entire read-side (library tab, search, card, bulk delete, move-to-project) with NO creation path at all, so the guide entity is currently unreachable: the library's open handler for guides is `noopOpen`.",
+      "evidence": "src/shared/storage/schema.ts:113-119 (GuideRecord fields) and :169 (store). src/shared/storage/migrations.ts:53-54 creates the store at DB_VERSION 2; src/shared/storage/schema.ts:16 `export const DB_VERSION = 2`. `grep -rn 'guides.put|guides.add|createGuide' src/` → only src/pages/library/projects.ts:142 and :208, both projectId reassignments. src/pages/library/Library.tsx:690 `onOpen={noopOpen}` with the comment at :356-360 «اللوحة والمرجع والدليل بلا وجهة مبنيّة بعد»."
+    },
+    {
+      "claim": "The dependency table asserts «الاعتماد على 17 يخصّ تقرير المقارنة فقط — ولا يحجب أجزاء MVP», implying Phase 17 being complete is sufficient for the compare report.",
+      "claimLocation": "Rasd_Plan.md, المرحلة 19 dependency table and the sentence following it",
+      "reality": "Phase 17 being ✅ COMPLETE is necessary but not sufficient. Phase 17's own closing doc declares that the region LIST — one of the four things the plan says the report must contain («صورة الفرق + النسبة + قائمة المناطق + بيانات اللقطتين») — is computed in the background and then discarded before crossing the message wire. So Phase 19 cannot assemble the report from what Phase 17 exposes; it must widen the LiveDiff contract first.",
+      "evidence": "Docs/Phases/Phase_17.md:86-90: «مستطيل التظليل فوق مصغَّرة المعرض. LiveDiff يحمل عدد المناطق لا صناديقها — تُحسب في الخلفية ثمّ تُختزَل قبل عبور السلك. رسمُه يحتاج توسيع العقد؛ لم يُبنَ ولم يُدَّعَ.» The contract type is at src/shared/messaging/contract.ts:68 `export interface LiveDiff`."
+    },
+    {
+      "claim": "«التنزيل (§9.2): PNG WebP PDF، بخيارات الجودة والدقة (1× / 2×)» — written as plumbing, and §2 assigns Sonnet 5 on the grounds that the phase is «سباكة صيغ محدَّدة».",
+      "claimLocation": "Rasd_Plan.md:1246 and Rasd_Plan.md:1243",
+      "reality": "Adding a second image format is not free plumbing: it collides with an architecturally enforced invariant. ADR 0015's single-encode-exit is enforced by three ESLint AST selectors that ban `toBlob`/`convertToBlob`/`toDataURL` by dotted call, by computed member access, AND by bare string literal, with a four-file allowlist that is itself asserted by a unit test running ESLint on fixtures. Any WebP or PDF raster encode either lives inside bake.ts or requires amending ENCODE_ALLOWED — which the eslint config's own header calls a decision that «يحتاج ADR، لا تعديل سطر» in spirit (the same language the forbidden-permissions list uses).",
+      "evidence": "eslint.config.js:231, :236, :241 (the three selectors), `ENCODE_ALLOWED = ['src/modules/editor/bake.ts','src/background/image-ops.ts','src/background/stitch.ts','src/pages/library/thumbnail-encoder.ts']`, and tests/unit/architecture-boundaries.test.ts which imports ENCODE_ALLOWED and encodeSelectors and runs ESLint to prove violations are raised at severity 2."
+    }
+  ],
+  "openQuestions": [
+    "Page or modal? The التنفيذ line says «الشاشات export / modal و export / done منفَّذة» (a modal) while the الوحدات line says `src/pages/export/` (a page). These cost different things: a page means four coordinated edits (src/shared/page-paths.ts PAGE_PATHS, vite.config.ts rollupOptions.input, the manifest/verify-dist comparison, and the `page/open` PageName union), a modal means building it inside editor + library + compare or hoisting a shared overlay component. This should be decided in 19أ, once, before any later part inherits it.",
+    "Does WebP encoding go inside bake.ts (parameterising the hardcoded 'image/png' at src/modules/editor/bake.ts:374) or into a new file added to ENCODE_ALLOWED? The first keeps the four-file allowlist intact and is the cheaper read of ADR 0015; the second is cleaner separation but amends an invariant that a unit test asserts. Needs an explicit call, arguably an ADR amendment.",
+    "Where does the «الرفض يُحترَم ولا يُعاد سؤاله في الجلسة نفسها» memory for a denied `downloads` request live? The service worker is not a durable session and can be terminated at any time; chrome.storage.session, an in-memory map in the page, and a settings field all behave differently across a worker restart. No session-scoped denial memory exists anywhere in the repo today.",
+    "Can the standalone HTML guide hit Lighthouse ≥95 on Performance while being a single file with base64-embedded images and no external dependencies? These pull against each other directly — base64 rasters inflate the document and delay LCP. If it cannot, the plan's own Lighthouse target (Rasd_Plan.md:176, :193 — the only Lighthouse task in the phase) needs renegotiating before 19د starts, not at its Gate B.",
+    "Are the Figma frames 73:2 and 129:1249 actually reachable? They appear nowhere in the repo. Either fetch them at the start of 19أ, or declare the visual comparison deferred to Phase 26 up front — the precedent Phase 15 set (Docs/Phases/Phase_15.md:95).",
+    "Phase_14.md:196 explicitly hands this phase an open decision and asks that it not be answered silently: when the new export screen is built, does the fourth «نص قابل للنسخ» format get added to PalettePanel as well, or does it stay confined to the in-page extraction panel?",
+    "ZIP: hand-roll a store-only (uncompressed) ZIP writer inside src/modules/export/, or add fflate/jszip as a second new dependency alongside pdf-lib? A store-only writer is perhaps 120 lines with a CRC32 that ALREADY EXISTS in the repo (tests/helpers/png-chunks.ts exports `crc32`) — but it currently lives under tests/ and would need promoting to src/shared/ to be reusable by production code.",
+    "Arabic in PDF: pdf-lib does not shape or bidi-order Arabic text. Does «مع دعم العربية في البيانات الوصفية» mean only the PDF Info dictionary strings (which are UTF-16BE and need no shaping — cheap), or also rendered Arabic captions on the numbered guide pages (which needs an embedded font plus a shaping pass — expensive)? The plan's wording says البيانات الوصفية, which suggests the cheap reading, but the numbered step guide with notes implies the expensive one."
+  ]
+}

@@ -1,0 +1,362 @@
+{
+  "area": "26-27-28-release",
+  "whatExistsAlready": [
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/tokens-sync.mjs",
+      "what": "Token pipeline. Reads src/tokens/figma-snapshot.json and emits exactly 5 files (DEST map, lines 25-31): src/tokens/tokens.json, src/tokens/tokens.ts, src/tokens/tailwind.tokens.js, public/assets/tokens.css, public/assets/tokens-shadow.css. `tokens:check` = `--check`: it regenerates all 5 in memory and string-compares to the committed files (lines 441-452). It does NOT talk to Figma — it compares generated-from-snapshot vs committed-on-disk. Ran it just now: '✓ التوكنز متطابقة مع اللقطة — لا انحراف.'",
+      "evidence": "20557 bytes; `node scripts/tokens-sync.mjs --check` exits 0. Snapshot read via node: source={fileKey:'Gr0dOsmjcVBcaX9M1slf5m', capturedAt:'2026-08-28'}; primitives 181, semantic 101 (modes Dark/Light), type 16 (modes Arabic/Latin), textStyles 62, effectStyles 11.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/tokens/figma-snapshot.json",
+      "what": "THE Figma snapshot file, 35866 bytes, committed to the repo. It is the sole input to the whole token pipeline. Captured 2026-08-28 from Figma file key Gr0dOsmjcVBcaX9M1slf5m.",
+      "evidence": "ls -la src/tokens/ → figma-snapshot.json 35866 Aug 28 18:07. Referenced by scripts/tokens-sync.mjs:21, tests/unit/tokens.test.ts:12, Docs/ADR/0007-token-pipeline.md:18.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/tokens/",
+      "what": "Generated output dir: tokens.json (41458 B), tokens.ts (17516 B), tailwind.tokens.js (8587 B), README.md, plus the snapshot itself. README.md says 'مخرَج pnpm tokens:sync من متغيّرات Figma. لا يُحرَّر يدويًا أبدًا'. tokens.css / tokens-shadow.css go to public/assets/ not here.",
+      "evidence": "ls -la src/tokens/; timestamps Sep 12 02:56 on the 3 generated files (regenerated), Aug 28 on the snapshot.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/verify-tokens.mjs",
+      "what": "Token-contract gate, separate from tokens:check. Walks src/ ONLY (skips src/tokens/) and flags 4 things: literal colour, literal px in CSS, physical CSS properties (left/right/margin-left...), and `var(--rasd-*)` references to undefined symbols (DEFINED_TOKENS built from public/assets/tokens.css plus inline JS-set vars). Has a line-level escape (`rasd-allow-literal`) and a printed file-level exemption (`rasd-allow-literal-file`).",
+      "evidence": "9927 bytes. `const files = await walk(join(root, 'src'))` — the scan root is src/, never dist/.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/.github/workflows/ci.yml",
+      "what": "Both token gates are in CI: 'Tokens are in sync with Figma snapshot' → pnpm tokens:check, and 'Token contract gate' → pnpm verify:tokens. Both are also in `pnpm check` (package.json:57). 'Bundle gate' → pnpm verify:dist runs after Build. A 17-guard live-Chrome matrix exists with every entry blocking:false.",
+      "evidence": "ci.yml lines ~31-37 (token steps), ~57-59 (Bundle gate), matrix includes `- { guard: popup, blocking: false }`.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/tests/visual-baselines/",
+      "what": "16 files across 5 phase dirs: phase-05 (4 PNG + 1 a11y .md), phase-07 (2 PNG + 1 a11y .md), phase-08 (1 PNG), phase-15 (3 PNG + editor-a11y-tree.md + README.md), phase-18 (1 a11y .md), plus a stray .DS_Store. 10 PNGs, 5 markdown. Written by scripts/verify-editor.mjs:1569 (phase-15) and scripts/verify-library.mjs:494 (phase-18). NOTHING compares them — CI only uploads them as an artifact, with the comment 'خطّ أساس شجرة الإتاحة — يُقرأ بالعين لا يُقارَن آليًّا'.",
+      "evidence": "find tests/visual-baselines -type f | wc -l → 16. grep -rn visual-baselines: only writers are verify-editor.mjs:1569 and verify-library.mjs:494; only reader is ci.yml:211 (upload-artifact path).",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/verify-dist.mjs",
+      "what": "Bundle gate, 14037 bytes, runs at the end of `pnpm build` and in CI. Enforces today: manifest is valid JSON; manifest_version===3; name/version/icons/action/background present; manifest.version === package.json version; background.type==='module'; every manifest-referenced file exists; each icon is a real PNG whose IHDR w/h match the declared size; default_locale set and its messages.json parses; every other locale has identical keys; name resolves to Arabic after __MSG__ expansion; permissions === REQUIRED_PERMISSIONS exactly (extra AND missing both fail); optional_permissions === OPTIONAL_PERMISSIONS; zero FORBIDDEN_PERMISSIONS; zero permanent host_permissions; optional_host_permissions non-empty; no content_scripts; CSP has no unsafe-eval/unsafe-inline/external origin; incognito==='split'; every web_accessible_resources entry has use_dynamic_url:true; ≤4 suggested command keys; every PAGE_PATHS page present in dist; no .ts/.tsx leaked; BUNDLE_BANS (content.js must not contain the string `indexedDB`). It PRINTS the total bundle size but enforces no ceiling.",
+      "evidence": "Read in full. `ok(\\`حجم الحزمة: ${(totalBytes / 1024).toFixed(1)} KB عبر ${files.length} ملفًا\\`)` — an ok(), never a fail().",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/zip.mjs",
+      "what": "24 lines, 892 bytes. Checks dist/ exists, reads version from package.json, mkdir dist-zip, `zip -r -q -X <out> .` from cwd=dist. That is the entire script.",
+      "evidence": "cat scripts/zip.mjs — full file read. `dist-zip` does not exist on disk (`ls -d dist-zip` → No such file or directory), so `pnpm zip` has never been run in this tree.",
+      "completeness": "stub"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/brand-icons.mjs",
+      "what": "Icon pipeline, 7623 bytes. Renders icon-{16,32,48,128}.png through headless Chrome from src/ui/mark-geometry.ts (MARK_CUTS, MARK_STROKE) with colours resolved from src/tokens/tokens.ts (surface/brand tile, text/inverse mark). `--check` does a byte comparison without writing. All four PNGs exist in public/icons/ (icon-16 542 B, icon-32 1090 B, icon-48 1638 B, icon-128 4376 B).",
+      "evidence": "cat scripts/brand-icons.mjs; ls -la public/icons/ shows all 4 sizes.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/public/",
+      "what": "What ships verbatim into dist: _locales/ar/messages.json (7 keys) and _locales/en/messages.json; assets/base.css (4655 B), assets/fonts.css (10207 B), assets/fonts/ (11 .woff2, ~204 KB: almarai 400/700/800 arabic+latin, cairo 400 arabic/latin/latin-ext, geistmono 400 latin/latin-ext), assets/tokens.css (36488 B), assets/tokens-shadow.css (36559 B), icons/icon-{16,32,48,128}.png. AND public/.DS_Store (8196 B), which reaches dist/.DS_Store (8196 B, present right now).",
+      "evidence": "ls -laR public/; ls -la dist/.DS_Store → 8196 bytes, Sep 12 02:51.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/vite.config.ts",
+      "what": "Production build policy partly decided already: `sourcemap: mode !== 'production'`, `minify: mode === 'production'`, and rollupOptions.input excludes gallery/popup-preview/capture-preview when mode==='production'. `vite build` defaults to production mode, so `pnpm build` already produces a minified, map-free, gallery-free bundle. Verified: dist/ has 57 files / 1.1 MB, zero .map files, zero gallery or preview paths, dist/content.js is 11 lines (minified).",
+      "evidence": "vite.config.ts lines ~40-68; `find dist -name '*.map' | wc -l` → 0; `find dist -ipath '*gallery*' -o -ipath '*preview*'` → empty; `wc -l dist/content.js` → 11.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/shared/permission-policy.ts",
+      "what": "Source of the store permission justifications phase 27 must copy. REQUIRED_PERMISSION_RATIONALE covers all 7 required permissions in Arabic; OPTIONAL_PERMISSION_RATIONALE covers tabs/downloads/desktopCapture; HOST_PERMISSION_RATIONALE is one string. Comment on REQUIRED_PERMISSION_RATIONALE says verbatim: 'سبب كل صلاحية دائمة — يُنسخ حرفيًا إلى تبرير المتجر (المرحلة 27)'.",
+      "evidence": "cat src/shared/permission-policy.ts lines 55-80.",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/Docs/ADR/0016-mark-geometry-single-source.md",
+      "what": "The decision keeping `icons:brand --check` OUT of CI, recorded in the rejected-alternatives table. It also states store assets consume the same tile and are never hand-edited.",
+      "evidence": "Line 110: '| إدراج `icons:brand --check` في CI | فشل كاذب عند ترقية المتصفّح — البند 4، والسابقة مسجَّلة في `phase-15/README.md` |'. And line ~136: 'تُقيَّد المراحل اللاحقة: أصول المتجر (المرحلة 26) تستهلك المربّع نفسه ولا تعيد رسمه'.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/Rasd_Plan.md",
+      "what": "§6 rows 75 and 76 plus the §6 closing paragraph (line 2075) record that a large part of 26أ was already executed out-of-band during the logo-adoption maintenance round: pages 15–27 visually reviewed, capture/full-page Mock Page overflow fixed, capture/area-select marquee re-framed to 656×369 at x=720 y=123, capture/error duplicate title found already closed. The user's memory file rasd-visual-review-queue.md corroborates with node-level detail (86 old instances replaced across 13 pages, 4 old component sets deleted, page 21 translated, page 27 duplicate headlines removed, pages 18/22 Arabic left-align fixed, page 30 store icons rebuilt at 128/48/32/16).",
+      "evidence": "Rasd_Plan.md:2075 'البنود الموروثة من مراجعة Figma البصرية أُغلقت كلّها'; Rasd_Plan.md:2050 (row 75) and :2051 (row 76).",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/manifest.config.ts",
+      "what": "Version comes from package.json (`version: pkg.version`), so a single bump in package.json propagates to the manifest and verify-dist enforces they match. minimum_chrome_version '116'. Icons map declares all four sizes.",
+      "evidence": "manifest.config.ts: `import pkg from './package.json'`, `version: pkg.version`; verify-dist.mjs compares manifest.version to pkg.version.",
+      "completeness": "full"
+    }
+  ],
+  "whatIsMissing": [
+    {
+      "deliverable": "CHANGELOG.md (product). Phase 27 requires '`CHANGELOG.md` و`version` في الـmanifest متطابقان' and names CHANGELOG.md in its الوحدات; phase 28 requires a final CHANGELOG.",
+      "evidenceOfAbsence": "`find . -maxdepth 2 -iname 'CHANGELOG*' -not -path './node_modules/*'` returns nothing. The only changelog in the repo is Docs/Constitution_CHANGELOG.md, which is the constitution's, not the product's.",
+      "sizeEstimate": "small",
+      "risk": "low",
+      "riskReason": "Pure authoring; no code depends on it. Only risk is that it must be reconstructed from 18 closed phase docs and ~97 §6 rows, which is a reading cost, not a technical one.",
+      "dependsOn": ["version bump decision"]
+    },
+    {
+      "deliverable": "store/ directory with exported Chrome Web Store assets: promo tile 440×280, marquee 1400×560, five screenshots 1280×800, plus the 16/32/48/128 icons at store resolution. Figma page `30 — Store Assets` holds them (Rasd_Plan.md:51).",
+      "evidenceOfAbsence": "`ls -d store` → No such file or directory. No file anywhere in the repo matches 440×280 / 1400×560 / 1280×800 (grep over the tree returned only Rasd_Plan.md:51 and :1801).",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "Requires Figma MCP export at exact pixel dimensions and, per the user's memory file, the page-30 screenshots are currently ENGLISH — item 2 of the 'Still open' list, explicitly 'plausible for a Chrome Web Store listing, but unconfirmed'. A wrong language choice here is a store-listing rewrite, not a re-export.",
+      "dependsOn": [
+        "26أ user ruling on store-screenshot language",
+        "26ب (screenshots should show the shipped UI, not the Figma mock)"
+      ]
+    },
+    {
+      "deliverable": "Bilingual store listing copy (name, short description, full description, category Developer Tools, supported languages) as repo files. §36 short description and §37 core promise exist only as prose in Docs/Rasd_Ar.md:930-936.",
+      "evidenceOfAbsence": "No store/ dir; grep for 'شاهد المشكلة' hits only Docs/Rasd_Ar.md:936. public/_locales/ar/messages.json carries extName/extShortName/extDescription but no long-form listing copy.",
+      "sizeEstimate": "small",
+      "risk": "low",
+      "riskReason": "Source text exists (§36, §37); the work is transcription plus an English translation and a category/keyword decision.",
+      "dependsOn": ["CHANGELOG.md", "privacy policy"]
+    },
+    {
+      "deliverable": "docs/privacy-policy.{ar,en}.md and docs/permissions-justification.md, plus a public stable URL hosting the privacy policy.",
+      "evidenceOfAbsence": "`find . -maxdepth 2 -iname '*privacy*' -not -path './node_modules/*'` returns nothing. There is no lowercase docs/ directory — only Docs/ (ADR, Constitution.md, Constitution_CHANGELOG.md, EntryPoints.md, Phases, Rasd_Ar.md). Rasd_Plan.md:1705 assigns these files to phase 25, which has not started.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "Phase 27 cannot submit without it, and the text must match actual behaviour clause by clause — including §6 row 78's finding that compare references were being written to the visited site's IndexedDB. Also needs a hosting decision (the repo has no site).",
+      "dependsOn": ["Phase 25", "§6 row 78 resolution"]
+    },
+    {
+      "deliverable": "scripts/build-release.ts (named in phase 27's الوحدات) and a reproducible-build guarantee: 'نفس المصدر يعطي نفس الحزمة بايتًا ببايت'.",
+      "evidenceOfAbsence": "scripts/ contains 32 files; no build-release.*. zip.mjs uses `zip -r -q -X`; `-X` strips extra attributes but the ZIP local headers still store each entry's mtime, and entry order comes from directory traversal — neither is pinned, so two builds minutes apart cannot be byte-identical.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "Needs deterministic entry ordering plus a fixed timestamp (e.g. SOURCE_DATE_EPOCH or a Node zip writer instead of the `zip` binary), AND determinism of the Vite/Rollup output itself, which has never been measured here. The claim is easy to state and easy to fail.",
+      "dependsOn": ["zip.mjs hardening"]
+    },
+    {
+      "deliverable": "zip.mjs actually running the bundle gate. Phase 27: '`pnpm zip` ينتج الحزمة النهائية ويتحقّق من: عدم وجود ملفات مصدر، حجم أقل من الحدّ، وصحّة الـmanifest.'",
+      "evidenceOfAbsence": "zip.mjs's own docstring says 'يحزم dist/ في ملف مضغوط جاهز للرفع، بعد تمرير فحص الحزمة' but the file never imports or spawns verify-dist.mjs — its only execFileSync call is the `zip` binary. Read in full (24 lines).",
+      "sizeEstimate": "tiny",
+      "risk": "low",
+      "riskReason": "One execFileSync line. Called out separately because the docstring already claims the behaviour, so a reader would not know it is missing.",
+      "dependsOn": []
+    },
+    {
+      "deliverable": "Bundle invariants phase 27 demands that verify-dist does not yet enforce: a size ceiling, absence of .map files, absence of stray OS files (.DS_Store), and absence of the gallery/dev pages.",
+      "evidenceOfAbsence": "verify-dist.mjs prints size via ok() with no threshold; its only cleanliness rule is `files.filter(f => /\\.(ts|tsx)$/.test(f))`. There is no /\\.map$/ check and no dotfile check. Measured right now: dist/.DS_Store exists at 8196 bytes (copied from public/.DS_Store, same size) and `zip -r out .` includes dotfiles, so it would ship.",
+      "sizeEstimate": "small",
+      "risk": "medium",
+      "riskReason": "The .DS_Store leak is live today and would reach a store submission. The gallery/map bans currently hold only because vite.config.ts's mode check happens to be right — nothing asserts it, so a future `vite build --mode development` in a release script would ship the gallery silently.",
+      "dependsOn": []
+    },
+    {
+      "deliverable": "26ب's 'تدقيق آلي للتوكنز: مسح CSS المبني ... إعادة تشغيل بوّابة المرحلة 4 على المخرَج النهائي' — running the token gate against dist/, not src/.",
+      "evidenceOfAbsence": "scripts/verify-tokens.mjs: `const files = await walk(join(root, 'src'))`, and SKIP_DIRS includes 'dist'. It structurally cannot scan the built output.",
+      "sizeEstimate": "small",
+      "risk": "medium",
+      "riskReason": "Scanning minified/bundled CSS needs a different literal-detection strategy than scanning source (post-processing may inline var() fallbacks, and Vite rewrites asset URLs). The existing regexes will not transfer unchanged.",
+      "dependsOn": ["26ب baselines"]
+    },
+    {
+      "deliverable": "Visual baselines for phases 6, 9, 10, 11 — 26ب's mandatory first step.",
+      "evidenceOfAbsence": "tests/visual-baselines/ has phase-05, phase-07, phase-08, phase-15, phase-18 only. Deferred explicitly in Docs/Phases/Phase_09.md:154, Phase_10.md:269, Phase_11.md:219, Phase_12.md:92, Phase_18.md:91 — each naming 26ب as the destination.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "Capturing them is cheap; deciding what 'baseline' means is not. tests/visual-baselines/phase-15/README.md records a standing DECISION that pixel comparison is rejected, and CI repeats it ('تُرفَع ولا تُقارَن آليًّا... خطُّ أساسٍ بكسليّ على متصفّح يتغيّر شهريًّا يُنتج فشلًا كاذبًا'). So 26ب's 'تحديث خطوط الأساس البصرية بعد كل تصحيح' has no comparator and, as specified, produces artifacts nobody checks.",
+      "dependsOn": ["26أ row-10 token decision"]
+    },
+    {
+      "deliverable": "Resolution of §6 row 10: `--rasd-text-tertiary` on light backgrounds fails WCAG AA. Must be decided in the Figma source, not patched in tokens.css (ADR 0007).",
+      "evidenceOfAbsence": "Still live: public/assets/tokens.css:12 `--rasd-color-ink-600: #687c87;` and both light-mode blocks bind it — line 312 (@media prefers-color-scheme: light → :root:not([data-theme='dark'])) and line 418 (:root[data-theme='light']). Rasd_Plan.md:1985 records the measured 4.04–4.35:1 against the 4.5:1 AA floor.",
+      "sizeEstimate": "small",
+      "risk": "high",
+      "riskReason": "This is the ONE 26أ item that changes shipped pixels. Fixing it in Figma → re-capture snapshot → `pnpm tokens:sync` → tokens.css/tokens-shadow.css change → every light-mode screen shifts. Any 26ب baseline captured before this lands is invalidated. It therefore breaks the plan's own claim that 26أ is freely parallel.",
+      "dependsOn": ["Figma MCP write access", "snapshot re-capture"]
+    },
+    {
+      "deliverable": "A way to re-capture src/tokens/figma-snapshot.json after 26أ edits the Figma variables.",
+      "evidenceOfAbsence": "grep for 'figma-snapshot' across the repo: the only writer-side reference is Docs/ADR/0007-token-pipeline.md:18 ('الالتقاط — عبر Figma MCP (أو ملحق) يُنتج src/tokens/figma-snapshot.json'). No script in scripts/ produces it; tokens-sync.mjs only reads it (line 428) and exits 1 if absent (line 424).",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "The capture is a manual MCP session whose output shape must match exactly what tokens-sync expects ($comment/source/collections{primitives,semantic,type}/textStyles/effectStyles, 298 vars + 62 + 11). A hand-shaped re-capture that drifts in shape breaks the build with no schema to check against; tests/unit/tokens.test.ts reads the snapshot but does not validate its full shape.",
+      "dependsOn": ["26أ Figma edits"]
+    },
+    {
+      "deliverable": "Staged rollout configuration and an unlisted test channel (phase 27), and the phase-28 acceptance matrix infrastructure (macOS/Windows/Linux × stable/beta × dpr 1|2 × dark/light × rtl/ltr = 48 cells), upgrade test, clean-install test, uninstall test.",
+      "evidenceOfAbsence": "tests/e2e/ contains only .gitkeep. Playwright is not a direct dependency (package.json has no playwright entry; pnpm-lock.yaml:1277 shows it only transitively under @vitest/browser-playwright). No CI job, script, or doc mentions rollout percentages or an unlisted channel.",
+      "sizeEstimate": "large",
+      "risk": "high",
+      "riskReason": "This is mostly manual work on hardware the repo cannot provision, plus a Chrome Web Store developer account and a submitted item — external dependencies with review latency measured in days. It cannot be compressed by better tooling.",
+      "dependsOn": [
+        "Phase 23",
+        "Phase 27",
+        "Chrome Web Store developer account"
+      ]
+    },
+    {
+      "deliverable": "Version ladder execution. package.json is 0.1.0 today; phase 28 targets 1.0.0 via 1.0.0-rc.1.",
+      "evidenceOfAbsence": "package.json:3 `\"version\": \"0.1.0\"`. dist/manifest.json version reads 0.1.0. No tags: git log shows only commit 9d64625 on main with no v* tag referenced anywhere.",
+      "sizeEstimate": "tiny",
+      "risk": "medium",
+      "riskReason": "Mechanically one line (manifest derives from package.json and verify-dist enforces equality), but Chrome MV3 rejects prerelease suffixes: `version` must be 1–4 dot-separated integers, so '1.0.0-rc.1' cannot go in the manifest. Phase 28 will need a separate version_name or an integer-only RC scheme. The plan does not say which.",
+      "dependsOn": ["CHANGELOG.md"]
+    },
+    {
+      "deliverable": "Two carry-ins phase 27 inherits and cannot ship around: (a) HOST_PERMISSION_RATIONALE still promises 'قراءة أوراق الأنماط الخارجية' — Rasd_Plan.md:1666 says this exact string is copied verbatim to the store justification in 27 and must be rewritten in 25 on the surviving justification alone; (b) the `offscreen` permission still ships with no consumer.",
+      "evidenceOfAbsence": "(a) src/shared/permission-policy.ts, last line: `export const HOST_PERMISSION_RATIONALE = 'لإبقاء المرجع فوق الصفحة بعد إعادة التحميل، ولقراءة أوراق الأنماط الخارجية عند تتبّع متغيّر CSS.'` — unchanged. (b) `find src/offscreen -type f` → index.html and README.md only; zero scripts. Yet 'offscreen' is still in REQUIRED_PERMISSIONS (permission-policy.ts:22) and offscreen is still in PAGE_PATHS and vite input. Rasd_Plan.md:1667 calls this 'قرار ثنائي إلزامي' to be settled 'قبل المرحلة 27'.",
+      "sizeEstimate": "small",
+      "risk": "high",
+      "riskReason": "Chrome Web Store's minimum-permission policy is exactly what a reviewer checks. Shipping a permission with no consumer, justified by a rationale text that describes behaviour the extension does not perform, is a rejection vector — and both are Phase 25's items, so 27 would be blocked waiting on 25, not doing its own work.",
+      "dependsOn": ["Phase 25"]
+    }
+  ],
+  "naturalSplitPoints": [
+    {
+      "title": "26أ-1 — Figma source close-out and snapshot re-capture",
+      "contains": [
+        "Resolve the 16 §6 rows still naming phase 26 as the fix site: rows 5, 8, 10, 12, 13, 14, 15, 16, 21, 22, 24, 58, 59, 61, 65, 88 (Rasd_Plan.md lines 1980, 1983, 1985, 1987, 1988, 1989, 1990, 1991, 1996, 1997, 1999, 2033, 2034, 2036, 2040, 2064). Row 76 is already done and says so in its own text.",
+        "Get the three rulings the user's memory file lists as open: doc pages 02/06/08/09/11/32 English-primary vs page 32's own 'Arabic is the product language'; page-30 store screenshots in English; sub-10px text on pages 20/19/15 inside scaled Mock Page thumbnails.",
+        "Inspect the four never-inspected pages: 10 (Variables), 28/29 (intentionally empty), 99 (Archive).",
+        "Decide §6 row 10 (--rasd-text-tertiary contrast) IN FIGMA, then re-capture src/tokens/figma-snapshot.json via Figma MCP, run `pnpm tokens:sync`, and land the regenerated tokens.css/tokens-shadow.css/tokens.json/tokens.ts/tailwind.tokens.js.",
+        "Correct the plan text at Rasd_Plan.md:1736 and 1752, both of which are refuted by the plan's own §6 (see planClaimsRefutedByCode)."
+      ],
+      "whyThisBoundary": "Everything here is a Figma-side write plus one deterministic regeneration. It is the only part of 26 that touches the design source, and it is the only part of 26أ that changes shipped pixels (row 10). Isolating it makes the token-regeneration ripple a single reviewable commit rather than noise inside a 60-frame comparison. It is also genuinely small now — the bulk of 26أ was already executed during the logo-adoption maintenance round (§6 rows 75/76 and the §6 tail at line 2075).",
+      "verifiableBy": "`node scripts/tokens-sync.mjs --check` exits 0 against the NEW snapshot (proves regeneration is committed), `pnpm run check` green, and `git diff --stat src/tokens public/assets/tokens*.css` shows exactly the five generated files changing. Plus: every one of the 16 §6 rows carries a closing note naming the Figma node it was fixed on, or a recorded refusal with reason.",
+      "estimatedContextWeight": "moderate"
+    },
+    {
+      "title": "26ب-1 — Baseline harness, plus the ~42 frames whose screens actually exist",
+      "contains": [
+        "Decide what a baseline IS before capturing any, and record it. tests/visual-baselines/phase-15/README.md already rejects pixel comparison, and ci.yml repeats that rejection ('خطُّ أساسٍ بكسليّ على متصفّح يتغيّر شهريًّا يُنتج فشلًا كاذبًا'). 26ب's text says 'تحديث خطوط الأساس البصرية بعد كل تصحيح' without naming a comparator — that contradiction has to be resolved or 26ب produces artifacts nobody reads.",
+        "Capture the missing baselines for phases 6, 9, 10, 11 (deferred by name in Phase_09.md:154, Phase_10.md:269, Phase_11.md:219, Phase_12.md:92, Phase_18.md:91), and re-capture 05/07/08/15/18 after 26أ's token change.",
+        "Frame-by-frame comparison at the real sizes (popup 360×520, editor/library 1440×900, onboarding 420×560) for everything already built: popup (10), capture (5), editor (3), measure (2), inspect (2), colors (5), compare (4), library (10).",
+        "Build the missing dist-side token audit: verify-tokens.mjs scans src/ only, so 26ب's 'مسح CSS المبني' has no implementation today."
+      ],
+      "whyThisBoundary": "This is the half of 26ب that is unblocked. Splitting on 'does the screen exist' is not arbitrary — src/pages/settings/ and src/pages/onboarding/ contain one 683-byte and one 666-byte index.html respectively and zero .tsx files, so nine Figma frames have literally nothing to photograph. Keeping them out means this sub-phase can start the moment 26أ closes.",
+      "verifiableBy": "`ls tests/visual-baselines/` shows phase-06, phase-09, phase-10, phase-11 present; a per-frame verdict table (مطابق / انحراف مقبول مع تعليل / يحتاج إصلاح) exists for each reviewed frame; and the new built-output token gate exits 0 on dist/ and non-zero when a literal is injected into a source CSS file and rebuilt (the Constitution §6 reverse test).",
+      "estimatedContextWeight": "heavy"
+    },
+    {
+      "title": "26ب-2 — The frames gated on phases 19/20أ/20ب/21",
+      "contains": [
+        "settings / capture · annotation · colors · appearance (4 frames) and privacy / controls (1) — blocked on 20أ.",
+        "onboarding / step-1..4 (4 frames) — blocked on 20ب.",
+        "export / modal · done (2) — blocked on 19.",
+        "share / modal · link-created (2) and integrations / connections (1) — blocked on 21.",
+        "projects / overview · empty (2) — depends on 18's projects surface."
+      ],
+      "whyThisBoundary": "Measured, not assumed: 18 of the 60 frames map onto surfaces that do not exist in src/ yet. Attempting them inside 26ب-1 turns a review task into a build task. As a tail sub-phase it can also be folded into whichever of 19/20/21 ships last, rather than run as its own session.",
+      "verifiableBy": "Each of the 18 frames has a verdict row, and `find src/pages/settings src/pages/onboarding -name '*.tsx' | wc -l` is greater than zero (i.e. the screens exist to be compared).",
+      "estimatedContextWeight": "light"
+    },
+    {
+      "title": "27-1 — Release build and package hardening (code only, no design)",
+      "contains": [
+        "Make `pnpm zip` actually gate: invoke verify-dist.mjs before zipping — its docstring already claims this ('بعد تمرير فحص الحزمة') and the code does not do it.",
+        "Add the four missing bundle invariants to verify-dist.mjs: a size ceiling (measured, not guessed — dist is 1.1 MB / 57 files today, up from the 874.7 KB / 47 files recorded in ADR 0016), zero .map files, zero stray dotfiles, and an assertion that the gallery/popup-preview/capture-preview entries are absent.",
+        "Remove public/.DS_Store (8196 B) and stop it shipping — it is in dist right now and `zip -r . ` includes dotfiles.",
+        "Settle the sourcemap policy the vite.config.ts comment defers ('خرائط المصدر للتطوير فقط — المرحلة 27 تحسم سياسة الإنتاج'). The plan wants maps generated-but-not-shipped; today production generates none.",
+        "Reproducible build: pin zip entry order and mtimes (the `zip -X` in zip.mjs does not do this), then MEASURE whether Rollup output is byte-stable across two clean builds before claiming it.",
+        "scripts/build-release.* if a separate entry point is still wanted after the above, version bump, and CHANGELOG.md."
+      ],
+      "whyThisBoundary": "Every item is a script edit verifiable by running it, needs no Figma, no store account, and no design judgment. It is also the part of 27 that can start before phase 25 lands, unlike the listing work.",
+      "verifiableBy": "`pnpm build && pnpm zip` twice in a row and `shasum -a 256 dist-zip/rasd-*.zip` matching; `unzip -l` showing no .map, no .DS_Store, no gallery; and a deliberately-broken run (drop a .map into dist/) making `pnpm zip` exit non-zero.",
+      "estimatedContextWeight": "moderate"
+    },
+    {
+      "title": "27-2 — Store listing, assets, and policy compliance",
+      "contains": [
+        "Export Figma page `30 — Store Assets` at exact sizes: 440×280 tile, 1400×560 marquee, five 1280×800 screenshots, icons 16/32/48/128 (the icons already exist via `pnpm icons:brand`; ADR 0016 line ~136 says store assets consume that same tile and must not be redrawn).",
+        "Arabic and English listing copy: name, short description from Docs/Rasd_Ar.md:930, full description led by the §37 promise 'شاهد المشكلة، حدّدها، قِسها، وقارنها ثم أرسلها' (Rasd_Ar.md:936), category Developer Tools, supported languages.",
+        "Permission justification fields, copied from REQUIRED_PERMISSION_RATIONALE / OPTIONAL_PERMISSION_RATIONALE / HOST_PERMISSION_RATIONALE — which first requires phase 25 to rewrite HOST_PERMISSION_RATIONALE and to settle the `offscreen` binary decision (Rasd_Plan.md:1666-1667).",
+        "Data-use disclosure ('لا تُجمع بيانات' where true, precise disclosure of the optional GitHub integration), privacy policy published at a stable public URL, compliance questionnaire, single-purpose and minimum-permission policy review item by item.",
+        "Staged rollout setup and an unlisted channel."
+      ],
+      "whyThisBoundary": "Zero code, entirely blocked on phase 25's outputs and on a Chrome Web Store developer account, and its language decisions depend on 26أ's ruling about whether page-30 screenshots stay English. Different blockers, different skills, different failure modes than 27-1 — merging them means the whole of 27 stalls on an account application.",
+      "verifiableBy": "A dimension-check script over store/ asserting each asset's exact pixel size (same IHDR-read technique verify-dist.mjs already uses on icons), plus ar/en listing files present and the privacy-policy URL returning 200.",
+      "estimatedContextWeight": "moderate"
+    },
+    {
+      "title": "28-1 — RC build and acceptance matrix",
+      "contains": [
+        "Pin an RC version — first resolving that Chrome MV3 manifest `version` accepts only 1–4 dot-separated integers, so '1.0.0-rc.1' cannot go in the manifest as written in the plan; decide version_name or an integer RC scheme.",
+        "Build and publish to the unlisted channel; run the 48-cell matrix (3 OS × stable/beta × dpr 1|2 × dark/light × rtl/ltr).",
+        "Manual acceptance of the three journeys in §29–31 from a user's point of view.",
+        "Upgrade test (install prior version, create data, upgrade, verify no data loss and no migration failure), clean-install test, uninstall test (no residue, reinstall starts clean).",
+        "Playwright MCP run of the four prototype paths against the BUILT package, not the dev build.",
+        "Triage feedback into blocking / 1.0.1 / 1.1; fix blockers only; rc.2 if needed."
+      ],
+      "whyThisBoundary": "This is the judgment half of 28 and the only part that needs real hardware and a live store channel. Its context cost is dominated by reading failure reports, not by reading code.",
+      "verifiableBy": "A filled matrix with 48 recorded cells, zero blocking defects open, and the upgrade/clean-install/uninstall tests each recorded pass with the command or steps used.",
+      "estimatedContextWeight": "heavy"
+    },
+    {
+      "title": "28-2 — Staged publish and v1.0 close-out",
+      "contains": [
+        "Publish 1.0.0 at 10% → 50% → 100% with crash-report monitoring between steps.",
+        "Final CHANGELOG, `v1.0.0` git tag, open the 1.1 track with the deferred items the plan names: browser-window capture, cloud share links, Linear and Jira, live collaboration, advanced multi-page PDF.",
+        "Close out §9 status rows and re-publish Docs/Phases/Dashboard.html at its fixed URL per Constitution §8 item 9."
+      ],
+      "whyThisBoundary": "Publishing is calendar-bound — you wait between rollout steps. Splitting it off means 28-1's fix work is not held open across days of monitoring.",
+      "verifiableBy": "`git tag -l v1.0.0` non-empty; store item at 100%; Dashboard.html updated at the same URL with 28 marked complete.",
+      "estimatedContextWeight": "light"
+    }
+  ],
+  "planClaimsRefutedByCode": [
+    {
+      "claim": "'تُنفَّذ على جزأين متعاقبين' with 26أ requiring: 'إغلاق قائمة المراجعة البصرية للصفحات 15–27 — لم تُراجَع بصريًا بعد (مُسجَّل في ذيل §6)' and 'إصلاحات capture / area-select و capture / error و capture / full-page التي سقطت عند حدّ نداءات MCP'.",
+      "claimLocation": "Rasd_Plan.md:1736-1739 (phase 26أ body)",
+      "reality": "All four of those items were already closed during the logo-adoption maintenance round, and the SAME document records it. Pages 15–27 were reviewed (and defects found and fixed: projects/empty translated to Arabic, duplicated onboarding headlines removed on all 4 steps, Arabic left-alignment fixed on pages 18 and 22). capture/full-page was rebuilt. capture/area-select marquee was re-framed to 656×369 at x=720 y=123. capture/error was found already clean (node 96:356 absent, 31 texts, zero duplicates). The 26أ body was never updated to match.",
+      "evidence": "Rasd_Plan.md:2075 states verbatim: 'البنود الموروثة من مراجعة Figma البصرية أُغلقت كلّها ... طفح Mock Page في capture / full-page، ومراجعة الصفحات 15–27 بصريًا، وإعادة تأطير marquee في capture / area-select. وتكرار العنوان في capture / error وُجد مُغلقًا عند التحقّق'. Detail in §6 rows 75 (line 2050) and 76 (line 2051). Corroborated independently by the user's memory file rasd-visual-review-queue.md ('Done' section)."
+    },
+    {
+      "claim": "'`tests/visual-baselines/` يقف عند `phase-08` (ثلاث مراحل فقط)، ولا يقرؤه أي كود اليوم'",
+      "claimLocation": "Rasd_Plan.md:1752 (phase 26ب body, first mandatory step)",
+      "reality": "Five phase directories exist, not three: phase-05, phase-07, phase-08, phase-15, phase-18 — 16 files. phase-15 and phase-18 were added after that sentence was written. The 'no code reads it' half is still true for comparison, but two scripts WRITE into it and CI uploads it.",
+      "evidence": "`find tests/visual-baselines -type f | wc -l` → 16, across 5 phase dirs. Writers: scripts/verify-editor.mjs:1569 (`join(root,'tests','visual-baselines','phase-15')`) and scripts/verify-library.mjs:494 (phase-18). Reader: .github/workflows/ci.yml:211 uploads `tests/visual-baselines/` as an artifact. Nothing compares. Note Rasd_Plan_Audit.md:134 carries the same stale '9 ملفات لثلاث مراحل' count."
+    },
+    {
+      "claim": "'**26أ:** لا شيء — قابلة للتشغيل موازيةً في أي وقت' (dependencies: none, runnable in parallel any time), repeated at Rasd_Plan.md:1731, :1769, :2192 and in ADR 0013.",
+      "claimLocation": "Rasd_Plan.md:1769 (الاعتماديات section of phase 26)",
+      "reality": "True for 15 of the 16 live §6 rows, but NOT for row 10. Row 10 is a token-value decision that must be made in Figma; its resolution re-captures figma-snapshot.json, regenerates public/assets/tokens.css, and shifts every light-mode screen's pixels. So 26أ is not order-free with respect to 26ب's baselines — the plan's own 26ب dependency list even acknowledges the general principle ('24 و25 — إصلاحاتهما تغيّر البكسلات فعلًا، والتقاط خطوط الأساس قبلهما يعني التقاطها مرّتين') without applying it to 26أ itself.",
+      "evidence": "Rasd_Plan.md:1985 (row 10) assigns the decision to phase 26 and forbids hand-editing tokens.css per ADR 0007. The value is live: public/assets/tokens.css:12 `--rasd-color-ink-600: #687c87;` bound to --rasd-text-tertiary in both light-mode blocks (lines 312 and 418). scripts/tokens-sync.mjs writes tokens.css from the snapshot, so changing the source necessarily rewrites the shipped stylesheet."
+    },
+    {
+      "claim": "brand-icons.mjs header: 'لماذا خارج CI: ... نفس علّة `verify:popup` (غير مُدرج في CI أيضًا)'",
+      "claimLocation": "scripts/brand-icons.mjs, header comment (lines ~26-30)",
+      "reality": "The decision itself still stands and is correctly recorded, but its supporting analogy is now stale: verify:popup IS in CI. All 17 verify guards were added to the live matrix on 2026-09-10 (§6 row 97). The icons:brand decision's real, current justification is the ADR 0016 line, not the verify:popup comparison.",
+      "evidence": "The decision, quoted from Docs/ADR/0016-mark-geometry-single-source.md:110 — '| إدراج `icons:brand --check` في CI | فشل كاذب عند ترقية المتصفّح — البند 4، والسابقة مسجَّلة في `phase-15/README.md` |'. And from scripts/brand-icons.mjs itself — 'الترسيم يحتاج Chrome حقيقيًا، وناتج البكسل قد يختلف بين إصدارَي متصفّح بلا تغيّر في المصدر — فمقارنة البايت في CI تُنتج فشلًا كاذبًا'. Contradicting the analogy: .github/workflows/ci.yml matrix contains `- { guard: popup, blocking: false }`. Confirmed also that icons:brand appears nowhere in ci.yml, gate-a.mjs, or the `check` script — grep over .github/, scripts/gate-a.mjs, package.json returns only package.json:31 (the script definition) and ADR 0016."
+    },
+    {
+      "claim": "zip.mjs docstring: 'يحزم `dist/` في ملف مضغوط جاهز للرفع، **بعد تمرير فحص الحزمة**'",
+      "claimLocation": "scripts/zip.mjs:2",
+      "reality": "No bundle check is performed. The script checks only that dist/ exists as a directory, then shells out to `zip`. verify-dist.mjs is never imported or spawned. The check happens only because `pnpm build` runs verify:dist at the end — so `pnpm zip` on a stale or hand-modified dist/ packages it unverified.",
+      "evidence": "Full file is 24 lines. Its only execFileSync is `execFileSync('zip', ['-r','-q','-X', out, '.'], { cwd: dist })`. package.json:53 `\"zip\": \"node scripts/zip.mjs\"` — no chained verify."
+    },
+    {
+      "claim": "ADR 0016: 'تُقيَّد المراحل اللاحقة: أصول المتجر (**المرحلة 26**) تستهلك المربّع نفسه'",
+      "claimLocation": "Docs/ADR/0016-mark-geometry-single-source.md, العواقب section (~line 136)",
+      "reality": "Store assets belong to phase 27, not 26. Phase 26 is Visual QA vs Figma; phase 27 is 'بناء الإنتاج وجاهزية Chrome Web Store' and its body is what names `30 — Store Assets`.",
+      "evidence": "Rasd_Plan.md:1801 (inside المرحلة 27 body): 'أصول المتجر من `30 — Store Assets`: الأيقونات 16/32/48/128، وبطاقة 440×280، وشريط 1400×560، وخمس لقطات 1280×800'. Phase 26's body (lines 1721-1788) never mentions store assets."
+    },
+    {
+      "claim": "ADR 0016: 'الحزمة لم تتأثّر — قِس 874.7 KB عبر 47 ملفًّا'",
+      "claimLocation": "Docs/ADR/0016-mark-geometry-single-source.md, last عواقب bullet",
+      "reality": "Drift, not an error at time of writing: the bundle is now 1.1 MB across 57 files. Phases 14/16/17 added the compare page and two workers since. Relevant because phase 27 must set a size ceiling and this is the only recorded prior measurement.",
+      "evidence": "`find dist -type f | wc -l` → 57; `du -sh dist` → 1.1M. New entries visible in dist/assets/: compare.js, compare.css, diff.worker.js, blur.worker.js, regions.js."
+    }
+  ],
+  "openQuestions": [
+    "Frame count: is it 57 or 60? The §0.3 screens table (Rasd_Plan.md:37-53) sums to 57 across the 15 product pages (popup 10, capture 5, editor 3, measure 2, inspect 2, colors 5, compare 4, library 10, projects 2, export 2, share 2, integrations 1, settings 4, privacy 1, onboarding 4), but its own header says '60 إطارًا عبر 15 صفحة منتج' and 26ب's completion criterion says 'كل الشاشات الستين مراجَعة'. Someone has to decide whether three frames are missing from the table or the number 60 is wrong, before a completion criterion can be checked at all.",
+    "What is a visual baseline FOR, given that pixel comparison is already rejected by decision? tests/visual-baselines/phase-15/README.md rejects it, ci.yml repeats the rejection ('خطُّ أساسٍ بكسليّ على متصفّح يتغيّر شهريًّا يُنتج فشلًا كاذبًا أكثر ممّا يُنتج كشفًا'), and §6 row 74 notes the phase-07 baseline recorded a shipped bug for eleven phases without anyone noticing — 'مرجعٌ يحمل خللًا ليس مرجعًا'. 26ب's text ('تحديث خطوط الأساس البصرية بعد كل تصحيح') presumes a comparator that was deliberately never built. Resolve this before capturing baselines for phases 6/9/10/11, or the sub-phase produces 20 more unread PNGs.",
+    "Chrome MV3 manifest `version` accepts only 1–4 dot-separated integers, so phase 28's '1.0.0-rc.1' cannot be the manifest version as written, and verify-dist.mjs hard-enforces manifest.version === package.json version. Does the RC use `version_name`, or an integer scheme (e.g. 0.9.x), or does verify-dist gain an exception? The plan does not say.",
+    "Does 27 wait for 25, or does 25's carry-in move? Phase 27's store submission needs (a) HOST_PERMISSION_RATIONALE rewritten — it still promises 'قراءة أوراق الأنماط الخارجية' in src/shared/permission-policy.ts — and (b) the `offscreen` binary decision (src/offscreen/ is index.html + README.md with zero scripts, yet 'offscreen' is in REQUIRED_PERMISSIONS). Rasd_Plan.md:1667 says the drop must happen 'قبل المرحلة 27'. Both are phase-25 items. Either 27 is hard-blocked on 25, or these two move into 27-2 explicitly.",
+    "Is the Vite/Rollup output itself byte-deterministic across clean builds? Phase 27 promises 'نفس المصدر يعطي نفس الحزمة بايتًا ببايت'. Fixing zip.mjs's timestamps and entry order is necessary but not sufficient — content hashes in chunkFileNames/assetFileNames must also be stable. This has never been measured here (dist-zip/ does not exist; pnpm zip has never run). Measure it before writing it into a completion criterion.",
+    "Store screenshots: Arabic or English? The user's memory file lists this as open item 2 ('Page 30 store screenshots are English — plausible for a Chrome Web Store listing, but unconfirmed'), and it collides with the broader open item 1 (doc pages 02/06/08/09/11/32 are English-primary while page 32 itself asserts Arabic is the product language). This is a 26أ ruling that determines 27-2's asset export, so it should be answered in 26أ-1, not discovered in 27.",
+    "Should 26أ and 26ب merge? 26أ is now small (most of it executed out-of-band) and 26ب's first mandatory step depends on 26أ's row-10 token decision. Merging them into one phase 26 with an internal ordering constraint is defensible. Against merging: the model assignment differs by design (26أ Opus 5 for design judgment, 26ب Sonnet 5 for volume), the MCP call-budget management that 26أ explicitly asks for ('تُقسَّم على جلسات بحدّ معلَن لكل جلسة') argues for keeping the Figma work in its own session, and 26ب-2's frames are blocked on phases that have not started. Recommendation: keep them separate but run 26أ-1 immediately, since it is the only unblocked remaining work in this whole area.",
+    "The live-Chrome CI matrix has all 17 guards non-blocking with a documented promotion rule of 'عشر جولات خضراء متتالية' (§6 row 97), and the plan puts resolution of the flakiness in phase 23. Phase 27's test list demands 'Playwright MCP: تشغيل المسارات الأربعة على الحزمة المبنيّة' and phase 28 demands 'سيناريوهات E2E كلها خضراء على حزمة rc'. If 23 has not converted any guard to blocking by then, what does 'كلها خضراء' mean for a suite where the set of failures moves every run?"
+  ]
+}

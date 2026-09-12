@@ -1,0 +1,281 @@
+{
+  "area": "23-e2e-ci",
+  "whatExistsAlready": [
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/.github/workflows/ci.yml",
+      "what": "Two jobs. `verify` (line 14) runs typecheck/tokens:check/verify:tokens/lint/format/test/build/verify:dist. `live` (line 81) is a 17-entry matrix, one job per guard, `fail-fast: false`, `continue-on-error: ${{ !matrix.blocking }}` (line 140), 6-minute per-step timeout (line 187), `CHROME_PATH=/usr/bin/google-chrome`. Every one of the 17 entries is `blocking: false` (lines 121–137). The 4-round flakiness ledger is transcribed verbatim in the comment at lines 101–106 (see `whatIsMissing` item on the root cause for the exact text).",
+      "evidence": "cat -n .github/workflows/ci.yml — 213 lines; lines 121-137 are 17 `- { guard: X, blocking: false }` entries, zero `blocking: true`",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/",
+      "what": "19 verify-*.mjs scripts totalling 11,767 lines (with live-sw.mjs). 17 launch real Chrome; 2 are static. Per-script one-liners: verify-load (dist actually loads in Chrome + runtime-granted permissions match policy; blocking:false) · verify-popup (the 4 shortcuts are registered with Chrome itself via chrome.commands.getAll, and first-paint <100ms; false) · verify-overlay (in-page layer survives on real pages, injected via chrome.scripting from the SW; false) · verify-capture (captureVisibleTab works on activeTab alone, crop dimensions exact, fetch(dataUrl) blocked, rate limiter holds; false) · verify-picker (element targeting: bounds under transforms, shadow piercing, frame descent, frame budget, read off the drawn highlight; false) · verify-fullpage (full-page stitch has no loss/duplication — proven by per-band unique planted colours, not by height; false) · verify-inspect (cascade/@layer/@container/custom-property inheritance measured against getComputedStyle as the judge; false) · verify-lifecycle (an open port keeps the SW alive past the 30s idle kill — asserts uptimeMs ≥ 45000, takes ~55s; false) · verify-measure (gap values match real geometry between two real element edges; ⌥ disables snapping; false) · verify-colour (screenshot bytes vs browser paint for out-of-sRGB colours, gradients, images, mix-blend-mode, scaleX derivation; false) · verify-palette (colour-usage scan finds real users, replacement lands on the pixel and reverts on undo AND on mode exit; false) · verify-editor (editor page boots, decodes, builds both canvases at planned size; pointer gesture creates a scene node and ⌘Z reverses it; real memory number vs CANVAS_BUDGET_BYTES; false) · verify-library (5000 real captures in IndexedDB → how many DOM nodes actually render; every interactive element has an accessible name; the other four tabs load real data; false) · verify-compare (real drag/wheel/keyboard events reach the compare tool; drop and paste persist a reference in real IndexedDB; paste survives a host stopPropagation listener; false) · verify-compare-diff (two captures from IndexedDB through diff.worker.ts, with a known-exact expected answer: 1200 differing pixels of 30000 and two 30×20 regions; false) · verify-capturing (the cancelJob → fullpage/cancel → cancelFullPage wire, the debt EntryPoints.md §3 named; false) · verify-activate (the only script that does NOT call startOverlay() by hand — proves activateTool alone works from a cold tab; false). Static, not in the matrix: verify-dist (post-build bundle + policy gate, run inside `pnpm build` and as a separate CI step at line 57) and verify-tokens (no literal colours/px/physical CSS properties; run in the `verify` job at line 39).",
+      "evidence": "ls -la scripts/; head -22 of each verify-*.mjs; grep -ln 'remote-debugging-port|CHROME_PATH' scripts/verify-*.mjs → 17 files; wc -l per file",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/live-sw.mjs",
+      "what": "106 lines, created by commit 2f41801. Exports `attachLiveServiceWorker(send, extId, {timeoutMs=25000})` — re-discovers the service_worker target and re-attaches every 250ms loop, and only returns once `chrome.runtime && chrome.runtime.id` evaluates true inside it — and `waitForExtensionContext(evaluate)`, the same wait for the 5 scripts that abstract attachment behind a generic `findAndAttach`. Imported by 13 verify scripts. NOT imported by verify-editor (has its own inlined copy of the wait, added in 5554415), verify-library (never attaches to the SW — page only), verify-compare-diff, verify-load.",
+      "evidence": "cat -n scripts/live-sw.mjs; grep -rn \"from './live-sw.mjs'\" scripts/*.mjs → 13 hits",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/live-sw.mjs",
+      "what": "What the last 5 commits touching this area changed, in order (git log --oneline -15 -- scripts/live-sw.mjs scripts/verify-*.mjs). Only ONE of the five touched live-sw.mjs at all — it created it. deb517d 'CI sandbox on Ubuntu 24.04 — not the code': root cause `kernel.apparmor_restrict_unprivileged_userns=1`; fix is a CI step that prints then relaxes it (ci.yml +14 lines) rather than --no-sandbox in every script; also un-swallowed a double `.catch(()=>false)`/`catch{}` in verify-editor that was turning every error into 'permission not granted'. 4e0f71b: verify-editor readiness condition `s.base.w > 1` was satisfied by the browser's DEFAULT 300×150 canvas size; measured 300×150 in CI vs 976×713 locally; the default pair is now rejected explicitly. 5554415: verify-editor gets the 'target found ≠ context live' wait (chrome.runtime.id + chrome.permissions), 25s, re-discover + re-attach each cycle. 2f41801: the same race, generalised — live-sw.mjs created and 13 scripts rewired onto it (+197/−120 across 14 files). 9d64625 (HEAD): `armPointer` added after setMode in verify-picker and verify-measure to ISOLATE the picker/measure race rather than hide it — its own commit message states the race 'still appears at roughly 35–40% even after this fix … the real fix is Phase 23's work, not a patch here'.",
+      "evidence": "git log -1 --format='%s%n%b' on each of 9d64625 2f41801 5554415 4e0f71b deb517d, plus --stat",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/Docs/ADR/known-issues.md",
+      "what": "Item 2 (lines ~26–41) documents that Chrome 137+ silently ignores `--load-extension` via the `DisableLoadExtensionCommandLineSwitch` feature — no error, no warning; confirmed on Chrome 151.0.7922.175; `--disable-features=...` and `--enable-unsafe-extension-debugging` did not restore it. It records the concrete false pass: verify:load in Phase 1 was attaching to a Chrome *component* extension's service worker (Google Network Speech) and calling it ours. The adopted workaround is `Extensions.loadUnpacked` over CDP targeting our own extension id, with the bonus that Chrome validates the manifest and returns the rejection reason as text.",
+      "evidence": "sed -n '26,41p' Docs/ADR/known-issues.md",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/",
+      "what": "The --load-extension workaround is NOT in live-sw.mjs. live-sw.mjs only handles the SW-readiness race. `Extensions.loadUnpacked` is copy-pasted into all 17 browser-launching verify scripts (1 call each; verify-load.mjs has 3). There is no shared loader module — `scripts/lib/` does not exist.",
+      "evidence": "grep -rc 'Extensions.loadUnpacked' scripts/*.mjs → 18 files, verify-load.mjs:3, all others :1; `ls scripts/lib` → No such file",
+      "completeness": "absent"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/tests/fixtures/sites/",
+      "what": "10 fixture folders, 13 HTML files total. colour/ (1 file, 178 lines — oklch out-of-gamut blocks, gradients, background images, rgba overlays, mix-blend-mode; built for verify-colour) · css/ (1 file, 118 lines — nested @layer, !important layer reversal, :root→#mid→element custom-property chain, var() fallback, :where zero specificity; built for verify-inspect) · fullpage/ (3 files: index.html 110 lines with 6 planted-colour bands + sticky header + 3 position:fixed elements; lazy.html 47 lines with 20 loading=\"lazy\" data-URI images under content-visibility:auto + contain-intrinsic-size; container.html 57 lines with a non-document overflow-y:auto scroller + fixed sidebar) · hostile/ (116 lines, 6 CSS isolation attacks, 4 automatic + 2 driven via window.__attackTopLayer/__attackTransform) · ltr-en/ (187 lines, sticky header + backdrop-filter) · mixed/ (217 lines) · mutating/ (128 lines, setInterval mutation + sweeper, window.__sweepCount/__stopMutating) · picker/ (2 files: index.html 177 lines — transforms scale/rotate, clip-path inset, display:contents, ~5000-node #stress grid, two NESTED OPEN shadow roots, one same-origin <iframe src=\"/picker/frame.html\">; frame.html) · rtl-ar/ (154 lines) · spa/ (165 lines, pushState via window.__spaNavigate).",
+      "evidence": "find tests/fixtures/sites -type f; per-file grep for position:sticky|fixed, attachShadow, iframe, content-visibility, @layer, mix-blend-mode, pushState, setInterval; wc -l",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/fixtures-serve.mjs",
+      "what": "Static fixture server, single origin `http://127.0.0.1:5399` (port from RASD_FIXTURES_PORT), SPA fallback to the first path segment's index.html, `cache-control: no-store`, path traversal guarded. Twelve verify scripts spawn their OWN copy of it rather than sharing one.",
+      "evidence": "cat scripts/fixtures-serve.mjs (line 22 PORT, line 95 server.listen(PORT,'127.0.0.1')); grep -l 'fixtures-serve' scripts/verify-*.mjs | wc -l → 12",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/gate-a.mjs",
+      "what": "Holds the IMPACT table (lines ~37–58) mapping a changed source path to the live guards that must run before closing — e.g. src/content/tools/measure.ts → verify:measure. Gate A deliberately PRINTS these names and does not run them (measured: one guard alone blows the 48s ceiling). This is the existing machinery Phase 23's CI work should hook into rather than reinvent.",
+      "evidence": "sed -n '13,21p' and grep -n 'scripts:' scripts/gate-a.mjs",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/tests/visual-baselines/",
+      "what": "16 files across phase-05/07/08/15/18 — PNGs plus a11y-tree .md files. CI uploads this directory as an artifact per guard (ci.yml lines 206–213) and explicitly does NOT compare it: the comment at lines 204–205 says the eye-reading is intentional because a pixel baseline on a monthly-changing browser produces more false failures than detections. Same for `artifacts/` screenshots (lines 191–202).",
+      "evidence": "find tests/visual-baselines -type f | wc -l → 16; ci.yml:191-213",
+      "completeness": "stub"
+    }
+  ],
+  "whatIsMissing": [
+    {
+      "deliverable": "THE SHARED ROOT CAUSE of the 17-guard flakiness. The ci.yml comment (lines 93–116) records the ledger measured over 4 CI rounds, verbatim: `4/4: fullpage · library · overlay` / `3/4: activate · capturing · colour · compare · inspect · lifecycle · palette` / `2/4: editor · picker` / `1/4: measure` / `0/4: capture · compare-diff · load · popup`. The comment states the classification was refuted by measurement TWICE: a one-round classification named nine 'proven' and `activate` fell in the next round; a three-round classification named six and `colour`, `inspect`, `lifecycle` fell in the fourth — which simultaneously turned `measure` green after it had been red in all three. The comment's own inference is that a moving failure set does not mean seventeen independent faults but one shared environmental cause (resource contention · Chrome booting under load · timing across the tier), and it states explicitly that the cause is UNRESOLVED and its resolution belongs to Phase 23. Promotion rule: ten consecutive green rounds flips `blocking` to true.",
+      "evidenceOfAbsence": ".github/workflows/ci.yml:93-116 (the comment says the cause is not settled and names Phase 23 as its home); all 17 matrix entries are still blocking:false at lines 121-137; commit 9d64625's own message says the picker/measure race 'still appears at roughly 35–40% even after this fix' and defers the real fix to Phase 23",
+      "sizeEstimate": "large",
+      "risk": "high",
+      "riskReason": "This is the single biggest open technical risk in the remaining plan. It is the only item where the repo's own documentation admits it does not know the cause. Three guards (measure · picker · popup) are recorded as failing LOCALLY too (§6 row 97), so at least part of the ledger is real product/guard bugs hiding inside the environmental noise — and until the noise is separated from the bugs, neither can be fixed with confidence. Everything downstream in Phase 23 (E2E specs, visual regression, cross-site matrix) would inherit an unstable substrate and produce uninterpretable results.",
+      "dependsOn": []
+    },
+    {
+      "deliverable": "Playwright itself — the dependency, the config, and any spec. Phase 23 is titled 'Playwright E2E' and nothing Playwright exists.",
+      "evidenceOfAbsence": "`grep -n playwright package.json` → no hit. The only pnpm-lock.yaml hits (lines 1277, 1293) are vitest's OPTIONAL peer `@vitest/browser-playwright`, not an installed package. `ls node_modules/*playwright*` → no matches. No playwright.config.*. `tests/e2e/` contains only `.gitkeep` (0 bytes).",
+      "sizeEstimate": "small",
+      "risk": "medium",
+      "riskReason": "Installing is trivial; the risk is that Playwright's own extension-loading path is the one Chrome 137+ disabled (known-issues item 2), so the 17 guards' hand-rolled `Extensions.loadUnpacked` over raw CDP cannot simply be replaced by Playwright's `launchPersistentContext({args:['--load-extension']})`. Phase 23's own text already mandates loadUnpacked instead — meaning Playwright here is a runner/assertion layer over existing CDP, not a drop-in.",
+      "dependsOn": ["shared root cause"]
+    },
+    {
+      "deliverable": "scripts/lib/cdp.mjs — the shared CDP core Phase 23 names as its first deliverable (connect · send · target wait · extension load · console and network capture).",
+      "evidenceOfAbsence": "`ls scripts/lib` → No such file or directory. The boilerplate is still copy-pasted: `function connect` appears in 14 verify scripts, `startOverlay` in 8, `findAndAttach` in 3, `Extensions.loadUnpacked` in 18 files, and 12 scripts each spawn their own fixtures-serve. The identical ~30-line connect()/send() WebSocket block is verbatim in verify-picker.mjs:~95-125 and its peers.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "11,767 lines of verify scripts; a botched extraction breaks all 17 guards at once. But it is mechanical and testable one guard at a time, and 2f41801 already proved the pattern works (live-sw.mjs, 14 scripts, +197/−120). The real risk is doing it BEFORE the flakiness is understood, which would make every regression ambiguous.",
+      "dependsOn": ["shared root cause"]
+    },
+    {
+      "deliverable": "Five fixture sites the plan names as confirmed-missing after alignment: short/ · fixed/ · cross-origin-css/ · canvas-heavy/ · zoom/",
+      "evidenceOfAbsence": "`ls tests/fixtures/sites/` → colour css fullpage hostile ltr-en mixed mutating picker rtl-ar spa. `grep -rin 'canvas|zoom' tests/fixtures/sites/` → zero hits.",
+      "sizeEstimate": "small",
+      "risk": "low",
+      "riskReason": "Plain static HTML, no unknowns — except cross-origin-css, which is blocked by the server (next item).",
+      "dependsOn": ["second origin in fixtures-serve"]
+    },
+    {
+      "deliverable": "A SECOND ORIGIN in the fixture server. Matrix row 16 (cross-origin-css) and half of row 18 (cross-origin iframe) are structurally unreachable today.",
+      "evidenceOfAbsence": "scripts/fixtures-serve.mjs:95 — `server.listen(PORT, '127.0.0.1', ...)`; one port, one host, no second listener anywhere in the file.",
+      "sizeEstimate": "tiny",
+      "risk": "low",
+      "riskReason": "A second listen() on another port is enough for a different origin, and every verify script already reads RASD_FIXTURES_PORT. Small but load-bearing: two matrix rows cannot be written until it exists.",
+      "dependsOn": []
+    },
+    {
+      "deliverable": "Closed shadow roots, a cross-origin iframe, and an srcdoc iframe in picker/ — the plan's alignment table proposes picker/ as the candidate for matrix rows 17 and 18, which require open AND closed roots, and same-origin + cross-origin + srcdoc frames.",
+      "evidenceOfAbsence": "tests/fixtures/sites/picker/index.html:159,164 — both `attachShadow({ mode: 'open' })`, no `mode: 'closed'` anywhere in tests/fixtures/. Line 150 is the only iframe and it is same-origin (`src=\"/picker/frame.html\"`). `grep -rin srcdoc tests/fixtures/sites/` → zero hits.",
+      "sizeEstimate": "small",
+      "risk": "medium",
+      "riskReason": "Adding a closed shadow root may expose a genuine product gap in the picker's shadow-piercing (closed roots are not traversable from page script the way open ones are), which turns a fixture task into a Phase 9 bug fix mid-Phase-23.",
+      "dependsOn": ["second origin in fixtures-serve"]
+    },
+    {
+      "deliverable": "The devicePixelRatio matrix. Phase 23 requires every capture scenario to run at dpr = 1 AND 2.",
+      "evidenceOfAbsence": "`grep -rn 'Emulation\\.|force-device-scale-factor' scripts/*.mjs` → the only hit in the whole scripts/ tree is brand-icons.mjs:114 `--force-device-scale-factor=1`. No verify script sets a device scale factor or calls Emulation.setDeviceMetricsOverride; they only READ window.devicePixelRatio (verify-capture.mjs:302, verify-fullpage.mjs:518) and hardcode `devicePixelRatio: 1` in seeded IndexedDB records.",
+      "sizeEstimate": "medium",
+      "risk": "high",
+      "riskReason": "dpr=2 doubles every stitched full-page buffer and is exactly where capture/stitch/memory bugs live; it also doubles the live-guard runtime, which directly aggravates the unresolved resource-contention hypothesis for the flakiness.",
+      "dependsOn": ["shared root cause", "scripts/lib/cdp.mjs"]
+    },
+    {
+      "deliverable": "The four E2E journey specs (path أ capture→annotate→export→library · ب inspect→measure→capture · ج colour→palette→shades · د reference→compare→share) covering Rasd_Ar.md §29–31.",
+      "evidenceOfAbsence": "scripts/e2e.mjs is 7 lines and its body is `console.error(...); process.exit(1)`. `tests/e2e/` holds only `.gitkeep`. `pnpm test:e2e` therefore fails by design.",
+      "sizeEstimate": "large",
+      "risk": "medium",
+      "riskReason": "Cross-tool journeys exercise seams no single verify script touches (editor→library handoff, compare→share). They depend on Phases 19/20/21 for export, settings, and share — all not started — so parts of paths أ and د cannot be written until those close.",
+      "dependsOn": ["Playwright", "scripts/lib/cdp.mjs", "Phase 19", "Phase 21"]
+    },
+    {
+      "deliverable": "Automatic visual-regression comparison with committed baselines and a strict diff threshold, as Phase 23 requires.",
+      "evidenceOfAbsence": "ci.yml:191-213 uploads `artifacts/` and `tests/visual-baselines/` and never compares them; the comment at 191-194 says the eye-comparison is deliberate. Only 16 baseline files exist, covering 5 of 18 closed phases.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "Direct tension with a decision already taken and reasoned in ci.yml. Phase 23 must either overturn that decision with a measurement or narrow the requirement — not silently add pixel baselines that the CI comment predicts will produce more false failures than detections.",
+      "dependsOn": ["shared root cause"]
+    },
+    {
+      "deliverable": "The real-site smoke suite (separate from CI, run before release on varied public sites).",
+      "evidenceOfAbsence": "No script in scripts/ takes an external URL; every browser-launching verify script points at 127.0.0.1:5399 via RASD_FIXTURES_PORT.",
+      "sizeEstimate": "medium",
+      "risk": "low",
+      "riskReason": "Explicitly out-of-CI by design, so it cannot destabilise the tier; it is a release-gate checklist item.",
+      "dependsOn": ["scripts/lib/cdp.mjs"]
+    },
+    {
+      "deliverable": "Any mechanism that records the 'ten consecutive green rounds' promotion rule. The rule is stated in a YAML comment and nothing measures it.",
+      "evidenceOfAbsence": "ci.yml:114-116 states the rule; no file in the repo records per-round guard results. The 4-round ledger exists only as prose in ci.yml:101-106 and Rasd_Plan.md §6 row 97, hand-transcribed.",
+      "sizeEstimate": "small",
+      "risk": "medium",
+      "riskReason": "Without a recorder, the promotion decision will again be made on whatever rounds someone remembers — which is precisely the failure mode that got the classification refuted twice already (one round named nine, three rounds named six, both wrong).",
+      "dependsOn": []
+    },
+    {
+      "deliverable": "The frozen alignment table between the 10 existing folders and the 20 matrix rows, which Phase 23 mandates as its FIRST step before counting what is missing.",
+      "evidenceOfAbsence": "Rasd_Plan.md:1516-1530 gives it as provisional ('تُثبَّت وتُدقَّق في أول خطوة من هذه المرحلة'); tests/fixtures/sites/README.md still lists only the 6 Phase-6 fixtures and never mentions css/, colour/, fullpage/, or picker/.",
+      "sizeEstimate": "tiny",
+      "risk": "low",
+      "riskReason": "Cheap, but the plan warns explicitly that skipping it produces the wrong count ('20 − 9 = 11 missing is wrong') and risks rebuilding what exists.",
+      "dependsOn": []
+    }
+  ],
+  "naturalSplitPoints": [
+    {
+      "title": "23أ — استقرار الحرّاس: السبب المشترك يُسمّى أو يُنفى بالقياس (Stabilise the 17 live guards / name or refute the shared root cause)",
+      "contains": [
+        "Instrument the live matrix so a round is recorded, not remembered: emit a per-guard machine-readable result (pass/fail/timeout, wall time, Chrome boot time, peak concurrency) and commit a rounds ledger file. The 'ten consecutive green rounds' rule in ci.yml:114-116 is unenforceable until this exists.",
+        "Test the resource-contention hypothesis directly and cheaply: the matrix currently runs 17 Chrome-launching jobs with unbounded parallelism. Run N rounds with `max-parallel` throttled (e.g. 4) against N rounds unthrottled and compare the buckets. If the ledger collapses toward 4/4 under throttling, the shared cause is named and the fix is one line.",
+        "Separate the three guards recorded as failing LOCALLY too — measure · picker · popup (§6 row 97) — from the environment question entirely; these are product/guard bugs and must be triaged as such, not counted as flakiness.",
+        "Finish the isolation work commit 9d64625 started: its own message records the picker/measure race still firing at ~35–40% after the armPointer fix, attributing it to a Chromium/CDP internal race (hit-test precedes paint-tree update). Either find the deterministic signal to wait on, or prove none exists and record that in §6.",
+        "Flip `blocking: true` for every guard that earns ten consecutive green rounds under the recorder, one line per guard (ci.yml:121-137)."
+      ],
+      "whyThisBoundary": "This is the only item in the whole area whose cause is admitted unknown, and every other Phase 23 deliverable runs ON TOP of these 17 guards. Writing E2E specs, adding a dpr=2 pass, or turning on pixel comparison against an unstable tier produces results nobody can interpret — and dpr=2 in particular doubles guard runtime, which would aggravate the leading hypothesis. It is also the only sub-phase with genuine unknowns: the other three are construction work with known shapes. Per the repo's own §6 row 97, a guard that has never run green in the environment it guards is not a proven guard; 23أ is what converts 17 declared guards into 17 proven ones.",
+      "verifiableBy": "Ten consecutive green CI rounds recorded in the committed ledger, with at least the 4/4 set (fullpage · library · overlay) flipped to `blocking: true` in ci.yml and the `continue-on-error` line at 140 doing real work. Locally: `pnpm run verify:picker` and `pnpm run verify:measure` green 10/10 consecutive (the same 24-run protocol commit 9d64625 used).",
+      "estimatedContextWeight": "heavy"
+    },
+    {
+      "title": "23ب — نواة CDP مشتركة وإتمام مصفوفة العيّنات (Shared CDP core + fixture matrix completion)",
+      "contains": [
+        "Freeze and audit the folder↔matrix alignment table FIRST, as Phase 23 mandates, and update tests/fixtures/sites/README.md which still documents only the 6 Phase-6 fixtures.",
+        "Extract scripts/lib/cdp.mjs: connect/send, Chrome launch, Extensions.loadUnpacked (currently duplicated across 18 files), target wait (fold in live-sw.mjs), console+network capture, and one shared fixtures-server lifecycle (12 scripts each spawn their own today). Migrate the 17 guards onto it one at a time, following the 2f41801 pattern.",
+        "Add the second origin to scripts/fixtures-serve.mjs (a second listen()), which unblocks two matrix rows.",
+        "Build the five confirmed-missing fixtures: short · fixed · cross-origin-css · canvas-heavy · zoom.",
+        "Split or document the collapsed folders: fullpage/ currently carries rows 2·3·4·7·8 across three files; css/ carries 15 but NOT 14; picker/ needs a closed shadow root and cross-origin + srcdoc frames for rows 17/18.",
+        "Add hostile/ to §5 as row 21, as Phase 23's own text directs."
+      ],
+      "whyThisBoundary": "Pure construction with no unknowns, and it is the natural consumer of a stabilised tier: the extraction touches all 17 guards at once, so it must land where a regression is unambiguous. Splitting it from 23أ also keeps the diff readable — the extraction is mechanical and large, the stabilisation is diagnostic and small.",
+      "verifiableBy": "All 17 guards green after migration with `scripts/lib/cdp.mjs` as their only CDP source (`grep -c 'Extensions.loadUnpacked' scripts/verify-*.mjs` → 0 outside lib/); `ls tests/fixtures/sites/` shows 21 rows' worth of folders matching the frozen alignment table; `grep -rn \"mode: 'closed'\" tests/fixtures/sites/` and `grep -rn srcdoc tests/fixtures/sites/` both non-empty.",
+      "estimatedContextWeight": "heavy"
+    },
+    {
+      "title": "23ج — سيناريوهات E2E ومصفوفة dpr (Playwright journeys + dpr matrix)",
+      "contains": [
+        "Install Playwright and wire it over scripts/lib/cdp.mjs (NOT over --load-extension — known-issues item 2).",
+        "Replace the scripts/e2e.mjs stub and fill the empty tests/e2e/.",
+        "The four journeys: أ capture→annotate→export→library · ب inspect→measure→capture · ج colour→palette→shades · د reference→compare→share.",
+        "Run every capture scenario at dpr = 1 and 2 (today: zero scripts set a device scale factor)."
+      ],
+      "whyThisBoundary": "This is the first work that needs Playwright at all, and the first that crosses tool boundaries rather than testing one tool. It is also the part with a hard external dependency: paths أ and د need export (Phase 19) and share (Phase 21), neither started — so it cannot be scheduled before them regardless of how 23أ/23ب go. Keeping dpr here rather than in 23ب is deliberate: dpr=2 doubles runtime and must land after the tier is proven stable.",
+      "verifiableBy": "`pnpm test:e2e` exits 0 and runs the four journeys at dpr 1 and 2 in CI, with the dpr value asserted from inside the page rather than assumed.",
+      "estimatedContextWeight": "heavy"
+    },
+    {
+      "title": "23د — الانحدار البصري ودخان المواقع الحقيقية (Visual regression + real-site smoke)",
+      "contains": [
+        "Decide, with a measurement, whether automatic pixel comparison is adopted — ci.yml:191-194 already argues against it and that reasoning must be overturned or the Phase 23 requirement narrowed, not silently bypassed.",
+        "If adopted: reference shots for every extension screen with a strict threshold and baselines committed (16 baseline files exist today, covering 5 of 18 closed phases).",
+        "The out-of-CI real-site smoke suite run before release.",
+        "A Playwright MCP failure-diagnosis runbook, as Phase 23 specifies."
+      ],
+      "whyThisBoundary": "The smallest and most deferrable slice, and the only one carrying a decision that contradicts a reasoned decision already in the tree. It also has zero dependents — nothing else in the plan waits on it — so it is the correct thing to drop if Phase 23 runs long.",
+      "verifiableBy": "A CI step that fails on an intentionally perturbed baseline (the Constitution §6 inverse test: break what the guard guards; if it stays green it is not a guard), plus a documented real-site smoke run recorded before the release tag.",
+      "estimatedContextWeight": "moderate"
+    }
+  ],
+  "planClaimsRefutedByCode": [
+    {
+      "claim": "'ثماني سكربتات تحقّق قائمة (verify-load · verify-popup · verify-overlay · verify-capture · verify-picker · verify-fullpage · verify-inspect · verify-lifecycle · verify-tokens · verify-dist) تغطي معايير المراحل 1–11 وتكرّر نواة CDP حرفيًّا بينها' — eight existing verify scripts, and they duplicate the CDP core.",
+      "claimLocation": "Rasd_Plan.md:1494-1499 (Phase 23, المخرَج الأول)",
+      "reality": "Three errors in one sentence. (1) It says eight and then lists TEN names. (2) There are 19 verify scripts now, 17 of which launch Chrome — the Phase 23 text was written before Phases 12–18 added nine more guards and was never updated. (3) Two of the ten named scripts contain NO CDP at all: verify-tokens.mjs is a source linter (readdir/readFile only) and verify-dist.mjs is a static bundle gate (existsSync/readFileSync only). Extracting a shared CDP core from them is not possible because there is nothing to extract.",
+      "evidence": "`ls scripts/verify-*.mjs` → 19 files; `grep -ln 'remote-debugging-port|CHROME_PATH' scripts/verify-*.mjs` → 17 files, excluding verify-dist.mjs and verify-tokens.mjs; head -22 of both shows fs-only imports"
+    },
+    {
+      "claim": "'غير مُدرج في CI — المرحلة 23 تملك تشغيل المتصفح' (not included in CI — Phase 23 owns running the browser), stated in the file headers of verify-load, verify-popup, verify-capture, and verify-lifecycle. §6 row 97 quotes the verify-load line as still current.",
+      "claimLocation": "scripts/verify-load.mjs:19 · scripts/verify-popup.mjs:45 · scripts/verify-capture.mjs:27 · scripts/verify-lifecycle.mjs:13 · quoted in Rasd_Plan.md §6 row 97",
+      "reality": "All four ARE in CI as of the current ci.yml — they are matrix entries at lines 132, 137, 122, and 131 respectively. The headers are stale by the very commit that added the matrix. verify-lifecycle is the sharpest case: its header says it takes ~55 seconds and therefore is not in CI, yet it runs in the matrix under a 6-minute step timeout.",
+      "evidence": ".github/workflows/ci.yml:121-137 lists activate/capture/capturing/colour/compare/compare-diff/editor/fullpage/inspect/library/lifecycle/load/measure/overlay/palette/picker/popup — all four named scripts included"
+    },
+    {
+      "claim": "'أسلم من تعطيله بـ--no-sandbox في ثمانية عشر سكربتًا' — safer than disabling the sandbox with --no-sandbox in eighteen scripts.",
+      "claimLocation": ".github/workflows/ci.yml:166, repeated in commit deb517d's message",
+      "reality": "Seventeen scripts launch a browser, not eighteen. The count appears to include verify-dist.mjs, which never launches one.",
+      "evidence": "`grep -ln 'remote-debugging-port|CHROME_PATH' scripts/verify-*.mjs | wc -l` → 17"
+    },
+    {
+      "claim": "The fixtures README's 'المتاح الآن — أُضيف في المرحلة 6' table is the current inventory of fixture sites (6 rows: rtl-ar · ltr-en · mixed · spa · mutating · hostile).",
+      "claimLocation": "tests/fixtures/sites/README.md, 'المتاح الآن' section",
+      "reality": "Ten folders exist. css/, colour/, fullpage/ (3 files), and picker/ (2 files) were added by Phases 9–13 and never documented. Phase 23's alignment step depends on this README being accurate, and it is four folders and seven files behind.",
+      "evidence": "`ls tests/fixtures/sites/` → colour css fullpage hostile ltr-en mixed mutating picker rtl-ar spa; `find tests/fixtures/sites -type f -name '*.html'` → 13 files"
+    },
+    {
+      "claim": "'css/ — مرشَّح لـ14 (complex-css) و15 (css-vars) — يُدقَّق محتواه' — css/ is a candidate to cover matrix row 14 (complex-css: transform · filter · mix-blend-mode · clip-path · Container Queries · @layer) as well as row 15.",
+      "claimLocation": "Rasd_Plan.md:1524 (Phase 23 alignment table)",
+      "reality": "The audit the plan asks for, run: css/index.html (118 lines) contains @layer and custom properties ONLY. Zero occurrences of mix-blend-mode, clip-path, filter, transform, @container, or container-type. It covers row 15 and the @layer fragment of row 14; the rest of row 14 is absent. (mix-blend-mode exists in colour/index.html lines 112, 122, and clip-path/transform in picker/index.html lines 41-54 — so row 14's ingredients are scattered across two other fixtures, neither of which is the @layer one.)",
+      "evidence": "`grep -on 'mix-blend-mode|clip-path|@layer|@container|container-type|filter:|transform:' tests/fixtures/sites/css/index.html` → only @layer hits at lines 8,9,15,23 and custom props at 34,35,38"
+    },
+    {
+      "claim": "'picker/ — مرشَّح لـ17 (shadow-dom) و18 (iframes) — يُدقَّق ويُفصَل'. Matrix row 17 is 'جذور ظلّ مفتوحة ومغلقة' (open AND closed shadow roots) and row 18 is 'same-origin + cross-origin + srcdoc'.",
+      "claimLocation": "Rasd_Plan.md:1526 (alignment table) and Rasd_Plan.md §5 rows 17-18",
+      "reality": "picker/index.html has two NESTED OPEN shadow roots and no closed one anywhere in the fixture tree; and exactly one iframe, same-origin (`src=\"/picker/frame.html\"`). No cross-origin frame and no srcdoc anywhere. So picker/ covers roughly half of row 17 and one third of row 18 — and cross-origin is not merely unwritten but structurally impossible today, since fixtures-serve.mjs binds a single origin.",
+      "evidence": "tests/fixtures/sites/picker/index.html:159,164 both `attachShadow({ mode: 'open' })`; line 150 the sole iframe; `grep -rn \"mode: 'closed'\\|srcdoc\" tests/fixtures/sites/` → zero hits; scripts/fixtures-serve.mjs:95 `server.listen(PORT, '127.0.0.1', ...)`"
+    },
+    {
+      "claim": "§5: 'تُضاف كل عيّنة عند أول مرحلة تحتاجها فعلًا … وعمود «تُستخدم من المرحلة» أدناه هو جدول الإضافة' — each fixture is added at the first phase that actually needs it, and the phase column is the addition schedule. Rows 1-8 are assigned to Phases 8 and 10.",
+      "claimLocation": "Rasd_Plan.md:1939 and the §5 table rows 1-8",
+      "reality": "Phases 8 and 10 are both closed, yet short/ (row 1, Phase 8) and fixed/ (row 6, Phase 10) do not exist in any form, and long/lazy/infinite/sticky/inner-scroll/content-visibility (rows 2,3,4,5,7,8, Phase 10) exist only collapsed into three files under fullpage/ plus sticky inside ltr-en/. infinite/ (row 4, continuously-appending scroll) has no counterpart at all — fullpage/index.html builds a fixed 6-band page in one pass, and lazy.html builds a fixed 20-section page. So the accumulation rule was not followed for Phases 8 and 10, which is why Phase 23 inherits more fixture work than its own 'five confirmed missing' list admits.",
+      "evidence": "`find tests/fixtures/sites -type f` → 13 html files, none named short/fixed/infinite; fullpage/index.html:103-107 builds COUNT bands in a single DocumentFragment append; fullpage/lazy.html:29-42 builds N=20 sections once"
+    },
+    {
+      "claim": "'مصفوفة devicePixelRatio: كل سيناريو التقاط يُشغَّل عند dpr = 1 و2' — every capture scenario runs at dpr 1 and 2.",
+      "claimLocation": "Rasd_Plan.md:1555 (Phase 23, التنفيذ)",
+      "reality": "Zero percent implemented, and no groundwork exists. No verify script sets a device scale factor: the only `--force-device-scale-factor` in the entire scripts/ tree is `=1` in brand-icons.mjs:114, and `Emulation.setDeviceMetricsOverride` appears nowhere. Scripts only READ window.devicePixelRatio and hardcode `devicePixelRatio: 1` into seeded IndexedDB records. Every measurement recorded in Phases 8-17 was therefore taken at the runner's native dpr only.",
+      "evidence": "`grep -rn 'Emulation\\.|force-device-scale-factor' scripts/*.mjs` → single hit, brand-icons.mjs:114 with value 1; verify-capture.mjs:302 and verify-fullpage.mjs:518 read dpr; verify-library.mjs:224,229,242 and verify-compare-diff.mjs:236,481,677,810 hardcode devicePixelRatio:1"
+    },
+    {
+      "claim": "Phase 23 lists 'الانحدار البصري: لقطات مرجعية لكل شاشة إضافة، بعتبة اختلاف صارمة، وخطوط الأساس مثبَّتة في المستودع' — reference shots for every extension screen, strict threshold, baselines committed.",
+      "claimLocation": "Rasd_Plan.md:1556",
+      "reality": "ci.yml has already decided the opposite, with a reason: lines 191-194 state the eye-comparison is intentional because a pixel baseline on a monthly-changing browser produces more false failures than detections, so shots are UPLOADED and never compared (same for the a11y-tree baselines, lines 204-205). And coverage is thin: 16 baseline files across phase-05/07/08/15/18 only — 5 of 18 closed phases, not 'every extension screen'. Phase 23 must overturn that CI decision with a measurement or narrow its own requirement; it cannot simply implement the plan text as written without contradicting a reasoned decision in the tree.",
+      "evidence": ".github/workflows/ci.yml:191-213; `find tests/visual-baselines -type f | wc -l` → 16"
+    }
+  ],
+  "openQuestions": [
+    "Has the resource-contention hypothesis ever been tested? The live matrix runs 17 Chrome-launching jobs with no `max-parallel` cap (ci.yml:117-137). If GitHub schedules them concurrently on a shared pool, that is the cheapest candidate explanation for a failure set that moves every round — and one line of YAML would test it. I found no evidence in the repo that this was tried.",
+    "The ledger is 4 rounds over 17 guards = 68 observations, and the classification was already refuted at 1 round and again at 3. What N makes the promotion decision safe? The rule says ten consecutive green rounds per guard, but with no recorder (nothing in the repo records per-round results) the count will again rest on memory. Should 23أ's first deliverable be the recorder rather than any fix?",
+    "Three guards (measure · picker · popup) are recorded as failing LOCALLY too (§6 row 97), i.e. real bugs, not environment. Were those three ever triaged as product bugs? Commit 9d64625 isolated the picker/measure race and explicitly did NOT fix it (~35–40% recurrence, deferred to Phase 23). Is the local failure of `popup` the same race or a separate, unexamined one?",
+    "Does the Phase 23 dependency on Playwright survive contact with known-issues item 2? Playwright's extension support is built on --load-extension, which Chrome 137+ silently disables. If Playwright ends up being only a test runner wrapped around the existing hand-rolled CDP, is the dependency worth its weight versus finishing scripts/lib/cdp.mjs and running the guards under vitest?",
+    "Paths أ and د of the four E2E journeys terminate in export (Phase 19) and share (Phase 21), neither started. Should 23ج be scheduled after 21 as ADR 0013's order implies, or should the journeys be written truncated and extended later? The ADR order (…21 → 22 → 23…) already places 23 after both, so this may be answered — but the MVP-gate smoke package (§4 item 4) pulls a slice of 23 BEFORE the gate, and that slice's scope against 19/21 is not specified.",
+    "Should the 'stabilise the guards' work be numbered as a Phase 23 sub-phase at all, or pulled forward as its own phase ahead of 19/20أ? The guards currently block nothing (all 17 blocking:false), which means every phase from here to 28 merges with no live-behaviour gate. That is a standing risk that grows with each phase, and the MVP gate is only two phases away.",
+    "Does 'حزمة دخان دنيا من المرحلة 23' (§4 item 4, required BEFORE the MVP gate) mean the flakiness must be resolved before the gate? Its text is 'install Playwright, smoke over the fixtures that actually exist, on top of the existing verify scripts' — which is satisfiable with guards still non-blocking. If so, the pre-gate slice proves less than it appears to, and that should be said plainly at the gate rather than discovered after it."
+  ]
+}

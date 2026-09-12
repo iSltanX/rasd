@@ -1,0 +1,233 @@
+{
+  "area": "22-tests",
+  "whatExistsAlready": [
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/tests/unit/",
+      "what": "131 test files / 2605 tests. Per-area (measured via `vitest run --reporter=json`): modules 61 files/1243 tests · pages 30/301 · ui 11/508 · content 10/216 · background 5/41 · 14 root-level files/296 tests (architecture-boundaries 21, bidi 36, numerals 46, permissions 21, popup-state 10, port 10, restricted 38, result 23, rpc 8, session 6, settings 17, smoke 4, storage 36, tokens 20).",
+      "evidence": "`pnpm exec vitest run --reporter=json` → aggregated per directory; totals 136 files / 2662 tests, matching the plan's framing. Zero `it.skip`/`describe.skip`/`.todo` in the whole tests/ tree (grep count = 0).",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/tests/integration/",
+      "what": "5 test files / 57 tests: editor-context.test.ts (14), manifest-policy.test.ts (13), popup-context.test.ts (14), popup-redaction-leak.test.ts (6), theme.test.ts (10). All are context/policy/theme/leak assertions — none is an end-to-end cycle.",
+      "evidence": "`find tests/integration -type f` + reporter=json per-file counts. Reading the file headers: manifest-policy checks source manifest vs policy; theme checks root theme/dir attributes; popup-redaction-leak closes a single redaction leak. No file crosses `content ↔ background` as a cycle.",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/tests/helpers/fake-ports.ts",
+      "what": "In-memory double for `chrome.runtime.connect` / `onConnect` — binds two real ports and can drop the connection to simulate a service-worker restart. This is precisely the harness Phase 22 item 3 needs for the two content↔background cycles, and it already exists.",
+      "evidence": "File header at tests/helpers/fake-ports.ts:1-7. `grep -rln fake-ports tests/` returns exactly ONE consumer: tests/unit/port.test.ts. The harness is built and 90% unused.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/tests/helpers/",
+      "what": "4 helper modules, no tests of their own: fake-ports.ts, fake-surface.ts, png-chunks.ts, recording-ctx.ts.",
+      "evidence": "`find tests/helpers -type f`",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/tests/setup.ts",
+      "what": "Global setup: `@webext-core/fake-browser` installed as `chrome`/`browser`, a real manifest injected from package.json, happy-dom drag-event-handler patch, `fakeBrowser.reset()` per test.",
+      "evidence": "Full file read (59 lines).",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/vitest.config.ts",
+      "what": "Declares `coverage: { provider: 'v8', reportsDirectory: 'coverage', include: ['src/**/*.ts','src/**/*.tsx'], exclude: ['src/tokens/**','src/**/*.d.ts'] }` — and NO `thresholds` key, exactly as Phase 22 item 1 states. Also declares NO `testTimeout` (so the vitest default 5000ms applies).",
+      "evidence": "vitest.config.ts lines 34-39 (coverage block) read in full; `grep -n 'testTimeout|timeout:' vitest.config.ts` → no match.",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/tests/fixtures/sites/",
+      "what": "10 site-fixture directories: colour, css, fullpage, hostile, ltr-en, mixed, mutating, picker, rtl-ar, spa (36 files total under tests/fixtures/).",
+      "evidence": "`find tests/fixtures -maxdepth 2 -type d`",
+      "completeness": "partial"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/modules/measure/",
+      "what": "Best-covered module: 100% statements / 97.9% branches / 100% functions / 100% lines across 4 files. src/modules/measure/distance.ts is at 100% branches — already meeting Phase 22 item 2's target for distance math without a property test.",
+      "evidence": "coverage/coverage-summary.json aggregated per directory after `vitest run --coverage --testTimeout=60000`.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/src/ui/",
+      "what": "ui/* measures 76.3% branches (466/611) — ALREADY 38 branches ABOVE the plan's ≥70% target. ui/components 86.9% br, ui/icons 72.7% br, ui/overlay 68.5% br, ui/theme 75% br.",
+      "evidence": "Computed from coverage/coverage-summary.json: `need('src/ui/',70)` → 'to reach 70% need +-38 branches'.",
+      "completeness": "full"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/.github/workflows/ci.yml",
+      "what": "CI job `verify` runs typecheck · tokens:check · verify:tokens · lint · format:check · test · build · verify:dist. It runs `pnpm run test` at line 48 — NOT `test:coverage`. No coverage step exists anywhere in CI.",
+      "evidence": ".github/workflows/ci.yml lines 1-60 read; `grep -n 'coverage' .github/workflows/*.yml` → only line 211 `path: tests/visual-baselines/` matched on 'test'. package.json `check` script = typecheck && lint && format:check && tokens:check && verify:tokens && test — no coverage.",
+      "completeness": "absent"
+    },
+    {
+      "path": "/Volumes/iSltanXx/Projects/Brave/Rasd/scripts/e2e.mjs",
+      "what": "A 7-line stub: prints 'test:e2e — تُنفَّذ في المرحلة 23' and `process.exit(1)`. Its own header says 'تُبنى في المرحلة 23'.",
+      "evidence": "`head -30 scripts/e2e.mjs` — full file is shorter than 30 lines.",
+      "completeness": "stub"
+    }
+  ],
+  "whatIsMissing": [
+    {
+      "deliverable": "A WORKING `pnpm run test:coverage`. It fails today, deterministically — 4 runs out of 4 — and therefore writes NO coverage report at all. `tests/unit/architecture-boundaries.test.ts:259` constructs a real `ESLint` instance and lints `src/pages/compare/layout.ts`; under v8 instrumentation that single test takes 6.6s–9.2s against vitest's default 5000ms testTimeout, which vitest.config.ts never overrides. The run aborts before reporters fire, so `coverage/` is never created. This must be fixed BEFORE any threshold can be enforced, and it refutes the plan's own premise that coverage 'تُقاس ولا تُلزِم'.",
+      "evidenceOfAbsence": "`pnpm run test:coverage` → 'Tests 1 failed | 2661 passed (2662)', 'Error: Test timed out in 5000ms', exit 1; `ls coverage/` → 'No such file or directory'. Repeated 3 more times: 7524ms, 9155ms, 8285ms — 1 failed every time. The numbers in this report required `--testTimeout=60000`.",
+      "sizeEstimate": "tiny",
+      "risk": "low",
+      "riskReason": "One config line (`testTimeout`) or one per-test timeout argument. Zero product risk; the only judgement is whether to slow the whole suite's default or to scope the timeout to that test.",
+      "dependsOn": []
+    },
+    {
+      "deliverable": "Coverage thresholds in vitest.config.ts (plan targets: `modules/*` ≥85% branches · `shared/*` ≥90% · `ui/*` ≥70%) plus a CI step that runs them, plus ratchet-down prevention ('مع منع الانخفاض').",
+      "evidenceOfAbsence": "vitest.config.ts coverage block has no `thresholds` key (lines 34-39). `.github/workflows/ci.yml:48` runs `pnpm run test`, never `test:coverage`. `grep -ln coverage scripts/*.mjs` → only verify-tokens.mjs (unrelated). Docs/Constitution.md contains zero occurrences of 'تغطية' or 'coverage' — Gate A/B do not mention coverage either.",
+      "sizeEstimate": "small",
+      "risk": "medium",
+      "riskReason": "Trivial to write, but turning it on at plan values fails immediately (modules is 9.1 points short, shared 7.9 points short). Landing it requires either shipping the gap-closing tests first, or a two-step ratchet (pin at measured values, then raise).",
+      "dependsOn": ["A working test:coverage"]
+    },
+    {
+      "deliverable": "Branch coverage on `src/modules/*` from 75.9% to ≥85% — a measured deficit of 222 branches (currently 1852/2439 covered).",
+      "evidenceOfAbsence": "Aggregated from coverage/coverage-summary.json. The deficit is concentrated: 9 files carry 256 missing branches — scroller.ts (48, 0%), computed-style/sheets.ts (37, 0%), computed-style/conditions.ts (29, 53%), computed-style/read.ts (25, 0%), editor/scene-ops.ts (25, 38%), computed-style/nesting.ts (24, 8%), style-export/tailwind.ts (24, 65%), editor/draw/shapes.ts (22, 39%), editor/draw/text.ts (22, 0%). Testing those nine files alone clears the target.",
+      "sizeEstimate": "medium",
+      "risk": "low",
+      "riskReason": "The gap is concentrated and the units are pure logic (stylesheet reading, cascade conditions, CSS nesting, tile/draw math). No new harness needed — 61 module test files already exist as precedent.",
+      "dependsOn": ["A working test:coverage"]
+    },
+    {
+      "deliverable": "Branch coverage on `src/shared/*` from 82.1% to ≥90% — a measured deficit of 27 branches (currently 275/335).",
+      "evidenceOfAbsence": "Aggregated from coverage/coverage-summary.json. Largest single contributor is src/shared/storage/offscreen.ts at 0% (16 missing branches); the rest is spread thin — shared/bidi/fonts.ts 50% br, shared/canvas-limits.ts 75% br, shared/storage 68.8% br.",
+      "sizeEstimate": "small",
+      "risk": "low",
+      "riskReason": "27 branches, over half of them in one 0%-covered file. `tests/setup.ts` already fakes the chrome surface offscreen.ts needs.",
+      "dependsOn": ["A working test:coverage"]
+    },
+    {
+      "deliverable": "Property-based (generative) tests — plan item 2. Confirmed ZERO today.",
+      "evidenceOfAbsence": "`grep -n 'fast-check|jsverify|@fast-check' package.json pnpm-lock.yaml` → no match. `grep -rln fast-check tests/ src/` → no match. No generative-testing dependency exists in the repo at all. All eight named targets exist as files: src/shared/geometry.ts (100% br), src/shared/canvas-limits.ts (75% br), src/content/coords.ts (61.2% br), src/ui/overlay/geometry.ts (100% br), src/modules/capture/full-page/tiles.ts (90% br), src/modules/compare/reference.ts (75% br), src/modules/measure/distance.ts (100% br), src/modules/colour/formats.ts (84.4% br), src/shared/bidi/* (fonts.ts 50% br, the other three 100%).",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "Net-new test kind requiring a new dependency, invariant design per domain, and seed/shrink discipline. Several targets are already at 100% example-coverage, so the value is in round-trip and boundary invariants, not in the coverage number — meaning it does not help the threshold work and must be justified on its own.",
+      "dependsOn": []
+    },
+    {
+      "deliverable": "The two large integration cycles across `content ↔ background`: `التقاط → تخزين → تحرير → تصدير` and `فحص → لون → لوحة → تصدير`. The plan says 'لا توجد اليوم دورة كاملة واحدة' — confirmed.",
+      "evidenceOfAbsence": "tests/integration is 5 files / 57 tests, all read: editor-context, manifest-policy, popup-context, popup-redaction-leak, theme. None spans a capture→store→edit→export or inspect→colour→palette→export path. Supporting evidence: the port double that would carry such a cycle (tests/helpers/fake-ports.ts) has exactly one consumer, tests/unit/port.test.ts.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "The harness exists but the cycles cross the service-worker boundary, IndexedDB, offscreen canvas and export. src/background is at 19.9% branches and src/workers at 0%, so the code these cycles drive is the least-exercised in the repo — expect real defects, not just new tests.",
+      "dependsOn": ["A working test:coverage"]
+    },
+    {
+      "deliverable": "Cover the three explicitly named uncovered paths from item 4: `src/content/clipboard.ts`, `src/pages/gallery/`, `src/pages/capture-preview/`.",
+      "evidenceOfAbsence": "coverage/coverage-summary.json — all at 0% statements: src/content/clipboard.ts (36 stmts); src/pages/gallery/{Gallery.tsx 31, OverlayStage.tsx 8, ErrorBoundary.tsx 6, main.tsx 3}; src/pages/capture-preview/{CapturePreview.tsx 9, main.tsx 6}. No tests/unit/pages/gallery or tests/unit/pages/capture-preview directory exists.",
+      "sizeEstimate": "small",
+      "risk": "low",
+      "riskReason": "~100 statements total across six small files; gallery is an internal dev tool excluded from the production build (vite.config.ts input map), so its bar is low.",
+      "dependsOn": []
+    },
+    {
+      "deliverable": "The inherited items closed phases dropped silently — Slider keyboard test (Phase 5), radius-nesting test (Phase 5), Lighthouse gallery audit (Phase 5), scroller.ts six-layout detector test (Phase 10), and the un-cited-but-parallel InspectPanel keyboard test (Phase 11 criterion 17).",
+      "evidenceOfAbsence": "Slider: Docs/Phases/Phase_05.md:235 records it dropped, Phase_05.md:376 writes its fate as 'نصّ المرحلة 22، البند 4'; `grep -rln Slider tests/` hits only compare-panel.test.tsx and a visual baseline — Slider.tsx is 75% stmt via render-all.test.tsx but has no keyboard test. Radius: Phase_05.md:237; `grep -rli radius tests/` returns only unrelated files (regions/history/autosave). Lighthouse: Phase_05.md:236; `grep -rli lighthouse src tests scripts .github package.json` → ZERO hits repo-wide. scroller: Phase_10.md:261 marks criterion 6 '❌ لا ملفّ اختبار' — src/modules/capture/scroller.ts is 0% and is the single largest branch gap in modules (48). InspectPanel: Phase_11.md:220 marks criterion 17 '⚠️ منفَّذة بلا اختبار' — src/ui/overlay/inspect/InspectPanel.tsx is at 5.5% statements.",
+      "sizeEstimate": "medium",
+      "risk": "medium",
+      "riskReason": "Four are ordinary unit tests, but the Lighthouse gallery audit needs a tool that does not exist anywhere in the repo — it is a new dependency and a new runner, not a test file. The plan itself routes the phase-10 memory/Lighthouse pair to phase 24 but leaves the phase-5 Lighthouse item here.",
+      "dependsOn": []
+    },
+    {
+      "deliverable": "An automated flakiness harness — 'صفر اختبار متقطّع في 10 تشغيلات متتالية، مُقاسًا آليًّا لا انطباعًا'. No script exists.",
+      "evidenceOfAbsence": "`ls scripts/ | grep -i 'flak|repeat|stab'` → empty. `grep -rn 'flaky|repeats|--repeat' package.json .github/workflows/*.yml` → no match. NOTE: the underlying criterion is already MET — I ran `vitest run` 10 consecutive times and got 2662/2662 passing with zero failures in every run. What is missing is the automation, not the stability.",
+      "sizeEstimate": "tiny",
+      "risk": "low",
+      "riskReason": "A loop script plus a CI invocation. The measurement already comes back clean on the default runner.",
+      "dependsOn": []
+    },
+    {
+      "deliverable": "Coverage for `src/pages/*` (37.8% branches, 89 files), `src/content/*` (31.9%, 24 files), `src/background/*` (19.9%, 11 files) and `src/workers/*` (0%, 2 files) — the plan sets NO threshold for any of these four.",
+      "evidenceOfAbsence": "Aggregated coverage per bucket. Plan line 1450 names only modules/shared/ui. 73 files sit at 0% statements, carrying 2852 statements (25.5% of all src statements) and 1639 branches (24.9% of all branches). The largest: src/content/index.ts (403 stmts), src/pages/editor/Stage.tsx (366), src/content/overlay-app.tsx (306), src/background/lifecycle.ts (207), src/pages/editor/Editor.tsx (189), src/pages/popup/Popup.tsx (124), src/pages/compare/ComparePage.tsx (117).",
+      "sizeEstimate": "xlarge",
+      "risk": "high",
+      "riskReason": "A quarter of src is unexecuted by any test, and the plan's three thresholds are structured so that none of it is gated — global coverage is 60.7% statements / 55.6% branches while all three named buckets can pass. Deciding whether this is out of scope (deferred to 23's E2E and 26's visual) or a silent hole is a judgement call the plan does not make.",
+      "dependsOn": ["A working test:coverage"]
+    }
+  ],
+  "naturalSplitPoints": [
+    {
+      "title": "22-أ — إصلاح القياس ثم تثبيت الأرضية (repair the meter, pin the floor)",
+      "contains": [
+        "Fix the 5000ms timeout that makes `pnpm run test:coverage` fail 4/4 runs and emit no report",
+        "Add a `thresholds` block to vitest.config.ts pinned at the CURRENT measured values (modules 75% br, shared 82% br, ui 76% br) so the numbers can only go up",
+        "Add a `Coverage` step to .github/workflows/ci.yml between Test and Build",
+        "Add `scripts/test-flaky.mjs` (10 consecutive runs, machine-checked) and wire it to a `test:flaky` script"
+      ],
+      "whyThisBoundary": "Everything downstream is unmeasurable until `test:coverage` exits 0 — today it writes no report at all. Pinning at measured values rather than plan values makes this sub-phase land green on day one and turns every later sub-phase into a monotone ratchet, instead of one big red gate that blocks all of 22 at once.",
+      "verifiableBy": "`pnpm run test:coverage` exits 0 and `coverage/coverage-summary.json` exists; re-running after artificially deleting one test file makes it exit non-zero; `pnpm run test:flaky` reports 10/10 clean.",
+      "estimatedContextWeight": "light"
+    },
+    {
+      "title": "22-ب — رفع العتبات إلى قيم الخطّة وسدّ المسمَّى (raise to plan values, close the named list)",
+      "contains": [
+        "+222 branches in src/modules/* — concentrated in 9 files: scroller.ts(48), computed-style/sheets.ts(37), conditions.ts(29), read.ts(25), editor/scene-ops.ts(25), nesting.ts(24), style-export/tailwind.ts(24), editor/draw/shapes.ts(22), editor/draw/text.ts(22)",
+        "+27 branches in src/shared/* — over half in storage/offscreen.ts(16)",
+        "The three named zero-coverage paths: content/clipboard.ts, pages/gallery/, pages/capture-preview/",
+        "The inherited drops: Slider keyboard, radius nesting, scroller six-layout, InspectPanel keyboard",
+        "Raise thresholds from the pinned floor to modules 85 / shared 90 / ui 70"
+      ],
+      "whyThisBoundary": "This is one homogeneous activity — writing example-based unit tests against stable logic — and it is exactly the work that moves the two failing numbers. scroller.ts appears in both the threshold arithmetic (largest single branch gap in modules) and the Phase 10 inherited-drop list, so splitting the two lists apart would split one file's work in half.",
+      "verifiableBy": "vitest.config.ts carries thresholds `branches: 85` on src/modules, `90` on src/shared, `70` on src/ui, and `pnpm run test:coverage` exits 0 in CI.",
+      "estimatedContextWeight": "heavy"
+    },
+    {
+      "title": "22-ج — أصناف اختبار جديدة: التوليدي والدورتان (the two new test kinds)",
+      "contains": [
+        "Add a generative-testing dependency and write property tests for shared/geometry, coords, canvas-limits, bidi, tile math, reference transforms, distance math, colour round-trips",
+        "Integration cycle 1: التقاط → تخزين → تحرير → تصدير across content ↔ background",
+        "Integration cycle 2: فحص → لون → لوحة → تصدير",
+        "Put tests/helpers/fake-ports.ts to work beyond its single current consumer"
+      ],
+      "whyThisBoundary": "These two are the only items in Phase 22 that are genuinely net-new capability rather than more of what 136 existing files already do — a new dependency and a new boundary-crossing harness. They also barely move the coverage numbers (several property targets are already at 100% branches), so binding them to the threshold work would let a coverage gate masquerade as proof that they exist. Doing them last also means they run against the code 22-ب has already hardened.",
+      "verifiableBy": "A property-test dependency appears in package.json; property tests exist for all named targets and fail under a deliberately broken round-trip; the two cycle tests exist in tests/integration and go red when the content↔background message contract is broken.",
+      "estimatedContextWeight": "moderate"
+    }
+  ],
+  "planClaimsRefutedByCode": [
+    {
+      "claim": "«الإعداد اليوم يعرّف `coverage` بلا `thresholds` واحدة — أي أن التغطية **تُقاس** ولا تُلزِم»",
+      "claimLocation": "Rasd_Plan.md:1448-1449 (Phase 22, item 1)",
+      "reality": "The first half is true; the second half is false. Coverage is NOT measured today — `pnpm run test:coverage` fails deterministically and produces no report whatsoever. The run aborts on a timeout before any reporter writes, so the `coverage/` directory does not exist. The premise that a number is already visible and merely non-binding is wrong: there is no number until a timeout is fixed.",
+      "evidence": "`pnpm run test:coverage` → 'Tests 1 failed | 2661 passed (2662)' / 'Error: Test timed out in 5000ms' / exit 1. Repeated 3 further times: the same single test fails every run (file durations 7524ms, 9155ms, 8285ms). `ls coverage/` → 'No such file or directory'. Cause: tests/unit/architecture-boundaries.test.ts:259-263 builds a real `ESLint` and lints src/pages/compare/layout.ts; under v8 instrumentation it exceeds vitest's default 5000ms, and `grep -n 'testTimeout' vitest.config.ts` → no match."
+    },
+    {
+      "claim": "The three coverage targets are presented together as deliberately differentiated goals to be reached: «`modules/*` ≥ 85% فروع · `shared/*` ≥ 90% · `ui/*` ≥ 70%»",
+      "claimLocation": "Rasd_Plan.md:1450 (Phase 22, item 1)",
+      "reality": "`ui/*` is already ABOVE its target and has been for some time — it needs no work at all, only a threshold line. Two of the three targets are real gaps; the third is already banked. Measured: ui/* 76.3% branches (466/611), i.e. +38 branches above the 70% bar. modules/* 75.9% (1852/2439) is 222 branches short of 85%; shared/* 82.1% (275/335) is 27 branches short of 90%.",
+      "evidence": "Computed from coverage/coverage-summary.json after `vitest run --coverage --testTimeout=60000` (136 files / 2662 tests all passing). Per-bucket rollup: modules 75.9% br, shared 82.1% br, ui 76.3% br. The arithmetic `need('src/ui/',70)` returns 'to reach 70% need +-38 branches' — a negative requirement."
+    },
+    {
+      "claim": "«تُسنَد الإضافة إلى **المرحلة 22** (تحسين تجربة الأدوات داخل الصفحة)» — assigning the element-hover measure+code chips to Phase 22.",
+      "claimLocation": "Rasd_Plan.md:2056 (§6 contradictions register, row 80)",
+      "reality": "Phase 22 is not «تحسين تجربة الأدوات داخل الصفحة» — its title is «اختبارات الوحدة والتكامل» and its body (lines 1441-1479) is five test items with no mention of element-hover, chips, or any in-page UI work. Row 80 assigns feature work to a phase by a description that matches neither that phase's title nor its contents, so the assignment has no landing place. The underlying code claim in row 80 is however CORRECT: overlay-app.tsx still builds two quick actions, not four.",
+      "evidence": "Rasd_Plan.md:1436 gives the title; lines 1441-1479 give the full body (five items + completion criterion), none referencing element-hover. Code check: src/content/overlay-app.tsx:368 `const actions: QuickAction[] = info` with exactly two entries at :370 (`id: 'copy'`) and :372 (`id: 'capture'`) — no measure or code chip."
+    },
+    {
+      "claim": "«**الفرع الثالث للبند 51 (`oversized` ← مسار المرحلة 10)** | **مؤجَّل صراحةً إلى المرحلة 22.** يحتاج عقد رسائل جديدًا … ووظيفة خلفية مستقلّة»",
+      "claimLocation": "Docs/Phases/Phase_12.md:86",
+      "reality": "Phase 22's body contains no such item. A closed phase deferred a feature — a new message contract plus an independent background function — into a phase whose five enumerated items are all tests, and Phase 22 never inherited it. Same structural failure as §6 row 80, and same failure mode row 80 itself diagnoses ('سقط بين المراحل بلا أن يمسكه أحد').",
+      "evidence": "Phase_12.md:86 (the «ما لم يُقَس — حدود مُعلَنة» table). Rasd_Plan.md:1446-1464 lists Phase 22's five items — no `oversized`, no element-capture path, no message contract. By contrast Phase_05.md:376 DID write its fate correctly into 'نصّ المرحلة 22، البند 4', and item 4 at line 1459-1462 does carry the Phase 5 items."
+    },
+    {
+      "claim": "Phase 23's fixture alignment table lists «تسعة مجلّدات قائمة فعلًا» and enumerates them: rtl-ar, ltr-en, mixed, spa, mutating, hostile, css, fullpage, picker.",
+      "claimLocation": "Rasd_Plan.md ~1508-1518 (Phase 23 alignment table, measured here because it concerns tests/fixtures)",
+      "reality": "There are TEN, not nine. `tests/fixtures/sites/colour/` exists and is absent from the table. The table is explicitly framed as the thing that must be built before counting what is missing ('جدول مواءمة الأسماء يُبنى قبل عدّ الناقص') — so a missing row propagates straight into the phase-23 build list.",
+      "evidence": "`find tests/fixtures -maxdepth 2 -type d` → colour, css, fullpage, hostile, ltr-en, mixed, mutating, picker, rtl-ar, spa (10 directories)."
+    }
+  ],
+  "openQuestions": [
+    "«كل الوحدات الثماني مغطّاة» in the completion criterion (Rasd_Plan.md:1479) — 'the eight units' is never defined anywhere in the plan. `grep -n 'الوحدات الثماني'` returns exactly one hit: this line. Two readings, both already satisfied: (a) the eight product tools (capture/annotate/inspect/measure/colours/compare/library/export) — each has module tests; (b) src/modules/* directories — but there are ELEVEN (a11y, capture, colour, compare, computed-style, dom-picker, editor, library, measure, style-export, var-trace), not eight, and all eleven already have at least one test file. Either way this clause has no teeth; the real gate is the coverage number. Needs a definition or an explicit strike.",
+    "«`shared/*` ≥ 90%» (line 1450) — of WHICH metric? The line specifies 'فروع' (branches) only for modules/*. Under branches shared is 82.1% (27 short); under statements 85.3%; under functions 88.7%; under lines 87.9%. All four readings fail the bar but by different amounts, and the threshold config needs one answer.",
+    "«محوِّلات الإحداثيات الثلاثة» (line 1453) — only two geometry modules exist (src/shared/geometry.ts, src/ui/overlay/geometry.ts) plus src/content/coords.ts. `find src -name 'geometry*' -o -name 'coords*' -o -name 'canvas-limits*'` returns four files total. Which three are meant, and is the third one src/content/coords.ts (61.2% branches — the weakest of them)?",
+    "Does the coverage gate belong in `pnpm check` or CI only? `check` today is typecheck && lint && format:check && tokens:check && verify:tokens && test (~27s). Adding coverage roughly doubles the local loop. Docs/Constitution.md has ZERO occurrences of 'تغطية' or 'coverage', so neither Gate A nor Gate B currently says.",
+    "A quarter of src is unexecuted and ungated: 73 files at 0% statements = 2852 statements (25.5%) and 1639 branches (24.9%). Global coverage is 60.7% stmt / 55.6% br, yet all three plan thresholds can pass without touching src/pages (37.8% br), src/content (31.9% br), src/background (19.9% br) or src/workers (0%). Is that silence deliberate — those surfaces deferred to 23's E2E and 26's visual — or an unnoticed hole? The largest single files are src/content/index.ts (403 stmts, 0%) and src/pages/editor/Stage.tsx (366 stmts, 0%).",
+    "Phase 22's dependency is «المراحل 1–21» and phases 19, 20أ, 20ب, 21 are all unstarted. Each closed phase historically added 136–442 tests (969 at ph9 → 1213 at ph11 → 1872 at ph15 → 2233 at ph16 → 2490 at ph17 → 2662 now). Four unstarted phases will add src AND tests before 22 runs, so today's gap list and the 222/27-branch arithmetic will shift. Should 22 be re-measured at its start, or should the threshold floor be pinned NOW (22-أ) so 19-21 cannot regress it?",
+    "Where does §6 row 80's element-hover chip work actually land, now that Phase 22 is demonstrably a test phase? And where does Phase_12.md:86's `oversized` branch land? Both need a named home or an explicit drop, per the same rule row 80 invokes against phases 11 and 12."
+  ]
+}
