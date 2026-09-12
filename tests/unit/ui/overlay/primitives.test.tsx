@@ -8,6 +8,7 @@ import {
   Crosshair,
   Dimension,
   DimensionVertical,
+  ElementHover,
   FrameBlocked,
   Marquee,
   MeasureGap,
@@ -15,6 +16,7 @@ import {
   Toolbar,
   at,
   box,
+  type QuickAction,
 } from '@/ui/overlay'
 
 /**
@@ -119,6 +121,59 @@ describe('Marquee', () => {
   it('`flipBadge` يُعلَّم على الشارة لا يُحسب في JS', () => {
     const el = mount(<Marquee rect={RECT} flipBadge />)
     expect(el.querySelector('[data-rasd-ov-size]')?.getAttribute('data-flip')).toBe('true')
+  })
+})
+
+describe('ElementHover — إجراءات سريعة (Rasd_Plan.md §6 صفّ 80)', () => {
+  const ACTIONS: QuickAction[] = [
+    { id: 'measure', icon: 'dimension-h', label: 'قياس' },
+    { id: 'code', icon: 'code', label: 'شيفرة' },
+    { id: 'copy', icon: 'copy', label: 'انسخ المحدِّد' },
+    { id: 'capture', icon: 'capture-element', label: 'التقط العنصر', primary: true },
+  ]
+
+  it('أربع رقاقات بالضبط، بترتيب الملفّ (قياس · شيفرة · نسخ · التقاط)', () => {
+    const root = mount(
+      <ElementHover rect={RECT} bounds={RECT} tag="div" selector=".x" actions={ACTIONS} />,
+    )
+    const buttons = root.querySelectorAll('.rasd-ov-quick-btn')
+    expect(buttons).toHaveLength(4)
+    expect([...buttons].map((b) => b.getAttribute('aria-label'))).toEqual([
+      'قياس',
+      'شيفرة',
+      'انسخ المحدِّد',
+      'التقط العنصر',
+    ])
+  })
+
+  it('الإجراء الأساسي وحده يحمل data-primary="true"', () => {
+    const root = mount(
+      <ElementHover rect={RECT} bounds={RECT} tag="div" selector=".x" actions={ACTIONS} />,
+    )
+    const buttons = [...root.querySelectorAll('.rasd-ov-quick-btn')]
+    expect(buttons.map((b) => b.getAttribute('data-primary'))).toEqual([
+      'false',
+      'false',
+      'false',
+      'true',
+    ])
+  })
+
+  it('كل رقاقة تنادي onPick الخاصّ بها فقط', () => {
+    const picked: string[] = []
+    const actions = ACTIONS.map((a) => ({ ...a, onPick: () => picked.push(a.id) }))
+    const root = mount(
+      <ElementHover rect={RECT} bounds={RECT} tag="div" selector=".x" actions={actions} />,
+    )
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>('.rasd-ov-quick-btn')]
+    buttons[0]?.click()
+    buttons[2]?.click()
+    expect(picked).toEqual(['measure', 'copy'])
+  })
+
+  it('بلا actions: لا شريط إجراءات يُرسَم', () => {
+    const root = mount(<ElementHover rect={RECT} bounds={RECT} tag="div" selector=".x" />)
+    expect(root.querySelector('[data-rasd-ov="quick-actions"]')).toBeNull()
   })
 })
 

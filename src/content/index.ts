@@ -784,6 +784,12 @@ async function bootOverlay(
 
   const app = mountOverlayApp(host.layer, {
     mode: modes.mode,
+    /**
+     * إجراءا «قياس»/«شيفرة» السريعان في `capture / element-hover`
+     * (`Rasd_Plan.md §6` صفّ 80) — تبديل وضع مباشر، نفس ما تفعله
+     * `installShortcuts`/`modes.set` أعلاه حرفيًّا.
+     */
+    onSwitchMode: (mode) => modes.set(mode),
     area,
     element,
     inspect,

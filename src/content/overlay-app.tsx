@@ -111,6 +111,12 @@ export interface OverlayAppProps {
   measure: MeasureTool
   colour: EyedropperTool
   compare: CompareTool
+  /**
+   * يُطلَب حين يختار المستخدم أداةً أخرى من إجراءات سريعة داخل وضع قائم —
+   * رقاقتا «قياس»/«شيفرة» في `capture / element-hover` (`Rasd_Plan.md §6`
+   * صفّ 80). تبديلٌ مباشر مثل زرّ نافذة الإضافة تمامًا، لا مسار خاصّ.
+   */
+  onSwitchMode?: (mode: Mode) => void
   /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة الفحص. */
   onCopyInspect?: (kind: 'css' | 'tailwind' | 'json') => void
   /** يُطلَب حين يضغط المستخدم زرّ نسخ في لوحة اللون. */
@@ -331,17 +337,23 @@ function AreaLayer({
 /**
  * `capture / element-hover` — الإبراز والبطاقة والإجراءات.
  *
- * **إجراءان لا أربعة.** يعرض الملفّ أربع رقاقات: قياس (`dimension-h`)،
- * وشيفرة (`code`)، ونسخ، والتقاط. والقياس محرّكه المرحلة 12 والشيفرة
- * المرحلة 11 — فعرضهما الآن وعدٌ بما لا يقع خلفه شيء. تُحذَف حتى يوجد
- * محرّكها، ولا تُعرَض معطَّلة: السابقة مقرّرة منذ المرحلة 7.
+ * **أربع رقاقات الآن، لا اثنتان.** الملفّ (`59:123`) يعرض قياس (`dimension-h`)،
+ * وشيفرة (`code`)، ونسخ، والتقاط — بهذا الترتيب. كانت الأوليان محذوفتين
+ * (`Rasd_Plan.md §6` صفّ 27): القياس محرّكه المرحلة 12 والشيفرة المرحلة 11،
+ * ولم يكونا موجودَين وقت بناء هذا الملفّ. **كلاهما موجود الآن** — فالمانع
+ * الذي أسقطهما («عرضٌ بما لا يقع خلفه شيء») زال، والإضافة سُدَّت هنا (لا في
+ * مرحلة 22 كما رجّح صفّ 80 أوّلًا): تبديل وضع مباشر عبر `onSwitchMode`، بلا
+ * نقل سياق العنصر المستهدَف — الأداة الجديدة تتتبّع المؤشِّر من جديد، تمامًا
+ * كزرّ التبديل في نافذة الإضافة.
  */
 function ElementLayer({
   element,
   space,
+  onSwitchMode,
 }: {
   element: ElementHoverTool
   space: Signal<CoordSpace>
+  onSwitchMode?: (mode: Mode) => void
 }) {
   const rect = element.state.rect.value
   const info = element.state.info.value
@@ -367,6 +379,13 @@ function ElementLayer({
 
   const actions: QuickAction[] = info
     ? [
+        {
+          id: 'measure',
+          icon: 'dimension-h',
+          label: 'قياس',
+          onPick: () => onSwitchMode?.('measure'),
+        },
+        { id: 'code', icon: 'code', label: 'شيفرة', onPick: () => onSwitchMode?.('inspect') },
         { id: 'copy', icon: 'copy', label: 'انسخ المحدِّد', onPick: () => element.copySelector() },
         {
           id: 'capture',
@@ -1029,7 +1048,11 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
   if (mode === 'element')
     return (
       <>
-        <ElementLayer element={props.element} space={props.space} />
+        <ElementLayer
+          element={props.element}
+          space={props.space}
+          {...(props.onSwitchMode ? { onSwitchMode: props.onSwitchMode } : {})}
+        />
         {job}
       </>
     )
