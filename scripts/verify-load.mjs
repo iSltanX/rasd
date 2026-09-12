@@ -94,7 +94,40 @@ const proc = spawn(
 let stderr = ''
 proc.stderr.on('data', (d) => (stderr += d.toString()))
 
+const errors = []
+const lines = []
+const ok = (m) => lines.push(`  ✓ ${m}`)
+const fail = (m) => {
+  errors.push(m)
+  lines.push(`  ✗ ${m}`)
+}
+
+/**
+ * **مهلة صلبة — حارسٌ معلَّق يبتلع جولةً كاملة.** قِيس في CI مرّتين متتاليتين:
+ * `verify:load` بلغ مهلة الخطوة (ستّ دقائق) بلا سطر واحد من خَرْجه، فلم يُعرَف
+ * أين علّق — لأن الملفّ يطبع سطوره كلّها في آخره. والنداءات على مقبس DevTools
+ * بلا مهلة: مقبسٌ نصف حيّ يترك وعدًا معلَّقًا إلى الأبد.
+ *
+ * فتسعون ثانية سقفٌ مقيس لا مقدَّر: الجولة الناجحة على العدّاء أقلّ من
+ * عشرين ثانية، وستّون منها لانتظار منفذ التنقيح وحده. وبلوغُه يطبع **ما
+ * جُمع حتى اللحظة** ثمّ يسقط — فيُنطَق موضع التعليق بدل أن يُبتلَع.
+ *
+ * (‏بقيّة الحرّاس بلا مهلة صلبة كذلك — وموضع حسمها النواة المشتركة في 23.2،
+ * لا أربع عشرة رقعة متطابقة.)
+ */
+const HARD_TIMEOUT_MS = 90_000
+const hardTimeout = setTimeout(() => {
+  console.log('\nفحص التحميل في Chrome:')
+  console.log(lines.join('\n'))
+  console.error(
+    `\n✗ تجاوز الفحص الحدّ الأقصى ${HARD_TIMEOUT_MS / 1000} ثانية — علّق بعد آخر سطر أعلاه.\n`,
+  )
+  process.exit(1)
+}, HARD_TIMEOUT_MS)
+hardTimeout.unref?.()
+
 async function cleanup() {
+  clearTimeout(hardTimeout)
   proc.kill('SIGKILL')
   // Chrome قد يكون ما يزال يكتب في ملف التعريف — لا نُفشل الفحص بسبب التنظيف.
   for (let i = 0; i < 10; i++) {
@@ -179,14 +212,6 @@ for (let i = 0; i < 20 && loadedId; i++) {
 }
 // إضافتنا وحدها — لا أي service worker.
 const sw = targets.find((t) => t.type === 'service_worker' && String(t.url).startsWith(ownOrigin))
-
-const errors = []
-const lines = []
-const ok = (m) => lines.push(`  ✓ ${m}`)
-const fail = (m) => {
-  errors.push(m)
-  lines.push(`  ✗ ${m}`)
-}
 
 if (loadRejection) {
   // هنا يظهر خطأ تحقّق البيان الحقيقي من Chrome نفسه.
