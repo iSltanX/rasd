@@ -112,22 +112,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { guard: activate, blocking: false }
-          - { guard: capture, blocking: false }
-          - { guard: capturing, blocking: false }
-          - { guard: colour, blocking: false }
+          - { guard: activate, blocking: true }
+          - { guard: capture, blocking: true }
+          - { guard: capturing, blocking: true }
+          - { guard: colour, blocking: true }
           - { guard: compare, blocking: false }
-          - { guard: compare-diff, blocking: false }
-          - { guard: editor, blocking: false }
-          - { guard: fullpage, blocking: false }
-          - { guard: inspect, blocking: false }
-          - { guard: library, blocking: false }
-          - { guard: lifecycle, blocking: false }
+          - { guard: compare-diff, blocking: true }
+          - { guard: editor, blocking: true }
+          - { guard: fullpage, blocking: true }
+          - { guard: inspect, blocking: true }
+          - { guard: library, blocking: true }
+          - { guard: lifecycle, blocking: true }
           - { guard: load, blocking: false }
-          - { guard: measure, blocking: false }
-          - { guard: overlay, blocking: false }
-          - { guard: palette, blocking: false }
-          - { guard: picker, blocking: false }
+          - { guard: measure, blocking: true }
+          - { guard: overlay, blocking: true }
+          - { guard: palette, blocking: true }
+          - { guard: picker, blocking: true }
           - { guard: popup, blocking: false }
 
     # الوظيفة غير الحاجبة تظهر ✗ في صفحة الفحوص ولا تُسقِط الجولة.

@@ -577,11 +577,22 @@ if (extId && sw && granted) {
       }
 
       // ── 4) السحب يحرّك التحويل بمقدار حركة المؤشِّر الحقيقية ────
+      //
+      // **القراءة تنتظر الأثر، والحدث يُرسَل مرّةً.** قِيس في CI (جولة
+      // 34669443490): `السحب لم يطابق حركة المؤشِّر` والتحويل لم يتغيّر
+      // إطلاقًا — أي أن القراءة سبقت تطبيق الحركة لا أن المقدار خاطئ.
+      // فتُستطلَع الحالة حتى تتغيّر أو ينفد السقف، **ثمّ** يُحكَم على
+      // المقدار بتسامحه الأصلي (2px) بلا توسيع. ولا تُعاد الحركة: إعادتها
+      // تضاعف ما يُقاس، وهذا فرقُ انتظار الأثر عن إخفاء السباق.
       st = await readCompareState(tabId)
       const before = st.transform
       await pressAt(pageSession, bg.x, bg.y)
       await moveTo(pageSession, bg.x - 40, bg.y - 25)
-      st = await readCompareState(tabId)
+      for (let i = 0; i < 20; i++) {
+        st = await readCompareState(tabId)
+        if (st.transform.tx !== before.tx || st.transform.ty !== before.ty) break
+        await new Promise((r) => setTimeout(r, 50))
+      }
       const afterMove = st.transform
       await releaseAt(pageSession, bg.x - 40, bg.y - 25)
       if (near(afterMove.tx - before.tx, -40, 2) && near(afterMove.ty - before.ty, -25, 2)) {
