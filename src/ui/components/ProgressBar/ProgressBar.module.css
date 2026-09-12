@@ -12,6 +12,15 @@
   transition: inline-size var(--rasd-motion-duration-normal) var(--rasd-motion-ease-standard);
 }
 
+/* `tone-primary` لا يحتاج قاعدة: `.fill` أعلاه هو التعبئة الافتراضية نفسها. */
+.tone-warning .fill {
+  background: var(--rasd-status-warning-solid);
+}
+
+.tone-danger .fill {
+  background: var(--rasd-status-danger-solid);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fill {
     transition: none;

@@ -8,7 +8,7 @@
  */
 
 import { formatBytes, formatPercent } from '@/shared/bidi/numerals'
-import { ProgressBar } from '@/ui/components/ProgressBar/ProgressBar'
+import { ProgressBar, type ProgressBarTone } from '@/ui/components/ProgressBar/ProgressBar'
 import { cx } from '@/ui/cx'
 
 import styles from './QuotaIndicator.module.css'
@@ -26,6 +26,13 @@ const LEVEL_HINT: Record<QuotaState['level'], string> = {
   block: 'التخزين ممتلئ تقريبًا — احذف أو أرشِف قبل المتابعة.',
 }
 
+/** `Rasd_Plan.md §6` صفّ 73 — الشريط الآن يُلوَّن بحالة الحصّة، لا النصّ وحده. */
+const LEVEL_TONE: Record<QuotaState['level'], ProgressBarTone> = {
+  ok: 'primary',
+  warn: 'warning',
+  block: 'danger',
+}
+
 export function QuotaIndicator({ state }: QuotaIndicatorProps): JSX.Element | null {
   // لا حدّ مُبلَّغ (متصفّح لا يدعم `navigator.storage.estimate`) — لا شيء يُعرض بدل رقم مضلِّل.
   if (state.quotaBytes === 0) return null
@@ -35,7 +42,12 @@ export function QuotaIndicator({ state }: QuotaIndicatorProps): JSX.Element | nu
 
   return (
     <div class={cx(styles.wrap, styles[`level-${state.level}`])} title={label}>
-      <ProgressBar value={state.ratio * 100} label={label} class={styles.bar} />
+      <ProgressBar
+        value={state.ratio * 100}
+        label={label}
+        tone={LEVEL_TONE[state.level]}
+        class={styles.bar}
+      />
       <span class={styles.text}>
         {formatBytes(state.usageBytes)} / {formatBytes(state.quotaBytes)}
       </span>
