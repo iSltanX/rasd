@@ -15,11 +15,12 @@
  */
 
 import { createRateLimiter, systemClock, type RateLimiter } from '@/modules/capture/rate-limit'
+import { gateMessage } from '@/shared/injection-gate'
 import { sendToTab } from '@/shared/messaging'
-import { checkInjectable, restrictionMessage } from '@/shared/restricted'
 import { errText, ok, type Result } from '@/shared/result'
 import { putCaptureWithBlob } from '@/shared/storage/repository'
 
+import { canOperateOnTab } from './gate'
 import { cropCapture } from './image-ops'
 
 import type { DeviceRect } from '@/shared/geometry'
@@ -88,8 +89,8 @@ async function assertShootable(tabId: number): Promise<Result<chrome.tabs.Tab>> 
     return errText('cancelled', 'أُفرِغ التبويب من الذاكرة. افتحه من جديد ثم أعد المحاولة.')
   }
 
-  const check = checkInjectable(tab.url)
-  if (!check.injectable) return errText('not-injectable', restrictionMessage(check.reason))
+  const gate = await canOperateOnTab(tabId)
+  if (!gate.allowed) return errText('not-injectable', gateMessage(gate.reason))
 
   const [activeTab] = await chrome.tabs.query({ active: true, windowId: tab.windowId })
   if (activeTab?.id !== tabId) {

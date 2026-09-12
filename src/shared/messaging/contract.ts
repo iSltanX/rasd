@@ -9,9 +9,9 @@
  */
 
 import type { DeviceRect } from '../geometry'
+import type { GateReason } from '../injection-gate'
 import type { InspectSnapshot } from '../inspect-schema'
 import type { PageName } from '../page-paths'
-import type { RestrictionReason } from '../restricted'
 import type { CaptureKind, ColorSource, Viewport } from '../storage/schema'
 import type { ActiveMode } from '../storage/session'
 
@@ -26,7 +26,7 @@ export type ToolName = Exclude<ActiveMode, 'idle'> | 'viewport' | 'full-page'
  * أن الطبقة لم تُقلِع في الصفحة، و`no-receiver` أن الإقلاع تمّ ولم تصل
  * الرسالة التالية إلى مستقبِل — حالتان مختلفتان في التشخيص فلا تُدمجان.
  */
-export type ActivationFailure = RestrictionReason | 'boot-failed' | 'no-receiver'
+export type ActivationFailure = GateReason | 'boot-failed' | 'no-receiver'
 
 /**
  * لونٌ واحد في لوحة مستخرَجة — مُسطَّحًا للسلك.
@@ -338,7 +338,7 @@ export interface ResponseMap {
     ratio: number
     level: 'ok' | 'warn' | 'block'
   }
-  'tab/can-operate': { allowed: true } | { allowed: false; reason: RestrictionReason }
+  'tab/can-operate': { allowed: true } | { allowed: false; reason: GateReason }
   'settings/get': Record<string, unknown>
   'settings/patch': Record<string, unknown>
   'settings/reset': Record<string, unknown>

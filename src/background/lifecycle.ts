@@ -27,7 +27,6 @@ import {
   serveChannel,
 } from '@/shared/messaging'
 import { PAGE_PATHS } from '@/shared/page-paths'
-import { checkInjectable } from '@/shared/restricted'
 import { RasdThrow } from '@/shared/result'
 import { getSettings, patchSettings, resetSettings } from '@/shared/settings'
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
@@ -38,6 +37,7 @@ import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
 import { measureLiveDiff } from './compare-diff-service'
 import { cancelFullPage } from './full-page-job'
+import { canOperateOnTab } from './gate'
 import { extractFromCapture, extractFromViewport } from './palette-service'
 
 import type { PageKey } from '@/modules/compare/reference'
@@ -105,11 +105,7 @@ function registerRequestHandlers() {
     }
   })
 
-  onMessage('tab/can-operate', async ({ tabId }) => {
-    const tab = await chrome.tabs.get(tabId)
-    const check = checkInjectable(tab.url)
-    return check.injectable ? { allowed: true } : { allowed: false, reason: check.reason }
-  })
+  onMessage('tab/can-operate', async ({ tabId }) => canOperateOnTab(tabId))
 
   onMessage('settings/get', async () => (await getSettings()) as unknown as Record<string, unknown>)
 

@@ -10,7 +10,7 @@
  * هذا ما يجعلها قابلة للاختبار بمدخلات مصطنعة بلا أي محاكاة للمتصفح.
  */
 
-import type { RestrictionReason } from './restricted'
+import type { GateReason } from './injection-gate'
 import type { ActiveMode } from './storage/session'
 
 export type PopupStateName =
@@ -26,8 +26,7 @@ export type PopupStateName =
 /** كل ما يلزم لاختيار حالة واحدة — يصل مُجمَّعًا لا مُستقصًى داخل الدالّة. */
 export interface PopupContext {
   readonly restriction:
-    | { readonly injectable: true }
-    | { readonly injectable: false; readonly reason: RestrictionReason }
+    { readonly injectable: true } | { readonly injectable: false; readonly reason: GateReason }
   readonly online: boolean
   readonly firstRun: boolean
   /** `null` يعني: لا حاجة إلى إذن الآن — لا ميزة نشطة تطلبه. */

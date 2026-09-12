@@ -2,18 +2,24 @@
  * تحميل بيانات النافذة — منطق بلا JSX، منفصل عن `Popup.tsx` عمدًا حتى يُختبر
  * بمحاكاة `chrome.*` (`@webext-core/fake-browser`) بلا تركيب أي مكوّن.
  *
- * القرار الوحيد غير البديهي هنا: `checkInjectable(url)` يُستدعى محليًّا لا عبر
- * رسالة `tab/can-operate` — النافذة تملك عنوان التبويب أصلًا من
- * `chrome.tabs.query`، فرحلة رسالة إضافية إلى الـservice worker لإعادة نفس
- * الفحص الخالص لا تضيف شيئًا، فقط زمن انتظار قبل فتح النافذة (المعيار: أقل
+ * القرار الوحيد غير البديهي هنا: قرار البوّابة يُحسَب محليًّا لا عبر رسالة
+ * `tab/can-operate` — النافذة تملك عنوان التبويب أصلًا من `chrome.tabs.query`،
+ * وتجلب `settings/get` في الرحلة نفسها لأسباب أخرى. فـ`evaluateGate` دالّة
+ * خالصة على ما بيدها بالفعل، ورحلةٌ إضافية إلى الـservice worker لإعادة
+ * الحساب نفسه لا تضيف شيئًا سوى زمن انتظار قبل فتح النافذة (المعيار: أقل
  * من 100ms).
+ *
+ * **وهذا القرار استشاريّ لا حاسم**، وهو ما يجعل الحساب المحلّي سليمًا: ما
+ * تعرضه النافذة يختار الحالة المعروضة، ولا يأذن بحقن. كل زرّ فيها يمرّ
+ * بـ`tool/activate` ⟵ `canOperateOnTab` في الخلفية — وتلك وحدها تقرأ
+ * الإعدادات بفشلٍ ظاهر وتُغلق عند الجهل.
  */
 
 import { findReferenceForPage } from '@/modules/compare/reference'
 import { VIEWPORT_ORDER } from '@/modules/compare/viewport'
+import { evaluateGate } from '@/shared/injection-gate'
 import { send } from '@/shared/messaging'
 import { hasHostPermission, originPatternFor } from '@/shared/permissions'
-import { checkInjectable } from '@/shared/restricted'
 import { annotations, blobs, captures } from '@/shared/storage/repository'
 
 import type { PopupContext } from '@/shared/popup-state'
@@ -72,6 +78,20 @@ export async function loadRecent(): Promise<RecentEntry[]> {
 }
 
 /**
+ * قائمة الاستثناء كما وصلت من الخلفية — **والفشل يُقرأ منعًا لا فراغًا**.
+ *
+ * ردٌّ ساقط يعني «لا نعرف قائمته»، لا «قائمته فارغة». فتُعاد `['*']`: نمطٌ
+ * يطابق كل موقع، فتعرض النافذة حالة منعٍ تشرح بدل أن تعرض أدواتٍ قد لا
+ * يُسمَح بها. والثمن لحظةٌ متحفّظة في عطلٍ نادر، مقابل ألّا تَعِد النافذة
+ * بما تمنعه البوّابة بعدها.
+ */
+function excludedSitesFrom(reply: Awaited<ReturnType<typeof send<'settings/get'>>>): string[] {
+  if (!reply.ok) return ['*']
+  const privacy = (reply.value as { privacy?: { excludedSites?: unknown } }).privacy
+  return Array.isArray(privacy?.excludedSites) ? (privacy.excludedSites as string[]) : []
+}
+
+/**
  * يبني `PopupContext` كاملًا لتبويب واحد.
  *
  * `online` وحدها لا تصل من هنا رغم كونها جزءًا من `PopupContext` — القيمة
@@ -83,16 +103,21 @@ export async function loadPopupContext(
   tabId: number,
   url: string | undefined,
 ): Promise<Omit<PopupContext, 'online'>> {
-  const check = checkInjectable(url)
-  const restriction = check.injectable ? { injectable: true as const } : check
-
-  // متوازيتان لا متتاليتان: لا تعتمد إحداهما على نتيجة الأخرى، وكل رحلة
-  // رسالة إضافية قبل أول عرض تُحتسَب على ميزانية الـ100ms.
-  const [sessionReply, settingsReply, permissionNeeded] = await Promise.all([
+  // ثلاثتها متوازية لا متتالية: لا تعتمد إحداها على نتيجة الأخرى، وكل رحلة
+  // إضافية قبل أول عرض تُحتسَب على ميزانية الـ100ms. ولهذا تُطلَب حاجة الإذن
+  // للعنوان دائمًا ثم تُهمَل إن مُنع — ترتيبها بعد الإعدادات كان سيسلسل
+  // رحلتين ويكسر الميزانية، مقابل عملٍ محليٍّ ضئيل يُرمى أحيانًا.
+  const [sessionReply, settingsReply, permissionForUrl] = await Promise.all([
     send('session/get', undefined),
     send('settings/get', undefined),
-    findPermissionNeed(restriction.injectable ? url : undefined),
+    findPermissionNeed(url),
   ])
+
+  const decision = evaluateGate(url, excludedSitesFrom(settingsReply))
+  const restriction = decision.allowed
+    ? { injectable: true as const }
+    : { injectable: false as const, reason: decision.reason }
+  const permissionNeeded = decision.allowed ? permissionForUrl : null
 
   const session = (sessionReply.ok ? sessionReply.value : {}) as Partial<SessionState>
   const liveMode: ActiveMode | null = session.modes?.[tabId] ?? null

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import { CHANNELS, openChannel, send, sendToTab, type ToolName } from '@/shared/messaging'
 import { originPatternFor, requestHostPermission } from '@/shared/permissions'
 import { selectPopupState, type PopupContext, type PopupStateName } from '@/shared/popup-state'
-import { checkInjectable } from '@/shared/restricted'
 
 import { loadPopupContext, loadRecent, type RecentEntry } from './context'
 import { Footer } from './parts/Footer'
@@ -30,8 +29,9 @@ interface Loaded {
 
 const STATUS_BY_STATE: Record<PopupStateName, (l: Loaded) => string> = {
   default: (l) => l.origin,
-  restricted: (l) =>
-    l.context.restriction.injectable ? '' : checkInjectable(l.origin).injectable ? '' : '',
+  // نصّ السبب تعرضه `Restricted.tsx` نفسها عبر `gateMessage` — والشريط هنا
+  // يبقى فارغًا عمدًا كي لا يتكرّر السبب مرّتين في نافذة واحدة.
+  restricted: () => '',
   offline: () => 'لا يوجد اتصال',
   'first-run': () => 'جاهز في هذه الصفحة',
   permission: () => 'لم يُمنح الإذن',
