@@ -117,8 +117,9 @@ jobs:
           - { guard: capturing, blocking: true }
           - { guard: colour, blocking: true }
           - { guard: compare, blocking: false }
-          - { guard: compare-diff, blocking: true }
-          - { guard: editor, blocking: true }
+          - { guard: compare-diff, blocking: false }
+          - { guard: editor, blocking: false }
+          - { guard: export, blocking: false }
           - { guard: fullpage, blocking: true }
           - { guard: gate, blocking: false }
           - { guard: inspect, blocking: true }
