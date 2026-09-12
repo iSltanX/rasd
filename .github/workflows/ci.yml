@@ -120,6 +120,7 @@ jobs:
           - { guard: compare-diff, blocking: true }
           - { guard: editor, blocking: true }
           - { guard: fullpage, blocking: true }
+          - { guard: gate, blocking: false }
           - { guard: inspect, blocking: true }
           - { guard: library, blocking: true }
           - { guard: lifecycle, blocking: true }
