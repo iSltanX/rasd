@@ -68,8 +68,11 @@ const INDEX_MD = `${root}Docs/Phases/INDEX.md`
  * (مرحلةٌ تُضاف، عنوانٌ يطول). فيُفشَل التوليد صراحةً بدل الكتابة — والفشل هنا
  * خبرٌ صحيح: «المخرَج تجاوز غايته» لا «العملية تعطّلت».
  */
-const STATUS_MAX_LINES = 40
+const STATUS_MAX_LINES = 48
 const STATUS_MAX_CHARS = 4000
+
+/** عنوان §10.1 — مصدر حالة الوحدات وترتيب تنفيذها (ADR 0018). */
+const UNITS_HEADING = '### 10.1 ترتيب التنفيذ المعتمد'
 
 const check = process.argv.includes('--check')
 
@@ -315,6 +318,140 @@ function readBoardUrl() {
   return m ? m[1] : null
 }
 
+/**
+ * حالة الوحدة في §10.1 — تُقرأ بشكل الخانة لا باحتوائها، كحالة المرحلة في §9.
+ *
+ * و«وسم إصداري لا محطة توقّف» في صفّ البوّابة ليس حالةً: الصفّ يُلتقَط بعنوانه
+ * قبل أن يصل إلى هنا، ووصولُه إليه يعني أن شكل الجدول تغيّر فيُعلَن.
+ */
+function readUnitStatus(cell) {
+  if (/^✅\s*(?:\*\*)?مكتملة(?:\*\*)?(?:\s|$)/.test(cell)) return 'done'
+  if (/^(?:\*\*)?قيد التنفيذ(?:\*\*)?(?:\s|$)/.test(cell)) return 'next'
+  if (/^لم تبدأ(?:\s|$)/.test(cell)) return 'pending'
+  return null
+}
+
+/**
+ * يقرأ جدول §10.1 — مصدر **حالة الوحدات وترتيب تنفيذها** بعد ADR 0018.
+ *
+ * **ولماذا مصدرٌ ثانٍ ليس مصدرًا موازيًا.** بعد ADR 0018 صار السؤالان اثنين لا
+ * واحدًا: «ما حالة المرحلة رقم س؟» جوابه §9 وحده، و«ما الوحدة التالية؟» جوابه
+ * §10.1 وحده — لأن وحدات ثلاث مراحل **متداخلة** في الترتيب لا متجاورة (المرحلة
+ * 19 في المواضع 4 · 5 · 9 · 10، والمرحلة 20 في سبعة مواضع)، فلا موضع واحد في
+ * ترتيب التنفيذ يمثّل مرحلةً كاملة. ولا ثالث بينهما: الحارس المتقاطع أدناه
+ * يمنع افتراقهما.
+ *
+ * والقراءة محدودة بالقسم ثمّ بالجدول، كقراءة §9 حرفيًّا وللعلّة نفسها.
+ */
+function readUnits() {
+  const text = readFileSync(PLAN, 'utf8')
+  const start = text.indexOf(UNITS_HEADING)
+  if (start < 0) {
+    manual.push(`تعذّر إيجاد «${UNITS_HEADING}» في Rasd_Plan.md — حالة الوحدات بلا مصدر`)
+    return { units: [], unreadable: 1 }
+  }
+  const after = text.slice(start + UNITS_HEADING.length)
+  const nextHeading = /\n#{1,6} /.exec(after)
+  const section = after.slice(0, nextHeading ? nextHeading.index : after.length)
+  const headingLine = text.slice(0, start).split('\n').length
+
+  const lines = section.split('\n')
+  const head = lines.findIndex((l) => /^\|\s*#\s*\|\s*الوحدة\s*\|/.test(l))
+  if (head < 0) {
+    manual.push('تعذّر إيجاد ترويسة جدول §10.1 — تغيّر شكل الجدول؟')
+    return { units: [], unreadable: 1 }
+  }
+  let last = head + 1
+  while (last + 1 < lines.length && lines[last + 1].trim().startsWith('|')) last++
+
+  const units = []
+  let unreadable = 0
+  for (let i = head + 2; i <= last; i++) {
+    const line = lines[i].trim()
+    const at = `Rasd_Plan.md:${headingLine + i}`
+    const cells = line
+      .slice(1, -1)
+      .split('|')
+      .map((c) => c.trim())
+    if (!/^\|.*\|$/.test(line) || cells.length !== 5) {
+      unreadable++
+      manual.push(`صفّ §10.1 غير مقروء (${at}) — عدد الخانات ${cells.length} لا 5: «${line}»`)
+      continue
+    }
+    const [pos, unitCell, phaseCell, modelCell, statusCell] = cells
+    // صفّ البوّابة ليس وحدة: موضعه هو الخبر، لا حالته (ADR 0013 §4).
+    if (pos === EMPTY && /⟨\s*بوّابة MVP\s*⟩/.test(unitCell)) continue
+
+    const id = /^\*\*([\d.]+|ذ\d+)\*\*\s*(.+)$/.exec(unitCell)
+    const model = readModel(modelCell)
+    const status = readUnitStatus(statusCell)
+    const faults = [
+      /^\d+$/.test(pos) ? null : `خانة الموضع «${pos}»`,
+      id ? null : `خانة الوحدة «${unitCell}»`,
+      model.bad,
+      status ? null : `خانة الحالة «${statusCell}»`,
+      /^(\d+|—)$/.test(phaseCell) ? null : `خانة المرحلة «${phaseCell}»`,
+    ].filter(Boolean)
+    if (faults.length > 0) {
+      unreadable++
+      manual.push(`صفّ §10.1 مشوَّه (${at}) — ${faults.join(' · ')} — فالوحدة خارج الحراسة`)
+      continue
+    }
+    units.push({
+      pos: Number(pos),
+      id: id[1],
+      title: id[2].trim(),
+      phase: phaseCell === EMPTY ? null : phaseCell,
+      model: model.value,
+      status,
+    })
+  }
+  if (units.length === 0 && unreadable === 0) {
+    manual.push('جدول §10.1 بلا وحدة واحدة مقروءة — تغيّر شكله؟')
+  }
+  return { units, unreadable }
+}
+
+/**
+ * الحارس المتقاطع: §9 و§10.1 يصفان الشيء نفسه من زاويتين، فافتراقهما عطل.
+ *
+ * **والعلّة التي بُني لأجلها وقعت فعلًا**: ADR 0018 نقل ترتيب التنفيذ إلى §10.1
+ * وترك رأس §9 يدّعي أنه يحمله، فقال المشتقّ «التالية: المرحلة 19» بينما الوحدة
+ * التالية `23.1`. لا سكربت كان يرى التعارض لأن أحدًا لم يكن يقارن المصدرين.
+ *
+ * والقاعدة في الاتجاهين: مرحلةٌ مكتملة في §9 كل وحداتها مكتملة في §10.1، ومرحلةٌ
+ * كل وحداتها مكتملة هي مكتملة في §9. ومرحلةٌ بلا وحدات (1–18) خارج الحراسة لا
+ * مخالِفة لها: أُغلقت قبل إعادة الهيكلة فلا تدّعي §10.1 عنها شيئًا.
+ */
+function crossCheck(plan, units) {
+  const byPhase = new Map()
+  for (const u of units) {
+    if (u.phase === null) continue // `ذ1` لا مرحلة لها — وحدة خارج الترقيم
+    const list = byPhase.get(u.phase) ?? []
+    list.push(u)
+    byPhase.set(u.phase, list)
+  }
+  for (const [phase, list] of byPhase) {
+    const row = plan.get(phase)
+    if (!row) {
+      manual.push(`المرحلة ${phase}: لها وحدات في §10.1 ولا صفّ لها في §9`)
+      continue
+    }
+    const allDone = list.every((u) => u.status === 'done')
+    if (row.status === 'done' && !allDone) {
+      const open = list.filter((u) => u.status !== 'done').map((u) => u.id)
+      manual.push(
+        `تعارض §9 ↔ §10.1 — المرحلة ${phase} مكتملة في §9 ووحداتها لم تكتمل: ${open.join(' · ')}`,
+      )
+    }
+    if (row.status !== 'done' && allDone) {
+      manual.push(
+        `تعارض §9 ↔ §10.1 — وحدات المرحلة ${phase} كلّها مكتملة (${list.map((u) => u.id).join(' · ')}) وصفّها في §9 ليس مكتملًا`,
+      )
+    }
+  }
+}
+
 const STATUS_MARK = { done: '✅', next: '▶', pending: '—' }
 const STATUS_WORD = { done: 'مكتملة', next: 'قيد التنفيذ', pending: 'لم تبدأ' }
 
@@ -330,12 +467,20 @@ const STATUS_WORD = { done: 'مكتملة', next: 'قيد التنفيذ', pendi
  * اللوحة: §3.5 معيار قبولٍ لواجهة المنتج (12–19) عبر `src/shared/bidi/`، لا
  * لوثيقةٍ مولَّدة.
  */
-function renderStatus({ rows, total, doneCount, boardUrl }) {
-  const next = rows.find((r) => r.status === 'next') ?? rows.find((r) => r.status !== 'done')
+function renderStatus({ rows, units, total, doneCount, boardUrl }) {
+  // **التالية تُشتقّ من §10.1 لا من §9** — وهذا هو الفرق كلّه. ترتيب التنفيذ
+  // بعد ADR 0018 بحبيبة الوحدة لا المرحلة، ووحدات المرحلة الواحدة **متداخلة**
+  // مع غيرها: 19 في المواضع 4 · 5 · 9 · 10، و20 في سبعة. فقراءة «التالية» من
+  // ترتيب §9 تعطي مرحلةً لا وحدة، وتقول «19» حيث الصواب `23.1` — وهو ما وقع
+  // فعلًا حتى بُني الحارس المتقاطع.
+  const next = units.find((u) => u.status === 'next') ?? units.find((u) => u.status !== 'done')
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
   const nextText = next
-    ? `المرحلة ${next.n} — ${next.title} · \`${next.model} 5\``
-    : 'لا شيء — كل المراحل مكتملة'
+    ? `**${next.id}** ${next.title} · \`${next.model} 5\``
+    : 'لا شيء — كل الوحدات مكتملة'
+  const posText = next
+    ? `الوحدة ${next.pos} من ${units.length} في §10.1`
+    : `${units.length} وحدة، كلّها مكتملة`
 
   // كل سطرٍ هنا محسوبٌ في السقف، فالترويسة أربعة أسطر لا تسعة: الغاية أن تُقرأ
   // الحالة في نظرة، والنثر الزائد يزاحم الجدول الذي جاء القارئ لأجله.
@@ -343,9 +488,12 @@ function renderStatus({ rows, total, doneCount, boardUrl }) {
   const out = [
     '# حالة رصد',
     '',
-    '> **مشتقٌّ آليًّا من `Rasd_Plan.md §9` — لا يُحرَّر بيد.** يكتبه `pnpm phases:sync` ويحرسه `--check` في بوّابة A؛ وعند أي تعارض **§9 هو الصحيح**.',
+    '> **مشتقٌّ آليًّا — لا يُحرَّر بيد.** يكتبه `pnpm phases:sync` ويحرسه `--check` في بوّابة A.',
+    '> مصدره مصدران بحسب السؤال: **حالة المرحلة** من `Rasd_Plan.md §9`، و**الوحدة التالية**',
+    '> من `§10.1`؛ وحارسٌ متقاطع يمنع افتراقهما. وعند أي تعارض **المصدر هو الصحيح لا هذا الملفّ**.',
     '',
     `**التالية:** ${nextText}`,
+    `**موضعها:** ${posText}`,
     `**المكتمل:** ${doneCount} من ${total} مرحلة (${pct}%) · ${rows.length} صفًّا — 20 و26 مُقسَّمتان`,
     `**اللوحة:** ${board}`,
     '',
@@ -645,11 +793,17 @@ for (const anchor of anchors) {
 //
 // وصفٌّ مشوَّه في §9 يوقفهما كما يوقف المراسي: مخرَجٌ «رخيص القراءة» مبنيٌّ على
 // جدولٍ نصفُه غير مقروء يُسكِت الانحراف في مكانٍ أقرب إلى القارئ لا أبعد.
-if (unreadable > 0) {
-  notices.push(`STATUS.md وINDEX.md غير محروسَين: ${unreadable} صفًّا في §9 لم يُقرأ`)
+const { units, unreadable: unitsUnreadable } = readUnits()
+if (unreadable === 0 && unitsUnreadable === 0) crossCheck(plan, units)
+
+if (unreadable > 0 || unitsUnreadable > 0) {
+  notices.push(
+    `STATUS.md وINDEX.md غير محروسَين: ${unreadable} صفًّا في §9 و${unitsUnreadable} في §10.1 لم يُقرأ`,
+  )
 } else {
   const status = renderStatus({
     rows: ordered,
+    units,
     total,
     doneCount,
     boardUrl: readBoardUrl(),
@@ -672,6 +826,9 @@ console.log(
   `  قُرئ من §9: ${total} مرحلة · مكتملة: ${doneCount} · بوّابة MVP بعد ${show(gateAfter)}`,
 )
 console.log(`  كتل اللوحة: ${blocks.length}`)
+console.log(
+  `  قُرئ من §10.1: ${units.length} وحدة · مكتملة: ${units.filter((u) => u.status === 'done').length}`,
+)
 for (const note of notices) console.log(`  ⓘ ${note}`)
 
 const fixable = auto.length + derived.length
