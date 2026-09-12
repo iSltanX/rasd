@@ -17,16 +17,39 @@ let cache: Settings | null = null
 const listeners = new Set<(settings: Settings) => void>()
 let watching = false
 
-/** يقرأ الإعدادات. القيمة التالفة تُصحَّح ولا تُسقط شيئًا. */
-export async function getSettings(): Promise<Settings> {
-  if (cache) return cache
+/**
+ * يقرأ الإعدادات وفشلُ القراءة **ظاهر** — لا مبتلَعًا في الافتراضيات.
+ *
+ * **العلّة التي فُصلت لها عن `getSettings`.** كانت القراءة الوحيدة تُفسّر
+ * فشل التخزين بـ`{}` فتُنتج الافتراضيات — ومنها `excludedSites: []`، أي
+ * «لا موقع مستثنى» — **وتخزّنها في الذاكرة المؤقّتة**. فعطلٌ عابر واحد عند
+ * إقلاع بارد كان يُلغي قائمة المستخدم لعمر العامل كلّه، بلا أثر يُقرأ.
+ * وهي أسوأ صور الفشل: قرارُ خصوصيةٍ يُنقَض صامتًا ويُبلَّغ نجاحًا.
+ *
+ * والفرق الذي يحمله هذا الشكل: **«قُرئت وهي فارغة» ≠ «لم تُقرأ»**. الأولى
+ * قرار مستخدم، والثانية جهل — وبوّابة الحقن تُغلِق على الثانية.
+ */
+export async function getSettingsResult(): Promise<Result<Settings>> {
+  if (cache) return ok(cache)
   const stored = await attempt(async () => (await chrome.storage.local.get(KEY))[KEY])
-  const { settings, issues } = parseSettings(stored.ok ? stored.value : {})
+  if (!stored.ok) return stored
+  const { settings, issues } = parseSettings(stored.value)
   if (issues.length > 0) {
     console.warn(`[رصد] إعدادات غير صالحة صُحّحت: ${issues.join(' · ')}`)
   }
   cache = settings
-  return settings
+  return ok(settings)
+}
+
+/**
+ * يقرأ الإعدادات. القيمة التالفة تُصحَّح ولا تُسقط شيئًا.
+ *
+ * **ولا تُخزَّن نتيجة فشل**: الافتراضيات تُعاد للمستدعي هذه المرّة وحدها،
+ * فالقراءة التالية تحاول ثانيةً بدل أن ترث جهلًا مُثبَّتًا.
+ */
+export async function getSettings(): Promise<Settings> {
+  const result = await getSettingsResult()
+  return result.ok ? result.value : defaultSettings()
 }
 
 /** يدمج تعديلًا جزئيًا (دمج عميق بمستوى واحد يكفي بنية المخطّط). */
