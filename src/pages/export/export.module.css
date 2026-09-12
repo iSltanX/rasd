@@ -1,0 +1,351 @@
+/*
+ * نافذتا التصدير — `export / modal` و`export / done`.
+ *
+ * تشتركان في الهيكل (حاجب · ترويسة · جسم · إجراءات) وتختلفان في الجسم
+ * وحده، فالأنماط ملفٌّ واحد لا ملفّان: نسختان منه كانتا ستنحرفان عند أوّل
+ * تعديل على الحاجب أو الترويسة.
+ *
+ * كل قيمة من العقد — لا لون حرفي ولا `px` حرفية، ولا خاصية فيزيائية
+ * (`left`/`right`) — وحارس `verify-tokens.mjs` يفرض الثلاثة.
+ */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--rasd-overlay-scrim);
+  z-index: 20;
+  padding: var(--rasd-space-16);
+}
+
+.modal {
+  inline-size: min(35rem, 100%);
+  max-block-size: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--rasd-radius-xl);
+  background: var(--rasd-surface-raised);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  overflow: hidden;
+}
+
+/* ── الترويسة ─────────────────────────────────────────────── */
+
+/*
+ * زرّ الإغلاق أوّلًا في DOM وآخِرًا بصريًّا.
+ *
+ * ترتيب DOM هو ترتيب لوحة المفاتيح، والإغلاق أوّل ما يحتاجه من يفتح نافذة
+ * بالخطأ. و`order` يضعه في طرف الصفّ بصريًّا بلا أن يُزاح في التسلسل.
+ */
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-20);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-4);
+  order: -1;
+  min-inline-size: 0;
+}
+
+.close {
+  flex: none;
+  inline-size: var(--rasd-control-sm);
+  block-size: var(--rasd-control-sm);
+  display: grid;
+  place-items: center;
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-thin) solid transparent;
+  background: transparent;
+  color: var(--rasd-icon-secondary);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--rasd-surface-hover);
+  color: var(--rasd-icon-primary);
+}
+
+.close:focus-visible {
+  outline: var(--rasd-focus-ring);
+  outline-offset: var(--rasd-focus-ring-offset);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--rasd-font-family-display);
+  font-size: var(--rasd-font-size-lg);
+  font-weight: 700;
+  color: var(--rasd-text-primary);
+}
+
+.subtitle {
+  margin: 0;
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* ── الجسم ────────────────────────────────────────────────── */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-20);
+  padding: var(--rasd-space-20);
+  overflow-y: auto;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-10);
+}
+
+.groupLabel {
+  margin: 0;
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-xs);
+  font-weight: 600;
+  color: var(--rasd-text-tertiary);
+}
+
+/*
+ * أربع رقاقات صيغة في صفّ يلتفّ.
+ *
+ * `auto-fit` مع حدٍّ أدنى يجعل الأربع صفًّا واحدًا على النافذة الكاملة
+ * وصفَّين على الضيّقة، بلا استعلام وسائط وبلا عددٍ مثبَّت — فصيغةٌ خامسة
+ * تدخل بلا لمس هذا الملفّ.
+ */
+.formats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--rasd-space-8);
+}
+
+.format {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rasd-space-6);
+  padding-block: var(--rasd-space-12);
+  padding-inline: var(--rasd-space-8);
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-default);
+  color: var(--rasd-text-primary);
+  cursor: pointer;
+}
+
+.format:hover:not(:disabled) {
+  background: var(--rasd-surface-hover);
+}
+
+.format:focus-visible {
+  outline: var(--rasd-focus-ring);
+  outline-offset: var(--rasd-focus-ring-offset);
+}
+
+.format[data-selected] {
+  border-color: var(--rasd-border-brand);
+  background: var(--rasd-surface-brand-subtle);
+  color: var(--rasd-text-brand);
+}
+
+/*
+ * المعطَّل **باهتٌ لا مخفيّ**، ومؤشّره يقول «ممنوع» لا «جارٍ».
+ * والسبب في `title` يصل بالتحويم وبقارئ الشاشة معًا.
+ */
+.format:disabled {
+  cursor: not-allowed;
+  color: var(--rasd-text-disabled);
+  background: var(--rasd-surface-disabled);
+  border-style: dashed;
+}
+
+.formatHint {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-2xs);
+  color: var(--rasd-text-tertiary);
+  text-align: center;
+}
+
+.format:disabled .formatHint {
+  color: var(--rasd-text-disabled);
+}
+
+/* ── بطاقة الصفوف ─────────────────────────────────────────── */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-default);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  padding-block: var(--rasd-space-10);
+  padding-inline: var(--rasd-space-12);
+  border-block-end: var(--rasd-stroke-hairline) solid var(--rasd-border-subtle);
+}
+
+.row:last-child {
+  border-block-end: 0;
+}
+
+.row[data-pending] .rowLabel {
+  color: var(--rasd-text-tertiary);
+}
+
+.rowLabel {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-primary);
+}
+
+.rowValue {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-secondary);
+  text-align: start;
+}
+
+.select {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-text-primary);
+  background: var(--rasd-surface-sunken);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-md);
+  padding-block: var(--rasd-space-4);
+  padding-inline: var(--rasd-space-8);
+  min-block-size: var(--rasd-control-sm);
+}
+
+.select:focus-visible {
+  outline: var(--rasd-focus-ring);
+  outline-offset: var(--rasd-focus-ring-offset);
+}
+
+.select:disabled {
+  color: var(--rasd-text-disabled);
+  background: var(--rasd-surface-disabled);
+  cursor: not-allowed;
+}
+
+/* ── التقدير والمسار ──────────────────────────────────────── */
+
+.estimate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  padding-block: var(--rasd-space-10);
+  padding-inline: var(--rasd-space-12);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-sunken);
+}
+
+.path {
+  margin: 0;
+  padding-block: var(--rasd-space-10);
+  padding-inline: var(--rasd-space-12);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-sunken);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  overflow-x: auto;
+}
+
+/* ── الإشارات الثلاث ──────────────────────────────────────── */
+
+.signals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+}
+
+.signalList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+}
+
+.signal {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rasd-space-8);
+  padding-block: var(--rasd-space-8);
+  padding-inline: var(--rasd-space-10);
+  border-radius: var(--rasd-radius-md);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  border-inline-start: var(--rasd-stroke-thick) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-sunken);
+  color: var(--rasd-text-secondary);
+}
+
+/*
+ * درجتان لا واحدة: ما يمسّ الحجب تحذير، وما يمسّ الشكل معلومة.
+ * والفرق بصريّ **وفي `data-tone`** معًا — فالفحص يقرؤه بلا لون.
+ */
+.signal[data-tone='warning'] {
+  border-inline-start-color: var(--rasd-status-warning-border);
+  background: var(--rasd-status-warning-surface);
+  color: var(--rasd-status-warning-fg);
+}
+
+.signal[data-tone='info'] {
+  border-inline-start-color: var(--rasd-status-info-border);
+  background: var(--rasd-status-info-surface);
+  color: var(--rasd-status-info-fg);
+}
+
+.signalCount {
+  flex: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── الرسائل ──────────────────────────────────────────────── */
+
+.note {
+  margin: 0;
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-xs);
+  color: var(--rasd-text-tertiary);
+  line-height: var(--rasd-font-leading-relaxed);
+}
+
+.error {
+  margin: 0;
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-sm);
+  color: var(--rasd-status-danger-fg);
+}
+
+/* ── الإجراءات ────────────────────────────────────────────── */
+
+.actions {
+  display: flex;
+  gap: var(--rasd-space-8);
+  padding: var(--rasd-space-16);
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-default);
+}

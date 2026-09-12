@@ -10,6 +10,8 @@ import { isHistoryShortcut } from '@/modules/editor/typing'
 import { deviceRect } from '@/shared/geometry'
 import { err, ok } from '@/shared/result'
 
+import { ExportFlow } from '../export/ExportFlow'
+
 import { buildRenderStyle } from './colors'
 import {
   captureIdFromLocation,
@@ -119,7 +121,19 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
    * تُنتج شكلًا واحدًا بلون واحد ليست أداة تعليق.
    */
   const [settings, setSettings] = useState<ToolSettings>(DEFAULT_TOOL_SETTINGS)
-  const [exported, setExported] = useState<{ report: BakeReport; url: string } | null>(null)
+  const [exported, setExported] = useState<{
+    report: BakeReport
+    url: string
+    scale: 1 | 2
+  } | null>(null)
+  /**
+   * هل نافذة التصدير الكاملة مفتوحة؟
+   *
+   * منفصلةٌ عن `exporting` قصدًا: تلك دقّةُ خبزٍ **جارٍ** (الإجراء السريع)،
+   * وهذه نافذةُ حوار تسأل قبل أن تخبز. ودمجهما في حالةٍ واحدة كان يجعل فتح
+   * الحوار يُعلن `data-editor-state="exporting"` بلا خبزٍ يجري.
+   */
+  const [exportOpen, setExportOpen] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>({
     outcome: 'idle',
     baseUpdatedAt: context.baseUpdatedAt,
@@ -402,15 +416,34 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
                */
               setExported((prev) => {
                 if (prev) URL.revokeObjectURL(prev.url)
-                return { report, url: URL.createObjectURL(blob) }
+                return { report, url: URL.createObjectURL(blob), scale: exporting }
               })
               setExporting(null)
             }}
             onClose={() => setExporting(null)}
           />
+        ) : exportOpen ? (
+          /*
+           * **الحوار الكامل، وهو الأولوية الأدنى في الترتيب.**
+           *
+           * الخبز الجاري يسبقه: لو فُتح الحوار أثناء خبزةٍ سريعة لَغطّى
+           * شريطَ تقدّمها وزرَّ إلغائها — فيبقى المستخدم أمام نافذةٍ
+           * ساكنة بينما يعمل شيءٌ لا يراه.
+           */
+          <ExportFlow
+            scene={history.state.scene}
+            sourceBlob={context.sourceBlob}
+            style={style}
+            layout={layout}
+            client={client}
+            title={context.capture.title}
+            onClose={() => setExportOpen(false)}
+          />
         ) : null
       }
       onExport={(scale) => setExporting(scale)}
+      onOpenExport={() => setExportOpen(true)}
+      title={context.capture.title}
       exported={exported}
       side={
         mode === 'crop' ? (

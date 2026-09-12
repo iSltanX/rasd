@@ -1,3 +1,4 @@
+import { exportFilename } from '@/modules/export/filename'
 import { formatHuman } from '@/shared/bidi'
 import { isIncognitoContext } from '@/shared/env'
 
@@ -52,9 +53,18 @@ export interface AnnotatingProps {
   readonly side: JSX.Element | null
   /** طبقةٌ فوق كل شيء — التصدير، وهو نافذةٌ مشروطة لا حالةٌ بديلة. */
   readonly overlay: JSX.Element | null
+  /** الإجراء السريع: خبزةٌ بهذه الدقّة إلى الحافظة مباشرةً. */
   readonly onExport: (scale: 1 | 2) => void
-  /** آخر تصدير ناجح بتقريره وعنوان بايتاته، أو `null`. */
-  readonly exported: { readonly report: BakeReport; readonly url: string } | null
+  /** يفتح `export / modal` — المدخل الكامل بالصيغة والجودة والتنزيل. */
+  readonly onOpenExport: () => void
+  /** عنوان اللقطة — يشتقّ منه اسم الملفّ المقترَح. */
+  readonly title: string
+  /** آخر تصدير ناجح بتقريره وعنوان بايتاته ودقّته، أو `null`. */
+  readonly exported: {
+    readonly report: BakeReport
+    readonly url: string
+    readonly scale: 1 | 2
+  } | null
 }
 
 /**
@@ -153,7 +163,20 @@ export function Annotating(props: AnnotatingProps): JSX.Element {
           onChange={props.onChange}
         />
 
+        {/*
+         * **مدخلان لا واحد، ولا أحدهما يُلغي الآخر.**
+         *
+         * «تصدير» يفتح `export / modal` بصيغتها وجودتها ودقّتها ومسار
+         * تنزيلها — وهو المدخل الذي تصفه الوحدة 19.1 والمصدر التصميمي.
+         * وزرّا «انسخ الصورة» إجراءٌ سريع بنقرةٍ واحدة إلى الحافظة، بقيا
+         * لأنهما فعلٌ مختلف لا نسخةٌ أقدم: النسخة الكاملة تسأل، والسريعة
+         * تفعل. وهما أيضًا السطح الذي يقوده `verify:editor` الحاجب منذ
+         * المرحلة 15 — وحذفهما كان سيُسقط حارسًا دون أن يُثبت شيئًا.
+         */}
         <div data-editor-export>
+          <button type="button" data-export-open onClick={props.onOpenExport}>
+            تصدير…
+          </button>
           {([1, 2] as const).map((scale) => (
             <button
               key={scale}
@@ -170,7 +193,16 @@ export function Annotating(props: AnnotatingProps): JSX.Element {
           <p data-export-done>
             <a
               href={props.exported.url}
-              download="rasd.png"
+              /*
+               * كان `rasd.png` ثابتًا — اسمٌ لا يدلّ على لقطته، ولاحقةٌ
+               * تكذب إن لم يكن المخبوز PNG. صار الاسم مشتقًّا من العنوان
+               * ومن **الصيغة المُنتَجة فعلًا** في التقرير.
+               */
+              download={exportFilename(
+                props.title,
+                props.exported.scale,
+                props.exported.report.format,
+              )}
               data-export-url={props.exported.url}
               data-export-guaranteed={
                 props.exported.report.obscured.filter((o) => o.guaranteed).length
