@@ -785,8 +785,9 @@ Figma الثلاثة · **126** `localOnly` مُعلَنة بلا إنفاذ. و
 
 ## 11. الحواشي الملزمة
 
-- **Commit الوحدة:** `PENDING`
+- **Commit الوحدة:** `ef0faef` — `الوحدة 20.3: شاشة الخصوصية والصلاحيات`
 - **الـArtifact:** <https://claude.ai/code/artifact/aead891a-92e5-41b9-8707-1e5e2de89753>
 - **تاريخ الإغلاق:** 2026-09-13
-- ☐ **لوحة الوحدات حُدِّثت على الرابط نفسه** — [`Docs/Phases/Units.html`](Units.html)
-  (`Rasd_Plan.md §8` بند 9). الوحدة لا تُعدّ مغلقة قبل هذا البند.
+- ☑ **لوحة الوحدات حُدِّثت على الرابط نفسه** — [`Docs/Phases/Units.html`](Units.html)
+  نُشرت على <https://claude.ai/code/artifact/aead891a-92e5-41b9-8707-1e5e2de89753>
+  (`Rasd_Plan.md §8` بند 9).
