@@ -42,6 +42,16 @@ export const ENCODE_ALLOWED: string[]
 export const dimensionIsolationSelector: RestrictedSelector
 /** مكوّنات طبقة الهندسة `direction: ltr` — مُستثناة من `dimensionIsolationSelector` وحده. */
 export const LTR_GEOMETRY_LAYER: string[]
+/** نداء `checkInjectable`/`isInjectable` عاريًا — البوّابة وحدها تملكه. */
+export const gateBareSelector: RestrictedSelector
+/** النداء بالنقطة: `r.checkInjectable()` — فلا يُفتَح الباب باستيراد فضاء اسم. */
+export const gateMemberSelector: RestrictedSelector
+/** الوصول المحسوب: `r['checkInjectable']()` — درس بوّابة الترميز المقيس. */
+export const gateComputedSelector: RestrictedSelector
+/** الثلاثة معًا. لا يُستعمل أحدها وحده. */
+export const gateSelectors: RestrictedSelector[]
+/** مُعرِّف البوّابة ومُركِّبها واختبار الكاشف — مُستثنون من `gateSelectors` وحدها. */
+export const GATE_ALLOWED: string[]
 
 declare const config: unknown
 export default config

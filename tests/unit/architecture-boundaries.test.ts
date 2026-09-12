@@ -8,12 +8,14 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ENCODE_ALLOWED,
+  GATE_ALLOWED,
   LTR_GEOMETRY_LAYER,
   dimensionIsolationSelector,
   encodeComputedSelector,
   encodeLiteralSelector,
   encodeSelector,
   encodeSelectors,
+  gateSelectors,
   physicalPropertySelector,
   restrictedSyntax,
 } from '../../eslint.config.js'
@@ -39,6 +41,23 @@ async function lintFixture(relPath: string) {
 }
 
 const RULE = 'import-x/no-restricted-paths'
+
+/**
+ * يُلنت نصًّا في الذاكرة بقاعدة `no-restricted-syntax` وحدها.
+ *
+ * **ولماذا نصًّا لا تأكيدًا على شكل المصفوفة.** بوّابة الترميز عُلِّمت هذا
+ * الدرس ثمنًا: التأكيد على أن المحدِّد «يذكر `convertToBlob`» كان يمرّ،
+ * وتشغيلُ اللنت على ملفّ كشف أن `c['convertToBlob']()` تعبر. فالحارس
+ * يُفحَص بتشغيله لا بقراءته.
+ */
+async function lintSource(code: string, selectors: readonly { selector: string }[]) {
+  const eslint = new ESLint({
+    overrideConfigFile: true,
+    overrideConfig: { rules: { 'no-restricted-syntax': ['error', ...selectors] } },
+  })
+  const [result] = await eslint.lintText(code, { filePath: 'probe.js' })
+  return (result?.messages ?? []).filter((m) => m.ruleId === 'no-restricted-syntax')
+}
 
 describe('حدود المعمار مفروضة آليًا', () => {
   it('يمنع modules/ من استيراد ui/', async () => {
@@ -194,7 +213,7 @@ describe('بوّابة الترميز', () => {
    * لا ينادي `chrome.runtime.sendMessage` خامًا.
    */
   it('الاستثناء يُبقي بقيّة المحدِّدات الثمانية سارية', () => {
-    expect(restrictedSyntax).toHaveLength(8)
+    expect(restrictedSyntax).toHaveLength(11)
     const selectors = restrictedSyntax.map((r) => r.selector).join(' ')
     expect(selectors).toContain('chrome')
     expect(selectors).toContain('formatHuman')
@@ -260,5 +279,63 @@ describe('حارس الخاصية الفيزيائية', () => {
     const eslint = new ESLint({ cwd: fileURLToPath(new URL('../..', import.meta.url)) })
     const [result] = await eslint.lintFiles(['src/pages/compare/layout.ts'])
     expect(result?.messages.filter((m) => m.ruleId === 'no-restricted-syntax')).toHaveLength(0)
+  })
+})
+
+/**
+ * بوّابة الحقن — قرارٌ واحد مفروضًا لنتًا.
+ *
+ * العلّة المقيسة: `checkInjectable` كان يُنادى مباشرةً من ثمانية مواضع،
+ * و`canOperateOnTab` — الموصوفة في مصدرها بأنها «البوّابة الوحيدة» — بلا
+ * مستدعٍ واحد. فقيدٌ أمني جديد (المواقع المستثناة) كان يحتاج ثمانية
+ * تعديلات صحيحة، وواحدٌ منسيٌّ منها يعني حقنًا في موقع استثناه المستخدم
+ * بلا أثر يُقرأ. الحارس يجعل الموضع التاسع مستحيلًا لا مُستبعَدًا.
+ */
+describe('بوّابة الحقن', () => {
+  it('**يمنع النداء العاري** — وهو الشكل الذي كتبته المواضع الثمانية', async () => {
+    const messages = await lintSource('checkInjectable(tab.url)', gateSelectors)
+    expect(messages, 'كان يجب أن تُرفع مخالفة').toHaveLength(1)
+    expect(messages[0]?.message).toContain('canOperateOnTab')
+  })
+
+  it('**والنداء بالنقطة يُمسَك كذلك** — فلا يُفتَح الباب باستيراد فضاء اسم', async () => {
+    const messages = await lintSource(
+      "import * as r from './restricted'\nr.isInjectable(url)",
+      gateSelectors,
+    )
+    expect(messages).toHaveLength(1)
+  })
+
+  it('**والوصول المحسوب يُمسَك كذلك** — درس بوّابة الترميز مطبَّقًا لا مُعادًا', async () => {
+    const messages = await lintSource("r['checkInjectable'](url)", gateSelectors)
+    expect(messages).toHaveLength(1)
+  })
+
+  it('ولا يعترض على البوّابة نفسها ولا على استيراد النوع', async () => {
+    const allowed = [
+      'canOperateOnTab(tabId)',
+      'evaluateGate(url, excluded)',
+      "import type { GateReason } from './injection-gate'",
+    ].join('\n')
+    expect(await lintSource(allowed, gateSelectors)).toHaveLength(0)
+  })
+
+  it('المستثنون ثلاثة بالاسم — المُعرِّف والمُركِّب واختبار الكاشف', () => {
+    expect(GATE_ALLOWED).toEqual([
+      'src/shared/restricted.ts',
+      'src/shared/injection-gate.ts',
+      'tests/unit/restricted.test.ts',
+    ])
+  })
+
+  /*
+   * البند الذي يمنع الانحراف — نفس بند بوّابة الترميز: لو أُطفئت القاعدة
+   * على المستثنين بدل طرح المحدِّدات الثلاثة، لسقطت معها بقيّة الحراسة.
+   */
+  it('الاستثناء طرحُ ثلاثة محدِّدات لا إطفاء القاعدة', () => {
+    for (const selector of gateSelectors) expect(restrictedSyntax).toContain(selector)
+    const kept = restrictedSyntax.filter((r) => !gateSelectors.includes(r))
+    expect(kept).toHaveLength(restrictedSyntax.length - 3)
+    expect(kept.map((r) => r.selector).join(' ')).toContain('chrome')
   })
 })
