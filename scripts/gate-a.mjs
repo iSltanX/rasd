@@ -36,6 +36,15 @@ const CEILING_SECONDS = 48
  */
 const IMPACT = [
   { match: /^src\/background\/commands\.ts/u, scripts: ['verify:activate'] },
+  /*
+   * بوّابة الحقن: قرارها يسبق **كل** حقن — الاختصارات والقائمة والنافذة
+   * والالتقاط والاستئناف. فمسّها يستدعي مسارَي الإقلاع والنافذة معًا، لا
+   * أحدهما: خطأٌ فيها يظهر إمّا حقنًا لا يقع أو حالةً لا تُعرَض.
+   */
+  {
+    match: /^(src\/background\/gate\.ts|src\/shared\/(injection-gate|site-match)\.ts)/u,
+    scripts: ['verify:gate', 'verify:activate', 'verify:popup'],
+  },
   {
     match: /^src\/background\/full-page-job\.ts/u,
     scripts: ['verify:activate', 'verify:fullpage'],
