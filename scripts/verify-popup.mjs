@@ -381,5 +381,79 @@ try {
   fail(`قياس زمن الفتح فشل: ${e.message}`)
 }
 
+// ── 3) `page/open` يفتح كل صفحة فعليًّا — يثبت الصفّ 112 لا يصف فقط ───
+//
+// `Docs/EntryPoints.md §3` يسمّي هذا الفحص أمر التحقّق لفتح المكتبة والمحرّر
+// والإعدادات والمقارنة، وحتى الوحدة 20.2 لم يكن يفعل ذلك فعلًا — يفتح نافذة
+// الإضافة وصفحة خارجية عادية فقط. هذا القسم يرسل `page/open` الحقيقية (نفس
+// مغلَّف الرسائل في `shared/messaging/rpc.ts`، مُعادًا هنا حرفيًّا لأن
+// السكربت مستقلّ عن حزمة TypeScript) — **من نافذة الإضافة نفسها لا من
+// الـservice worker**: `chrome.runtime.sendMessage` من الـSW إلى مستمعه هو —
+// نفس السياق حرفيًّا — يفشل بـ«Receiving end does not exist» (قِيس، لا
+// افتراض)؛ الاستعمال الحقيقي في الإنتاج مصدره `Popup.tsx` دائمًا، فمرسِلٌ
+// حقيقي غير الـSW أوفى بالواقع أيضًا لا حلًّا بديلًا فقط.
+const PAGES_TO_OPEN = ['library', 'editor', 'settings', 'compare']
+
+const senderTabJson = await sw.evaluate(
+  `chrome.tabs.create({ url: chrome.runtime.getURL(${JSON.stringify(PAGE_PATHS.popup)}), active: true })
+    .then((t) => JSON.stringify({ id: t.id }))`,
+)
+const senderTab = JSON.parse(senderTabJson)
+const sender = await findAndAttach(
+  (t) => t.type === 'page' && String(t.url).startsWith(ownOrigin + 'src/pages/popup/'),
+)
+
+if (!sender) {
+  fail('تعذّر فتح نافذة الإضافة كمرسِل لـpage/open')
+} else {
+  for (const page of PAGES_TO_OPEN) {
+    try {
+      const replyJson = await sender.evaluate(
+        `chrome.runtime.sendMessage({ __rasd: 1, type: 'page/open', payload: { page: ${JSON.stringify(page)} }, id: 'verify-popup-${page}' })
+          .then((r) => JSON.stringify(r))`,
+      )
+      const reply = JSON.parse(replyJson)
+      if (!reply?.ok) {
+        fail(`page/open(${page}) ردّ بفشل: ${JSON.stringify(reply?.error ?? reply)}`)
+        continue
+      }
+
+      const path = PAGE_PATHS[page]
+      const target = await findAndAttach(
+        (t) => t.type === 'page' && String(t.url).startsWith(ownOrigin + path),
+        60,
+        50,
+      )
+      if (!target) {
+        fail(`page/open(${page}) ردّ بنجاح لكن لا هدف CDP يطابق ${path}`)
+        await sw.evaluate(`chrome.tabs.remove([${reply.value.tabId}])`).catch(() => undefined)
+        continue
+      }
+
+      // مجرّد وجود هدف CDP بالعنوان الصحيح لا يثبت أن الصفحة رُسمت فعلًا —
+      // حزمة منكسرة تفتح شاشة بيضاء بنفس العنوان بنجاح ظاهري. `document.body`
+      // غير فارغ بعد اكتمال التحميل حدٌّ أدنى عامّ يصلح للأربع الصفحات معًا،
+      // بلا علامة خاصّة بكلٍّ (خلافًا لـ`[data-popup-state]` أعلاه، وهي نافذة
+      // محدَّدة الأثر مقصودة، لا نمطٌ عامّ يستحقّ التعميم على أربع صفحات كاملة).
+      let rendered = false
+      for (let i = 0; i < 40 && !rendered; i++) {
+        const raw = await target.evaluate(
+          `JSON.stringify({ ready: document.readyState, hasBody: document.body.children.length > 0 })`,
+        )
+        const state = JSON.parse(raw)
+        if (state.ready === 'complete' && state.hasBody) rendered = true
+        else await new Promise((r) => setTimeout(r, 50))
+      }
+      rendered
+        ? ok(`page/open(${page}) فتح ${path} ورسم محتوًى فعليًّا`)
+        : fail(`page/open(${page}) فتح ${path} لكن لم يرسم محتوًى خلال المهلة — شاشة بيضاء محتملة`)
+      await sw.evaluate(`chrome.tabs.remove([${reply.value.tabId}])`)
+    } catch (e) {
+      fail(`page/open(${page}) فشل: ${e.message}`)
+    }
+  }
+  await sw.evaluate(`chrome.tabs.remove([${senderTab.id}])`)
+}
+
 sock.close()
 finish(0)
