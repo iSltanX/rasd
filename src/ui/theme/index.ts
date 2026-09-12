@@ -5,6 +5,13 @@
  * `prefers-color-scheme`)، و`dark`، و`light`. كتابة `data-theme` تعني اختيارًا
  * صريحًا يتفوّق على تفضيل النظام — لذلك تُمحى السمة في وضع `system` ولا تُكتب
  * قيمة ثالثة.
+ *
+ * **حين يكون الجذر `hostEl` مضيف الظلّ في طبقة العرض** (`content/host.ts`):
+ * سمة `dir` تُكتب كما هي دائمًا، لكنها بلا أثر بصري فعليًّا — `applyCritical()`
+ * تُثبِّت `direction: ltr !important` سطريًا على `hostEl` نفسه لعزل الطبقة عن
+ * اتجاه الصفحة المضيفة غير الموثوقة، وقواعد RTL في `overlay.css` تكتب
+ * `direction: rtl` مباشرةً بلا اعتماد على وراثة `[dir]`. غير خطِر: لا مسار
+ * إنتاجي يبدّل `appearance.language` عن `'ar'` بعد (الوحدة 20.1).
  */
 
 import type { Settings } from '@/shared/settings'

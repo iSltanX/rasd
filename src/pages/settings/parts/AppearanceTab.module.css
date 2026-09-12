@@ -1,0 +1,33 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  padding-block: var(--rasd-space-16);
+  padding-inline: var(--rasd-space-12);
+  border-block-end: var(--rasd-stroke-hairline) solid var(--rasd-border-subtle);
+}
+
+.row:last-child {
+  border-block-end: 0;
+}
+
+/**
+ * أثر الكثافة يبقى محليًّا لهذا التبويب: لا مقياس تباعد عامّ في نظام
+ * التصميم يقرأ `[data-density]` بعد (انظر `Settings.module.css`)، فتوسيع
+ * الأثر إلى بقية الواجهة خارج نطاق 20.1.
+ */
+:global([data-density='compact']) .row {
+  padding-block: var(--rasd-space-8);
+}
+
+.rowLabel {
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-md);
+  color: var(--rasd-text-primary);
+}

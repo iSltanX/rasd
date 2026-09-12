@@ -1,0 +1,15 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-16);
+  max-inline-size: 40rem;
+  margin-inline: auto;
+}
+
+.title {
+  font-family: var(--rasd-font-family-display);
+  font-size: var(--rasd-font-size-xl);
+  color: var(--rasd-text-primary);
+  margin: 0;
+}

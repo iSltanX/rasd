@@ -20,7 +20,8 @@ import { base64ToBlob, blobToBase64 } from '@/shared/base64'
 import { onMessage, send } from '@/shared/messaging'
 import { isMode, type Mode } from '@/shared/modes'
 import { errWith, ok, type RasdError, type Result } from '@/shared/result'
-import { getSettings } from '@/shared/settings'
+import { getSettings, watchSettings } from '@/shared/settings'
+import { applyTheme } from '@/ui/theme'
 
 import { copyCaptureToClipboard } from './clipboard'
 import { readSpace, viewportRect, watchDpr, type CoordSpace } from './coords'
@@ -142,6 +143,13 @@ async function bootOverlay(
   const mounted = await mountHost(doc)
   if (!mounted.ok) return mounted
   const host = mounted.value
+
+  /*
+   * `host.hostEl` لا `doc.documentElement`: `tokens-shadow.css` يستهدف
+   * `:host([data-theme=…])`/`:host([lang=…])` من داخل الظلّ، وكتابة السمة
+   * على مستند الصفحة كانت تغيّر `lang`/`dir` لصفحة لا نملكها — الوحدة 20.1.
+   */
+  const stopTheme = watchSettings((settings) => applyTheme(settings, host.hostEl))
 
   const modes = createModeManager(options.initialMode ?? 'idle')
 
@@ -1182,6 +1190,7 @@ async function bootOverlay(
     // يترك مؤشِّرًا حيًّا كاذبًا لجلسة انتهت فعلًا.
     reportMode('idle')
     modes.dispose()
+    stopTheme()
     host.teardown()
   }
 

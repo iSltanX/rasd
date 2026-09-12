@@ -28,7 +28,7 @@ import {
 } from '@/shared/messaging'
 import { PAGE_PATHS } from '@/shared/page-paths'
 import { RasdThrow } from '@/shared/result'
-import { getSettings, patchSettings, resetSettings } from '@/shared/settings'
+import { getSettings, patchSettings, resetSettings, watchSettings } from '@/shared/settings'
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
 import { closeOffscreen, ensureOffscreen } from '@/shared/storage/offscreen'
 import { quotaState } from '@/shared/storage/quota'
@@ -60,12 +60,13 @@ export function registerLifecycle() {
   registerFullPage()
   registerInspect()
   registerWatchdog()
-  void syncIncognitoPolicy()
-}
-
-async function syncIncognitoPolicy() {
-  const settings = await getSettings()
-  setIncognitoWritePolicy(settings.privacy.blockIncognitoWrites)
+  /*
+   * `watchSettings` بدل قراءة مرّة واحدة: هذا ما يُبقي ذاكرة الإعدادات
+   * المؤقّتة في هذا السياق (`getSettingsResult` في `shared/settings/index.ts`،
+   * التي تقرأها `gate.ts` لكل قرار حقن) طريّة بلا إعادة تشغيل الـSW — الوحدة
+   * 20.1. ويُطبَّق سياسة التصفّح الخاص فورًا لأي تغيّر، من أي سياق كتبه.
+   */
+  watchSettings((settings) => setIncognitoWritePolicy(settings.privacy.blockIncognitoWrites))
 }
 
 /**
@@ -112,6 +113,12 @@ function registerRequestHandlers() {
   onMessage('settings/patch', async ({ patch }) => {
     const result = await patchSettings(patch)
     if (!result.ok) throw new Error(result.error.message)
+    /*
+     * مكرَّر عمدًا مع مستمع `watchSettings` في `registerLifecycle` — هذا
+     * التطبيق **متزامن ومضمون قبل عودة الرسالة**؛ ذاك يصل لاحقًا عبر
+     * `chrome.storage.onChanged` بلا ضمان توقيت. مستدعٍ ينتظر ردّ هذه
+     * الرسالة يحتاج السياسة مطبَّقة فورًا، لا بعد دورة حدث إضافية.
+     */
     setIncognitoWritePolicy(result.value.privacy.blockIncognitoWrites)
     return result.value
   })
