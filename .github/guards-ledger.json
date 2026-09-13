@@ -3,8 +3,50 @@
   "repo": "iSltanX/rasd",
   "promotionStreak": 10,
   "window": 20,
-  "capturedAt": "2026-09-12T13:16:06.010Z",
+  "capturedAt": "2026-09-13T02:13:21.194Z",
   "runs": [
+    {
+      "id": 34725030580,
+      "sha": "90ad67dc0176625817fbfa04529e4c20e4ceebce",
+      "event": "push",
+      "createdAt": "2026-09-12T23:17:41Z"
+    },
+    {
+      "id": 34719108325,
+      "sha": "e4d167d5c38ebb426d77ba31baf916176c32bcb8",
+      "event": "push",
+      "createdAt": "2026-09-12T21:08:43Z"
+    },
+    {
+      "id": 34718871517,
+      "sha": "1abd6d59e8416fde451cbc983305cfcc81405a36",
+      "event": "push",
+      "createdAt": "2026-09-12T21:03:49Z"
+    },
+    {
+      "id": 34715326854,
+      "sha": "a1f78058ac4d1922efc18c96e4e47d54848cf72a",
+      "event": "push",
+      "createdAt": "2026-09-12T19:50:20Z"
+    },
+    {
+      "id": 34711152969,
+      "sha": "fe2e419192b8d16b1edac9616ee76107aeea2209",
+      "event": "push",
+      "createdAt": "2026-09-12T18:25:40Z"
+    },
+    {
+      "id": 34697341882,
+      "sha": "590559c5f365b78dfcdd296f744356dce771506a",
+      "event": "push",
+      "createdAt": "2026-09-12T13:46:14Z"
+    },
+    {
+      "id": 34696975545,
+      "sha": "bc24825852bf46ec4de8dd7d1e5150d7e6e00f41",
+      "event": "push",
+      "createdAt": "2026-09-12T13:38:14Z"
+    },
     {
       "id": 34692206149,
       "sha": "bc735cd0bbe7368f82814778b5c51046f53df32b",
@@ -82,48 +124,6 @@
       "sha": "2b7a1fc3d04bb90e4c86345e3d40df431fe17ced",
       "event": "workflow_dispatch",
       "createdAt": "2026-09-12T02:30:53Z"
-    },
-    {
-      "id": 34667517357,
-      "sha": "2b7a1fc3d04bb90e4c86345e3d40df431fe17ced",
-      "event": "push",
-      "createdAt": "2026-09-12T02:23:15Z"
-    },
-    {
-      "id": 34667412556,
-      "sha": "155286117943e31e7573c65a320149fba97dcf3f",
-      "event": "workflow_dispatch",
-      "createdAt": "2026-09-12T02:21:01Z"
-    },
-    {
-      "id": 34667236988,
-      "sha": "155286117943e31e7573c65a320149fba97dcf3f",
-      "event": "push",
-      "createdAt": "2026-09-12T02:17:15Z"
-    },
-    {
-      "id": 34667221340,
-      "sha": "e4eb9b4f9ae58b08eba5c34bfb19fbc3abbd69ce",
-      "event": "push",
-      "createdAt": "2026-09-12T02:16:53Z"
-    },
-    {
-      "id": 34667020516,
-      "sha": "a9df76758459f7287650358c12d0d589afeaa6db",
-      "event": "workflow_dispatch",
-      "createdAt": "2026-09-12T02:12:36Z"
-    },
-    {
-      "id": 34666686712,
-      "sha": "a9df76758459f7287650358c12d0d589afeaa6db",
-      "event": "workflow_dispatch",
-      "createdAt": "2026-09-12T02:05:22Z"
-    },
-    {
-      "id": 34666527570,
-      "sha": "a9df76758459f7287650358c12d0d589afeaa6db",
-      "event": "push",
-      "createdAt": "2026-09-12T02:02:03Z"
     }
   ],
   "guards": {
@@ -145,7 +145,7 @@
         "green",
         "green",
         "green",
-        "hole",
+        "green",
         "green",
         "green",
         "green"
@@ -165,14 +165,14 @@
         "2c5d8898ed009529411b2a0dab03aaed8cee1ac9",
         "2c5d8898ed009529411b2a0dab03aaed8cee1ac9",
         "2c5d8898ed009529411b2a0dab03aaed8cee1ac9",
-        "d3883e3cc53d05d690063a68bec35f5cd0196282",
-        "d3883e3cc53d05d690063a68bec35f5cd0196282",
-        "d3883e3cc53d05d690063a68bec35f5cd0196282",
-        "d3883e3cc53d05d690063a68bec35f5cd0196282",
-        "d3883e3cc53d05d690063a68bec35f5cd0196282",
-        "d3883e3cc53d05d690063a68bec35f5cd0196282"
+        "2c5d8898ed009529411b2a0dab03aaed8cee1ac9",
+        "2c5d8898ed009529411b2a0dab03aaed8cee1ac9",
+        "2c5d8898ed009529411b2a0dab03aaed8cee1ac9",
+        "2c5d8898ed009529411b2a0dab03aaed8cee1ac9",
+        "2c5d8898ed009529411b2a0dab03aaed8cee1ac9",
+        "2c5d8898ed009529411b2a0dab03aaed8cee1ac9"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "capture": {
@@ -191,9 +191,9 @@
         "green",
         "green",
         "green",
-        "red",
         "green",
-        "hole",
+        "green",
+        "green",
         "green",
         "green",
         "green"
@@ -213,14 +213,14 @@
         "c69fae620981a88948b2a09a998c7f75744717d3",
         "c69fae620981a88948b2a09a998c7f75744717d3",
         "c69fae620981a88948b2a09a998c7f75744717d3",
-        "a508007cb170e271a62e1b860bc376a4f0529980",
-        "a508007cb170e271a62e1b860bc376a4f0529980",
-        "a508007cb170e271a62e1b860bc376a4f0529980",
-        "a508007cb170e271a62e1b860bc376a4f0529980",
-        "a508007cb170e271a62e1b860bc376a4f0529980",
-        "a508007cb170e271a62e1b860bc376a4f0529980"
+        "c69fae620981a88948b2a09a998c7f75744717d3",
+        "c69fae620981a88948b2a09a998c7f75744717d3",
+        "c69fae620981a88948b2a09a998c7f75744717d3",
+        "c69fae620981a88948b2a09a998c7f75744717d3",
+        "c69fae620981a88948b2a09a998c7f75744717d3",
+        "c69fae620981a88948b2a09a998c7f75744717d3"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "capturing": {
@@ -241,7 +241,7 @@
         "green",
         "green",
         "green",
-        "hole",
+        "green",
         "green",
         "green",
         "green"
@@ -261,14 +261,14 @@
         "686b9c705c30693e5ca89884ae6c6e1b111fa534",
         "686b9c705c30693e5ca89884ae6c6e1b111fa534",
         "686b9c705c30693e5ca89884ae6c6e1b111fa534",
-        "6a358acf6b676a9b752e200fd001b70f585ee004",
-        "6a358acf6b676a9b752e200fd001b70f585ee004",
-        "6a358acf6b676a9b752e200fd001b70f585ee004",
-        "6a358acf6b676a9b752e200fd001b70f585ee004",
-        "6a358acf6b676a9b752e200fd001b70f585ee004",
-        "6a358acf6b676a9b752e200fd001b70f585ee004"
+        "686b9c705c30693e5ca89884ae6c6e1b111fa534",
+        "686b9c705c30693e5ca89884ae6c6e1b111fa534",
+        "686b9c705c30693e5ca89884ae6c6e1b111fa534",
+        "686b9c705c30693e5ca89884ae6c6e1b111fa534",
+        "686b9c705c30693e5ca89884ae6c6e1b111fa534",
+        "686b9c705c30693e5ca89884ae6c6e1b111fa534"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "colour": {
@@ -288,8 +288,8 @@
         "green",
         "green",
         "green",
-        "red",
-        "hole",
+        "green",
+        "green",
         "green",
         "green",
         "green"
@@ -309,20 +309,27 @@
         "cf5ab73b19432ae356849a64aa01c2f07559eb43",
         "cf5ab73b19432ae356849a64aa01c2f07559eb43",
         "cf5ab73b19432ae356849a64aa01c2f07559eb43",
-        "3c15aaab707001bab24d0a5884185ca4ddf93e4d",
-        "3c15aaab707001bab24d0a5884185ca4ddf93e4d",
-        "3c15aaab707001bab24d0a5884185ca4ddf93e4d",
-        "3c15aaab707001bab24d0a5884185ca4ddf93e4d",
-        "3c15aaab707001bab24d0a5884185ca4ddf93e4d",
-        "3c15aaab707001bab24d0a5884185ca4ddf93e4d"
+        "cf5ab73b19432ae356849a64aa01c2f07559eb43",
+        "cf5ab73b19432ae356849a64aa01c2f07559eb43",
+        "cf5ab73b19432ae356849a64aa01c2f07559eb43",
+        "cf5ab73b19432ae356849a64aa01c2f07559eb43",
+        "cf5ab73b19432ae356849a64aa01c2f07559eb43",
+        "cf5ab73b19432ae356849a64aa01c2f07559eb43"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "compare": {
       "results": [
         "green",
         "green",
+        "red",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
         "green",
         "red",
         "red",
@@ -332,13 +339,6 @@
         "red",
         "green",
         "green",
-        "red",
-        "green",
-        "green",
-        "red",
-        "green",
-        "hole",
-        "red",
         "red",
         "green"
       ],
@@ -347,6 +347,13 @@
         "2eed18f71442cd4f33af277653d95a2ee66f8631",
         "2eed18f71442cd4f33af277653d95a2ee66f8631",
         "2eed18f71442cd4f33af277653d95a2ee66f8631",
+        "2eed18f71442cd4f33af277653d95a2ee66f8631",
+        "2eed18f71442cd4f33af277653d95a2ee66f8631",
+        "2eed18f71442cd4f33af277653d95a2ee66f8631",
+        "2eed18f71442cd4f33af277653d95a2ee66f8631",
+        "2eed18f71442cd4f33af277653d95a2ee66f8631",
+        "2eed18f71442cd4f33af277653d95a2ee66f8631",
+        "2eed18f71442cd4f33af277653d95a2ee66f8631",
         "ab0f7cb7b11138d0e5282507024f8be70ee8e465",
         "ab0f7cb7b11138d0e5282507024f8be70ee8e465",
         "ab0f7cb7b11138d0e5282507024f8be70ee8e465",
@@ -355,20 +362,20 @@
         "ab0f7cb7b11138d0e5282507024f8be70ee8e465",
         "ab0f7cb7b11138d0e5282507024f8be70ee8e465",
         "ab0f7cb7b11138d0e5282507024f8be70ee8e465",
-        "ab0f7cb7b11138d0e5282507024f8be70ee8e465",
-        "ab0f7cb7b11138d0e5282507024f8be70ee8e465",
-        "5b766d10db9acd5ce2c3b5901f63a4bb54b1554c",
-        "5b766d10db9acd5ce2c3b5901f63a4bb54b1554c",
-        "5b766d10db9acd5ce2c3b5901f63a4bb54b1554c",
-        "5b766d10db9acd5ce2c3b5901f63a4bb54b1554c",
-        "5b766d10db9acd5ce2c3b5901f63a4bb54b1554c",
-        "5b766d10db9acd5ce2c3b5901f63a4bb54b1554c"
+        "ab0f7cb7b11138d0e5282507024f8be70ee8e465"
       ],
-      "streak": 3,
+      "streak": 2,
       "eligible": false
     },
     "compare-diff": {
       "results": [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
         "red",
         "green",
         "green",
@@ -381,14 +388,7 @@
         "green",
         "green",
         "green",
-        "green",
-        "green",
-        "green",
-        "green",
-        "hole",
-        "red",
-        "red",
-        "red"
+        "green"
       ],
       "scripts": [
         "e3ffa8804837613729f78962132aa107384a0d29",
@@ -405,18 +405,25 @@
         "e3ffa8804837613729f78962132aa107384a0d29",
         "e3ffa8804837613729f78962132aa107384a0d29",
         "e3ffa8804837613729f78962132aa107384a0d29",
-        "203e36708f9e3b46b7a8f6a123d394cceef20e0b",
-        "203e36708f9e3b46b7a8f6a123d394cceef20e0b",
-        "203e36708f9e3b46b7a8f6a123d394cceef20e0b",
-        "84b9816256f32b8a6bdfc5210715b5b8dd97c5ef",
-        "84b9816256f32b8a6bdfc5210715b5b8dd97c5ef",
-        "84b9816256f32b8a6bdfc5210715b5b8dd97c5ef"
+        "e3ffa8804837613729f78962132aa107384a0d29",
+        "e3ffa8804837613729f78962132aa107384a0d29",
+        "e3ffa8804837613729f78962132aa107384a0d29",
+        "e3ffa8804837613729f78962132aa107384a0d29",
+        "e3ffa8804837613729f78962132aa107384a0d29",
+        "e3ffa8804837613729f78962132aa107384a0d29"
       ],
-      "streak": 0,
+      "streak": 7,
       "eligible": false
     },
     "editor": {
       "results": [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
         "red",
         "green",
         "green",
@@ -427,13 +434,6 @@
         "green",
         "green",
         "green",
-        "green",
-        "green",
-        "green",
-        "green",
-        "green",
-        "green",
-        "hole",
         "green",
         "green",
         "green"
@@ -453,25 +453,25 @@
         "7b4c7750d7df2d86ab4fabbca51a1c807a59d342",
         "7b4c7750d7df2d86ab4fabbca51a1c807a59d342",
         "7b4c7750d7df2d86ab4fabbca51a1c807a59d342",
-        "38c2af8de67fb0c0b13a90549c9791b0ed8af35c",
-        "38c2af8de67fb0c0b13a90549c9791b0ed8af35c",
-        "38c2af8de67fb0c0b13a90549c9791b0ed8af35c",
-        "38c2af8de67fb0c0b13a90549c9791b0ed8af35c",
-        "38c2af8de67fb0c0b13a90549c9791b0ed8af35c",
-        "38c2af8de67fb0c0b13a90549c9791b0ed8af35c"
+        "7b4c7750d7df2d86ab4fabbca51a1c807a59d342",
+        "7b4c7750d7df2d86ab4fabbca51a1c807a59d342",
+        "7b4c7750d7df2d86ab4fabbca51a1c807a59d342",
+        "7b4c7750d7df2d86ab4fabbca51a1c807a59d342",
+        "7b4c7750d7df2d86ab4fabbca51a1c807a59d342",
+        "7b4c7750d7df2d86ab4fabbca51a1c807a59d342"
       ],
-      "streak": 0,
+      "streak": 7,
       "eligible": false
     },
     "export": {
       "results": [
-        "hole",
-        "hole",
-        "hole",
-        "hole",
-        "hole",
-        "hole",
-        "hole",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
         "hole",
         "hole",
         "hole",
@@ -487,13 +487,13 @@
         "hole"
       ],
       "scripts": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
+        "e2710d3cc3de7563f96da385f4fdf6ea4e44c8bc",
+        "e2710d3cc3de7563f96da385f4fdf6ea4e44c8bc",
+        "e2710d3cc3de7563f96da385f4fdf6ea4e44c8bc",
+        "e2710d3cc3de7563f96da385f4fdf6ea4e44c8bc",
+        "e2710d3cc3de7563f96da385f4fdf6ea4e44c8bc",
+        "e2710d3cc3de7563f96da385f4fdf6ea4e44c8bc",
+        "e2710d3cc3de7563f96da385f4fdf6ea4e44c8bc",
         null,
         null,
         null,
@@ -508,7 +508,7 @@
         null,
         null
       ],
-      "streak": 0,
+      "streak": 7,
       "eligible": false
     },
     "fullpage": {
@@ -529,8 +529,8 @@
         "green",
         "green",
         "green",
-        "hole",
-        "red",
+        "green",
+        "green",
         "green",
         "green"
       ],
@@ -549,26 +549,26 @@
         "b08329d5d9a205a96b3b2c33911f0f225af62945",
         "b08329d5d9a205a96b3b2c33911f0f225af62945",
         "b08329d5d9a205a96b3b2c33911f0f225af62945",
-        "7d0abfb54a40d043dbf563e536413c40eaffb56e",
-        "7d0abfb54a40d043dbf563e536413c40eaffb56e",
-        "7d0abfb54a40d043dbf563e536413c40eaffb56e",
-        "7d0abfb54a40d043dbf563e536413c40eaffb56e",
-        "7d0abfb54a40d043dbf563e536413c40eaffb56e",
-        "7d0abfb54a40d043dbf563e536413c40eaffb56e"
+        "b08329d5d9a205a96b3b2c33911f0f225af62945",
+        "b08329d5d9a205a96b3b2c33911f0f225af62945",
+        "b08329d5d9a205a96b3b2c33911f0f225af62945",
+        "b08329d5d9a205a96b3b2c33911f0f225af62945",
+        "b08329d5d9a205a96b3b2c33911f0f225af62945",
+        "b08329d5d9a205a96b3b2c33911f0f225af62945"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "gate": {
       "results": [
         "green",
-        "hole",
-        "hole",
-        "hole",
-        "hole",
-        "hole",
-        "hole",
-        "hole",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
         "hole",
         "hole",
         "hole",
@@ -584,13 +584,13 @@
       ],
       "scripts": [
         "d8a9567c783cf1bd3d89f8bbbca7948adcd7e27d",
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
+        "d8a9567c783cf1bd3d89f8bbbca7948adcd7e27d",
+        "d8a9567c783cf1bd3d89f8bbbca7948adcd7e27d",
+        "d8a9567c783cf1bd3d89f8bbbca7948adcd7e27d",
+        "d8a9567c783cf1bd3d89f8bbbca7948adcd7e27d",
+        "d8a9567c783cf1bd3d89f8bbbca7948adcd7e27d",
+        "d8a9567c783cf1bd3d89f8bbbca7948adcd7e27d",
+        "d8a9567c783cf1bd3d89f8bbbca7948adcd7e27d",
         null,
         null,
         null,
@@ -604,7 +604,7 @@
         null,
         null
       ],
-      "streak": 1,
+      "streak": 8,
       "eligible": false
     },
     "inspect": {
@@ -625,7 +625,7 @@
         "green",
         "green",
         "green",
-        "hole",
+        "green",
         "green",
         "green",
         "green"
@@ -645,14 +645,14 @@
         "fc64f9701a55fddfce9204aee236ac8c583b6b7a",
         "fc64f9701a55fddfce9204aee236ac8c583b6b7a",
         "fc64f9701a55fddfce9204aee236ac8c583b6b7a",
-        "f66933b975e9c14644d5861dd1e5cbb1333be64a",
-        "f66933b975e9c14644d5861dd1e5cbb1333be64a",
-        "f66933b975e9c14644d5861dd1e5cbb1333be64a",
-        "f66933b975e9c14644d5861dd1e5cbb1333be64a",
-        "f66933b975e9c14644d5861dd1e5cbb1333be64a",
-        "f66933b975e9c14644d5861dd1e5cbb1333be64a"
+        "fc64f9701a55fddfce9204aee236ac8c583b6b7a",
+        "fc64f9701a55fddfce9204aee236ac8c583b6b7a",
+        "fc64f9701a55fddfce9204aee236ac8c583b6b7a",
+        "fc64f9701a55fddfce9204aee236ac8c583b6b7a",
+        "fc64f9701a55fddfce9204aee236ac8c583b6b7a",
+        "fc64f9701a55fddfce9204aee236ac8c583b6b7a"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "library": {
@@ -672,8 +672,8 @@
         "green",
         "green",
         "green",
-        "red",
-        "hole",
+        "green",
+        "green",
         "green",
         "green",
         "green"
@@ -693,14 +693,14 @@
         "8954cea204a1a013e8c091804c4da8f6c11248b5",
         "8954cea204a1a013e8c091804c4da8f6c11248b5",
         "8954cea204a1a013e8c091804c4da8f6c11248b5",
-        "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
-        "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
-        "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
-        "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
-        "8d606211ae4c4111e874a0b2e69c2543b0f02eeb",
-        "8d606211ae4c4111e874a0b2e69c2543b0f02eeb"
+        "8954cea204a1a013e8c091804c4da8f6c11248b5",
+        "8954cea204a1a013e8c091804c4da8f6c11248b5",
+        "8954cea204a1a013e8c091804c4da8f6c11248b5",
+        "8954cea204a1a013e8c091804c4da8f6c11248b5",
+        "8954cea204a1a013e8c091804c4da8f6c11248b5",
+        "8954cea204a1a013e8c091804c4da8f6c11248b5"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "lifecycle": {
@@ -721,7 +721,7 @@
         "green",
         "green",
         "green",
-        "hole",
+        "green",
         "green",
         "green",
         "green"
@@ -741,14 +741,14 @@
         "dd3eaccb78d4b48272b180fda948ce38fb24c920",
         "dd3eaccb78d4b48272b180fda948ce38fb24c920",
         "dd3eaccb78d4b48272b180fda948ce38fb24c920",
-        "1d91798f947df7f8e2acc8eebbf2e1cb442a4d0b",
-        "1d91798f947df7f8e2acc8eebbf2e1cb442a4d0b",
-        "1d91798f947df7f8e2acc8eebbf2e1cb442a4d0b",
-        "1d91798f947df7f8e2acc8eebbf2e1cb442a4d0b",
-        "1d91798f947df7f8e2acc8eebbf2e1cb442a4d0b",
-        "1d91798f947df7f8e2acc8eebbf2e1cb442a4d0b"
+        "dd3eaccb78d4b48272b180fda948ce38fb24c920",
+        "dd3eaccb78d4b48272b180fda948ce38fb24c920",
+        "dd3eaccb78d4b48272b180fda948ce38fb24c920",
+        "dd3eaccb78d4b48272b180fda948ce38fb24c920",
+        "dd3eaccb78d4b48272b180fda948ce38fb24c920",
+        "dd3eaccb78d4b48272b180fda948ce38fb24c920"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "load": {
@@ -758,6 +758,13 @@
         "green",
         "green",
         "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
         "red",
         "red",
         "red",
@@ -765,14 +772,7 @@
         "green",
         "green",
         "red",
-        "red",
-        "red",
-        "green",
-        "green",
-        "hole",
-        "green",
-        "red",
-        "green"
+        "red"
       ],
       "scripts": [
         "4df9d2e556b62375a57a1680eceb5894bd73b02c",
@@ -780,6 +780,13 @@
         "4df9d2e556b62375a57a1680eceb5894bd73b02c",
         "4df9d2e556b62375a57a1680eceb5894bd73b02c",
         "4df9d2e556b62375a57a1680eceb5894bd73b02c",
+        "4df9d2e556b62375a57a1680eceb5894bd73b02c",
+        "4df9d2e556b62375a57a1680eceb5894bd73b02c",
+        "4df9d2e556b62375a57a1680eceb5894bd73b02c",
+        "4df9d2e556b62375a57a1680eceb5894bd73b02c",
+        "4df9d2e556b62375a57a1680eceb5894bd73b02c",
+        "4df9d2e556b62375a57a1680eceb5894bd73b02c",
+        "4df9d2e556b62375a57a1680eceb5894bd73b02c",
         "c2b94eb14d3088cf03ddb2dc7f5347f94db6bdd1",
         "c2b94eb14d3088cf03ddb2dc7f5347f94db6bdd1",
         "c2b94eb14d3088cf03ddb2dc7f5347f94db6bdd1",
@@ -787,17 +794,10 @@
         "c2b94eb14d3088cf03ddb2dc7f5347f94db6bdd1",
         "c2b94eb14d3088cf03ddb2dc7f5347f94db6bdd1",
         "c2b94eb14d3088cf03ddb2dc7f5347f94db6bdd1",
-        "b290c6fb2192aec18b5c08699807744bf1e88539",
-        "b290c6fb2192aec18b5c08699807744bf1e88539",
-        "882c47b39d6bdd3fbbe40f7016dcc1fb2b3360eb",
-        "882c47b39d6bdd3fbbe40f7016dcc1fb2b3360eb",
-        "882c47b39d6bdd3fbbe40f7016dcc1fb2b3360eb",
-        "882c47b39d6bdd3fbbe40f7016dcc1fb2b3360eb",
-        "882c47b39d6bdd3fbbe40f7016dcc1fb2b3360eb",
-        "882c47b39d6bdd3fbbe40f7016dcc1fb2b3360eb"
+        "b290c6fb2192aec18b5c08699807744bf1e88539"
       ],
-      "streak": 5,
-      "eligible": false
+      "streak": 12,
+      "eligible": true
     },
     "measure": {
       "results": [
@@ -817,7 +817,7 @@
         "green",
         "green",
         "green",
-        "hole",
+        "green",
         "green",
         "green",
         "green"
@@ -837,14 +837,14 @@
         "fcca39384c0cc23205d4bcac9f19dfc1bad99617",
         "fcca39384c0cc23205d4bcac9f19dfc1bad99617",
         "fcca39384c0cc23205d4bcac9f19dfc1bad99617",
-        "1a541f20073c4dff9994a759a694e715c45032f0",
-        "1a541f20073c4dff9994a759a694e715c45032f0",
-        "1a541f20073c4dff9994a759a694e715c45032f0",
-        "1a541f20073c4dff9994a759a694e715c45032f0",
-        "1a541f20073c4dff9994a759a694e715c45032f0",
-        "1a541f20073c4dff9994a759a694e715c45032f0"
+        "fcca39384c0cc23205d4bcac9f19dfc1bad99617",
+        "fcca39384c0cc23205d4bcac9f19dfc1bad99617",
+        "fcca39384c0cc23205d4bcac9f19dfc1bad99617",
+        "fcca39384c0cc23205d4bcac9f19dfc1bad99617",
+        "fcca39384c0cc23205d4bcac9f19dfc1bad99617",
+        "fcca39384c0cc23205d4bcac9f19dfc1bad99617"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "overlay": {
@@ -865,7 +865,7 @@
         "green",
         "green",
         "green",
-        "hole",
+        "green",
         "green",
         "green",
         "green"
@@ -885,14 +885,14 @@
         "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7",
         "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7",
         "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7",
-        "d415a2e890f34447c4e7308986d69920fea49d20",
-        "d415a2e890f34447c4e7308986d69920fea49d20",
-        "d415a2e890f34447c4e7308986d69920fea49d20",
-        "d415a2e890f34447c4e7308986d69920fea49d20",
-        "d415a2e890f34447c4e7308986d69920fea49d20",
-        "d415a2e890f34447c4e7308986d69920fea49d20"
+        "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7",
+        "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7",
+        "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7",
+        "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7",
+        "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7",
+        "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "palette": {
@@ -913,7 +913,7 @@
         "green",
         "green",
         "green",
-        "hole",
+        "green",
         "green",
         "green",
         "green"
@@ -933,14 +933,14 @@
         "1844848d265e7a090c53631600e4a81902375a9c",
         "1844848d265e7a090c53631600e4a81902375a9c",
         "1844848d265e7a090c53631600e4a81902375a9c",
-        "08ca05be656f8817aa58a4a03f7cd44057b9c8c4",
-        "08ca05be656f8817aa58a4a03f7cd44057b9c8c4",
-        "08ca05be656f8817aa58a4a03f7cd44057b9c8c4",
-        "08ca05be656f8817aa58a4a03f7cd44057b9c8c4",
-        "08ca05be656f8817aa58a4a03f7cd44057b9c8c4",
-        "08ca05be656f8817aa58a4a03f7cd44057b9c8c4"
+        "1844848d265e7a090c53631600e4a81902375a9c",
+        "1844848d265e7a090c53631600e4a81902375a9c",
+        "1844848d265e7a090c53631600e4a81902375a9c",
+        "1844848d265e7a090c53631600e4a81902375a9c",
+        "1844848d265e7a090c53631600e4a81902375a9c",
+        "1844848d265e7a090c53631600e4a81902375a9c"
       ],
-      "streak": 14,
+      "streak": 20,
       "eligible": true
     },
     "picker": {
@@ -961,14 +961,21 @@
         "green",
         "green",
         "green",
-        "hole",
         "green",
-        "red",
+        "green",
+        "green",
         "green"
       ],
       "scripts": [
         "365080ede59cda5d417a9d8ef690d282f00aa89c",
         "365080ede59cda5d417a9d8ef690d282f00aa89c",
+        "365080ede59cda5d417a9d8ef690d282f00aa89c",
+        "365080ede59cda5d417a9d8ef690d282f00aa89c",
+        "365080ede59cda5d417a9d8ef690d282f00aa89c",
+        "365080ede59cda5d417a9d8ef690d282f00aa89c",
+        "365080ede59cda5d417a9d8ef690d282f00aa89c",
+        "365080ede59cda5d417a9d8ef690d282f00aa89c",
+        "365080ede59cda5d417a9d8ef690d282f00aa89c",
         "8017676635f48f0415439c64c53031661b0dd0de",
         "8017676635f48f0415439c64c53031661b0dd0de",
         "8017676635f48f0415439c64c53031661b0dd0de",
@@ -979,16 +986,9 @@
         "8017676635f48f0415439c64c53031661b0dd0de",
         "8017676635f48f0415439c64c53031661b0dd0de",
         "8017676635f48f0415439c64c53031661b0dd0de",
-        "8017676635f48f0415439c64c53031661b0dd0de",
-        "8017676635f48f0415439c64c53031661b0dd0de",
-        "7b6d4f08c706ffb4b6397d7280a7d6c5a244e6db",
-        "7b6d4f08c706ffb4b6397d7280a7d6c5a244e6db",
-        "7b6d4f08c706ffb4b6397d7280a7d6c5a244e6db",
-        "7b6d4f08c706ffb4b6397d7280a7d6c5a244e6db",
-        "7b6d4f08c706ffb4b6397d7280a7d6c5a244e6db",
-        "7b6d4f08c706ffb4b6397d7280a7d6c5a244e6db"
+        "8017676635f48f0415439c64c53031661b0dd0de"
       ],
-      "streak": 2,
+      "streak": 9,
       "eligible": false
     },
     "popup": {
@@ -1009,12 +1009,15 @@
         "red",
         "red",
         "red",
-        "hole",
+        "red",
         "red",
         "red",
         "red"
       ],
       "scripts": [
+        "e8e45b2f9090998dd9cb974b75e6f7012c05647b",
+        "e8e45b2f9090998dd9cb974b75e6f7012c05647b",
+        "e8e45b2f9090998dd9cb974b75e6f7012c05647b",
         "4408584bc16fd9c713ad764909023bf65c14433e",
         "4408584bc16fd9c713ad764909023bf65c14433e",
         "4408584bc16fd9c713ad764909023bf65c14433e",
@@ -1029,12 +1032,9 @@
         "4408584bc16fd9c713ad764909023bf65c14433e",
         "4408584bc16fd9c713ad764909023bf65c14433e",
         "4408584bc16fd9c713ad764909023bf65c14433e",
-        "e3301dd6d766a481aeb41fc269a215ae5406944a",
-        "e3301dd6d766a481aeb41fc269a215ae5406944a",
-        "e3301dd6d766a481aeb41fc269a215ae5406944a",
-        "e3301dd6d766a481aeb41fc269a215ae5406944a",
-        "e3301dd6d766a481aeb41fc269a215ae5406944a",
-        "e3301dd6d766a481aeb41fc269a215ae5406944a"
+        "4408584bc16fd9c713ad764909023bf65c14433e",
+        "4408584bc16fd9c713ad764909023bf65c14433e",
+        "4408584bc16fd9c713ad764909023bf65c14433e"
       ],
       "streak": 0,
       "eligible": false
