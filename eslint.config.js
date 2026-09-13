@@ -343,6 +343,12 @@ export default tseslint.config(
       // `eslint .` من الجذر يفحص أي جلسة موازية نشطة فيرفع مئات المخالفات
       // من كود لا علاقة له بالتغيير الجاري — لُوحظ فعليًا لا افتراضًا.
       '.claude/worktrees/**',
+      // سكربتات Workflow المودَعة (الدستور §7، CHANGELOG 1.6): صيغتها صيغة مشغّل
+      // Workflow لا وحدة ES عادية — `export const meta` مع `return` في المستوى الأعلى
+      // ودوالّ محقونة (`agent`/`parallel`/`log`/`phase`). ESLint يرفض الجمع بين
+      // sourceType: 'module' و`globalReturn`، فلا يُعرَب الملفّ أصلًا. تُراجَع بالعين
+      // مرّة عند الإيداع، ويُنسَّقها prettier كغيرها.
+      '.claude/workflows/**',
     ],
   },
 
