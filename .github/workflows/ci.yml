@@ -73,11 +73,47 @@ jobs:
       - name: حارس جرد نقاط الدخول
         run: pnpm run entrypoints:lint
 
+  # ── بناء واحد تتقاسمه الحرّاس ─────────────────────────────────────
+  #
+  # كانت كل وظيفة حارس تبني الحزمة لنفسها: قِيس 22 ثانية للبناء في كل واحدة من
+  # تسع عشرة وظيفة (الجولة `36605241573`) — أي نحو سبع دقائق عدّاء في كل جولة
+  # تعيد إنتاج الملفّات نفسها من الالتزام نفسه.
+  #
+  # **وظيفة مستقلّة لا خطوة في الأولى.** علّة البناء داخل كل حارس كانت ألّا يسقط
+  # الحارس بسقوط وظيفة أخرى لسبب لا يخصّه: لنت أو اختبار وحدة. وهذه الوظيفة تحفظ
+  # تلك العلّة: لا لنت فيها ولا اختبار، فلا تسقط إلا إن سقط البناء نفسه — وعندها
+  # لا حزمة يفحصها حارس أصلًا. والوظيفة الأولى تبقى تبني لنفسها، فلا يحجب سقوط
+  # البناء هنا نتيجة اللنت والاختبارات هناك.
+  build:
+    name: بناء الحزمة المشتركة
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      # `include-hidden-files`: الأثر يطابق مخرَج البناء ملفًّا ملفًّا، فما يحمّله
+      # الحارس هو ما بُني لا مجموعة جزئية منه.
       - name: Upload extension bundle
         uses: actions/upload-artifact@v4
         with:
           name: rasd-dist-${{ github.sha }}
           path: dist/
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 14
 
   # ── الفحص الحيّ في كروم حقيقي ─────────────────────────────────────
@@ -97,6 +133,7 @@ jobs:
   # أبطأ حارس لا مجموعهم، وسطرًا في صفحة الفحوص يسمّي الساقط بعينه.
   live:
     name: كروم حقيقي · verify:${{ matrix.guard }}
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -159,10 +196,15 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # الحزمة تُبنى هنا لا تُنزَّل من الوظيفة الأولى: الفحص يحمّل `dist/`
-      # في المتصفّح، وارتباطُه بوظيفة أخرى يجعله يسقط حين تسقط هي لسببٍ آخر.
-      - name: Build
-        run: pnpm run build
+      # الحزمة تُنزَّل من وظيفة «بناء الحزمة المشتركة» ولا تُبنى هنا. ولا تُنزَّل
+      # من الوظيفة الأولى: ارتباط الحارس بها يجعله يسقط حين تسقط هي بلنت أو
+      # اختبار. وكل حارس من التسعة عشر يتحقّق بنفسه من وجود الحزمة قبل أن يبدأ،
+      # فحزمة غائبة تُسقطه برسالة صريحة لا بنجاح كاذب.
+      - name: Download extension bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: rasd-dist-${{ github.sha }}
+          path: dist/
 
       # Ubuntu 24.04 على العدّاءات يقيّد **user namespaces غير المميّزة**
       # عبر AppArmor، وعليها يبني Chrome صندوقه الرملي. والأثر متقطّع لا
