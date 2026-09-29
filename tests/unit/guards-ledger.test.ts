@@ -1,10 +1,19 @@
 // @vitest-environment node
 // يقرأ `ci.yml` والسجلّ من القرص، فلا علاقة له بالـDOM.
 
+import { readFileSync } from 'node:fs'
+
 import { describe, expect, it } from 'vitest'
 
-// @ts-expect-error — سكربت أدوات بلا تعريفات أنواع؛ يُستورَد لدوالّه الخالصة.
-import { classify, readMatrix, streakOf } from '../../scripts/guards-sync.mjs'
+import {
+  classify,
+  DOCS_JOB,
+  isDocsOnlyRun,
+  readMatrix,
+  streakOf,
+  // @ts-expect-error — سكربت أدوات بلا تعريفات أنواع؛ يُستورَد لدوالّه الخالصة. التوجيه على
+  // سطر المُحدِّد لأن `tsc` يبلّغ عنه هناك حين يلتفّ الاستيراد على أسطر.
+} from '../../scripts/guards-sync.mjs'
 
 /**
  * قاعدة ترقية الحرّاس — الدوالّ الخالصة وحدها.
@@ -81,5 +90,78 @@ describe('قراءة عمود blocking من ci.yml', () => {
   it('تقرأ العِدل المُرقّى بقيمة true', () => {
     const rows = readMatrix('tests/fixtures/ci-ledger/stale-ci.yml')
     expect(rows).toEqual([{ guard: 'overlay', blocking: true }])
+  })
+})
+
+describe('مسار التوثيق في ci.yml وسجلّ الترقية', () => {
+  const ci = readFileSync('.github/workflows/ci.yml', 'utf8')
+  const pattern = /DOCS_ONLY: '([^']+)'/u.exec(ci)?.[1]
+  const docsOnly = new RegExp(pattern ?? '^$', 'u')
+
+  it('اسم وظيفة التوثيق في ci.yml هو الذي يقرؤه السجلّ', () => {
+    expect(ci).toContain(`name: ${DOCS_JOB}`)
+  })
+
+  it('التوثيق الخالص يطابق المسار الخفيف', () => {
+    expect(pattern).toBeDefined()
+    for (const file of [
+      'AGENTS.md',
+      'README.md',
+      'ROADMAP.md',
+      'STATUS.md',
+      'STAGES/02.md',
+      'Docs/Engineering.md',
+      'Docs/ADR/0024-x.md',
+      'Docs/Brand/png/rasd-icon-idle-16.png',
+      'Docs/Brand/svg/rasd-symbol-mono.svg',
+    ]) {
+      expect(docsOnly.test(file), file).toBe(true)
+    }
+  })
+
+  it('الشيفرة والاختبارات والسكربتات والإعداد وCI تبقي المسار الكامل', () => {
+    for (const file of [
+      'src/ui/RasdMark.tsx',
+      'tests/unit/guards-ledger.test.ts',
+      'scripts/gate-a.mjs',
+      'Docs/Brand/build.mjs',
+      'STAGES/baseline.json',
+      'public/icons/icon-16.png',
+      'package.json',
+      '.github/workflows/ci.yml',
+      '.prettierignore',
+      'manifest.config.ts',
+      'xAGENTS.md',
+      'AGENTS.md.bak',
+    ]) {
+      expect(docsOnly.test(file), file).toBe(false)
+    }
+  })
+
+  it('جولة جرت فيها وظيفة التوثيق تُستبعَد', () => {
+    const jobs = [
+      { name: 'تصنيف التغيير', conclusion: 'success' },
+      { name: DOCS_JOB, conclusion: 'success' },
+      { name: 'كروم حقيقي · verify:${{ matrix.guard }}', conclusion: 'skipped' },
+    ]
+    expect(isDocsOnlyRun(jobs)).toBe(true)
+    expect(isDocsOnlyRun([{ name: DOCS_JOB, conclusion: 'failure' }])).toBe(true)
+  })
+
+  it('الجولة الكاملة وجولة ما قبل المسارين تُعدّان كما كانتا', () => {
+    const full = [
+      { name: DOCS_JOB, conclusion: 'skipped' },
+      { name: 'بناء الحزمة المشتركة', conclusion: 'success' },
+      { name: 'كروم حقيقي · verify:load', conclusion: 'success' },
+    ]
+    expect(isDocsOnlyRun(full)).toBe(false)
+    expect(isDocsOnlyRun([{ name: 'كروم حقيقي · verify:load', conclusion: 'success' }])).toBe(false)
+    // سقوط البناء يتخطّى الحرّاس بلا وظيفة توثيق — ثغرةٌ لا استبعاد
+    expect(
+      isDocsOnlyRun([
+        { name: 'بناء الحزمة المشتركة', conclusion: 'failure' },
+        { name: 'كروم حقيقي · verify:${{ matrix.guard }}', conclusion: 'skipped' },
+      ]),
+    ).toBe(false)
   })
 })

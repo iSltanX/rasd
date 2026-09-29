@@ -35,6 +35,14 @@
  * حمراء ادّعاءٌ بأن الحارس سقط، وهو كذب. والإلغاء واقعٌ هنا لا افتراضي:
  * `cancel-in-progress: true` يُلغي جولةً كاملة عند أي دفعٍ يعلوها (وقع في
  * الجولة 34439026069)، وذاك حدثٌ في تدفّق العمل لا في الحارس.
+ *
+ * **4. جولة مسار التوثيق ليست جولة حرّاس.** `ci.yml` يتخطّى البناء والحرّاس
+ * التسعة عشر حين لا يغيّر الدفع إلا توثيقًا. لو عُدّت تلك الجولة لصارت ثغرةً
+ * لكل حارس، فيكسر كل التزام توثيقي السلاسل كلّها ويُنزل الحرّاس الحاجبة عند
+ * الالتقاط التالي — عقوبةٌ على شيفرة لم تتغيّر. فتُستبعَد من السجلّ كلّيًّا:
+ * لا خضراء ولا ثغرة، كأنها لم تكن. وتُعرف بوظيفة `DOCS_JOB` وقد جرت فعلًا، لا
+ * بغياب الحرّاس: الغياب لسببٍ آخر (سقوط البناء) يبقى ثغرةً كما في القرار 3.
+ * والنافذة تُعدّ جولات الحرّاس لا الجولات كلّها، كي لا تُضيّقها التزامات التوثيق.
  */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -65,6 +73,14 @@ const PROMOTION_STREAK = 10
 const WINDOW = 20
 
 const REPO = 'iSltanX/rasd'
+
+/** اسم وظيفة مسار التوثيق في `ci.yml` — القرار 4 أعلاه، ويثبت تطابقَه اختبار. */
+export const DOCS_JOB = 'توثيق فقط · فحوص ساكنة'
+
+/** جرت وظيفة مسار التوثيق ⇐ لم تطلب الجولة حارسًا. التخطّي يعني أنها جولة كاملة. */
+export function isDocsOnlyRun(jobs) {
+  return jobs.some((job) => job.name === DOCS_JOB && job.conclusion && job.conclusion !== 'skipped')
+}
 
 /** صفّ المصفوفة في `ci.yml` — مرسًى على اسم الحارس، فلا يُعاد توليد الملفّ. */
 const ROW = (guard) => new RegExp(`(- \\{ guard: ${guard}, blocking: )(true|false)( \\})`, 'u')
@@ -141,7 +157,8 @@ async function capture() {
       '--branch',
       'main',
       '--limit',
-      String(WINDOW),
+      // أوسع من النافذة: جولات مسار التوثيق تُستبعَد، والنافذة تُملأ بجولات حرّاس.
+      String(WINDOW * 4),
       '--json',
       'databaseId,headSha,conclusion,status,event,createdAt',
     ]),
@@ -149,11 +166,17 @@ async function capture() {
 
   const guards = Object.fromEntries(matrix.map((m) => [m.guard, { results: [], scripts: [] }]))
   const recorded = []
+  let docsOnly = 0
 
   for (const run of runs) {
+    if (recorded.length === WINDOW) break
     const jobs = JSON.parse(
       gh(['api', `repos/${REPO}/actions/runs/${run.databaseId}/jobs`, '--paginate']),
     ).jobs
+    if (isDocsOnlyRun(jobs)) {
+      docsOnly += 1
+      continue
+    }
     const byGuard = new Map()
     for (const job of jobs) {
       const m = /verify:([a-z-]+)\s*$/u.exec(job.name)
@@ -209,7 +232,9 @@ async function capture() {
   if (flipped.length > 0) writeFileSync(CI_PATH, yml)
 
   console.log('\n── سجلّ ترقية الحرّاس ──')
-  console.log(`  ${recorded.length} جولة مكتملة · العتبة ${PROMOTION_STREAK}`)
+  console.log(
+    `  ${recorded.length} جولة حرّاس · ${docsOnly} جولة توثيق مستبعَدة · العتبة ${PROMOTION_STREAK}`,
+  )
   for (const { guard } of matrix) {
     const e = guards[guard]
     console.log(

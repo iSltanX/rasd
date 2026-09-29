@@ -11,8 +11,100 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── تصنيف التغيير: المسار الكامل أم مسار التوثيق ─────────────────
+  #
+  # قرارٌ حتميّ يُقرأ هنا، لا تقديرٌ من الوكيل: ملفّات الدفع تُطابَق على
+  # `DOCS_ONLY`. ملفّ واحد خارجه — شيفرة، اختبار، سكربت، إعداد، أصل مشحون، أو
+  # CI نفسه — يعني المسار الكامل. وما لا يُعرف (حدث يدويّ، أساس مفقود، قائمة
+  # فارغة، أو سقوط هذه الوظيفة) يعني المسار الكامل أيضًا: الخطأ الآمن فحصٌ زائد.
+  changes:
+    name: تصنيف التغيير
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: كامل أم توثيق فقط
+        id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          # ملفّات لا تدخل الحزمة ولا يقرؤها اختبار ولا بناء. `Docs/` بامتداداتها لا
+          # بمجلّدها: `Docs/Brand/build.mjs` سكربت يمرّ باللنت فيبقى للمسار الكامل،
+          # و`STAGES/baseline.json` يقرؤه `stages-sync` فلا يطابق `STAGES/NN.md`.
+          DOCS_ONLY: '^(AGENTS\.md|README\.md|ROADMAP\.md|STATUS\.md|STAGES/[0-9]+\.md|Docs/.+\.(md|png|svg))$'
+        run: |
+          full() { echo "code=true" >> "$GITHUB_OUTPUT"; echo "المسار الكامل — $1"; exit 0; }
+          case "$EVENT" in
+            push) from="$BEFORE"; to="$GITHUB_SHA"; dots=".." ;;
+            pull_request) from="$PR_BASE"; to="$PR_HEAD"; dots="..." ;;
+            *) full "الحدث «${EVENT}» يشغّل المسار الكامل دائمًا" ;;
+          esac
+          git cat-file -e "${from}^{commit}" 2>/dev/null || full "لا أساس للمقارنة: «${from}»"
+          files=$(git diff --name-only "${from}${dots}${to}")
+          [ -n "$files" ] || full "لا ملفّات متغيّرة"
+          echo "الملفّات المتغيّرة:"
+          echo "$files" | sed 's/^/  /'
+          outside=$(echo "$files" | grep -Ev "$DOCS_ONLY" || true)
+          [ -z "$outside" ] || full "ملفّات خارج التوثيق: $(echo "$outside" | head -5 | tr '\n' ' ')"
+          echo "code=false" >> "$GITHUB_OUTPUT"
+          echo "مسار التوثيق — البناء وحرّاس كروم التسعة عشر تُتخطّى"
+
+  # ── مسار التوثيق: فحوص الاتّساق وحدها ─────────────────────────────
+  #
+  # الفحوص التي يمكن أن يُسقطها تعديل توثيق: ترويسات المراحل ومشتقّاها، وصفوف
+  # سجلّ القرارات، وجرد نقاط الدخول المكتوب في `Docs/EntryPoints.md`، وتنسيق
+  # Markdown. لا بناء ولا اختبارات ولا متصفّح: لا شيء منها يقرأ هذه الملفّات.
+  # **واسم الوظيفة مرجعٌ في `scripts/guards-sync.mjs`** — به يُعرف أن الجولة لم
+  # تطلب حارسًا، فلا تُعدّ ثغرة في سجلّ الترقية. تغييره يُغيَّر هناك معه.
+  docs:
+    name: توثيق فقط · فحوص ساكنة
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: حارس مزامنة المراحل
+        run: pnpm run stages:check
+
+      - name: حارس سجلّ القرارات
+        run: pnpm run docs:lint
+
+      - name: حارس جرد نقاط الدخول
+        run: pnpm run entrypoints:lint
+
+      - name: Format check
+        run: pnpm run format:check
+
+  # ── المسار الكامل ─────────────────────────────────────────────────
+  #
+  # كل فحص مرّة واحدة في الجولة: `typecheck` هنا وحدها، والبناء و`verify:dist`
+  # في «بناء الحزمة المشتركة» وحدها، والحرّاس التسعة عشر على حزمتها.
+  # والشرط `!= 'false'` لا `== 'true'`: إن سقط التصنيف نفسه جرى المسار الكامل.
   verify:
-    name: typecheck · lint · test · build
+    name: فحوص ساكنة · typecheck · lint · test
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -47,15 +139,6 @@ jobs:
       - name: Test
         run: pnpm run test
 
-      - name: Build
-        run: pnpm run build
-
-      # حارس الحزمة المبنيّة — ساكن وسريع، ولم يكن يعمل في CI رغم ذلك.
-      # موضعه هنا لا في وظيفة كروم: لا متصفّح يلزمه، وهو يفحص `dist/`
-      # التي بُنيت للتوّ في السطر أعلاه.
-      - name: Bundle gate
-        run: pnpm run verify:dist
-
       # عمود `blocking` أدناه مشتقٌّ من `.github/guards-ledger.json`. الفحص هنا
       # بلا شبكة وبلا كروم — فلا يُدخِل الجولة في دورٍ حول نفسها — وموضعه هنا
       # لا في `gate:a` وحدها لأن البوّابة A تحرس جهاز المؤلِّف لا الفرع.
@@ -86,6 +169,8 @@ jobs:
   # البناء هنا نتيجة اللنت والاختبارات هناك.
   build:
     name: بناء الحزمة المشتركة
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -102,8 +187,14 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # `build:bundle` لا `build`: الأخير يعيد `typecheck` التي جرت في «فحوص ساكنة».
       - name: Build
-        run: pnpm run build
+        run: pnpm run build:bundle
+
+      # حارس الحزمة المبنيّة — ساكن وسريع، ولا متصفّح يلزمه. موضعه هنا لأنه يفحص
+      # `dist/` التي بُنيت للتوّ، وقبل الرفع كي لا تصل حزمة ساقطة إلى الحرّاس.
+      - name: Bundle gate
+        run: pnpm run verify:dist
 
       # `include-hidden-files`: الأثر يطابق مخرَج البناء ملفًّا ملفًّا، فما يحمّله
       # الحارس هو ما بُني لا مجموعة جزئية منه.

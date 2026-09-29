@@ -88,7 +88,12 @@ const IMPACT = [
 
 const STEPS = [
   { name: 'pnpm check', run: () => execSync('pnpm run check', { cwd: root, stdio: 'inherit' }) },
-  { name: 'pnpm build', run: () => execSync('pnpm run build', { cwd: root, stdio: 'inherit' }) },
+  // `build:bundle` ثمّ `verify:dist` لا `build`: الأخير يعيد `typecheck` التي جرت في `check`.
+  {
+    name: 'pnpm build:bundle · verify:dist',
+    run: () =>
+      execSync('pnpm run build:bundle && pnpm run verify:dist', { cwd: root, stdio: 'inherit' }),
+  },
   {
     name: 'حارس سجلّ التناقضات',
     run: () =>

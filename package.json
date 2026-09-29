@@ -12,7 +12,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "pnpm run typecheck && vite build && pnpm run build:content && pnpm run verify:dist",
+    "build": "pnpm run typecheck && pnpm run build:bundle && pnpm run verify:dist",
+    "build:bundle": "vite build && pnpm run build:content",
     "build:content": "vite build --config vite.content.config.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.node.json",
