@@ -306,11 +306,11 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "text/secondary": {
     "dark": "#b8c7cf",
-    "light": "#52636d"
+    "light": "#3c4a52"
   },
   "text/tertiary": {
-    "dark": "#7f94a0",
-    "light": "#687c87"
+    "dark": "#9baeb9",
+    "light": "#52636d"
   },
   "text/disabled": {
     "dark": "#52636d",
@@ -438,7 +438,7 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "status/success/solid": {
     "dark": "#00cd5f",
-    "light": "#009141"
+    "light": "#007533"
   },
   "status/warning/fg": {
     "dark": "#fdb500",
@@ -454,7 +454,7 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "status/warning/solid": {
     "dark": "#dd9e00",
-    "light": "#9d6f00"
+    "light": "#7e5900"
   },
   "status/danger/fg": {
     "dark": "#ffaba1",
@@ -470,7 +470,7 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "status/danger/solid": {
     "dark": "#ff7f73",
-    "light": "#e30018"
+    "light": "#b70011"
   },
   "status/info/fg": {
     "dark": "#98c8ff",
@@ -486,7 +486,7 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "status/info/solid": {
     "dark": "#65afff",
-    "light": "#0079da"
+    "light": "#0061b0"
   },
   "tool/capture/fg": {
     "dark": "#00e3c9",
@@ -502,7 +502,7 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "tool/capture/solid": {
     "dark": "#00c6af",
-    "light": "#00a895"
+    "light": "#007063"
   },
   "tool/annotate/fg": {
     "dark": "#ffb257",
@@ -518,7 +518,7 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "tool/annotate/solid": {
     "dark": "#ed9400",
-    "light": "#c97d00"
+    "light": "#885300"
   },
   "tool/inspect/fg": {
     "dark": "#ceb5ff",
@@ -534,7 +534,7 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "tool/inspect/solid": {
     "dark": "#bb91ff",
-    "light": "#a867ff"
+    "light": "#7d00da"
   },
   "tool/measure/fg": {
     "dark": "#ffa4cc",
@@ -550,7 +550,7 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "tool/measure/solid": {
     "dark": "#ff72b7",
-    "light": "#fe00a2"
+    "light": "#ad006c"
   },
   "tool/compare/fg": {
     "dark": "#98c8ff",
@@ -566,7 +566,7 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "tool/compare/solid": {
     "dark": "#65afff",
-    "light": "#1592ff"
+    "light": "#0061b0"
   },
   "tool/colors/fg": {
     "dark": "#ffb257",
@@ -582,15 +582,15 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
   },
   "tool/colors/solid": {
     "dark": "#ed9400",
-    "light": "#c97d00"
+    "light": "#885300"
   },
   "tool/diff/added": {
     "dark": "#00ea6e",
-    "light": "#009141"
+    "light": "#007533"
   },
   "tool/diff/removed": {
     "dark": "#ffaba1",
-    "light": "#e30018"
+    "light": "#b70011"
   },
   "tool/diff/added-wash": {
     "dark": "#00ea6e2e",
@@ -609,8 +609,8 @@ export const SEMANTIC_HEX: Record<SemanticToken, { dark: string; light: string }
     "light": "#070b0d3d"
   },
   "overlay/glass": {
-    "dark": "#0e1416c7",
-    "light": "#ffffffd1"
+    "dark": "#0e1416db",
+    "light": "#ffffffe5"
   },
   "overlay/mask": {
     "dark": "#070b0d8c",

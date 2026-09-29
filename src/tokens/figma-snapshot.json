@@ -2,7 +2,7 @@
   "$comment": "لقطة خام من ملف Figma Gr0dOsmjcVBcaX9M1slf5m — مولَّدة، لا تُحرَّر يدويًا.",
   "source": {
     "fileKey": "Gr0dOsmjcVBcaX9M1slf5m",
-    "capturedAt": "2026-08-28"
+    "capturedAt": "2026-09-29"
   },
   "collections": {
     "primitives": {
@@ -306,15 +306,15 @@
             "ref": "color/ink/300"
           },
           "Light": {
-            "ref": "color/ink/700"
+            "ref": "color/ink/800"
           }
         },
         "text/tertiary": {
           "Dark": {
-            "ref": "color/ink/500"
+            "ref": "color/ink/400"
           },
           "Light": {
-            "ref": "color/ink/600"
+            "ref": "color/ink/700"
           }
         },
         "text/disabled": {
@@ -570,7 +570,7 @@
             "ref": "color/success/400"
           },
           "Light": {
-            "ref": "color/success/600"
+            "ref": "color/success/700"
           }
         },
         "status/warning/fg": {
@@ -602,7 +602,7 @@
             "ref": "color/warning/400"
           },
           "Light": {
-            "ref": "color/warning/600"
+            "ref": "color/warning/700"
           }
         },
         "status/danger/fg": {
@@ -634,7 +634,7 @@
             "ref": "color/danger/400"
           },
           "Light": {
-            "ref": "color/danger/600"
+            "ref": "color/danger/700"
           }
         },
         "status/info/fg": {
@@ -666,7 +666,7 @@
             "ref": "color/info/400"
           },
           "Light": {
-            "ref": "color/info/600"
+            "ref": "color/info/700"
           }
         },
         "tool/capture/fg": {
@@ -698,7 +698,7 @@
             "ref": "color/signal/400"
           },
           "Light": {
-            "ref": "color/signal/500"
+            "ref": "color/signal/700"
           }
         },
         "tool/annotate/fg": {
@@ -730,7 +730,7 @@
             "ref": "color/ember/400"
           },
           "Light": {
-            "ref": "color/ember/500"
+            "ref": "color/ember/700"
           }
         },
         "tool/inspect/fg": {
@@ -762,7 +762,7 @@
             "ref": "color/inspect/400"
           },
           "Light": {
-            "ref": "color/inspect/500"
+            "ref": "color/inspect/700"
           }
         },
         "tool/measure/fg": {
@@ -794,7 +794,7 @@
             "ref": "color/measure/400"
           },
           "Light": {
-            "ref": "color/measure/500"
+            "ref": "color/measure/700"
           }
         },
         "tool/compare/fg": {
@@ -826,7 +826,7 @@
             "ref": "color/info/400"
           },
           "Light": {
-            "ref": "color/info/500"
+            "ref": "color/info/700"
           }
         },
         "tool/colors/fg": {
@@ -858,7 +858,7 @@
             "ref": "color/ember/400"
           },
           "Light": {
-            "ref": "color/ember/500"
+            "ref": "color/ember/700"
           }
         },
         "tool/diff/added": {
@@ -866,7 +866,7 @@
             "ref": "color/success/300"
           },
           "Light": {
-            "ref": "color/success/600"
+            "ref": "color/success/700"
           }
         },
         "tool/diff/removed": {
@@ -874,7 +874,7 @@
             "ref": "color/danger/300"
           },
           "Light": {
-            "ref": "color/danger/600"
+            "ref": "color/danger/700"
           }
         },
         "tool/diff/added-wash": {
@@ -894,8 +894,8 @@
           "Light": "#070b0d3d"
         },
         "overlay/glass": {
-          "Dark": "#0e1416c7",
-          "Light": "#ffffffd1"
+          "Dark": "#0e1416db",
+          "Light": "#ffffffe5"
         },
         "overlay/mask": {
           "Dark": "#070b0d8c",
