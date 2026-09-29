@@ -86,21 +86,42 @@ video {
  * الافتراضي (‏300px عرضًا) — وهذا ما كان يحدث فعلًا: خطّ الأساس البصري
  * `tests/visual-baselines/phase-07` يُظهر العلامة كتلةً تطغى على الترويسة وتغطّي سطر الحالة.
  *
- * والعرض `auto` لا قيمة ثابتة: الشعار ليس مربّعًا كالأيقونة، ونسبته
- * تختلف بين القصّين (‏1.53 لـ`compact` و1.48 لـ`regular`)، فأي عرض
- * مثبَّت يمطّ أحدهما. الارتفاع من سلّم `icon/*` نفسه كي تنتظم العلامة مع
+ * والعرض `auto` لا قيمة ثابتة: الرمز مربّع لكن القفل ليس كذلك (‏3.41 : 1)،
+ * فأي عرض مثبَّت يمطّه. الارتفاع من سلّم `icon/*` نفسه كي تنتظم العلامة مع
  * زرّ الإعدادات المجاور لها في الترويسة.
+ *
+ * والألوان هنا لا في المكوّن: الدرجة `adaptive` تربط الحلقة بـ`text/brand` والنقطة
+ * والكتابة بـ`text/primary` كمكوّن Figma، فتتبع الوضعين. و`mono` ترث `color`.
  */
 .rasd-mark {
   flex: none;
   inline-size: auto;
   color: inherit;
 }
-.rasd-mark-compact {
+.rasd-mark-sm {
   block-size: var(--rasd-icon-sm);
 }
-.rasd-mark-regular {
+.rasd-mark-md {
+  block-size: var(--rasd-icon-md);
+}
+.rasd-mark-lg {
+  block-size: var(--rasd-icon-lg);
+}
+.rasd-mark-xl {
   block-size: var(--rasd-icon-xl);
+}
+.rasd-mark-2xl {
+  block-size: var(--rasd-icon-2xl);
+}
+.rasd-mark-ring {
+  fill: var(--rasd-text-brand);
+}
+.rasd-mark-nuqta,
+.rasd-mark-word {
+  fill: var(--rasd-text-primary);
+}
+.rasd-mark[data-tone='mono'] > path {
+  fill: currentColor;
 }
 
 .rasd-color-value {

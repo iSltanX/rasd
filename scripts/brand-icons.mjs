@@ -1,30 +1,29 @@
 #!/usr/bin/env node
 /**
- * أيقونات الإضافة ← `public/icons/icon-{16,32,48,128}.png`.
+ * أيقونات الإضافة ← `public/icons/icon-{16,32,48,128}.png` و`icon-active-{16,32}.png`.
  *
- * القرار وعلّته في [ADR 0016](../Docs/ADR/0016-mark-geometry-single-source.md)،
- * وهو تمديد لخطّ الأنابيب في [ADR 0007](../Docs/ADR/0007-token-pipeline.md):
- * مصدر مودَع في المستودع وتوليد بلا شبكة. المصدر هنا ليس لقطة JSON بل
- * `src/ui/mark-geometry.ts` — الهندسة نفسها التي يرسمها `RasdMark.tsx` في
- * الواجهة، فلا ينحرف الشعار في شريط الأدوات عن الشعار داخل النافذة.
- * والألوان من `src/tokens/tokens.ts` لا حرفية: المربّع `surface/brand`
- * والعلامة `text/inverse` في الوضع الداكن.
+ * القرار وعلّته في [ADR 0016](../Docs/ADR/0016-mark-geometry-single-source.md) و
+ * [ADR 0024](../Docs/ADR/0024-mark-v3-in-code.md)، وهو تمديد لخطّ الأنابيب في
+ * [ADR 0007](../Docs/ADR/0007-token-pipeline.md): مصدر مودَع وتوليد بلا شبكة. المصدر
+ * `src/ui/mark-geometry.ts` — الهندسة نفسها التي يرسمها `RasdMark.tsx` في الواجهة
+ * ويقرؤها `Docs/Brand/build.mjs` — فلا ينحرف الشعار في شريط الأدوات عن الشعار
+ * داخل النافذة ولا عن أصول الهوية.
  *
- * **لماذا الأيقونة مربّع لا العلامة وحدها:** نسبة الشعار ~1.5:1 ولا تُجبَر
- * على المربّع. جُرِّب النمطان فعليًا عند 16px على شريط أدوات فاتح وداكن:
- * العلامة وحدها تفقد حضورها، والمربّع التركوازي يصمد على الشريطين معًا.
+ * **حالتان لا حالة واحدة.** الخاملة (بلاطة حبر، حلقة بلون العلامة، نقطة ورقية) هي
+ * أيقونة البيان في المقاسات الأربعة. والنشطة (البلاطة تُضاء بلون العلامة والعلامة حبر)
+ * تبدّلها الخلفية بـ`chrome.action.setIcon` ما دامت أداة من رصد تعمل على الصفحة، فيكفيها
+ * مقاسا الشريط 16 و32. الفرق فرق إضاءة لا فرق لون وحده، فيُرى لمن لا يميّز الألوان.
  *
- * **لماذا `INNER` ليس ثابتًا:** العلامة تشغل 82% من عرض المربّع، إلا عند 16
- * فتشغل 88%. عند 82% تنغلق الفتحة الداخلية وتصير لطخة — قيست النسب
- * 0.82/0.88/0.94/1.0 مكبَّرة قبل الاختيار، و1.0 يجعل طرفَي القوسين
- * يصطدمان بزاوية المربّع المستديرة. هو منطق القصّات البصرية نفسه مطبَّقًا
- * على الحشوة: كلما صغر الحجم قلّت الحشوة النسبية.
+ * **الألوان من التوكنز لا حرفية**، في الوضع الداكن: الخاملة `surface/canvas`
+ * و`text/brand` و`text/primary`، والنشطة `surface/brand` و`text/on-brand`.
  *
- * **لماذا خارج CI:** الترسيم يحتاج Chrome حقيقيًا، وناتج البكسل قد يختلف
- * بين إصدارَي متصفّح بلا تغيّر في المصدر — فمقارنة البايت في CI تُنتج فشلًا
- * كاذبًا. (كان هنا «نفس علّة `verify:popup` — غير مُدرج في CI أيضًا»، وقد
- * صار `verify:popup` مُدرجًا في الوحدة 23.1؛ والعلّة هنا تبقى قائمة بذاتها:
- * مقارنة بايت لا حكم سلوكي.) يُشغَّل محليًا عند تغيّر الشعار.
+ * **ترسيم واحد لكل التشغيل:** كل SVG يُرسم على `<canvas>` بمقاسه الحقيقي داخل تشغيل
+ * واحد للمتصفّح — تشغيل Chrome مرّة لكل صورة كان يعلّق. والطريقة نفسها في
+ * `Docs/Brand/build.mjs`، فتخرج `icon-16.png` مطابقة بايتًا لـ`rasd-icon-idle-16.png`
+ * على إصدار Chrome نفسه — ويثبت ذلك `tests/unit/ui/brand-icons.test.ts`.
+ *
+ * **لماذا خارج CI:** ناتج البكسل قد يختلف بين إصدارَي متصفّح بلا تغيّر في المصدر،
+ * فمقارنة البايت في CI تُنتج فشلًا كاذبًا. يُشغَّل محليًّا عند تغيّر الشعار.
  *
  *   pnpm icons:brand           يولّد
  *   pnpm icons:brand --check   يقارن دون كتابة
@@ -36,23 +35,61 @@ import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 import { resolveColor } from '../src/tokens/tokens.ts'
-import { MARK_CUTS, MARK_STROKE } from '../src/ui/mark-geometry.ts'
+import {
+  MARK_TILE,
+  MARK_TILE_RADIUS,
+  markCutFor,
+  markPaths,
+  round4,
+} from '../src/ui/mark-geometry.ts'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const outDir = join(root, 'public', 'icons')
 const CHECK = process.argv.includes('--check')
 
-/** المقاسات التي يطلبها البيان — `manifest.config.ts`. */
-const SIZES = [16, 32, 48, 128]
+/** الحالتان: البلاطة، والحلقة، والنقطة — ألوان الوضع الداكن. */
+const STATES = {
+  idle: {
+    label: 'رصد — خاملة',
+    tile: resolveColor('surface/canvas', 'dark'),
+    ring: resolveColor('text/brand', 'dark'),
+    nuqta: resolveColor('text/primary', 'dark'),
+  },
+  active: {
+    label: 'رصد — نشطة',
+    tile: resolveColor('surface/brand', 'dark'),
+    ring: resolveColor('text/on-brand', 'dark'),
+    nuqta: resolveColor('text/on-brand', 'dark'),
+  },
+}
 
-/** نصف قطر المربّع نسبةً إلى ضلعه — نفس نسبة أيقونات النظام. */
-const RADIUS = 0.2237
+/**
+ * الملفّات ومقاساتها. المقاسات الأربعة يطلبها البيان (`manifest.config.ts`)، والنشطة
+ * مقاسا الشريط وحدهما لأن `setIcon` لا يُستعمل خارجه.
+ */
+const JOBS = [
+  ...[16, 32, 48, 128].map((size) => ({ file: `icon-${size}.png`, size, state: 'idle' })),
+  ...[16, 32].map((size) => ({ file: `icon-active-${size}.png`, size, state: 'active' })),
+]
 
-/** عرض العلامة نسبةً إلى ضلع المربّع. انظر ترويسة الملف لعلّة استثناء 16. */
-const INNER = { 16: 0.88, 32: 0.82, 48: 0.82, 128: 0.82 }
-
-const TILE = resolveColor('surface/brand', 'dark')
-const MARK = resolveColor('text/inverse', 'dark')
+/**
+ * بلاطة الأيقونة بصيغة `Docs/Brand/build.mjs` حرفًا بحرف (العنوان والترتيب والتقريب)،
+ * كي يطابق الناتجُ أصلَ الهوية بايتًا على المتصفّح نفسه.
+ */
+function tileSvg(size, state) {
+  const t = MARK_TILE[markCutFor(size)]
+  const s = STATES[state]
+  const pad = (t.side - t.d) / 2
+  const paths = markPaths(pad, pad, t.d, t)
+  const body =
+    `<rect width="${t.side}" height="${t.side}" rx="${round4(t.side * MARK_TILE_RADIUS)}" fill="${s.tile}"/>` +
+    `<path fill="${s.ring}" d="${paths.ring}"/>` +
+    `<path fill="${s.nuqta}" d="${paths.nuqta}"/>`
+  return (
+    `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${t.side} ${t.side}" ` +
+    `role="img" aria-label="${s.label}"><title>${s.label}</title>${body}</svg>\n`
+  )
+}
 
 /** مسارات Chrome المعتادة على macOS، ويُتجاوَز بـ`RASD_CHROME`. */
 const CHROME_CANDIDATES = [
@@ -69,82 +106,80 @@ if (!chrome) {
 }
 
 /** عرض وارتفاع PNG من ترويسة IHDR — تحقّق من أن الترسيم خرج بالمقاس المطلوب. */
-function pngSize(buf) {
-  return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) }
-}
+const pngSize = (buf) => ({ w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) })
 
-/** مربّع الأيقونة: خلفية العلامة التجارية، وفوقها العلامة بقصّها المطابق للحجم. */
-function tileSvg(size) {
-  const cut = MARK_CUTS[size]
-  const [vw, vh] = cut.viewBox.split(' ').slice(2).map(Number)
-  const markW = size * INNER[size]
-  const markH = markW * (vh / vw)
-  const x = (size - markW) / 2
-  const y = (size - markH) / 2
-  const { x: ax, y: ay, w: aw, h: ah, rx } = cut.aperture
-  const n = (v) => Number(v.toFixed(4))
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" rx="${n(size * RADIUS)}" fill="${TILE}"/>
-  <svg x="${n(x)}" y="${n(y)}" width="${n(markW)}" height="${n(markH)}" viewBox="${cut.viewBox}"
-       fill="none" stroke="${MARK}" stroke-width="${MARK_STROKE}"
-       stroke-linecap="round" stroke-linejoin="round">
-    <path d="${cut.brackets[0]}"/>
-    <path d="${cut.brackets[1]}"/>
-    <rect x="${ax}" y="${ay}" width="${aw}" height="${ah}" rx="${rx}"/>
-  </svg>
-</svg>`
-}
-
-/** يرسم المربّع بمقاسه الحقيقي. الخلفية شفّافة كي تبقى زوايا المربّع مستديرة فعلًا. */
-function render(size, workDir) {
-  const page = join(workDir, `tile-${size}.html`)
-  const png = join(workDir, `icon-${size}.png`)
+/** يرسّم كل البلاطات في تشغيل واحد، والخلفية شفّافة كي تبقى الزوايا مستديرة فعلًا. */
+function rasterise(workDir) {
+  const jobs = JOBS.map((j) => ({
+    id: j.file,
+    svg: tileSvg(j.size, j.state),
+    w: j.size,
+    h: j.size,
+  }))
+  const page = join(workDir, 'raster.html')
   writeFileSync(
     page,
-    `<!doctype html><meta charset="utf-8">` +
-      `<style>html,body{margin:0;padding:0;background:transparent}svg{display:block}</style>` +
-      tileSvg(size),
+    `<!doctype html><meta charset="utf-8"><pre id="out">pending</pre><script>
+const jobs = ${JSON.stringify(jobs)};
+(async () => {
+  const out = {};
+  for (const j of jobs) {
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(j.svg);
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = j.w; c.height = j.h;
+    c.getContext('2d').drawImage(img, 0, 0, j.w, j.h);
+    out[j.id] = c.toDataURL('image/png');
+  }
+  document.getElementById('out').textContent = JSON.stringify(out);
+})();
+</script>`,
   )
-  execFileSync(
+  const dom = execFileSync(
     chrome,
     [
       '--headless=new',
       '--disable-gpu',
-      '--hide-scrollbars',
       '--force-device-scale-factor=1',
-      '--default-background-color=00000000',
-      `--window-size=${size},${size}`,
-      `--screenshot=${png}`,
+      '--virtual-time-budget=30000',
+      '--dump-dom',
       `file://${page}`,
     ],
-    { stdio: 'pipe' },
-  )
-  const buf = readFileSync(png)
-  const dim = pngSize(buf)
-  if (dim.w !== size || dim.h !== size) {
-    console.error(`✗ icon-${size}.png خرج بمقاس ${dim.w}×${dim.h} لا ${size}×${size}`)
+    { maxBuffer: 1 << 26, stdio: ['ignore', 'pipe', 'ignore'], timeout: 120_000 },
+  ).toString()
+  const match = /<pre id="out">([\s\S]*?)<\/pre>/u.exec(dom)
+  if (!match || match[1] === 'pending') {
+    console.error('✗ لم يُكمل المتصفّح الترسيم.')
     process.exit(1)
   }
-  return buf
+  const data = JSON.parse(match[1].replaceAll('&amp;', '&'))
+  return new Map(
+    Object.entries(data).map(([id, url]) => [id, Buffer.from(url.split(',')[1], 'base64')]),
+  )
 }
 
 const workDir = mkdtempSync(join(tmpdir(), 'rasd-brand-icons-'))
 let drift = 0
 
 try {
-  const results = SIZES.map((size) => {
-    const next = render(size, workDir)
-    const dest = join(outDir, `icon-${size}.png`)
+  const rendered = rasterise(workDir)
+  const results = JOBS.map((job) => {
+    const next = rendered.get(job.file)
+    const dim = pngSize(next)
+    if (dim.w !== job.size || dim.h !== job.size) {
+      console.error(`✗ ${job.file} خرج بمقاس ${dim.w}×${dim.h} لا ${job.size}×${job.size}`)
+      process.exit(1)
+    }
+    const dest = join(outDir, job.file)
     const prev = existsSync(dest) ? readFileSync(dest) : null
     const same = prev !== null && prev.equals(next)
-
     if (CHECK) {
       if (!same) drift++
     } else if (!same) {
       writeFileSync(dest, next)
     }
-    return { size, bytes: next.length, same }
+    return { ...job, bytes: next.length, same }
   })
 
   if (CHECK) {
@@ -155,15 +190,14 @@ try {
       )
       process.exit(1)
     }
-    console.log('✓ أيقونات العلامة مطابقة للهندسة — لا انحراف.')
+    console.log(`✓ أيقونات العلامة الستّ مطابقة للهندسة — لا انحراف.`)
   } else {
     console.log('توليد أيقونات العلامة:')
     for (const r of results) {
       console.log(
-        `  ✓ icon-${r.size}.png  ${String(r.bytes).padStart(5)} بايت${r.same ? '  (بلا تغيير)' : ''}`,
+        `  ✓ ${r.file.padEnd(20)} ${String(r.bytes).padStart(5)} بايت · ${r.state}${r.same ? '  (بلا تغيير)' : ''}`,
       )
     }
-    console.log(`  المربّع ${TILE} · العلامة ${MARK} · نصف القطر ${RADIUS * 100}%`)
   }
 } finally {
   rmSync(workDir, { recursive: true, force: true })

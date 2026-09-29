@@ -26,7 +26,7 @@ export function Header({ status, onSettings = () => undefined }: HeaderProps): J
     <header class={styles.header}>
       <IconButton icon="settings" aria-label="الإعدادات" size="m" onClick={onSettings} />
       <div class={styles.brand}>
-        <RasdMark size="compact" class={styles.brandMark} title="رصد" />
+        <RasdMark size="md" class={styles.brandMark} title="رصد" />
         <div class={styles.brandNames}>
           <div class={styles.brandRow}>
             <span class={styles.brandName}>رصد</span>

@@ -59,7 +59,6 @@
   white-space: nowrap;
 }
 .brandMark {
-  color: var(--rasd-text-brand);
   flex: none;
 }
 

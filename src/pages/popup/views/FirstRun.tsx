@@ -21,7 +21,7 @@ export interface FirstRunProps {
 export function FirstRun({ onTour, onSkip }: FirstRunProps): JSX.Element {
   return (
     <div class={styles.state}>
-      <RasdMark size="regular" class={styles.mark} title="رصد" />
+      <RasdMark size="2xl" class={styles.mark} title="رصد" />
       <h2 class={styles.title}>مرحبًا بك في رصد</h2>
       <p class={styles.tagline}>فحص بصري للويب، من داخل الصفحة</p>
       <p class={styles.desc}>التقط وافحص وقِس وقارن — دون مغادرة الصفحة التي تراجعها.</p>
