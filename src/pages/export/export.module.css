@@ -203,7 +203,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--rasd-space-16);
-  padding-block: var(--rasd-space-10);
+  padding-block: calc(var(--rasd-space-10) * var(--rasd-density, 1));
   padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
 }
 .kv + .kv {

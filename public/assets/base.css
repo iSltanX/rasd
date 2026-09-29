@@ -38,6 +38,20 @@ video {
   font: inherit;
 }
 
+/*
+ * **الكثافة** (`Docs/Engineering.md §6` الصفّ 110) — `applyTheme` يكتب `data-density` على جذر
+ * كل صفحة، وهذا مستهلكه العامّ: عاملٌ تضرب به الصفوف المتكرّرة حشوتها الرأسية (صفوف
+ * الإعدادات، وعناصر الشريط الجانبي والأقسام، وصفوف المحرّر والتصدير، وبطاقات المجموعات).
+ * «مضغوطة» تشدّها إلى ثلاثة أرباعها. ولا تمسّ بطاقات شبكة اللقطات: ارتفاع صفّها محسوب في
+ * `Grid.tsx` بالقيم الثابتة، وتغييره من CSS وحدها يُزيح النافذة الافتراضية.
+ */
+:root {
+  --rasd-density: 1;
+}
+:root[data-density='compact'] {
+  --rasd-density: 0.75;
+}
+
 .rasd-page :focus-visible {
   outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
   outline-offset: var(--rasd-stroke-thin);

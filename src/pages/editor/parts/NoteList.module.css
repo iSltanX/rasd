@@ -42,7 +42,7 @@
   grid-template-columns: auto auto 1fr;
   align-items: start;
   gap: calc(var(--rasd-space-10) + var(--rasd-stroke-thin));
-  padding-block: calc(var(--rasd-space-12) + var(--rasd-stroke-thin));
+  padding-block: calc((var(--rasd-space-12) + var(--rasd-stroke-thin)) * var(--rasd-density, 1));
   border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
 }
 .item:last-child {

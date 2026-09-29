@@ -15,6 +15,7 @@
  */
 
 import { DEFAULT_TOOL_KEYS, type Mode, type ToolShortcutMode } from '@/shared/modes'
+import { watchSettings } from '@/shared/settings'
 
 /** ما يمكن أن يطلبه مفتاح. */
 export type ShortcutAction =
@@ -106,6 +107,25 @@ export function buildBindings(
   })
 }
 
+/**
+ * خريطة اختصار **حيّة** — `Docs/Engineering.md §6` الصفّ 117.
+ *
+ * كانت الخريطة تُبنى مرّة عند إقلاع الطبقة، فحرفٌ يغيّره المستخدم من الإعدادات لا يصل تبويبًا
+ * محقونًا حتى يُعاد حقنه. صارت تُعاد بناؤها مع كل تغيّر في الإعدادات (اشتراك `watchSettings`
+ * كالمظهر)، و`installShortcuts` يقرؤها وقت الحدث بـ`get` — فالحرف الجديد يعمل من الضغطة
+ * التالية في الجلسة نفسها.
+ */
+export function liveBindings(
+  initial: Partial<Record<ToolShortcutMode, string>>,
+  watch: typeof watchSettings = watchSettings,
+): { get: () => readonly Binding[]; stop: () => void } {
+  let current = buildBindings(initial)
+  const stop = watch((settings) => {
+    current = buildBindings(settings.shortcuts.toolKeys)
+  })
+  return { get: () => current, stop }
+}
+
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
 
 /**
@@ -153,8 +173,11 @@ export interface ShortcutOptions {
    */
   shouldSwallowEscape?: () => boolean
   doc?: Document
-  /** خريطة الروابط الفعلية — الافتراضي `BINDINGS`؛ مرّر ناتج `buildBindings` لتخصيص حروف الأدوات. */
-  bindings?: readonly Binding[]
+  /**
+   * خريطة الروابط الفعلية — الافتراضي `BINDINGS`؛ مرّر ناتج `buildBindings` لتخصيص حروف
+   * الأدوات، أو دالّةً تُسأل وقت كل حدث (`liveBindings().get`) كي يسري تغيّرها بلا إعادة تركيب.
+   */
+  bindings?: readonly Binding[] | (() => readonly Binding[])
 }
 
 /**
@@ -166,7 +189,8 @@ export interface ShortcutOptions {
 export function installShortcuts(options: ShortcutOptions): () => void {
   const doc = options.doc ?? document
   const win = doc.defaultView
-  const bindings = options.bindings ?? BINDINGS
+  const source = options.bindings ?? BINDINGS
+  const currentBindings = typeof source === 'function' ? source : () => source
   if (!win) return () => undefined
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -195,7 +219,7 @@ export function installShortcuts(options: ShortcutOptions): () => void {
       return
     }
 
-    for (const b of bindings) {
+    for (const b of currentBindings()) {
       if (!matches(e, b)) continue
       const swallow =
         b.action.kind === 'escape' ? (options.shouldSwallowEscape?.() ?? false) : b.swallow

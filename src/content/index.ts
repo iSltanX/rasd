@@ -30,9 +30,10 @@ import { blockedFrames, isTopFrame } from './frames'
 import { adoptTeardown, mountHost, type OverlayHost } from './host'
 import { createModeManager, type ModeManager } from './mode-manager'
 import { mountOverlayApp, requestCapture } from './overlay-app'
+import { reportAcrossPageLifecycle } from './page-report'
 import { startPersistence, type Persistence } from './persistence'
 import { saveTextFile } from './save-file'
-import { buildBindings, installShortcuts, type ShortcutAction } from './shortcuts'
+import { installShortcuts, liveBindings, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
 import { createColourPalette } from './tools/colour-palette'
@@ -204,6 +205,9 @@ async function bootOverlay(
   const reportMode = (mode: Mode) => void send('mode/report', { mode })
   const unsubscribeReport = modes.subscribe((mode) => reportMode(mode))
   reportMode(modes.mode.value)
+
+  // مغادرة المستند تُبلِّغ الخمول، والعودة من ذاكرة الرجوع تعيد الوضع — `page-report.ts`.
+  const stopPageReport = reportAcrossPageLifecycle(win, reportMode, () => modes.mode.value)
 
   /**
    * أمر خارجي (نافذة · اختصار · قائمة سياق) يبدّل الوضع مباشرة — لا يمرّ
@@ -1099,11 +1103,11 @@ async function bootOverlay(
    * يجب أن تكون صحيحة **قبل** أوّل ضغطة مفتاح، لا بعد ثانية إضافة —
    * والإعدادات مخزَّنة مؤقّتًا أصلًا (`watchSettings` أعلاه قرأتها للتوّ).
    */
-  const shortcutBindings = buildBindings((await getSettings()).shortcuts.toolKeys)
+  const shortcutBindings = liveBindings((await getSettings()).shortcuts.toolKeys)
 
   const removeShortcuts = installShortcuts({
     doc,
-    bindings: shortcutBindings,
+    bindings: shortcutBindings.get,
     // `Esc` يُبتلع فقط حين يكون له معنى عندنا — وإلا فهو مفتاح الصفحة.
     /*
      * `Esc` يُبتلع كذلك أثناء الالتقاط الكامل.
@@ -1156,6 +1160,7 @@ async function bootOverlay(
     // الترتيب معكوس ترتيب التركيب: المستمعات ومراقب البقاء أوّلًا، وإلا
     // رأى المراقبُ المضيفَ يختفي فأعاد إلحاقه في اللحظة نفسها.
     removeShortcuts()
+    shortcutBindings.stop()
     unregisterModeSet()
     unregisterCompareResume()
     unregisterPrepare()
@@ -1194,6 +1199,7 @@ async function bootOverlay(
     persistence.stop()
     sync.stop()
     unsubscribeReport()
+    stopPageReport()
     // النافذة تعتمد على وضع مبلَّغ يعكس الواقع — تفكيك بلا تقرير idle أخير
     // يترك مؤشِّرًا حيًّا كاذبًا لجلسة انتهت فعلًا.
     reportMode('idle')

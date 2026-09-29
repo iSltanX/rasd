@@ -16,6 +16,17 @@ const KEY = 'rasd:settings'
 let cache: Settings | null = null
 const listeners = new Set<(settings: Settings) => void>()
 let watching = false
+/**
+ * جيل الذاكرة المؤقّتة — يزيد كلّما حُدِّثت من مصدرٍ أحدث من قراءةٍ جارية: حدث تغيّر، أو كتابة.
+ * قراءةٌ بدأت قبل ذلك ووصلت بعده **لا تكتب فوقه** ولا تُسلَّم؛ يُعاد الأحدث بدلها.
+ */
+let generation = 0
+
+/** يحدّث الذاكرة المؤقّتة من مصدر أحدث من أي قراءة معلّقة. */
+function refresh(settings: Settings): void {
+  cache = settings
+  generation += 1
+}
 
 /**
  * يقرأ الإعدادات وفشلُ القراءة **ظاهر** — لا مبتلَعًا في الافتراضيات.
@@ -31,7 +42,14 @@ let watching = false
  */
 export async function getSettingsResult(): Promise<Result<Settings>> {
   if (cache) return ok(cache)
+  const started = generation
   const stored = await attempt(async () => (await chrome.storage.local.get(KEY))[KEY])
+  /*
+   * **وصل تغيّرٌ أثناء القراءة؟ فهو الأحدث.** القراءة قد تُحلّ بعد حدث `onChanged` أو كتابة
+   * بدأتا بعدها، فتحمل القيمة القديمة — وكتابتها في الذاكرة كانت تُرجع حرف أداة جديدًا إلى
+   * القديم حتى التغيّر التالي (`tests/unit/settings-read-race.test.ts`).
+   */
+  if (generation !== started && cache) return ok(cache)
   if (!stored.ok) return stored
   const { settings, issues } = parseSettings(stored.value)
   if (issues.length > 0) {
@@ -141,7 +159,7 @@ async function applyPatch(patch: Partial<Settings>, known?: Settings): Promise<R
   const { settings } = parseSettings(merged)
   const written = await attempt(() => chrome.storage.local.set({ [KEY]: settings }))
   if (!written.ok) return written
-  cache = settings
+  refresh(settings)
   return ok(settings)
 }
 
@@ -150,7 +168,7 @@ export async function resetSettings(): Promise<Result<Settings>> {
   const settings = defaultSettings()
   const written = await attempt(() => chrome.storage.local.set({ [KEY]: settings }))
   if (!written.ok) return written
-  cache = settings
+  refresh(settings)
   return ok(settings)
 }
 
@@ -168,7 +186,7 @@ function ensureWatcher() {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !(KEY in changes)) return
     const { settings } = parseSettings(changes[KEY]?.newValue)
-    cache = settings
+    refresh(settings)
     for (const listener of listeners) listener(settings)
   })
 }

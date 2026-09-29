@@ -476,9 +476,8 @@
   border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
   border-radius: var(--rasd-radius-lg);
   background: var(--rasd-overlay-glass);
-  backdrop-filter: blur(
-    18px
-  ); /* rasd-allow-literal: نصف قطر الطمس أثر بصري لا قيمة من سلّم المسافات */
+  /* طمس الزجاج كإشعار `Toast` نفسه (18 = 16 + 2) — من السلّم لا قيمة حرفية. */
+  backdrop-filter: blur(calc(var(--rasd-space-16) + var(--rasd-space-2)));
   box-shadow: var(--rasd-elevation-3);
   font-family: var(--rasd-font-family-text);
   pointer-events: auto;

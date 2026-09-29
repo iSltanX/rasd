@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--rasd-space-16);
-  padding-block: var(--rasd-space-12);
+  padding-block: calc(var(--rasd-space-12) * var(--rasd-density, 1));
   padding-inline: var(--rasd-space-16);
 }
 

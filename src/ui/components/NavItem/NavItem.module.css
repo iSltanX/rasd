@@ -9,7 +9,7 @@
   justify-content: space-between;
   gap: var(--rasd-space-8);
   inline-size: 100%;
-  padding-block: var(--rasd-space-8);
+  padding-block: calc(var(--rasd-space-8) * var(--rasd-density, 1));
   padding-inline: var(--rasd-space-10);
   border: none;
   border-radius: var(--rasd-radius-md);

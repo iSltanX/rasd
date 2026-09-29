@@ -77,8 +77,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--rasd-card-body-gap, calc(var(--rasd-space-2) + var(--rasd-stroke-thin)));
-  padding-block: var(--rasd-card-pad-start, var(--rasd-space-10))
-    var(--rasd-card-pad-end, calc(var(--rasd-space-10) + var(--rasd-stroke-thin)));
+  padding-block: calc(var(--rasd-card-pad-start, var(--rasd-space-10)) * var(--rasd-density, 1))
+    calc(
+      var(--rasd-card-pad-end, calc(var(--rasd-space-10) + var(--rasd-stroke-thin))) *
+        var(--rasd-density, 1)
+    );
   padding-inline: var(--rasd-card-pad-inline, var(--rasd-space-12));
   min-inline-size: 0;
 }

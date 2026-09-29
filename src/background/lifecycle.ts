@@ -36,6 +36,7 @@ import { quotaState } from '@/shared/storage/quota'
 import { blobs, captures, colors } from '@/shared/storage/repository'
 import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
+import { applyModeIcon } from './action-icon'
 import { measureLiveDiff } from './compare-diff-service'
 import { cancelFullPage } from './full-page-job'
 import { canOperateOnTab } from './gate'
@@ -184,7 +185,11 @@ function registerRequestHandlers() {
   onMessage('mode/report', async ({ mode }, { tabId }) => {
     // بلا تبويب مُرسِل لا معنى للتقرير — لا يُرمى، يُهمَل بصمت. هذا يقع فقط
     // لو استُدعي `send()` بدل `sendToTab()` من سياق ليس تبويبًا.
-    if (tabId !== undefined) await setTabMode(tabId, mode)
+    if (tabId !== undefined) {
+      await setTabMode(tabId, mode)
+      // الأيقونة النشطة على هذا التبويب وحده ما دامت أداةٌ مفتوحة فيه.
+      await applyModeIcon(tabId, mode)
+    }
     return { ok: true }
   })
 
