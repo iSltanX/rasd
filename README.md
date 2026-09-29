@@ -149,4 +149,4 @@ pnpm gate:a
 | ملف Figma `Gr0dOsmjcVBcaX9M1slf5m`           | نظام التصميم — مصدر التوكنز والشاشات             |
 
 عند اختلاف التنفيذ عن الإطار المعتمد في Figma، فالتنفيذ هو الخطأ. والإطارات المعتمدة
-توثّقها `Docs/Design.md` عند إغلاق [`STAGES/03`](STAGES/03.md).
+توثّقها `Docs/Design.md` عند إغلاق [`STAGES/02`](STAGES/02.md).
