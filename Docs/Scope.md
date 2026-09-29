@@ -2,7 +2,7 @@
 
 > قرارات المالك المعتمدة في 2026-09-29. **كل المراحل وكل الإضافات المقترحة تدخل الإصدار
 > 1.0.** المالك اعتمد توصيات المساعد في كل ما يحتاج قراره، ثم قرّر ألّا يؤجَّل شيء.
-> يُستكمل هذا الملفّ في تحضير [`STAGES/02`](../STAGES/02.md) بجرد عناصر الواجهة المعطَّلة.
+> جرد عناصر الواجهة المعطَّلة والشاشات وإطاراتها أُضيفا في [`STAGES/02`](../STAGES/02.md).
 
 ## داخل الإصدار 1.0
 
@@ -54,15 +54,51 @@
 | `src/pages/onboarding/index.html:15`          | صفحة التأهيل النائبة                  | تُبنى                                                                         | [09](../STAGES/09.md)                           |
 | `src/ui/components/Menu/Menu.tsx:45` و`:100`  | آلية `aria-disabled` في مكوّن القائمة | ليست عنصرًا معطَّلًا: آلية عامّة يستعملها أي بند. تبقى                        | —                                               |
 
+## الشاشات وإطاراتها المعتمدة
+
+لكل شاشة إطارها الأساسي بوضعَيه. حالاتها كلّها في القسم المسمّى من
+[`Docs/Design.md`](Design.md) §5، وتغطيتها في §6. «قائمة» تعني أن محرّكها مبنيّ، وتطبيق التصميم
+عليها في [03](../STAGES/03.md).
+
+| الشاشة                      | الإطار                       | الداكن                                                                                    | الفاتح                                                                                    | محرّكها                                       | حالاتها                                   |
+| --------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------- |
+| النافذة                     | `popup / default`            | [`50:13`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=50-13)         | [`86:1726`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=86-1726)     | قائمة                                         | Design.md §5 «النافذة»                    |
+| الالتقاط                    | `capture / area-select`      | [`59:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=59-2)           | [`310:26505`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-26505) | قائمة                                         | Design.md §5 «الالتقاط»                   |
+| المحرّر                     | `editor / annotating`        | [`70:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=70-2)           | [`310:27639`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-27639) | قائمة                                         | Design.md §5 «المحرّر»                    |
+| القياس                      | `measure / two-elements`     | [`64:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=64-2)           | [`310:29105`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29105) | قائمة                                         | Design.md §5 «القياس»                     |
+| الفحص                       | `inspect / element-selected` | [`62:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=62-2)           | [`310:29794`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29794) | قائمة                                         | Design.md §5 «الفحص وتدقيق التباين»       |
+| تدقيق تباين الصفحة          | `contrast-audit / results`   | [`303:20977`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20977) | [`310:30171`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30171) | [14](../STAGES/14.md)                         | Design.md §5 «الفحص وتدقيق التباين»       |
+| الألوان                     | `colors / sampling`          | [`65:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=65-2)           | [`310:31472`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31472) | قائمة                                         | Design.md §5 «الألوان»                    |
+| المقارنة                    | `compare / two-captures`     | [`127:196`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=127-196)     | [`310:33040`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33040) | قائمة                                         | Design.md §5 «المقارنة وتقريرها»          |
+| تقرير المقارنة              | `compare / report`           | [`291:12538`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12538) | [`310:33162`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33162) | [05](../STAGES/05.md)                         | Design.md §5 «المقارنة وتقريرها»          |
+| المكتبة                     | `library / grid`             | [`66:20`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=66-20)         | [`86:1825`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=86-1825)     | قائمة                                         | Design.md §5 «المكتبة والأدلّة»           |
+| دليل الخطوات                | `guide / editor`             | [`304:1506`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=304-1506)   | [`310:35507`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-35507) | [06](../STAGES/06.md)                         | Design.md §5 «المكتبة والأدلّة»           |
+| المشاريع                    | `projects / overview`        | [`72:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=72-2)           | [`310:40776`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-40776) | قائمة                                         | Design.md §5 «المشاريع»                   |
+| التصدير، ومعه PDF           | `export / modal`             | [`73:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=73-2)           | [`310:43256`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-43256) | قائمة · PDF في [05](../STAGES/05.md)          | Design.md §5 «التصدير»                    |
+| المشاركة المحلّية           | `share / modal`              | [`73:361`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=73-361)       | [`310:45733`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-45733) | [10](../STAGES/10.md)                         | Design.md §5 «المشاركة المحلّية»          |
+| اتّصالات GitHub             | `integrations / connections` | [`72:488`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=72-488)       | [`310:48570`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48570) | [11](../STAGES/11.md) · [12](../STAGES/12.md) | Design.md §5 «التكاملات وgithub»          |
+| مؤلِّف البلاغ               | `github / issue-compose`     | [`293:19271`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19271) | [`310:48731`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48731) | [12](../STAGES/12.md)                         | Design.md §5 «التكاملات وgithub»          |
+| الإعدادات                   | `settings / capture`         | [`68:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=68-2)           | [`310:51416`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-51416) | قائمة                                         | Design.md §5 «الإعدادات والبيانات والدعم» |
+| البيانات: نسخ واستيراد وحذف | `settings / data`            | [`282:1318`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=282-1318)   | [`310:51522`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-51522) | [07](../STAGES/07.md)                         | Design.md §5 «الإعدادات والبيانات والدعم» |
+| ورقة الاختصارات             | `shortcuts / sheet`          | [`292:1691`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=292-1691)   | [`310:51577`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-51577) | [03](../STAGES/03.md)                         | Design.md §5 «الإعدادات والبيانات والدعم» |
+| عن رصد                      | `settings / about`           | [`282:1656`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=282-1656)   | [`310:51551`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-51551) | [03](../STAGES/03.md)                         | Design.md §5 «الإعدادات والبيانات والدعم» |
+| الإبلاغ عن مشكلة            | `support / form`             | [`293:4050`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4050)   | [`310:52134`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52134) | [13](../STAGES/13.md)                         | Design.md §5 «الإعدادات والبيانات والدعم» |
+| ما الجديد                   | `whats-new / card`           | [`293:5723`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5723)   | [`310:52615`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52615) | [09](../STAGES/09.md)                         | Design.md §5 «الإعدادات والبيانات والدعم» |
+| الخصوصية                    | `privacy / controls`         | [`68:416`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=68-416)       | [`310:58971`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-58971) | قائمة                                         | Design.md §5 «الخصوصية وقفل المكتبة»      |
+| قفل المكتبة                 | `lock / setup`               | [`293:16890`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-16890) | [`310:59085`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-59085) | [08](../STAGES/08.md)                         | Design.md §5 «الخصوصية وقفل المكتبة»      |
+| التأهيل                     | `onboarding / step-1`        | [`74:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=74-2)           | [`308:40`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=308-40)       | [09](../STAGES/09.md)                         | Design.md §5 «التأهيل»                    |
+
 ## يُحذف من التصميم والواجهة
 
-| البند                                         | السبب                                                                 |
-| --------------------------------------------- | --------------------------------------------------------------------- |
-| صيغة SVG                                      | مستبعدة بقرار سابق، واللقطات صور نقطية. لا تُعاد تلقائيًّا            |
-| الحساب و«مساحة عمل محلية» وعدّاد «1.8 / 5 GB» | لا حساب ولا مزامنة في المنتج. يحلّ محلّ العدّاد مؤشّر المساحة الحقيقي |
-| ضابط «خلفية شفافة» في نافذة التصدير           | لا محرّك له ولا قيمة: اللقطة صورة صفحة معتمة                          |
-| صلاحية `desktopCapture`                       | ميزتها (التقاط نافذة المتصفّح) خارج النطاق                            |
-| صلاحية `tabs`                                 | تُسقَط إن ثبت بالقياس أن لا مستهلك لها                                |
+| البند                                                 | السبب                                                                 |
+| ----------------------------------------------------- | --------------------------------------------------------------------- |
+| صيغة SVG                                              | مستبعدة بقرار سابق، واللقطات صور نقطية. لا تُعاد تلقائيًّا            |
+| Linear وJira وSlack وFigma في شاشة التكاملات والمحرّر | خارج النطاق. يبقى GitHub وحده                                         |
+| كتلة «كشف تلقائي» في لوحة الحجب                       | لا محرّك لها ولا مرحلة تملكها                                         |
+| الحساب و«مساحة عمل محلية» وعدّاد «1.8 / 5 GB»         | لا حساب ولا مزامنة في المنتج. يحلّ محلّ العدّاد مؤشّر المساحة الحقيقي |
+| ضابط «خلفية شفافة» في نافذة التصدير                   | لا محرّك له ولا قيمة: اللقطة صورة صفحة معتمة                          |
+| صلاحية `desktopCapture`                               | ميزتها (التقاط نافذة المتصفّح) خارج النطاق                            |
+| صلاحية `tabs`                                         | تُسقَط إن ثبت بالقياس أن لا مستهلك لها                                |
 
 ## خارج الإصدار 1.0
 
