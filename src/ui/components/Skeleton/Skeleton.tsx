@@ -13,7 +13,8 @@ export interface SkeletonProps {
 
 /**
  * `Skeleton` — 3 variant، مطابقة شكل ما تحلّ محلّه (المكتبة تحمّل بطاقات، لا
- * أشرطة عامة).
+ * أشرطة عامة). البطاقة بمواصفة `Skeleton/Kind=Card` في Figma: مصغَّرة بنسبة بطاقة
+ * المكتبة (275 × 148) وسطران بعرضَي 160 و110 وعتامتَي 0.8 و0.55.
  */
 export function Skeleton({ kind, class: className }: SkeletonProps): JSX.Element {
   return (
@@ -21,8 +22,8 @@ export function Skeleton({ kind, class: className }: SkeletonProps): JSX.Element
       {kind === 'card' ? (
         <>
           <div class={styles.thumb} />
-          <div class={styles.line} style={{ inlineSize: '70%' }} />
-          <div class={styles.line} style={{ inlineSize: '45%' }} />
+          <div class={cx(styles.line, styles.cardTitle)} />
+          <div class={cx(styles.line, styles.cardMeta)} />
         </>
       ) : null}
       {kind === 'row' ? (

@@ -28,6 +28,11 @@ export interface SimpleGridProps<T extends { id: string }> {
   onToggleSelect: (id: string) => void
   onOpen: (id: string) => void
   CardComponent: (props: SimpleCardProps<T>) => JSX.Element
+  /**
+   * أدنى عرض للبطاقة بالـrem — أعمدة الإطار: اللوحات عمودان (`126:222`)، والمراجع ثلاثة
+   * (`126:660`)، والباقي بقياس `capture-card`.
+   */
+  minCardRem?: number
   'aria-label': string
 }
 
@@ -37,10 +42,16 @@ export function SimpleGrid<T extends { id: string }>({
   onToggleSelect,
   onOpen,
   CardComponent,
+  minCardRem = 16,
   'aria-label': ariaLabel,
 }: SimpleGridProps<T>): JSX.Element {
   return (
-    <div class={styles.grid} role="list" aria-label={ariaLabel}>
+    <div
+      class={styles.grid}
+      role="list"
+      aria-label={ariaLabel}
+      style={{ '--rasd-grid-min': `${minCardRem}rem` }}
+    >
       {records.map((record) => (
         <div role="listitem" key={record.id}>
           <CardComponent

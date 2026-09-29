@@ -15,7 +15,7 @@
   position: absolute;
   inset-inline: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  gap: var(--rasd-space-12);
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--rasd-space-16);
   align-content: start;
 }

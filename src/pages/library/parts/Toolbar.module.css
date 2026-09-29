@@ -1,26 +1,103 @@
+/*
+ * `toolbar` (`66:20`): سطح `surface/default` بحدّ سفلي `border/subtle`، حشوة 14/24،
+ * البداية بفجوة 12 والنهاية بفجوة 8.
+ */
 .toolbar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--rasd-space-12);
-  padding: var(--rasd-space-8) var(--rasd-space-12);
-  border-radius: var(--rasd-radius-lg);
-  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
-  background: var(--rasd-surface-raised);
+  justify-content: space-between;
+  gap: var(--rasd-space-16);
+  padding-block: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  padding-inline: var(--rasd-space-24);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-default);
+  flex: none;
 }
 
-.search {
-  flex: 1 1 14rem;
-  min-inline-size: 10rem;
-}
-
-.favoriteToggle {
+.start {
   display: flex;
   align-items: center;
-  gap: var(--rasd-space-6);
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-sm);
+  gap: var(--rasd-space-12);
+  min-inline-size: 0;
+  flex-wrap: wrap;
+}
+.end {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  flex: none;
+}
+
+/* البحث: 340 × 36، سطح `surface/sunken` بحدّ ونصف قطر 8، والعدسة في بدايته. */
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  inline-size: 21.25rem;
+  max-inline-size: 100%;
+  block-size: calc(var(--rasd-control-md) + var(--rasd-space-4));
+  box-sizing: border-box;
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-sunken);
+}
+.search:focus-within {
+  border-color: var(--rasd-border-focus);
+  box-shadow: 0 0 0 var(--rasd-stroke-thin) var(--rasd-border-focus);
+}
+.searchIcon {
+  position: absolute;
+  inset-inline-start: calc(var(--rasd-space-10) - var(--rasd-stroke-thin));
+  color: var(--rasd-icon-tertiary);
+  pointer-events: none;
+}
+.searchInput {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 100%;
+  margin: 0;
+  padding-inline: calc(var(--rasd-space-10) + var(--rasd-icon-sm) + var(--rasd-space-8))
+    calc(var(--rasd-space-10) - var(--rasd-stroke-thin));
+  border: none;
+  background: transparent;
+  color: var(--rasd-text-primary);
+  outline: none;
+}
+.searchInput::placeholder {
+  color: var(--rasd-text-tertiary);
+}
+
+/* «الوسوم» بمظهر `Select` في الإطار: سطح غائر بحدّ، والقِمع مكان السهم. */
+.filterButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  margin: 0;
+  padding-block: calc(var(--rasd-space-8) - var(--rasd-stroke-thin));
+  padding-inline: calc(var(--rasd-space-12) - var(--rasd-stroke-thin))
+    calc(var(--rasd-space-8) - var(--rasd-stroke-thin));
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-sunken);
   color: var(--rasd-text-secondary);
   cursor: pointer;
-  margin-inline-start: auto;
+  white-space: nowrap;
+}
+.filterButton:hover {
+  border-color: var(--rasd-border-strong);
+}
+.filterButton:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+.filterOpen {
+  border-color: var(--rasd-border-brand);
+  color: var(--rasd-text-primary);
+}
+.filterIcon {
+  color: var(--rasd-icon-secondary);
+}
+
+.sort {
+  flex: none;
 }

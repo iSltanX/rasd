@@ -1,25 +1,30 @@
 /**
- * صفحة المكتبة — الحاوية الجذر.
+ * صفحة المكتبة — `library / grid` (`66:20`) وحالاتها، على القشرة المشتركة `AppShell`.
  *
- * الدفعة الثامنة أضافت الوسوم (§10.3) وعرضَي الأرشيف والمهملات ومؤشِّر
- * الحصة، فوق التبويبات الخمسة (السابعة) ولوحة المشاريع (السادسة) وشريط
- * الأدوات (الخامسة) والشبكة الافتراضية (الرابعة).
+ * **العرض من الشريط الجانبي** (`?view=` أو `?project=`): «كل اللقطات» و«المميّزة» و«الأخيرة»
+ * والمشاريع مرشّحات على اللقطات، و«المجموعات» تفتح نوعها. والعرض يتبدّل في مكانه بلا تنقّل
+ * (`history.replaceState`) فيبقى بعد إعادة التحميل ويفتحه رابط من صفحة أخرى.
  *
- * **مبدِّل العرض (نشِطة/الأرشيف/المهملات) والوسوم مقصوران على تبويب
- * اللقطات**: `ARCHIVE_FILTERS`/`TRASH_FILTERS`/`tags` كلّها مبنيّة على
- * `CaptureRecord` — نفس حدّ التصفية والترتيب من الدفعة الخامسة، الآن ممتدّ
- * إلى العرض والوسوم بنفس التعليل بالضبط.
+ * **ما ليس في الإطار ويبقى، وسببه:** صفّ أنواع السجلّات (`role="tab"`) ومبدّل «نشِطة/الأرشيف/
+ * المهملات» (`عرض المكتبة`) وزرّا لوحتَي المشاريع والوسوم. كلّها ميزات قائمة لا موضع لها في
+ * الإطار، والحارس الحاجب `verify:library` يقودها بأسمائها هذه — وملفّه مثبَّت ببصمته، فتعديله
+ * يُنزله من «حاجب» (`AGENTS.md` §4). والحذف النهائي بتأكيد المتصفّح للسبب نفسه.
  *
- * **إضافة لاحقة لدفعة الإغلاق**: التحديد المتعدّد للتبويبات الأربعة غير
- * اللقطات كان يعرض شريطًا بلا فعل حقيقي (إلغاء فقط) — فجوة سُجِّلت في
- * ملفّ المرحلة 18 السابق (تاريخ Git) §4/§8` كشرط تسليم للمرحلة 16 ولم تُبنَ في الإغلاق نفسه.
- * سُدّت هنا: `SimpleSelectionBar` يمنح هذه الأنواع حذفًا نهائيًا (لا مهملات
- * لها) ونقلًا إلى مشروع — عبر `DELETE_FN_FOR_TAB`/`MOVE_FN_FOR_TAB` أدناه.
+ * **مبدِّل العرض (نشِطة/الأرشيف/المهملات) والوسوم مقصوران على اللقطات**:
+ * `ARCHIVE_FILTERS`/`TRASH_FILTERS`/`tags` كلّها مبنيّة على `CaptureRecord`.
+ *
+ * التحديد المتعدّد للأنواع الأربعة غير اللقطات يمنحها `SimpleSelectionBar` حذفًا نهائيًا (لا
+ * مهملات لها) ونقلًا إلى مشروع — عبر `DELETE_FN_FOR_TAB`/`MOVE_FN_FOR_TAB` أدناه.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
-import { ARCHIVE_FILTERS, DEFAULT_LIBRARY_FILTERS, TRASH_FILTERS } from '@/modules/library/filters'
+import {
+  ARCHIVE_FILTERS,
+  DEFAULT_LIBRARY_FILTERS,
+  TRASH_FILTERS,
+  type LibraryFilters,
+} from '@/modules/library/filters'
 import { type LibraryTab } from '@/modules/library/search'
 import {
   DEFAULT_SORT_DIRECTION,
@@ -27,16 +32,26 @@ import {
   type LibrarySortKey,
   type SortDirection,
 } from '@/modules/library/sort'
-import { purgeCapture } from '@/modules/library/trash'
+import { purgeCapture, TRASH_RETENTION_DAYS } from '@/modules/library/trash'
+import { formatHuman } from '@/shared/bidi/numerals'
 import { send } from '@/shared/messaging'
 import { captures } from '@/shared/storage/repository'
-import { Banner } from '@/ui/components/Banner/Banner'
-import { Button } from '@/ui/components/Button/Button'
 import { EmptyState, type EmptyStateKind } from '@/ui/components/EmptyState/EmptyState'
-import { IconButton } from '@/ui/components/IconButton/IconButton'
+import { ErrorMessage } from '@/ui/components/ErrorMessage/ErrorMessage'
 import { SegmentedControl } from '@/ui/components/SegmentedControl/SegmentedControl'
 import { Skeleton } from '@/ui/components/Skeleton/Skeleton'
-import { Tabs, type TabItem } from '@/ui/components/Tabs/Tabs'
+import { Tab, TabRow } from '@/ui/components/Tab/Tab'
+import { Toast } from '@/ui/components/Toast/Toast'
+
+import { AppShell } from '../shell/AppShell'
+import {
+  searchFor,
+  SETTINGS_HREF,
+  viewFromSearch,
+  viewId,
+  type LibraryView,
+} from '../shell/library-views'
+import { RECENT_WINDOW_MS } from '../shell/sidebar-data'
 
 import { deleteColors, deleteGuides, deletePalettes, deleteReferences } from './bulk-delete'
 import {
@@ -54,13 +69,12 @@ import { Grid } from './parts/Grid'
 import { GuideCard } from './parts/GuideCard'
 import { PaletteCard } from './parts/PaletteCard'
 import { ProjectsPanel } from './parts/ProjectsPanel'
-import { QuotaIndicator } from './parts/QuotaIndicator'
 import { ReferenceCard } from './parts/ReferenceCard'
 import { SelectionBar, type LibraryViewMode } from './parts/SelectionBar'
 import { SimpleGrid } from './parts/SimpleGrid'
 import { SimpleSelectionBar } from './parts/SimpleSelectionBar'
 import { TagsPanel } from './parts/TagsPanel'
-import { Toolbar } from './parts/Toolbar'
+import { dateFromFor, SortSelect, Toolbar, type DateFilter, type KindFilter } from './parts/Toolbar'
 import {
   createProject,
   deleteProject,
@@ -93,15 +107,35 @@ type LoadState = 'loading' | 'ready' | 'error'
 
 const SKELETON_CARD_COUNT = 8
 
-/** ترتيب التبويبات نفسه في نصّ المرحلة 18 (§16) حرفيًا. */
-const TAB_ITEMS: readonly TabItem[] = [
+/** أنواع السجلّات بترتيبها الثابت — صفّ الأنواع، وأسماؤه عقد `verify:library`. */
+const TAB_ITEMS: readonly { value: LibraryTab; label: string }[] = [
   { value: 'captures', label: 'اللقطات' },
   { value: 'references', label: 'المراجع' },
   { value: 'colors', label: 'الألوان' },
   { value: 'palettes', label: 'اللوحات' },
   { value: 'guides', label: 'أدلة الخطوات' },
 ]
-const TAB_VALUES: readonly LibraryTab[] = TAB_ITEMS.map((t) => t.value as LibraryTab)
+
+/** العرض الذي يفتحه كل نوع حين يُختار من صفّ الأنواع. */
+const VIEW_FOR_TAB: Record<LibraryTab, LibraryView> = {
+  captures: { kind: 'all' },
+  references: { kind: 'references' },
+  colors: { kind: 'colors' },
+  palettes: { kind: 'palettes' },
+  guides: { kind: 'guides' },
+}
+
+function tabForView(view: LibraryView): LibraryTab {
+  switch (view.kind) {
+    case 'palettes':
+    case 'references':
+    case 'colors':
+    case 'guides':
+      return view.kind
+    default:
+      return 'captures'
+  }
+}
 
 /** حالة الفراغ الصحيحة لكل تبويب حين لا نتيجة — بمعزل عن تمييز «فارغ أصلًا» (اللقطات وحدها تملكه). */
 const EMPTY_KIND_FOR_TAB: Record<LibraryTab, EmptyStateKind> = {
@@ -117,6 +151,79 @@ const VIEW_MODE_OPTIONS: readonly { value: LibraryViewMode; label: string }[] = 
   { value: 'archived', label: 'الأرشيف' },
   { value: 'trashed', label: 'المهملات' },
 ]
+
+const TITLE: Record<Exclude<LibraryView['kind'], 'project'>, string> = {
+  all: 'كل اللقطات',
+  favorites: 'المميّزة',
+  recent: 'الأخيرة',
+  palettes: 'اللوحات',
+  references: 'المراجع',
+  colors: 'الألوان',
+  guides: 'أدلة الخطوات',
+}
+
+const SEARCH_PLACEHOLDER: Record<LibraryTab, string> = {
+  captures: 'ابحث في اللقطات…',
+  references: 'ابحث في المراجع…',
+  colors: 'ابحث في الألوان…',
+  palettes: 'ابحث في اللوحات…',
+  guides: 'ابحث في الأدلّة…',
+}
+
+interface CountForms {
+  /** للواحد: «لقطة واحدة». */
+  one: string
+  /** للاثنين: «لقطتان». */
+  two: string
+  /** جمع القلّة (3–10): «لقطات». */
+  many: string
+  /** مفرد التمييز المنصوب (11–99): «لقطة» · «مرجعًا». */
+  accusative: string
+  /** مفرد التمييز المجرور (المئات): «لقطة» · «مرجع». */
+  singular: string
+}
+
+const COUNT_FORMS: Record<LibraryTab, CountForms> = {
+  captures: {
+    one: 'لقطة واحدة',
+    two: 'لقطتان',
+    many: 'لقطات',
+    accusative: 'لقطة',
+    singular: 'لقطة',
+  },
+  references: {
+    one: 'مرجع واحد',
+    two: 'مرجعان',
+    many: 'مراجع',
+    accusative: 'مرجعًا',
+    singular: 'مرجع',
+  },
+  colors: { one: 'لون واحد', two: 'لونان', many: 'ألوان', accusative: 'لونًا', singular: 'لون' },
+  palettes: {
+    one: 'لوحة واحدة',
+    two: 'لوحتان',
+    many: 'لوحات',
+    accusative: 'لوحة',
+    singular: 'لوحة',
+  },
+  guides: {
+    one: 'دليل واحد',
+    two: 'دليلان',
+    many: 'أدلّة',
+    accusative: 'دليلًا',
+    singular: 'دليل',
+  },
+}
+
+/** العدد مع معدوده بقاعدة العدد العربية، بأرقام هندية: «٨ مراجع» · «١٩ لوحة» · «١٢ مرجعًا». */
+export function countText(count: number, forms: CountForms): string {
+  if (count === 1) return forms.one
+  if (count === 2) return forms.two
+  const lastTwo = count % 100
+  const noun =
+    lastTwo >= 3 && lastTwo <= 10 ? forms.many : lastTwo >= 11 ? forms.accusative : forms.singular
+  return `${formatHuman(count)} ${noun}`
+}
 
 /**
  * حذف ونقل-لمشروع للتبويبات الأربعة غير اللقطات — جدولا تفريع بمعرِّف
@@ -141,18 +248,31 @@ const MOVE_FN_FOR_TAB: Partial<
   guides: moveGuidesToProject,
 }
 
+/** كم يبقى إشعار النتيجة — مدّة إشعار الحفظ في الإعدادات نفسها. */
+const NOTICE_MS = 4000
+
+interface Notice {
+  readonly title: string
+  readonly detail?: string
+}
+
 export function Library(): JSX.Element {
-  const [activeTab, setActiveTab] = useState<LibraryTab>('captures')
+  const [view, setView] = useState<LibraryView>(() =>
+    viewFromSearch(typeof location === 'undefined' ? '' : location.search),
+  )
+  const activeTab = tabForView(view)
+  /** العرض الحاضر لمعالجات تُستدعى قبل أن يُعاد الرسم — نقرتان متتاليتان على صفّ الأنواع. */
+  const viewRef = useRef(view)
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [records, setRecords] = useState<LibraryRecord[]>([])
   const [libraryHasAny, setLibraryHasAny] = useState(true)
   const [projectNames, setProjectNames] = useState<Record<string, string>>({})
   const [selection, setSelection] = useState<ReadonlySet<string>>(new Set())
-  const [online, setOnline] = useState(() =>
-    typeof navigator === 'undefined' ? true : navigator.onLine,
-  )
   const [thumbnailUrls, setThumbnailUrls] = useState<Map<string, string | null>>(new Map())
   const pendingThumbs = useRef<Set<string>>(new Set())
+  /** يتغيّر بعد كل كتابة فيُعيد الشريط الجانبي عدّ ما تغيّر. */
+  const [revision, setRevision] = useState(0)
+  const bump = useCallback(() => setRevision((r) => r + 1), [])
 
   /**
    * يعكس `activeTab` **حاضرًا** لا لحظة إنشاء إغلاق — انظر `reload()` أدناه.
@@ -168,8 +288,8 @@ export function Library(): JSX.Element {
    * تذكرة تسلسل لكل استدعاء `reload()` — تكمِّل `activeTabRef` لا تكرّره.
    * `activeTabRef` يكشف استدعاءً من إغلاقٍ قديم انتقل التبويب عنه تمامًا؛
    * هذه التذكرة تكشف حالة **أضيق**: استدعاءان متتاليان على **نفس** التبويب
-   * (بحثٌ يُكتَب بسرعة بلا تهدئة، كل ضغطة زرّ تُطلق `reload()` مستقلّة) قد
-   * يعود أقدمهما بعد أحدثهما — IndexedDB لا يضمن ترتيب استجابتين متزامنتين
+   * (بحثٌ يُكتَب بسرعة بلا تهدئة، أو تبديل عرضين من عروض اللقطات) قد يعود
+   * أقدمهما بعد أحدثهما — IndexedDB لا يضمن ترتيب استجابتين متزامنتين
    * ولو استُهدِف المخزن نفسه. مرجعٌ لا حالة، للسبب نفسه.
    */
   const reloadTicketRef = useRef(0)
@@ -177,7 +297,8 @@ export function Library(): JSX.Element {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortKey, setSortKey] = useState<LibrarySortKey>(DEFAULT_SORT_KEY)
   const [sortDirection, setSortDirection] = useState<SortDirection>(DEFAULT_SORT_DIRECTION)
-  const [favoriteOnly, setFavoriteOnly] = useState(false)
+  const [kindFilter, setKindFilter] = useState<KindFilter>('all')
+  const [dateFilter, setDateFilter] = useState<DateFilter>('any')
   const [viewMode, setViewMode] = useState<LibraryViewMode>('live')
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null)
 
@@ -188,34 +309,26 @@ export function Library(): JSX.Element {
   const [tagsPanelOpen, setTagsPanelOpen] = useState(false)
 
   const [quota, setQuota] = useState<QuotaState | null>(null)
+  const [quotaNoticeDismissed, setQuotaNoticeDismissed] = useState(false)
 
-  useEffect(() => {
-    const goOnline = () => setOnline(true)
-    const goOffline = () => setOnline(false)
-    window.addEventListener('online', goOnline)
-    window.addEventListener('offline', goOffline)
-    return () => {
-      window.removeEventListener('online', goOnline)
-      window.removeEventListener('offline', goOffline)
-    }
+  const [notice, setNotice] = useState<Notice | null>(null)
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const announce = useCallback((next: Notice) => {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current)
+    setNotice(next)
+    noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_MS)
   }, [])
+  useEffect(
+    () => () => {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current)
+    },
+    [],
+  )
 
   /** تطهير المهملات المنتهية — مرّة واحدة عند فتح الصفحة، لا عند كل بحث أو ترتيب أو تبويب. */
   useEffect(() => {
     void purgeExpiredOnOpen(Date.now())
   }, [])
-
-  const baseFilters =
-    viewMode === 'archived'
-      ? ARCHIVE_FILTERS
-      : viewMode === 'trashed'
-        ? TRASH_FILTERS
-        : DEFAULT_LIBRARY_FILTERS
-  const filters = {
-    ...baseFilters,
-    ...(favoriteOnly ? { favorite: true } : {}),
-    ...(activeTagFilter ? { tag: activeTagFilter } : {}),
-  }
 
   const reload = useCallback(async () => {
     // القيمة **حين بدأ هذا الاستدعاء بعينه** — ما يُطلَب من المخزن، لا ما
@@ -238,6 +351,27 @@ export function Library(): JSX.Element {
     const names = await loadProjectNames()
     setProjectNames(names)
 
+    const now = Date.now()
+    const base =
+      viewMode === 'archived'
+        ? ARCHIVE_FILTERS
+        : viewMode === 'trashed'
+          ? TRASH_FILTERS
+          : DEFAULT_LIBRARY_FILTERS
+    // «الأخيرة» ومرشّح التاريخ كلاهما حدّ أدنى — يُؤخذ الأضيق منهما.
+    const floors = [
+      view.kind === 'recent' ? now - RECENT_WINDOW_MS : undefined,
+      dateFromFor(dateFilter, now),
+    ].filter((v): v is number => v !== undefined)
+    const filters: LibraryFilters = {
+      ...base,
+      ...(view.kind === 'favorites' ? { favorite: true } : {}),
+      ...(view.kind === 'project' ? { projectId: view.id } : {}),
+      ...(kindFilter !== 'all' ? { kind: kindFilter } : {}),
+      ...(floors.length > 0 ? { dateFrom: Math.max(...floors) } : {}),
+      ...(activeTagFilter ? { tag: activeTagFilter } : {}),
+    }
+
     const [result, counts, quotaState] = await Promise.all([
       loadTab({
         tab: requestedTab,
@@ -257,15 +391,10 @@ export function Library(): JSX.Element {
      * استجابتين متوازيتين. فحين يفوز الاستدعاء **الأقدم** بالسباق، يكتب
      * `setRecords` بشكل سجلّ تبويبه هو، بينما `activeTab` صار تبويبًا آخر
      * فعلًا — فرع العرض يحوّل `records` إلى نوع التبويب *الحالي* بـ`as` بلا
-     * فحص، فبطاقة كـ`Card` (لقطات) تقرأ `record.kind` من سجلّ لوحة فتنهار
-     * (`Icon` تستلم `name: undefined`، ‎`shouldMirror` تُفشِل على `.replace`
-     * لا وجود له). نفس عائلة عطل تبديل التبويب المُصلَح في دفعة الإغلاق —
-     * هنا مصدر التأخّر معالج حذف/نقل لا الرسم المتزامن.
+     * فحص، فبطاقة كـ`Card` (لقطات) تقرأ `record.kind` من سجلّ لوحة فتنهار.
      *
      * **والتذكرة تضيف حالة لا يكشفها فحص التبويب وحده**: استدعاءان على
-     * *نفس* التبويب (بحثٌ يُكتَب بسرعة بلا تهدئة) يمكن أن يعود أقدمهما
-     * بعد أحدثهما أيضًا — مراجعة خصمة كشفت هذا كحالة منفصلة، وdiff الأداء
-     * لا يبرِّر إضافة تهدئة (debounce) لحلّها حين يكفيها فحصٌ صريح هنا.
+     * *نفس* التبويب يمكن أن يعود أقدمهما بعد أحدثهما أيضًا.
      */
     if (activeTabRef.current !== requestedTab || reloadTicketRef.current !== myTicket) return
 
@@ -277,37 +406,49 @@ export function Library(): JSX.Element {
     } else {
       setLoadState('error')
     }
-    // `filters` ليست في مصفوفة الاعتماديات لأنها مُشتقَّة من الحالات الأخرى
-    // في كل عرض بلا حالة خاصّة بها — اعتماديّاتها الحقيقية (viewMode،
-    // favoriteOnly، activeTagFilter) كلّها مذكورة.
-  }, [activeTab, searchQuery, sortKey, sortDirection, favoriteOnly, viewMode, activeTagFilter])
+  }, [
+    activeTab,
+    view,
+    searchQuery,
+    sortKey,
+    sortDirection,
+    kindFilter,
+    dateFilter,
+    viewMode,
+    activeTagFilter,
+  ])
 
   useEffect(() => {
     void reload()
   }, [reload])
 
   /**
-   * تبديل التبويب يُفرِغ التحديد ويعيد العرض إلى «نشِطة» — تحديدٌ أو عرضٌ من تبويب لا معنى لبقائه في آخر.
+   * تبديل العرض يُفرِغ التحديد ويعيد «نشِطة» — تحديدٌ أو وضعٌ من عرض لا معنى لبقائه في آخر.
    *
    * **يُفرِغ `records` أيضًا هنا — لا يترك ذلك لـ`reload()`.** قِسته
-   * `verify-library.mjs` في متصفّح حقيقي: تغيير `activeTab` يُعيد العرض
-   * فورًا في نفس اللفّة، بينما `reload()` لا يعمل إلا في تأثير لاحق —
-   * ما ينتج إطار رسمٍ واحدًا يحمل تبويبًا جديدًا وسجلّات التبويب *القديم*
-   * بشكلها القديم. فرع العرض (Library.tsx أسفله) يحوّل `records` بـ`as`
-   * إلى نوع التبويب الجديد بلا فحص فعلي، فبطاقة كـ`PaletteCard` تقرأ
-   * `record.colors` من سجلّ لقطة لا حقل `colors` له فتنهار — وانهيار عرضٍ
-   * بلا حدود خطأ يُسقط الشجرة كاملة، فتفشل كل التبويبات التالية معه.
-   * تفريغ `records` فورًا يجعل ذلك الإطار الوحيد يعرض الحالة الفارغة
-   * (سكيلتون أو `EmptyState`) بدل بيانات مموَّهة الشكل — انظر §6.
+   * `verify-library.mjs` في متصفّح حقيقي: تغيير التبويب يُعيد العرض فورًا في نفس
+   * اللفّة، بينما `reload()` لا يعمل إلا في تأثير لاحق — ما ينتج إطار رسمٍ واحدًا
+   * يحمل تبويبًا جديدًا وسجلّات التبويب *القديم* بشكلها القديم، فتنهار بطاقة تقرأ
+   * حقلًا لا وجود له. تفريغ `records` فورًا يجعل ذلك الإطار يعرض الحالة الفارغة.
    */
-  const switchTab = useCallback((index: number) => {
-    const tab = TAB_VALUES[index]
-    if (!tab) return
-    setActiveTab(tab)
+  const switchView = useCallback((next: LibraryView) => {
+    viewRef.current = next
+    setView(next)
     setRecords([])
     setSelection(new Set())
     setViewMode('live')
+    if (typeof history !== 'undefined') {
+      history.replaceState(null, '', `${location.pathname}${searchFor(next)}`)
+    }
   }, [])
+
+  /** نوعٌ من صفّ الأنواع — نوعه الحاضر لا يُعاد فتحه، فلا يُسقط مرشّح العرض ولا التحديد. */
+  const selectTab = useCallback(
+    (tab: LibraryTab) => {
+      if (tabForView(viewRef.current) !== tab) switchView(VIEW_FOR_TAB[tab])
+    },
+    [switchView],
+  )
 
   const switchViewMode = useCallback((index: number) => {
     const mode = VIEW_MODE_OPTIONS[index]?.value
@@ -379,11 +520,8 @@ export function Library(): JSX.Element {
    * ومعاملة واحدة لكل سجلّ أبسط من إدارة فشل جزئي وسط دفعة متوازية.
    *
    * **`clearSelection()` مشروطة بالتبويب — لا تُفرَّغ صمتًا تحديدًا جديدًا
-   * على تبويب آخر.** مراجعة خصمة كشفت أن حلقة `for` هنا (تسلسلية، فقد تأخذ
-   * وقتًا محسوسًا على تحديد كبير) قد تمتدّ إلى ما بعد أن يبدّل المستخدم
-   * التبويب ويحدِّد عناصر جديدة هناك؛ `clearSelection()` غير المشروطة
-   * سابقًا كانت ستمحو ذلك التحديد الجديد بلا أي علاقة بما طُلب هنا أصلًا.
-   * `reload()` لا يحتاج الحارس نفسه — يحرس نفسه داخليًا.
+   * على تبويب آخر.** الحلقة التسلسلية قد تمتدّ إلى ما بعد أن يبدّل المستخدم
+   * التبويب ويحدِّد عناصر جديدة هناك. `reload()` لا يحتاج الحارس — يحرس نفسه.
    */
   const applyToSelection = useCallback(
     async (mutate: (record: CaptureRecord) => CaptureRecord) => {
@@ -393,9 +531,10 @@ export function Library(): JSX.Element {
         if (found.ok) await captures.put(mutate(found.value))
       }
       if (activeTabRef.current === requestedTab) clearSelection()
+      bump()
       await reload()
     },
-    [activeTab, selection, clearSelection, reload],
+    [activeTab, selection, clearSelection, reload, bump],
   )
 
   const onFavoriteSelection = useCallback(
@@ -410,10 +549,15 @@ export function Library(): JSX.Element {
     () => void applyToSelection((r) => ({ ...r, archived: false })),
     [applyToSelection],
   )
-  const onTrashSelection = useCallback(
-    () => void applyToSelection((r) => ({ ...r, trashedAt: Date.now() })),
-    [applyToSelection],
-  )
+  const onTrashSelection = useCallback(() => {
+    const count = selection.size
+    void applyToSelection((r) => ({ ...r, trashedAt: Date.now() })).then(() =>
+      announce({
+        title: `نُقل إلى المهملات: ${countText(count, COUNT_FORMS.captures)}`,
+        detail: `تُستعاد منها خلال ${formatHuman(TRASH_RETENTION_DAYS)} يومًا، ثمّ تُحذف نهائيًا.`,
+      }),
+    )
+  }, [applyToSelection, selection, announce])
   const onRestoreSelection = useCallback(
     () => void applyToSelection((r) => ({ ...r, trashedAt: null })),
     [applyToSelection],
@@ -421,23 +565,27 @@ export function Library(): JSX.Element {
   /** حذف نهائي — لا معاملة `applyToSelection` البسيطة: `purgeCapture` يحذف من ثلاثة مخازن معًا. */
   const onPurgeSelection = useCallback(() => {
     const requestedTab = activeTab
+    const count = selection.size
     void (async () => {
       for (const id of selection) await purgeCapture(id)
       // نفس حارس `applyToSelection` — تحديدٌ جديد على تبويب آخر لا يُمحى بصمت.
       if (activeTabRef.current === requestedTab) clearSelection()
+      bump()
+      announce({ title: `حُذف نهائيًا: ${countText(count, COUNT_FORMS.captures)}` })
       await reload()
     })()
-  }, [activeTab, selection, clearSelection, reload])
+  }, [activeTab, selection, clearSelection, reload, bump, announce])
 
   const onMoveSelectionToProject = useCallback(
     (projectId: string | null) => {
       const requestedTab = activeTab
       void moveCapturesToProject([...selection], projectId).then(() => {
         if (activeTabRef.current === requestedTab) clearSelection()
+        bump()
         void reload()
       })
     },
-    [activeTab, selection, clearSelection, reload],
+    [activeTab, selection, clearSelection, reload, bump],
   )
   const onAddTagToSelection = useCallback(
     (name: string) => {
@@ -450,21 +598,22 @@ export function Library(): JSX.Element {
   /**
    * حذف ونقل-لمشروع للتبويبات الأربعة غير اللقطات — `DELETE_FN_FOR_TAB`/
    * `MOVE_FN_FOR_TAB` أعلاه. `activeTab === 'captures'` لا يصل هذين
-   * المعالجين أصلًا (فرع العرض أدناه يُخصّص `SelectionBar` الحقيقي لها)،
-   * فغياب الدالّة من الجدول لتبويب اللقطات غير ذي أثر — حارسٌ لا يُشحن كودًا
-   * ميتًا فحسب.
+   * المعالجين أصلًا (فرع العرض أدناه يُخصّص `SelectionBar` الحقيقي لها).
    */
   const onDeleteSelectionGeneric = useCallback(() => {
     const del = DELETE_FN_FOR_TAB[activeTab]
     if (!del) return
     const requestedTab = activeTab
+    const count = selection.size
     void del([...selection]).then(() => {
       // نفس حارس `applyToSelection` — احذف/انقل يخصّان التبويب الذي طُلبا
       // عليه؛ تحديدٌ جديد استُحدِث على تبويب آخر أثناء الانتظار لا يُمحى.
       if (activeTabRef.current === requestedTab) clearSelection()
+      bump()
+      announce({ title: `حُذف نهائيًا: ${countText(count, COUNT_FORMS[requestedTab])}` })
       void reload()
     })
-  }, [activeTab, selection, clearSelection, reload])
+  }, [activeTab, selection, clearSelection, reload, bump, announce])
 
   const onMoveSelectionToProjectGeneric = useCallback(
     (projectId: string | null) => {
@@ -473,42 +622,48 @@ export function Library(): JSX.Element {
       const requestedTab = activeTab
       void move([...selection], projectId).then(() => {
         if (activeTabRef.current === requestedTab) clearSelection()
+        bump()
         void reload()
       })
     },
-    [activeTab, selection, clearSelection, reload],
+    [activeTab, selection, clearSelection, reload, bump],
   )
 
   // ── المشاريع ──────────────────────────────────────────────────
+  const afterProjectsChange = useCallback(() => {
+    void reloadProjects()
+    bump()
+  }, [reloadProjects, bump])
   const onCreateProject = useCallback(
     (name: string, color: string) => {
-      void createProject(name, color).then(() => reloadProjects())
+      void createProject(name, color).then(afterProjectsChange)
     },
-    [reloadProjects],
+    [afterProjectsChange],
   )
   const onRenameProject = useCallback(
     (id: string, name: string) => {
-      void renameProject(id, name).then(() => reloadProjects())
+      void renameProject(id, name).then(afterProjectsChange)
     },
-    [reloadProjects],
+    [afterProjectsChange],
   )
   const onSetProjectColor = useCallback(
     (id: string, color: string) => {
-      void setProjectColor(id, color).then(() => reloadProjects())
+      void setProjectColor(id, color).then(afterProjectsChange)
     },
-    [reloadProjects],
+    [afterProjectsChange],
   )
   const onDeleteProject = useCallback(
     (id: string, moveContentTo: string | null) => {
       void deleteProject(id, moveContentTo).then(() => {
-        void reloadProjects()
-        void reload()
+        afterProjectsChange()
+        // عرض المشروع المحذوف لا وجهة له بعده — يعود إلى كل اللقطات.
+        if (view.kind === 'project' && view.id === id) switchView({ kind: 'all' })
+        else void reload()
       })
     },
-    [reloadProjects, reload],
+    [afterProjectsChange, reload, view, switchView],
   )
 
-  const tabIndex = useMemo(() => Math.max(0, TAB_VALUES.indexOf(activeTab)), [activeTab])
   const viewModeIndex = useMemo(
     () =>
       Math.max(
@@ -518,182 +673,239 @@ export function Library(): JSX.Element {
     [viewMode],
   )
 
+  const title =
+    view.kind === 'project'
+      ? (projects.find((p) => p.id === view.id)?.name ?? projectNames[view.id] ?? 'مشروع')
+      : TITLE[view.kind]
+  const isCaptures = activeTab === 'captures'
+  const showQuotaNotice = quota !== null && quota.level !== 'ok' && !quotaNoticeDismissed
+
   return (
-    <div class={styles.page}>
-      {/*
-       * «غير متصل» هنا لا يعني بيانات معلَّقة تنتظر مطابقة: المكتبة تقرأ
-       * وتكتب IndexedDB محليًا وحده بلا خادم في v1.0 (لا مسار مزامنة
-       * موجود في المستودع أصلًا)، فلا شيء «يُطابَق عند العودة» فعليًا —
-       * كانت الصياغة الأولى تعد بسلوك لا مقابل له بالشيفرة. اللافتة
-       * تبقى لأن `§16` يصمّمها ضمن حالات الشاشة العشر، ونصّها الآن يصف
-       * الحقيقة المحلّية لا استعارة سحابية.
-       */}
-      {!online ? (
-        <Banner tone="warning">
-          أنت غير متصل — بيانات المكتبة محلّية بالكامل ولا تحتاج اتصالًا.
-        </Banner>
-      ) : null}
-
-      <Tabs items={TAB_ITEMS} selected={tabIndex} onChange={switchTab} />
-
-      <div class={styles.toolbarRow}>
+    <AppShell
+      activeId={viewId(view)}
+      onNavigate={switchView}
+      revision={revision}
+      onNewProject={() => setProjectsPanelOpen(true)}
+    >
+      <div class={styles.page}>
         <Toolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          sortKey={sortKey}
-          onSortKeyChange={setSortKey}
-          sortDirection={sortDirection}
-          onSortDirectionChange={setSortDirection}
-          favoriteOnly={favoriteOnly}
-          onFavoriteOnlyChange={setFavoriteOnly}
-          showSortAndFilter={activeTab === 'captures'}
+          searchPlaceholder={SEARCH_PLACEHOLDER[activeTab]}
+          captureFilters={
+            isCaptures
+              ? {
+                  kind: kindFilter,
+                  onKindChange: setKindFilter,
+                  date: dateFilter,
+                  onDateChange: setDateFilter,
+                  tagsOpen: tagsPanelOpen,
+                  onToggleTags: () => setTagsPanelOpen((v) => !v),
+                }
+              : null
+          }
+          projectsOpen={projectsPanelOpen}
+          onToggleProjects={() => setProjectsPanelOpen((v) => !v)}
         />
-        {activeTab === 'captures' ? (
-          <SegmentedControl
-            options={VIEW_MODE_OPTIONS}
-            selected={viewModeIndex}
-            onChange={switchViewMode}
-            aria-label="عرض المكتبة"
-          />
-        ) : null}
-        {activeTab === 'captures' ? (
-          <IconButton
-            icon="tag"
-            aria-label={tagsPanelOpen ? 'إغلاق لوحة الوسوم' : 'فتح لوحة الوسوم'}
-            variant={tagsPanelOpen ? 'solid' : 'ghost'}
-            onClick={() => setTagsPanelOpen((v) => !v)}
-          />
-        ) : null}
-        <IconButton
-          icon="folder"
-          aria-label={projectsPanelOpen ? 'إغلاق لوحة المشاريع' : 'فتح لوحة المشاريع'}
-          variant={projectsPanelOpen ? 'solid' : 'ghost'}
-          onClick={() => setProjectsPanelOpen((v) => !v)}
-        />
-        {quota ? <QuotaIndicator state={quota} /> : null}
-      </div>
 
-      {selection.size > 0 && activeTab === 'captures' ? (
-        <SelectionBar
-          count={selection.size}
-          viewMode={viewMode}
-          projects={projects}
-          onFavorite={onFavoriteSelection}
-          onArchive={onArchiveSelection}
-          onUnarchive={onUnarchiveSelection}
-          onTrash={onTrashSelection}
-          onRestore={onRestoreSelection}
-          onPurge={onPurgeSelection}
-          onMoveToProject={onMoveSelectionToProject}
-          onAddTag={onAddTagToSelection}
-          onClear={clearSelection}
-        />
-      ) : selection.size > 0 ? (
-        <SimpleSelectionBar
-          count={selection.size}
-          projects={projects}
-          onMoveToProject={onMoveSelectionToProjectGeneric}
-          onDelete={onDeleteSelectionGeneric}
-          onClear={clearSelection}
-        />
-      ) : null}
+        <div class={styles.content}>
+          <TabRow aria-label="أنواع السجلّات" class={styles.tabs}>
+            {TAB_ITEMS.map((t) => (
+              <Tab
+                key={t.value}
+                label={t.label}
+                selected={activeTab === t.value}
+                onClick={() => selectTab(t.value)}
+              />
+            ))}
+          </TabRow>
 
-      <div class={styles.body}>
-        {projectsPanelOpen ? (
-          <ProjectsPanel
-            projects={projects}
-            onCreate={onCreateProject}
-            onRename={onRenameProject}
-            onSetColor={onSetProjectColor}
-            onDelete={onDeleteProject}
-            onClose={() => setProjectsPanelOpen(false)}
-          />
-        ) : null}
-
-        {tagsPanelOpen ? (
-          <TagsPanel
-            tags={tags}
-            activeTag={activeTagFilter}
-            onSelectTag={setActiveTagFilter}
-            onClose={() => setTagsPanelOpen(false)}
-          />
-        ) : null}
-
-        <div class={styles.main}>
-          {loadState === 'loading' ? (
-            <div class={styles.skeletonGrid} aria-busy="true" aria-label="جارٍ تحميل المكتبة">
-              {Array.from({ length: SKELETON_CARD_COUNT }, (_, i) => (
-                <Skeleton key={i} kind="card" />
-              ))}
+          <div class={styles.head}>
+            <div class={styles.heading}>
+              <h1 class={`${styles.title} t-arabic-heading-m`}>{title}</h1>
+              {loadState === 'ready' && records.length > 0 ? (
+                <span class={`${styles.count} t-arabic-ui-xs`}>
+                  {countText(records.length, COUNT_FORMS[activeTab])}
+                </span>
+              ) : null}
+              {isCaptures && activeTagFilter ? (
+                <button
+                  type="button"
+                  class={`${styles.tagFilter} t-arabic-ui-xs-strong`}
+                  aria-label={`أزل مرشّح الوسم ${activeTagFilter}`}
+                  onClick={() => setActiveTagFilter(null)}
+                >
+                  {`الوسم: ${activeTagFilter} ×`}
+                </button>
+              ) : null}
             </div>
-          ) : loadState === 'error' ? (
-            <div class={styles.errorState} role="alert">
-              <p>تعذّر تحميل المكتبة.</p>
-              <Button variant="secondary" onClick={() => void reload()}>
-                أعد المحاولة
-              </Button>
+            {isCaptures ? (
+              <div class={styles.headActions}>
+                <SegmentedControl
+                  options={VIEW_MODE_OPTIONS}
+                  selected={viewModeIndex}
+                  onChange={switchViewMode}
+                  aria-label="عرض المكتبة"
+                />
+                <SortSelect
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  onChange={(key, direction) => {
+                    setSortKey(key)
+                    setSortDirection(direction)
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+
+          <div class={styles.body}>
+            <div class={styles.main}>
+              {loadState === 'loading' ? (
+                <div class={styles.skeletonGrid} aria-busy="true" aria-label="جارٍ تحميل المكتبة">
+                  {Array.from({ length: SKELETON_CARD_COUNT }, (_, i) => (
+                    <Skeleton key={i} kind="card" />
+                  ))}
+                </div>
+              ) : loadState === 'error' ? (
+                <div class={styles.center}>
+                  <ErrorMessage
+                    title="تعذّرت قراءة المكتبة"
+                    body="لم يستجب التخزين على هذا الجهاز. لقطاتك لم تُحذف — أعد المحاولة، أو أعد تحميل الصفحة."
+                    onRetry={() => void reload()}
+                  />
+                </div>
+              ) : records.length === 0 ? (
+                // اللقطات وحدها تميِّز «لا لقطة أصلًا» عن «لا نتيجة لهذا البحث أو المرشّح»
+                // (loadCounts) — الأنواع الأخرى بلا عدّاد غير مصفًّى، فحالة فراغها ثابتة.
+                <div class={styles.center}>
+                  <EmptyState
+                    kind={
+                      isCaptures && libraryHasAny ? 'no-results' : EMPTY_KIND_FOR_TAB[activeTab]
+                    }
+                  />
+                </div>
+              ) : activeTab === 'captures' ? (
+                <Grid
+                  records={records as CaptureRecord[]}
+                  thumbnailUrls={thumbnailUrls}
+                  onNeedThumbnail={onNeedThumbnail}
+                  projectNames={projectNames}
+                  selection={selection}
+                  onToggleSelect={toggleSelect}
+                  onOpen={openCapture}
+                />
+              ) : activeTab === 'colors' ? (
+                <SimpleGrid
+                  records={records as ColorRecord[]}
+                  selection={selection}
+                  onToggleSelect={toggleSelect}
+                  onOpen={openColor}
+                  CardComponent={ColorCard}
+                  aria-label="الألوان المحفوظة"
+                />
+              ) : activeTab === 'palettes' ? (
+                <SimpleGrid
+                  records={records as PaletteRecord[]}
+                  selection={selection}
+                  onToggleSelect={toggleSelect}
+                  onOpen={noopOpen}
+                  CardComponent={PaletteCard}
+                  minCardRem={28}
+                  aria-label="لوحات الألوان"
+                />
+              ) : activeTab === 'references' ? (
+                <SimpleGrid
+                  records={records as ReferenceRecord[]}
+                  selection={selection}
+                  onToggleSelect={toggleSelect}
+                  onOpen={noopOpen}
+                  CardComponent={ReferenceCard}
+                  minCardRem={20}
+                  aria-label="المراجع المحفوظة"
+                />
+              ) : (
+                <SimpleGrid
+                  records={records as GuideRecord[]}
+                  selection={selection}
+                  onToggleSelect={toggleSelect}
+                  onOpen={noopOpen}
+                  CardComponent={GuideCard}
+                  aria-label="أدلّة الخطوات"
+                />
+              )}
             </div>
-          ) : records.length === 0 ? (
-            // تبويب اللقطات وحده يميِّز «لا لقطة أصلًا» عن «لا نتيجة لهذا
-            // البحث» (loadCounts) — التبويبات الأربعة الأخرى ليس لها بعد
-            // عدّاد غير مصفًّى مماثل، فتُعرض حالة فراغها الثابتة دومًا؛
-            // فجوة تغطية مُعلَنة لا مسكوت عنها.
-            <EmptyState
-              kind={
-                activeTab === 'captures' && libraryHasAny
-                  ? 'no-results'
-                  : EMPTY_KIND_FOR_TAB[activeTab]
-              }
+
+            {projectsPanelOpen ? (
+              <ProjectsPanel
+                projects={projects}
+                onCreate={onCreateProject}
+                onRename={onRenameProject}
+                onSetColor={onSetProjectColor}
+                onDelete={onDeleteProject}
+                onClose={() => setProjectsPanelOpen(false)}
+              />
+            ) : null}
+
+            {tagsPanelOpen && isCaptures ? (
+              <TagsPanel
+                tags={tags}
+                activeTag={activeTagFilter}
+                onSelectTag={setActiveTagFilter}
+                onClose={() => setTagsPanelOpen(false)}
+              />
+            ) : null}
+          </div>
+
+          {selection.size > 0 && isCaptures ? (
+            <SelectionBar
+              count={selection.size}
+              viewMode={viewMode}
+              projects={projects}
+              onFavorite={onFavoriteSelection}
+              onArchive={onArchiveSelection}
+              onUnarchive={onUnarchiveSelection}
+              onTrash={onTrashSelection}
+              onRestore={onRestoreSelection}
+              onPurge={onPurgeSelection}
+              onMoveToProject={onMoveSelectionToProject}
+              onAddTag={onAddTagToSelection}
+              onClear={clearSelection}
             />
-          ) : activeTab === 'captures' ? (
-            <Grid
-              records={records as CaptureRecord[]}
-              thumbnailUrls={thumbnailUrls}
-              onNeedThumbnail={onNeedThumbnail}
-              projectNames={projectNames}
-              selection={selection}
-              onToggleSelect={toggleSelect}
-              onOpen={openCapture}
+          ) : selection.size > 0 ? (
+            <SimpleSelectionBar
+              count={selection.size}
+              projects={projects}
+              onMoveToProject={onMoveSelectionToProjectGeneric}
+              onDelete={onDeleteSelectionGeneric}
+              onClear={clearSelection}
             />
-          ) : activeTab === 'colors' ? (
-            <SimpleGrid
-              records={records as ColorRecord[]}
-              selection={selection}
-              onToggleSelect={toggleSelect}
-              onOpen={openColor}
-              CardComponent={ColorCard}
-              aria-label="الألوان المحفوظة"
-            />
-          ) : activeTab === 'palettes' ? (
-            <SimpleGrid
-              records={records as PaletteRecord[]}
-              selection={selection}
-              onToggleSelect={toggleSelect}
-              onOpen={noopOpen}
-              CardComponent={PaletteCard}
-              aria-label="لوحات الألوان"
-            />
-          ) : activeTab === 'references' ? (
-            <SimpleGrid
-              records={records as ReferenceRecord[]}
-              selection={selection}
-              onToggleSelect={toggleSelect}
-              onOpen={noopOpen}
-              CardComponent={ReferenceCard}
-              aria-label="المراجع المحفوظة"
-            />
-          ) : (
-            <SimpleGrid
-              records={records as GuideRecord[]}
-              selection={selection}
-              onToggleSelect={toggleSelect}
-              onOpen={noopOpen}
-              CardComponent={GuideCard}
-              aria-label="أدلّة الخطوات"
-            />
-          )}
+          ) : null}
+
+          {notice || showQuotaNotice ? (
+            <div class={styles.toastDock}>
+              {notice ? (
+                <Toast tone="success" detail={notice.detail} onDismiss={() => setNotice(null)}>
+                  {notice.title}
+                </Toast>
+              ) : (
+                <Toast
+                  tone="warning"
+                  action="with-action"
+                  actionLabel="افتح البيانات"
+                  onAction={() => {
+                    location.href = `${SETTINGS_HREF}?section=data`
+                  }}
+                  detail="احذف لقطات قديمة أو أفرغ المهملات لتحرير المساحة."
+                  onDismiss={() => setQuotaNoticeDismissed(true)}
+                >
+                  المساحة تكاد تمتلئ
+                </Toast>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
-    </div>
+    </AppShell>
   )
 }

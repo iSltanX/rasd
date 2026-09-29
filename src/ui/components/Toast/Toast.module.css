@@ -1,50 +1,109 @@
+/*
+ * `Toast` (Figma): 400 عرضًا، حشوة 12 وبدايتها 14، وفجوة 12، ونصف قطر 12، وسطح
+ * `overlay/glass` بضبابية 18 وظلّ 24/8. الحدّ في Figma داخل الإطار، فالحشوة هنا تنقصه.
+ */
 .toast {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-12);
+  box-sizing: border-box;
+  inline-size: 25rem;
+  max-inline-size: 100%;
+  padding-block: calc(var(--rasd-space-12) - var(--rasd-stroke-thin));
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2) - var(--rasd-stroke-thin))
+    calc(var(--rasd-space-12) - var(--rasd-stroke-thin));
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-overlay-glass);
+  backdrop-filter: blur(calc(var(--rasd-space-16) + var(--rasd-space-2)));
+  box-shadow: var(--rasd-elevation-3);
+}
+
+/* دائرة الدرجة: 26 بحدّ داخلي، والأيقونة في وسطها. */
+.badge {
+  flex: none;
   display: inline-flex;
   align-items: center;
-  gap: var(--rasd-space-8);
-  padding-inline: var(--rasd-space-12);
-  padding-block: var(--rasd-space-10);
-  border-radius: var(--rasd-radius-md);
-  background: var(--rasd-surface-raised);
-  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
-  box-shadow: var(--rasd-elevation-3);
-  max-inline-size: 24rem;
+  justify-content: center;
+  box-sizing: border-box;
+  inline-size: calc(var(--rasd-space-24) + var(--rasd-space-2));
+  block-size: calc(var(--rasd-space-24) + var(--rasd-space-2));
+  border-radius: var(--rasd-radius-full);
+  border: var(--rasd-stroke-thin) solid;
 }
-
-.icon {
-  flex: none;
-}
-.tone-success .icon {
+.tone-success .badge {
   color: var(--rasd-status-success-fg);
+  background: var(--rasd-status-success-surface);
+  border-color: var(--rasd-status-success-border);
 }
-.tone-info .icon {
+.tone-info .badge {
   color: var(--rasd-status-info-fg);
+  background: var(--rasd-status-info-surface);
+  border-color: var(--rasd-status-info-border);
 }
-.tone-warning .icon {
+.tone-warning .badge {
   color: var(--rasd-status-warning-fg);
+  background: var(--rasd-status-warning-surface);
+  border-color: var(--rasd-status-warning-border);
 }
-.tone-danger .icon {
+.tone-danger .badge {
   color: var(--rasd-status-danger-fg);
+  background: var(--rasd-status-danger-surface);
+  border-color: var(--rasd-status-danger-border);
 }
 
-.message {
+.text {
   flex: 1;
-  font-size: var(--rasd-font-size-base);
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-2);
+}
+.title {
+  color: var(--rasd-text-primary);
+}
+.detail {
+  color: var(--rasd-text-tertiary);
+}
+
+/* زرّ الإجراء: سطح ثانوي بحدّ، حشوة 7/10 ونصف قطر 6. */
+.action {
+  flex: none;
+  padding-block: calc(var(--rasd-space-8) - var(--rasd-stroke-thin));
+  padding-inline: calc(var(--rasd-space-10) - var(--rasd-stroke-thin));
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-action-secondary-rest);
+  color: var(--rasd-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.action:hover {
+  background: var(--rasd-action-secondary-hover);
   color: var(--rasd-text-primary);
 }
 
-.action {
+.close {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--rasd-control-xs);
+  block-size: var(--rasd-control-xs);
+  padding: 0;
   border: none;
+  border-radius: var(--rasd-radius-sm);
   background: transparent;
-  color: var(--rasd-text-brand);
-  font-size: var(--rasd-font-size-sm);
-  font-weight: 700;
+  color: var(--rasd-icon-tertiary);
   cursor: pointer;
-  padding: var(--rasd-space-4);
 }
-.action:focus-visible {
+.close:hover {
+  background: var(--rasd-surface-hover);
+  color: var(--rasd-icon-secondary);
+}
+
+.action:focus-visible,
+.close:focus-visible {
   outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
   outline-offset: var(--rasd-stroke-thin);
-  border-radius: var(--rasd-radius-xs);
 }

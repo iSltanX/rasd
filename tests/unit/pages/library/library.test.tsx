@@ -62,6 +62,9 @@ async function waitFor(predicate: () => boolean | Promise<boolean>, timeoutMs = 
 let container: HTMLDivElement | null = null
 
 beforeEach(async () => {
+  // العرض يُحمَل في الرابط (`?view=`) ويبقى بعد إعادة التحميل — والنافذة مشتركة بين
+  // الاختبارات، فيبدأ كلٌّ من «كل اللقطات» لا من عرض تركه سابقه.
+  history.replaceState(null, '', '/')
   setIncognitoWritePolicy(false)
   await closeDatabase()
   indexedDB.deleteDatabase('rasd')
@@ -581,17 +584,130 @@ describe('Library — مؤشِّر الحصة', () => {
   })
 })
 
-describe('Library — حالة offline', () => {
-  it('لافتة عدم الاتصال تظهر عند حدث offline وتختفي عند online', async () => {
+describe('Library — عدم الاتصال', () => {
+  /**
+   * كانت هنا لافتة «غير متصل» تقول إن البيانات محلّية ولا تحتاج اتصالًا — خبرٌ لا فعل
+   * بعده. وقرار التصميم 10 (`Docs/Design.md` §7) حذف إطار `library / offline` لهذا: المكتبة
+   * محلّية وتعمل بلا اتصال دائمًا، ولا طابور رفع. `Docs/Engineering.md §6` الصفّ 139.
+   */
+  it('لا لافتة عند انقطاع الاتصال، والشبكة تبقى كما هي', async () => {
+    await captures.put(capture('a'))
     const root = await mount()
-    expect(root.textContent).not.toContain('غير متصل')
-
     window.dispatchEvent(new Event('offline'))
     await flush()
-    expect(root.textContent).toContain('غير متصل')
-
-    window.dispatchEvent(new Event('online'))
-    await flush()
     expect(root.textContent).not.toContain('غير متصل')
+    expect(root.querySelector('[data-capture-id="a"]')).toBeTruthy()
+  })
+})
+
+describe('Library — عروض الشريط الجانبي', () => {
+  /** عنصر الشريط بتسميته — نصّه التسمية ثمّ العدّاد. */
+  function clickNav(root: HTMLElement, label: string) {
+    const link = [...root.querySelectorAll('a')].find((a) =>
+      a.textContent?.startsWith(label),
+    ) as HTMLAnchorElement
+    link.click()
+  }
+
+  it('«المميّزة» تعرض المفضَّلة وحدها، ويُحمَل العرض في الرابط', async () => {
+    await captures.put(capture('fav', { favorite: true }))
+    await captures.put(capture('plain'))
+    const root = await mount()
+    await waitFor(() => root.querySelector('[data-capture-id="plain"]') !== null)
+
+    clickNav(root, 'المميّزة')
+    // الشرطان معًا: الشبكة القديمة (الاثنتان) والمفرَّغة (لا شيء) لا تستوفيانه، والمصفّاة وحدها تستوفيه.
+    await waitFor(
+      () =>
+        root.querySelector('[data-capture-id="fav"]') !== null &&
+        root.querySelector('[data-capture-id="plain"]') === null,
+    )
+    expect(location.search).toBe('?view=favorites')
+    expect(root.querySelector('h1')?.textContent).toBe('المميّزة')
+  })
+
+  it('«الأخيرة» تعرض ما التُقط خلال سبعة أيام وحده', async () => {
+    const now = Date.now()
+    await captures.put(capture('new', { createdAt: now - 60_000 }))
+    await captures.put(capture('old', { createdAt: now - 30 * 24 * 60 * 60 * 1000 }))
+    const root = await mount()
+    await waitFor(() => root.querySelector('[data-capture-id="old"]') !== null)
+
+    clickNav(root, 'الأخيرة')
+    await waitFor(
+      () =>
+        root.querySelector('[data-capture-id="new"]') !== null &&
+        root.querySelector('[data-capture-id="old"]') === null,
+    )
+  })
+
+  it('المشروع في الشريط يصفّي لقطاته، وعنوانه اسمه', async () => {
+    const { createProject } = await import('@/pages/library/projects')
+    const created = await createProject('مشروع الشريط', '#0090FF', NOW)
+    const projectId = created.ok ? created.value.id : ''
+    await captures.put(capture('in', { projectId }))
+    await captures.put(capture('out'))
+    const root = await mount()
+    await waitFor(() =>
+      [...root.querySelectorAll('a')].some((a) => a.textContent?.startsWith('مشروع الشريط')),
+    )
+
+    clickNav(root, 'مشروع الشريط')
+    await waitFor(
+      () =>
+        root.querySelector('[data-capture-id="in"]') !== null &&
+        root.querySelector('[data-capture-id="out"]') === null,
+    )
+    expect(root.querySelector('h1')?.textContent).toBe('مشروع الشريط')
+    expect(location.search).toBe(`?project=${projectId}`)
+  })
+
+  it('رابط بعرض يفتح المكتبة عليه — «?view=palettes» يفتح اللوحات', async () => {
+    await palettes.put({
+      id: 'p1',
+      name: 'لوحة الرابط',
+      colors: ['#111'],
+      projectId: null,
+      createdAt: NOW,
+    })
+    history.replaceState(null, '', '/?view=palettes')
+    const root = await mount()
+    await waitFor(() => root.querySelector('[data-palette-id="p1"]') !== null)
+    const selected = root.querySelector('[role="tab"][aria-selected="true"]')
+    expect(selected?.textContent).toBe('اللوحات')
+  })
+
+  it('نقل التحديد إلى المهملات يُعلن ما حدث ومدّة الاستعادة', async () => {
+    await captures.put(capture('a'))
+    const root = await mount()
+    ;(
+      root.querySelector('[data-capture-id="a"] input[type="checkbox"]') as HTMLInputElement
+    ).click()
+    await flush()
+    ;(root.querySelector('[aria-label="نقل المحدَّد إلى المهملات"]') as HTMLButtonElement).click()
+    await waitFor(() => root.querySelector('[role="status"]') !== null)
+    const status = root.querySelector('[role="status"]')?.textContent ?? ''
+    expect(status).toContain('نُقل إلى المهملات: لقطة واحدة')
+    expect(status).toContain('٣٠ يومًا')
+  })
+})
+
+describe('countText — العدد ومعدوده', () => {
+  it('يتبع قاعدة العدد العربية بأرقام هندية', async () => {
+    const { countText } = await import('@/pages/library/Library')
+    const forms = {
+      one: 'مرجع واحد',
+      two: 'مرجعان',
+      many: 'مراجع',
+      accusative: 'مرجعًا',
+      singular: 'مرجع',
+    }
+    expect(countText(1, forms)).toBe('مرجع واحد')
+    expect(countText(2, forms)).toBe('مرجعان')
+    expect(countText(8, forms)).toBe('٨ مراجع')
+    expect(countText(12, forms)).toBe('١٢ مرجعًا')
+    expect(countText(100, forms)).toBe('١٠٠ مرجع')
+    expect(countText(103, forms)).toBe('١٠٣ مراجع')
+    expect(countText(248, forms)).toBe('٢٤٨ مرجعًا')
   })
 })

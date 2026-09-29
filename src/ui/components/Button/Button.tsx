@@ -26,6 +26,8 @@ export interface ButtonProps {
   onClick?: (event: MouseEvent) => void
   class?: string | undefined
   'aria-label'?: string
+  /** لزرّ يفتح لوحة ويغلقها. */
+  'aria-expanded'?: boolean | undefined
 }
 
 /** `Button` — 72 variant: 4 نمط × 3 مقاس × 6 حالة. */

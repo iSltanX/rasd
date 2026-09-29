@@ -1,49 +1,130 @@
+/*
+ * `library / grid` (`66:20`): العمود الرئيسي بارتفاع النافذة — الشريط العلوي ثابت، والمحتوى
+ * بحشوة 20/24/24 وفجوة 16، والشبكة وحدها تتمرّر (التمرير الافتراضي يقيس ارتفاعها).
+ */
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--rasd-space-12);
-  padding: var(--rasd-space-16);
   block-size: 100vh;
-  box-sizing: border-box;
+  min-inline-size: 0;
 }
 
-.toolbarRow {
+.content {
+  position: relative;
+  flex: 1;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-16);
+  padding-block: var(--rasd-space-20) var(--rasd-space-24);
+  padding-inline: var(--rasd-space-24);
+}
+
+.tabs {
+  flex: none;
+}
+
+/* رأس الشبكة: العنوان والعدد في البداية على خطّ قاعدة واحد، والترتيب في النهاية. */
+.head {
   display: flex;
   align-items: center;
-  gap: var(--rasd-space-8);
+  justify-content: space-between;
+  gap: var(--rasd-space-16);
+  flex-wrap: wrap;
+  flex: none;
 }
-.toolbarRow > :first-child {
-  flex: 1;
+.heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rasd-space-10);
+  min-inline-size: 0;
+}
+.title {
+  margin: 0;
+  color: var(--rasd-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.count {
+  color: var(--rasd-text-tertiary);
+  white-space: nowrap;
+}
+.tagFilter {
+  align-self: center;
+  margin: 0;
+  padding-block: var(--rasd-space-2);
+  padding-inline: calc(var(--rasd-space-8) - var(--rasd-stroke-thin));
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-brand);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-brand-subtle);
+  color: var(--rasd-text-brand);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tagFilter:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+.headActions {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-12);
 }
 
 .body {
-  display: flex;
-  gap: var(--rasd-space-12);
   flex: 1;
   min-block-size: 0;
+  display: flex;
+  gap: var(--rasd-space-16);
 }
 
 .main {
   flex: 1;
   min-inline-size: 0;
+  min-block-size: 0;
   display: flex;
   flex-direction: column;
 }
 
+/* اللوحتان الجانبيتان تتمرّران وحدهما ولا تمدّان الصفحة. */
+.body > aside {
+  flex: none;
+  align-self: flex-start;
+  max-block-size: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* `library / loading` (`94:374`): بطاقات `Skeleton/Kind=Card` بشبكة البطاقات نفسها. */
 .skeletonGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  gap: var(--rasd-space-12);
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--rasd-space-16);
+  align-content: start;
   overflow: hidden;
 }
 
-.errorState {
+/* الفراغ والخطأ في وسط المساحة كما في `library / empty` و`library / error`. */
+.center {
+  flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--rasd-space-12);
-  padding: var(--rasd-space-16);
-  text-align: center;
-  color: var(--rasd-text-secondary);
-  font-family: var(--rasd-font-family-text);
+  justify-content: center;
+  padding-block-end: var(--rasd-space-48);
+}
+
+/* الإشعار في موضع شريط التحديد نفسه، أسفل منتصف المحتوى. */
+.toastDock {
+  position: absolute;
+  z-index: 3;
+  inset-inline: 0;
+  inset-block-end: var(--rasd-space-24);
+  display: flex;
+  justify-content: center;
+  padding-inline: var(--rasd-space-24);
+  pointer-events: none;
+}
+.toastDock > * {
+  pointer-events: auto;
 }

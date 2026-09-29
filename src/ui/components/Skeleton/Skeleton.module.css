@@ -4,7 +4,7 @@
 }
 .kind-card {
   flex-direction: column;
-  padding: var(--rasd-space-8);
+  gap: var(--rasd-space-10);
 }
 .kind-row {
   align-items: center;
@@ -46,19 +46,41 @@
   background: var(--rasd-surface-hover);
 }
 
+/* البطاقة: سطح `surface/raised`، ومصغَّرة بنسبة بطاقة المكتبة، وسطرا العنوان والوصف. */
+.kind-card .thumb {
+  aspect-ratio: 275 / 148;
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-surface-raised);
+}
+.kind-card .line {
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-surface-raised);
+}
+.cardTitle {
+  inline-size: 58%;
+  block-size: var(--rasd-space-12);
+  --rasd-skeleton-alpha: 0.8;
+}
+.cardMeta {
+  inline-size: 40%;
+  block-size: var(--rasd-space-10);
+  --rasd-skeleton-alpha: 0.55;
+}
+
 .thumb,
 .avatar,
 .block,
 .line {
   animation: rasd-shimmer 1.6s ease-in-out infinite;
 }
+/* النبض حول عتامة العنصر نفسه — السطران في البطاقة أخفت من المصغَّرة كما في Figma. */
 @keyframes rasd-shimmer {
   0%,
   100% {
-    opacity: 0.6;
+    opacity: calc(var(--rasd-skeleton-alpha, 1) * 0.6);
   }
   50% {
-    opacity: 1;
+    opacity: var(--rasd-skeleton-alpha, 1);
   }
 }
 
@@ -68,6 +90,6 @@
   .block,
   .line {
     animation: none;
-    opacity: 0.8;
+    opacity: calc(var(--rasd-skeleton-alpha, 1) * 0.8);
   }
 }

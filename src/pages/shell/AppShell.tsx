@@ -32,8 +32,10 @@ function typing(target: EventTarget | null): boolean {
 
 /**
  * قشرة صفحات الإضافة: `App Sidebar` في بداية الصفحة والمحتوى بعده، وورقة الاختصارات
- * بـ`?` من أي مكان فيها. «لقطة جديدة» تفتح الورقة نفسها: صفحة الإضافة لا تلتقط صفحة
- * أخرى — `activeTab` يُمنح بإيماءة على الصفحة المراد التقاطها — فالزرّ يدلّ على الطريق.
+ * بـ`?` من أي مكان فيها. **وعنصر واحد ليس في الإطار:** «الألوان» في «المجموعات» — نوع
+ * سجلّات قائم لا مدخل له في شريط الإطار. «لقطة جديدة» تفتح الورقة نفسها: صفحة الإضافة لا
+ * تلتقط صفحة أخرى — `activeTab` يُمنح بإيماءة على الصفحة المراد التقاطها — فالزرّ يدلّ على
+ * الطريق.
  */
 export function AppShell({
   activeId,
@@ -115,6 +117,7 @@ export function AppShell({
       title: 'المجموعات',
       entries: [
         entry({ kind: 'palettes' }, 'palettes', 'swatches', 'اللوحات', data?.palettes),
+        entry({ kind: 'colors' }, 'colors', 'eyedropper', 'الألوان', data?.colors),
         entry({ kind: 'references' }, 'references', 'image', 'المراجع', data?.references),
         entry({ kind: 'guides' }, 'guides', 'file-code', 'أدلة الخطوات', data?.guides),
       ],

@@ -5,18 +5,16 @@
  * فقط: نقل إلى مشروع، وحذف نهائي. سدّ فجوة التسليم في ملفّ المرحلة 18 السابق (تاريخ Git) §4/§8`
  * — كانت هذه الحالة تعرض شريطًا بلا فعل حقيقي سوى الإلغاء.
  *
+ * مظهره مظهر `SelectionBar` نفسه (`94:738`) — العدّاد والقائمة والزرّ منه.
  * العدّاد **هندي** (`formatHuman`) — نفس قاعدة `SelectionBar.tsx` و§3.5.
  */
 
-import { formatHuman } from '@/shared/bidi/numerals'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 
-import styles from './SimpleSelectionBar.module.css'
+import { BarButton, MoveToProject, SelectionCount, SelectionDock } from './SelectionBar'
 
 import type { ProjectRecord } from '@/shared/storage/schema'
 import type { JSX } from 'preact'
-
-const NO_PROJECT_VALUE = '__none__'
 
 export interface SimpleSelectionBarProps {
   count: number
@@ -35,44 +33,24 @@ export function SimpleSelectionBar({
   onDelete,
   onClear,
 }: SimpleSelectionBarProps): JSX.Element {
-  const onMoveChange = (e: JSX.TargetedEvent<HTMLSelectElement>) => {
-    const value = e.currentTarget.value
-    onMoveToProject(value === NO_PROJECT_VALUE ? null : value)
-    // يُعاد الاختيار إلى «انقل إلى مشروع» بعد التنفيذ — القائمة أمرٌ لا حالة دائمة.
-    e.currentTarget.selectedIndex = 0
-  }
-
   const onDeleteClick = () => {
-    // نفس نمط `SelectionBar.tsx`: تأكيدٌ من المتصفّح نفسه لفعل نادر شديد
-    // الأثر بلا تراجع، لا مكوّن حوار مبنيّ خصّيصًا لعملية واحدة.
+    // نفس نمط `SelectionBar.tsx`: تأكيد المتصفّح نفسه لفعل بلا تراجع — والحارس الحاجب
+    // `verify:library` يقود حذف هذه الأنواع عبر `window.confirm`.
     if (window.confirm(`حذف ${count} عنصرًا نهائيًا — لا يمكن التراجع. متابعة؟`)) onDelete()
   }
 
   return (
-    <div class={styles.bar} role="toolbar" aria-label="إجراءات التحديد">
-      <span class={styles.count}>{formatHuman(count)} محدَّدة</span>
-      <span class={styles.actions}>
-        {projects.length > 0 ? (
-          <select
-            class={styles.moveSelect}
-            aria-label="انقل المحدَّد إلى مشروع"
-            value=""
-            onChange={onMoveChange}
-          >
-            <option value="" disabled>
-              انقل إلى مشروع…
-            </option>
-            <option value={NO_PROJECT_VALUE}>بلا مشروع</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        <IconButton icon="trash" aria-label="حذف المحدَّد نهائيًا" onClick={onDeleteClick} />
-      </span>
-      <IconButton icon="close" aria-label="إلغاء التحديد" onClick={onClear} class={styles.clear} />
-    </div>
+    <SelectionDock>
+      <SelectionCount count={count} />
+      <MoveToProject projects={projects} onMoveToProject={onMoveToProject} />
+      <BarButton
+        icon="trash"
+        label="حذف"
+        aria-label="حذف المحدَّد نهائيًا"
+        danger
+        onClick={onDeleteClick}
+      />
+      <IconButton icon="close" size="s" aria-label="إلغاء التحديد" onClick={onClear} />
+    </SelectionDock>
   )
 }

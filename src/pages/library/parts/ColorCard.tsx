@@ -12,6 +12,7 @@ import { Chip } from '@/ui/components/Chip/Chip'
 import { cx } from '@/ui/cx'
 
 import styles from './ColorCard.module.css'
+import chrome from './SimpleCard.module.css'
 
 import type { ColorRecord, ColorSource } from '@/shared/storage/schema'
 import type { JSX } from 'preact'
@@ -51,15 +52,15 @@ export function ColorCard({
   return (
     <button
       type="button"
-      class={cx(styles.card, selected && styles.selected)}
+      class={cx(chrome.card, selected && chrome.selected)}
       onClick={activate}
       onKeyDown={onKeyDown}
       aria-pressed={selectionMode ? selected : undefined}
       data-color-id={record.id}
     >
-      <span class={styles.swatch} style={{ backgroundColor: record.hex }}>
+      <span class={cx(chrome.media, styles.media)} style={{ backgroundColor: record.hex }}>
         <span
-          class={cx(styles.checkboxWrap, selectionMode && styles.checkboxVisible)}
+          class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
           onClick={(e) => e.stopPropagation()}
         >
           <Checkbox
@@ -69,10 +70,14 @@ export function ColorCard({
           />
         </span>
       </span>
-      <span class={styles.title}>{record.name || <bdi dir="ltr">{record.hex}</bdi>}</span>
-      <span class={styles.meta}>
-        <Chip tone="neutral">{SOURCE_LABEL[record.source]}</Chip>
-        <span class={styles.time}>{formatRelativeTime(record.createdAt, now)}</span>
+      <span class={chrome.body}>
+        <span class={cx(chrome.title, 't-arabic-ui-s-strong')}>
+          {record.name || <bdi dir="ltr">{record.hex}</bdi>}
+        </span>
+        <span class={cx(chrome.row, 't-arabic-ui-xs')}>
+          <Chip tone="neutral">{SOURCE_LABEL[record.source]}</Chip>
+          <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
+        </span>
       </span>
     </button>
   )

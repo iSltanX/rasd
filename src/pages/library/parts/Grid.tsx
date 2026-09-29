@@ -7,8 +7,8 @@
  * ما تراه العين، حتى مع تكبير النص أو تصغيره (يُقرأ حجم الجذر لا يُفترَض 16px).
  *
  * **ارتفاع الصفّ تقدير محدود الخطأ لا حساب دقيق**: البطاقة تحوي مصغَّرة
- * بنسبة عرض إلى ارتفاع ثابتة (4:3) فوق نصّين، وارتفاعها الفعلي يتبع عرض
- * عمودها. حساب دقيق يحتاج قياس بطاقة مرسومة فعلًا — دورة قياس-ثم-رسم لكل
+ * بنسبة عرض إلى ارتفاع ثابتة (275 × 148 في الإطار) فوق نصّين، وارتفاعها الفعلي
+ * يتبع عرض عمودها. حساب دقيق يحتاج قياس بطاقة مرسومة فعلًا — دورة قياس-ثم-رسم لكل
  * تغيّر عرض. التقدير هنا يكفي لأن هامش `overscanRows` الافتراضي (صفّان)
  * يمتصّ الفارق: أسوأ الأحوال صفٌّ إضافي يُرسَم أو يُغاب عن الرسم للحظة قبل
  * إعادة القياس التالية — لا وميض حقيقي ولا صفّ فارغ دائم.
@@ -24,12 +24,16 @@ import styles from './Grid.module.css'
 import type { CaptureRecord } from '@/shared/storage/schema'
 import type { JSX } from 'preact'
 
-/** يطابق `minmax(14rem, …)` في `Grid.module.css` — مصدر واحد مُعاد استعماله في القياسين. */
-const MIN_CARD_REM = 14
-/** يطابق `--rasd-space-12` في `Grid.module.css`. */
-const GAP_PX = 12
-/** تقدير ارتفاع كتلة العنوان والوصف أسفل المصغَّرة — انظر تعليل الملفّ أعلاه. */
-const TEXT_BLOCK_PX = 68
+/** يطابق `minmax(16rem, …)` في `Grid.module.css` — مصدر واحد مُعاد استعماله في القياسين. */
+const MIN_CARD_REM = 16
+/** يطابق `--rasd-space-16` في `Grid.module.css` — فجوة صفوف الإطار وأعمدته. */
+const GAP_PX = 16
+/** نسبة المصغَّرة في `capture-card`: 148 ارتفاعًا لكل 275 عرضًا. */
+const THUMB_RATIO = 148 / 275
+/** حدّا البطاقة (1 + 1)، يقتطعان من عرض المصغَّرة ويُضافان إلى الارتفاع. */
+const CARD_BORDERS_PX = 2
+/** كتلة الوصف في الإطار: حشوة 10 وعنوان 20.8 وفجوة 3 وسطر 19.2 وحشوة 11. */
+const TEXT_BLOCK_PX = 64
 
 function rootFontSizePx(): number {
   if (typeof document === 'undefined') return 16
@@ -88,8 +92,8 @@ export function Grid({
     // صيغة auto-fill نفسها: floor((W + gap) / (min + gap))، بحدّ أدنى عمود واحد.
     const cols = Math.max(1, Math.floor((metrics.width + GAP_PX) / (minCardPx + GAP_PX)))
     const cardWidthPx = cols > 0 ? (metrics.width - (cols - 1) * GAP_PX) / cols : minCardPx
-    const thumbHeightPx = cardWidthPx * (3 / 4)
-    return { columns: cols, rowHeightPx: thumbHeightPx + TEXT_BLOCK_PX }
+    const thumbHeightPx = (cardWidthPx - CARD_BORDERS_PX) * THUMB_RATIO
+    return { columns: cols, rowHeightPx: thumbHeightPx + TEXT_BLOCK_PX + CARD_BORDERS_PX }
   }, [metrics.width])
 
   const virtual = useMemo(

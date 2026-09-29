@@ -1,4 +1,3 @@
-import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
@@ -10,7 +9,10 @@ export type ToastTone = 'success' | 'info' | 'warning' | 'danger'
 export type ToastAction = 'with-action' | 'plain'
 
 export interface ToastProps {
+  /** السطر الأوّل — ما حدث. */
   children: ComponentChildren
+  /** سطر ثانٍ اختياري أخفّ — التفصيل أو الخطوة التالية. */
+  detail?: ComponentChildren
   tone?: ToastTone
   action?: ToastAction
   actionLabel?: string
@@ -26,9 +28,14 @@ const TONE_ICON = {
   danger: 'alert',
 } as const
 
-/** `Toast` — 8 variant: 4 درجة × إجراء/بلا إجراء. */
+/**
+ * `Toast` — 8 variant: 4 درجة × إجراء/بلا إجراء، بمواصفة مكوّنه في Figma: سطح زجاجي،
+ * ودائرة الدرجة، وسطران، وزرّ إجراء ثانوي، وإغلاق. ترتيب DOM هو ترتيب القراءة RTL:
+ * الدائرة فالنصّ فالإجراء فالإغلاق.
+ */
 export function Toast({
   children,
+  detail,
   tone = 'success',
   action = 'plain',
   actionLabel,
@@ -42,15 +49,22 @@ export function Toast({
       role="status"
       aria-live="polite"
     >
-      <Icon name={TONE_ICON[tone]} size="sm" class={styles.icon} />
-      <span class={styles.message}>{children}</span>
+      <span class={styles.badge}>
+        <Icon name={TONE_ICON[tone]} size="xs" />
+      </span>
+      <span class={styles.text}>
+        <span class={cx(styles.title, 't-arabic-ui-s-strong')}>{children}</span>
+        {detail ? <span class={cx(styles.detail, 't-arabic-ui-xs')}>{detail}</span> : null}
+      </span>
       {action === 'with-action' && actionLabel ? (
-        <button type="button" class={styles.action} onClick={onAction}>
+        <button type="button" class={cx(styles.action, 't-arabic-ui-xs-strong')} onClick={onAction}>
           {actionLabel}
         </button>
       ) : null}
       {onDismiss ? (
-        <IconButton icon="close" size="s" aria-label="إغلاق" onClick={onDismiss} />
+        <button type="button" class={styles.close} aria-label="إغلاق" onClick={onDismiss}>
+          <Icon name="close" size="xs" />
+        </button>
       ) : null}
     </div>
   )

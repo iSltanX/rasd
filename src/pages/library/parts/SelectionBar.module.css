@@ -1,52 +1,148 @@
+/*
+ * `selection-bar` (`94:738`): عائم في أسفل منتصف المحتوى، فجوة 14، حشوة 10 وبدايتها 14
+ * ونهايتها 12، سطح `overlay/glass` بضبابية 18، حدّ `border/default`، نصف قطر 12. الحدّ
+ * في Figma داخل الإطار، فالحشوة هنا تنقصه. يشترك فيه `SelectionBar` و`SimpleSelectionBar`.
+ */
+.dock {
+  position: absolute;
+  z-index: 2;
+  inset-inline: 0;
+  inset-block-end: var(--rasd-space-24);
+  display: flex;
+  justify-content: center;
+  padding-inline: var(--rasd-space-24);
+  pointer-events: none;
+}
+
 .bar {
   display: flex;
   align-items: center;
-  gap: var(--rasd-space-12);
-  padding: var(--rasd-space-8) var(--rasd-space-12);
+  gap: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  max-inline-size: 100%;
+  padding-block: calc(var(--rasd-space-10) - var(--rasd-stroke-thin));
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2) - var(--rasd-stroke-thin))
+    calc(var(--rasd-space-12) - var(--rasd-stroke-thin));
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
   border-radius: var(--rasd-radius-lg);
-  border: var(--rasd-stroke-thin) solid var(--rasd-border-brand);
-  background: var(--rasd-surface-selected);
+  background: var(--rasd-overlay-glass);
+  backdrop-filter: blur(calc(var(--rasd-space-16) + var(--rasd-space-2)));
+  box-shadow: var(--rasd-elevation-4);
+  pointer-events: auto;
 }
 
-.count {
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-sm);
-  font-weight: 600;
-  color: var(--rasd-text-primary);
-}
-
-.actions {
+.countGroup {
   display: flex;
   align-items: center;
-  gap: var(--rasd-space-4);
-  margin-inline-start: auto;
+  gap: var(--rasd-space-8);
+  flex: none;
+}
+/* العدّاد زرّ `Primary · S` في الإطار: 28 ارتفاعًا، حشوة 10، نصف قطر 6. */
+.countChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--rasd-control-sm);
+  block-size: var(--rasd-control-sm);
+  padding-inline: var(--rasd-space-10);
+  box-sizing: border-box;
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-action-primary-rest);
+  color: var(--rasd-text-on-brand);
+}
+.countLabel {
+  color: var(--rasd-text-secondary);
+  white-space: nowrap;
 }
 
-.tagForm {
+.divider {
+  flex: none;
+  inline-size: var(--rasd-stroke-thin);
+  block-size: var(--rasd-space-20);
+  background: var(--rasd-border-default);
+}
+
+/* الأفعال أبناء الشريط مباشرةً في التخطيط، فتأخذ فجوته. */
+.actions {
   display: contents;
 }
 
+/* زرّ الشريط: حشوة 7/10، فجوة 6، نصف قطر 8، نصّ `Arabic/UI/XS Strong`. */
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+  flex: none;
+  margin: 0;
+  padding-block: calc(var(--rasd-space-6) + var(--rasd-stroke-thin));
+  padding-inline: var(--rasd-space-10);
+  border: none;
+  border-radius: var(--rasd-radius-md);
+  background: transparent;
+  color: var(--rasd-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.action:hover,
+.action:focus-within {
+  background: var(--rasd-surface-hover);
+  color: var(--rasd-text-primary);
+}
+button.action:focus-visible,
+.select:focus-visible,
+.tagInput:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+.actionIcon {
+  flex: none;
+  color: var(--rasd-icon-secondary);
+}
+
+.danger {
+  padding-block: var(--rasd-space-6);
+  padding-inline: calc(var(--rasd-space-10) - var(--rasd-stroke-thin));
+  border: var(--rasd-stroke-thin) solid var(--rasd-status-danger-border);
+  background: var(--rasd-status-danger-surface);
+  color: var(--rasd-status-danger-fg);
+}
+.danger .actionIcon {
+  color: var(--rasd-status-danger-fg);
+}
+.danger:hover {
+  background: var(--rasd-status-danger-surface);
+  color: var(--rasd-status-danger-fg);
+  border-color: var(--rasd-status-danger-fg);
+}
+
+/* القائمة والحقل بلا إطار داخل زرّ الشريط — الزرّ هو ما يُرى. */
+.selectAction {
+  cursor: pointer;
+}
+.select {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.select option {
+  color: var(--rasd-text-primary);
+  background: var(--rasd-surface-raised);
+}
+
+.tagForm {
+  cursor: text;
+}
 .tagInput {
-  inline-size: 8rem;
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-sm);
-  padding: var(--rasd-space-2) var(--rasd-space-6);
-  border-radius: var(--rasd-radius-sm);
-  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
-  background: var(--rasd-surface-raised);
+  inline-size: 5rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--rasd-text-primary);
 }
-
-.moveSelect {
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-sm);
-  padding: var(--rasd-space-2) var(--rasd-space-6);
-  border-radius: var(--rasd-radius-sm);
-  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
-  background: var(--rasd-surface-raised);
-  color: var(--rasd-text-primary);
-}
-
-.clear {
-  margin-inline-start: var(--rasd-space-8);
+.tagInput::placeholder {
+  color: var(--rasd-text-secondary);
 }

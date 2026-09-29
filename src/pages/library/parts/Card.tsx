@@ -1,5 +1,7 @@
 /**
- * بطاقة شبكة المكتبة — لقطة واحدة.
+ * بطاقة شبكة المكتبة — لقطة واحدة، بمواصفة `capture-card` في إطار `library / grid`
+ * (`66:20`): مصغَّرة فوقها رقاقة النوع في بدايتها ومربّع التحديد في نهايتها، ثمّ العنوان،
+ * ثمّ سطر الموقع والزمن.
  *
  * حالة `selectionMode` تُقرَّر بمركز الحالة (`Library.tsx`، `selection.size
  * > 0`) لا محليًّا: عندها كل بطاقة تُظهر مربّع اختيارها وتُبدِّل بدل أن
@@ -22,6 +24,24 @@ const KIND_ICON: Record<CaptureKind, IconName> = {
   viewport: 'capture-viewport',
   'full-page': 'capture-full',
   window: 'capture-window',
+}
+
+/** أسماء الأنواع كما في رقاقة الإطار ونافذة الالتقاط. */
+export const KIND_LABEL: Record<CaptureKind, string> = {
+  area: 'منطقة',
+  element: 'عنصر',
+  viewport: 'الظاهر',
+  'full-page': 'صفحة كاملة',
+  window: 'نافذة',
+}
+
+/** اسم المضيف وحده — `example.com` لا `https://example.com`. أصل تالف يُعرض كما هو. */
+function hostOf(origin: string): string {
+  try {
+    return new URL(origin).host || origin
+  } catch {
+    return origin
+  }
 }
 
 export interface CardProps {
@@ -70,11 +90,7 @@ export function Card({
         ) : (
           <Icon name={KIND_ICON[record.kind]} size="xl" class={styles.thumbFallback} />
         )}
-        {record.favorite ? (
-          <span class={styles.favoriteBadge}>
-            <Icon name="star" size="xs" title="مفضَّلة" />
-          </span>
-        ) : null}
+        <span class={cx(styles.kind, 't-arabic-ui-xs')}>{KIND_LABEL[record.kind]}</span>
         <span
           class={cx(styles.checkboxWrap, selectionMode && styles.checkboxVisible)}
           onClick={(e) => e.stopPropagation()}
@@ -86,10 +102,20 @@ export function Card({
           />
         </span>
       </span>
-      <span class={styles.title}>{record.title || record.url}</span>
       <span class={styles.meta}>
-        {formatRelativeTime(record.createdAt, now)}
-        {projectName ? ` · ${projectName}` : ''}
+        <span class={styles.titleRow}>
+          <span class={cx(styles.title, 't-arabic-ui-s-strong')}>{record.title || record.url}</span>
+          {record.favorite ? (
+            <Icon name="star" size="xs" title="مفضَّلة" class={styles.favorite} />
+          ) : null}
+        </span>
+        <span class={cx(styles.row, 't-arabic-ui-xs')}>
+          <span class={styles.origin}>
+            <bdi dir="ltr">{hostOf(record.origin)}</bdi>
+            {projectName ? ` · ${projectName}` : ''}
+          </span>
+          <span class={styles.time}>{formatRelativeTime(record.createdAt, now)}</span>
+        </span>
       </span>
     </button>
   )

@@ -1,4 +1,5 @@
 import { formatStorage } from '@/shared/bidi'
+import { WARN_RATIO } from '@/shared/storage/quota'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
@@ -18,8 +19,11 @@ export interface StorageMeterProps {
   class?: string | undefined
 }
 
-/** من هذه النسبة من الحصّة يصير المؤشّر تحذيرًا. */
-export const NEAR_FULL_RATIO = 0.8
+/**
+ * من هذه النسبة من الحصّة يصير المؤشّر تحذيرًا — عتبة التحذير نفسها في `quota.ts`، فلا
+ * يقول الشريط «تكاد تمتلئ» والمكتبة ساكتة، ولا العكس.
+ */
+export const NEAR_FULL_RATIO = WARN_RATIO
 
 export function storageLevel(usage: number | null, quota: number | null): StorageLevel {
   if (usage === null || quota === null || quota <= 0) return 'unknown'

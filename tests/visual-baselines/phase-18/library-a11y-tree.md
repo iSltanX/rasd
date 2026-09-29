@@ -2,108 +2,96 @@
 
 مولَّدة بـ`pnpm verify:library`. **تُقرأ بالعين ولا تُقارَن آليًّا**.
 
-العناصر التفاعلية: 101 · بلا اسم: 0
+العناصر التفاعلية: 89 · بلا اسم: 0
 
 ```
-tablist — اللقطاتالمراجعالألواناللوحاتأدلة الخطوات
+a — رصد — المكتبة
+button — لقطة جديدة
+a — كل اللقطات٥٠٠١
+a — المميّزة١
+a — الأخيرة٥٠٠١
+a — مشروع الفحص١
+button — مشروع جديد
+a — اللوحات١
+a — الألوان٠
+a — المراجع١
+a — أدلة الخطوات١
+progressbar — المساحة المستخدمة
+a — الإعدادات
+a — bysltan.com
+search — البحث والتصفية
+input — ابحث في المكتبة
+select — نوع اللقطة
+select — تاريخ الالتقاط
+button — فتح لوحة الوسوم
+button — فتح لوحة المشاريع
+tablist — أنواع السجلّات
 tab — اللقطات
 tab — المراجع
 tab — الألوان
 tab — اللوحات
 tab — أدلة الخطوات
-search — التاريخالمشروعالموقعالنوعتنازليًاتصاعديً
-input — ابحث في المكتبة
-radiogroup — ترتيب حسب
-radio — التاريخ
-radio — المشروع
-radio — الموقع
-radio — النوع
-radiogroup — اتجاه الترتيب
-radio — تنازليًا
-radio — تصاعديًا
-switch — المفضَّلة فقط
 radiogroup — عرض المكتبة
 radio — نشِطة
 radio — الأرشيف
 radio — المهملات
-button — فتح لوحة الوسوم
-button — فتح لوحة المشاريع
-progressbar — الاستخدام 0% — 733.6 كيلوبايت من 51 غيغابايت
+select — ترتيب حسب
 list — لقطات المكتبة
-listitem — لقطة 0الآن
-button — لقطة 0الآن
+listitem — منطقةلقطة 0example.comالآن
+button — منطقةلقطة 0example.comالآن
 input — تحديد اللقطة
-listitem — لقطة الفحصالآن · مشروع الفحص
-button — لقطة الفحصالآن · مشروع الفحص
+listitem — منطقةلقطة الفحصexample.com · مشروع الفحص
+button — منطقةلقطة الفحصexample.com · مشروع الفحص
+input — تحديد اللقطة
 img — مفضَّلة
+listitem — منطقةلقطة 1example.comالآن
+button — منطقةلقطة 1example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 1الآن
-button — لقطة 1الآن
+listitem — منطقةلقطة 2example.comالآن
+button — منطقةلقطة 2example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 2الآن
-button — لقطة 2الآن
+listitem — منطقةلقطة 3example.comالآن
+button — منطقةلقطة 3example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 3الآن
-button — لقطة 3الآن
+listitem — منطقةلقطة 4example.comالآن
+button — منطقةلقطة 4example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 4الآن
-button — لقطة 4الآن
+listitem — منطقةلقطة 5example.comالآن
+button — منطقةلقطة 5example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 5الآن
-button — لقطة 5الآن
+listitem — منطقةلقطة 6example.comالآن
+button — منطقةلقطة 6example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 6الآن
-button — لقطة 6الآن
+listitem — منطقةلقطة 7example.comالآن
+button — منطقةلقطة 7example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 7الآن
-button — لقطة 7الآن
+listitem — منطقةلقطة 8example.comالآن
+button — منطقةلقطة 8example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 8الآن
-button — لقطة 8الآن
+listitem — منطقةلقطة 9example.comالآن
+button — منطقةلقطة 9example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 9الآن
-button — لقطة 9الآن
+listitem — منطقةلقطة 10example.comالآن
+button — منطقةلقطة 10example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 10الآن
-button — لقطة 10الآن
+listitem — منطقةلقطة 11example.comالآن
+button — منطقةلقطة 11example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 11الآن
-button — لقطة 11الآن
+listitem — منطقةلقطة 12example.comالآن
+button — منطقةلقطة 12example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 12الآن
-button — لقطة 12الآن
+listitem — منطقةلقطة 13example.comالآن
+button — منطقةلقطة 13example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 13الآن
-button — لقطة 13الآن
+listitem — منطقةلقطة 14example.comالآن
+button — منطقةلقطة 14example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 14الآن
-button — لقطة 14الآن
+listitem — منطقةلقطة 15example.comالآن
+button — منطقةلقطة 15example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 15الآن
-button — لقطة 15الآن
+listitem — منطقةلقطة 16example.comالآن
+button — منطقةلقطة 16example.comالآن
 input — تحديد اللقطة
-listitem — لقطة 16الآن
-button — لقطة 16الآن
-input — تحديد اللقطة
-listitem — لقطة 17الآن
-button — لقطة 17الآن
-input — تحديد اللقطة
-listitem — لقطة 18الآن
-button — لقطة 18الآن
-input — تحديد اللقطة
-listitem — لقطة 19الآن
-button — لقطة 19الآن
-input — تحديد اللقطة
-listitem — لقطة 20الآن
-button — لقطة 20الآن
-input — تحديد اللقطة
-listitem — لقطة 21الآن
-button — لقطة 21الآن
-input — تحديد اللقطة
-listitem — لقطة 22الآن
-button — لقطة 22الآن
-input — تحديد اللقطة
-listitem — لقطة 23الآن
-button — لقطة 23الآن
-input — تحديد اللقطة
+status — حُذف نهائيًا: لون واحد
+button — إغلاق
 ```

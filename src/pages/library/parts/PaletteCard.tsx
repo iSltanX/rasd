@@ -13,6 +13,7 @@ import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
 import styles from './PaletteCard.module.css'
+import chrome from './SimpleCard.module.css'
 
 import type { PaletteRecord } from '@/shared/storage/schema'
 import type { JSX } from 'preact'
@@ -56,13 +57,13 @@ export function PaletteCard({
   return (
     <button
       type="button"
-      class={cx(styles.card, selected && styles.selected)}
+      class={cx(chrome.card, selected && chrome.selected)}
       onClick={activate}
       onKeyDown={onKeyDown}
       aria-pressed={selectionMode ? selected : undefined}
       data-palette-id={record.id}
     >
-      <span class={styles.thumb}>
+      <span class={cx(chrome.media, styles.media)}>
         {shown.length > 0 ? (
           <span class={styles.strip} aria-hidden="true">
             {shown.map((hex, i) => (
@@ -71,10 +72,10 @@ export function PaletteCard({
             {extra > 0 ? <span class={styles.more}>+{formatHuman(extra)}</span> : null}
           </span>
         ) : (
-          <Icon name="palette" size="xl" class={styles.thumbFallback} />
+          <Icon name="palette" size="xl" class={chrome.fallback} />
         )}
         <span
-          class={cx(styles.checkboxWrap, selectionMode && styles.checkboxVisible)}
+          class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
           onClick={(e) => e.stopPropagation()}
         >
           <Checkbox
@@ -84,9 +85,13 @@ export function PaletteCard({
           />
         </span>
       </span>
-      <span class={styles.title}>{record.name}</span>
-      <span class={styles.count}>{colorCountText}</span>
-      <span class={styles.meta}>{formatRelativeTime(record.createdAt, now)}</span>
+      <span class={cx(chrome.body, styles.body)}>
+        <span class={cx(chrome.title, 't-arabic-ui-m-strong')}>{record.name}</span>
+        <span class={cx(chrome.row, 't-arabic-ui-xs')}>
+          <span class={chrome.sub}>{colorCountText}</span>
+          <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
+        </span>
+      </span>
     </button>
   )
 }

@@ -14,6 +14,7 @@ import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
 import styles from './ReferenceCard.module.css'
+import chrome from './SimpleCard.module.css'
 
 import type { SimpleCardProps } from './SimpleGrid'
 import type { ReferenceRecord, Viewport } from '@/shared/storage/schema'
@@ -50,16 +51,16 @@ export function ReferenceCard({
   return (
     <button
       type="button"
-      class={cx(styles.card, selected && styles.selected)}
+      class={cx(chrome.card, selected && chrome.selected)}
       onClick={activate}
       onKeyDown={onKeyDown}
       aria-pressed={selectionMode ? selected : undefined}
       data-reference-id={record.id}
     >
-      <span class={styles.thumb}>
-        <Icon name="overlay" size="xl" class={styles.thumbFallback} />
+      <span class={cx(chrome.media, styles.media)}>
+        <Icon name="overlay" size="xl" class={chrome.fallback} />
         <span
-          class={cx(styles.checkboxWrap, selectionMode && styles.checkboxVisible)}
+          class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
           onClick={(e) => e.stopPropagation()}
         >
           <Checkbox
@@ -69,15 +70,17 @@ export function ReferenceCard({
           />
         </span>
       </span>
-      <span class={styles.title}>
-        <bdi dir="ltr">{record.origin}</bdi>
-      </span>
-      <span class={styles.path}>
-        <bdi dir="ltr">{record.path}</bdi>
-      </span>
-      <span class={styles.meta}>
-        <Chip>{VIEWPORT_LABEL[record.viewport]}</Chip>
-        <span class={styles.time}>{formatRelativeTime(record.createdAt, now)}</span>
+      <span class={cx(chrome.body, styles.body)}>
+        <span class={cx(chrome.title, 't-arabic-ui-s-strong')}>
+          <bdi dir="ltr">{record.origin}</bdi>
+        </span>
+        <span class={cx(chrome.sub, 't-arabic-ui-xs')}>
+          <bdi dir="ltr">{record.path}</bdi>
+        </span>
+        <span class={cx(chrome.row, 't-arabic-ui-xs')}>
+          <Chip>{VIEWPORT_LABEL[record.viewport]}</Chip>
+          <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
+        </span>
       </span>
     </button>
   )

@@ -16,6 +16,7 @@ import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
 import styles from './GuideCard.module.css'
+import chrome from './SimpleCard.module.css'
 
 import type { GuideRecord } from '@/shared/storage/schema'
 import type { JSX } from 'preact'
@@ -51,16 +52,16 @@ export function GuideCard({
   return (
     <button
       type="button"
-      class={cx(styles.card, selected && styles.selected)}
+      class={cx(chrome.card, selected && chrome.selected)}
       onClick={activate}
       onKeyDown={onKeyDown}
       aria-pressed={selectionMode ? selected : undefined}
       data-guide-id={record.id}
     >
-      <span class={styles.iconArea}>
-        <Icon name="list-view" size="2xl" class={styles.iconAreaIcon} />
+      <span class={cx(chrome.media, styles.media)}>
+        <Icon name="list-view" size="2xl" class={chrome.fallback} />
         <span
-          class={cx(styles.checkboxWrap, selectionMode && styles.checkboxVisible)}
+          class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
           onClick={(e) => e.stopPropagation()}
         >
           <Checkbox
@@ -70,9 +71,13 @@ export function GuideCard({
           />
         </span>
       </span>
-      <span class={styles.title}>{record.title}</span>
-      <span class={styles.meta}>{plural(captureCount, 'لقطة', 'لقطتين', 'لقطات')}</span>
-      <span class={styles.time}>{formatRelativeTime(record.createdAt, now)}</span>
+      <span class={chrome.body}>
+        <span class={cx(chrome.title, 't-arabic-ui-s-strong')}>{record.title}</span>
+        <span class={cx(chrome.row, 't-arabic-ui-xs')}>
+          <span class={chrome.sub}>{plural(captureCount, 'لقطة', 'لقطتين', 'لقطات')}</span>
+          <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
+        </span>
+      </span>
     </button>
   )
 }

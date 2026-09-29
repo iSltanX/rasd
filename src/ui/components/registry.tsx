@@ -151,9 +151,10 @@ export const RENDERERS: Record<string, RenderFn> = {
       tone={c.tone as never}
       action={c.action as never}
       actionLabel="تراجع"
+      detail="محفوظة على هذا الجهاز"
       onDismiss={() => undefined}
     >
-      تم حفظ اللقطة في المكتبة
+      حُفظت اللقطة في المكتبة
     </Toast>
   ),
   Banner: (c) => <Banner tone={c.tone as never}>وضع التصفّح الخاص نشط — لا حفظ تلقائي</Banner>,

@@ -78,10 +78,12 @@ export function EmptyState({ kind, action, class: className }: EmptyStateProps):
   return (
     <div class={cx(styles.wrap, className)}>
       <span class={styles.iconWrap}>
-        <Icon name={content.icon} size="xl" class={styles.icon} />
+        <Icon name={content.icon} size="lg" class={styles.icon} />
       </span>
-      <p class={styles.title}>{content.title}</p>
-      <p class={styles.hint}>{content.hint()}</p>
+      <div class={styles.text}>
+        <p class={cx(styles.title, 't-arabic-heading-xs')}>{content.title}</p>
+        <p class={cx(styles.hint, 't-arabic-ui-s')}>{content.hint()}</p>
+      </div>
       {action ? <div class={styles.action}>{action}</div> : null}
     </div>
   )

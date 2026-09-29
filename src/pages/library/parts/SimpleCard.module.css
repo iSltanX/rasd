@@ -1,7 +1,8 @@
 /*
- * `capture-card` (`66:20`): سطح `surface/default` بحدّ `border/subtle` ونصف قطر 12، ومصغَّرة
- * بنسبة 275 × 148، وكتلة وصف بحشوة 10/12/11. المحدَّدة (`94:738`): حدّ `border/brand`
- * سمكه 1.5، وغسلة `overlay/marquee-fill` فوق المصغَّرة، والمربّع ممتلئ.
+ * الإطار المشترك لبطاقات `SimpleGrid` الأربع (اللوحة والمرجع واللون والدليل) — قيم
+ * `capture-card` في `library / grid` (`66:20`) نفسها: سطح `surface/default` بحدّ
+ * `border/subtle` ونصف قطر 12، ومربّع التحديد في نهاية المساحة العليا، وكتلة وصف بحشوة
+ * 10/12/11. وكل بطاقة تضيف في وحدتها ما يخصّها وحده (نسبة المساحة العليا ومحتواها).
  */
 /* `<button>` لا يتمدّد إلى خليّته كما يفعل `<div>` — بلا عرض صريح يأخذ عرض مصغَّرته. */
 .card {
@@ -18,9 +19,7 @@
   overflow: hidden;
   font: inherit;
   color: inherit;
-  transition:
-    background-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard),
-    border-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard);
+  transition: border-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard);
 }
 .card:hover {
   border-color: var(--rasd-border-default);
@@ -35,49 +34,29 @@
   box-shadow: 0 0 0 var(--rasd-stroke-hairline) var(--rasd-border-brand);
 }
 
-.thumb {
+.media {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 275 / 148;
   background: var(--rasd-surface-sunken);
   color: var(--rasd-text-tertiary);
   overflow: hidden;
 }
-.selected .thumb::after {
+.selected .media::after {
   content: '';
   position: absolute;
   inset: 0;
   background: var(--rasd-overlay-marquee-fill);
   pointer-events: none;
 }
-.thumbImg {
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: cover;
-  object-position: top;
-}
-.thumbFallback {
+.fallback {
   opacity: 0.6;
-}
-
-/* رقاقة النوع: 12 من البداية والأعلى، سطح `surface/overlay` بحدّ، حشوة 2/6، نصف قطر 6. */
-.kind {
-  position: absolute;
-  inset-block-start: var(--rasd-space-12);
-  inset-inline-start: var(--rasd-space-12);
-  padding-block: calc(var(--rasd-space-2) - var(--rasd-stroke-thin));
-  padding-inline: calc(var(--rasd-space-6) - var(--rasd-stroke-thin));
-  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
-  border-radius: var(--rasd-radius-sm);
-  background: var(--rasd-surface-overlay);
-  color: var(--rasd-text-tertiary);
-  white-space: nowrap;
 }
 
 .checkboxWrap {
   position: absolute;
+  z-index: 1;
   inset-block-start: var(--rasd-space-12);
   inset-inline-end: var(--rasd-space-12);
   display: flex;
@@ -90,41 +69,33 @@
   opacity: 1;
 }
 
-.meta {
+/*
+ * الحشوة من خصائص مخصّصة لا من قاعدة تُكتب فوقها: ترتيب ملفّات CSS في الحزمة يتبع أوّل
+ * استيراد لها، فقاعدتان بصنف واحد لا يُضمن أيّهما يغلب. البطاقة تضبط الخاصّية وحدها.
+ */
+.body {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--rasd-space-2) + var(--rasd-stroke-thin));
-  padding-block: var(--rasd-space-10) calc(var(--rasd-space-10) + var(--rasd-stroke-thin));
-  padding-inline: var(--rasd-space-12);
-  min-inline-size: 0;
-}
-
-.titleRow {
-  display: flex;
-  align-items: center;
-  gap: var(--rasd-space-6);
+  gap: var(--rasd-card-body-gap, calc(var(--rasd-space-2) + var(--rasd-stroke-thin)));
+  padding-block: var(--rasd-card-pad-start, var(--rasd-space-10))
+    var(--rasd-card-pad-end, calc(var(--rasd-space-10) + var(--rasd-stroke-thin)));
+  padding-inline: var(--rasd-card-pad-inline, var(--rasd-space-12));
   min-inline-size: 0;
 }
 .title {
-  flex: 1;
-  min-inline-size: 0;
   color: var(--rasd-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.favorite {
-  flex: none;
-  color: var(--rasd-text-brand);
-}
-
 .row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: var(--rasd-space-8);
   min-inline-size: 0;
 }
-.origin {
+.sub {
   min-inline-size: 0;
   color: var(--rasd-text-tertiary);
   overflow: hidden;
