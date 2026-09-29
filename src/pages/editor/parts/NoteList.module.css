@@ -32,37 +32,46 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--rasd-space-6);
   overflow-y: auto;
   min-block-size: 0;
 }
 
+/* `note-row` (`70:2`): فجوة 11 وحشوة 13، وفاصل سفلي، والرقم في البداية. */
 .item {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--rasd-space-6);
-  padding: var(--rasd-space-8);
-  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
-  border-radius: var(--rasd-radius-sm);
+  grid-template-columns: auto auto 1fr;
+  align-items: start;
+  gap: calc(var(--rasd-space-10) + var(--rasd-stroke-thin));
+  padding-block: calc(var(--rasd-space-12) + var(--rasd-stroke-thin));
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
 }
-.item[data-selected='true'] {
-  border-color: var(--rasd-border-focus);
+.item:last-child {
+  border-block-end: none;
+}
+.item[data-selected='true'] .ordinal {
+  box-shadow: 0 0 0 var(--rasd-stroke-thick) var(--rasd-border-focus);
 }
 
+/* الرقم: دائرة بلون أداة التعليق ونصّ معكوس بخطّ القياس الصغير. */
 .ordinal {
-  inline-size: 1.5rem;
-  block-size: 1.5rem;
+  min-inline-size: var(--rasd-space-20);
+  block-size: var(--rasd-space-20);
+  box-sizing: border-box;
   display: grid;
   place-items: center;
+  padding-inline: var(--rasd-space-6);
   border-radius: var(--rasd-radius-full);
-  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-xs);
-  color: var(--rasd-text-secondary);
+  border: var(--rasd-stroke-thin) solid transparent;
+  background: var(--rasd-tool-annotate-solid);
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-2xs);
+  color: var(--rasd-text-inverse);
 }
 /* بلا دبّوس: الدائرة تبقى مكانها كي لا تتزحزح الأعمدة، وتُفرَّغ. */
 .ordinal[data-unlinked='true'] {
   border-style: dashed;
+  border-color: var(--rasd-border-default);
+  background: transparent;
   color: var(--rasd-text-tertiary);
 }
 
@@ -89,7 +98,7 @@
 }
 .text {
   font-size: var(--rasd-font-size-xs);
-  color: var(--rasd-text-secondary);
+  color: var(--rasd-text-tertiary);
   min-block-size: 2.5rem;
 }
 .title:focus-visible,
@@ -103,27 +112,60 @@
   gap: var(--rasd-space-4);
 }
 
+/* التصنيف رقاقة: حشوة 2/6 ونصف قطر 6، والمختار بسطح أداة التعليق ولونها. */
 .tag {
   font-family: var(--rasd-font-family-text);
   font-size: var(--rasd-font-size-xs);
   color: var(--rasd-text-tertiary);
   background: transparent;
   border: var(--rasd-stroke-thin) dashed var(--rasd-border-subtle);
-  border-radius: var(--rasd-radius-full);
+  border-radius: var(--rasd-radius-sm);
   padding: 0 var(--rasd-space-6);
   cursor: pointer;
 }
 .tag[aria-pressed='true'] {
-  color: var(--rasd-text-primary);
+  color: var(--rasd-tool-annotate-fg);
   border-style: solid;
-  border-color: var(--rasd-border-focus);
+  border-color: transparent;
+  background: var(--rasd-tool-annotate-surface);
+}
+.tag:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
 }
 
+/* `editor / empty`: حامل الأيقونة دائرة على سطح العلامة الخافت، ثمّ العنوان والتلميح. */
 .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rasd-space-6);
+  padding-block: var(--rasd-space-24);
+  text-align: center;
+}
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  inline-size: var(--rasd-control-lg);
+  block-size: var(--rasd-control-lg);
+  margin-block-end: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-surface-brand-subtle);
+  color: var(--rasd-text-brand);
+}
+.emptyTitle {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+.emptyHint {
+  margin: 0;
+  color: var(--rasd-text-tertiary);
+}
+.emptyFiltered {
+  margin: 0;
   font-family: var(--rasd-font-family-text);
   font-size: var(--rasd-font-size-sm);
   color: var(--rasd-text-tertiary);
-  margin: 0;
 }
 
 /* أزرار الترقيم — رفيعة كي لا تزاحم نصّ الملاحظة. */

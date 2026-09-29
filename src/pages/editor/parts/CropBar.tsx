@@ -1,5 +1,7 @@
 import { ASPECT_PRESETS, describeRatio, type AspectPresetId } from '@/modules/capture/selection'
 import { formatDimensions } from '@/shared/bidi'
+import { Button } from '@/ui/components/Button/Button'
+import { cx } from '@/ui/cx'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import styles from './CropBar.module.css'
@@ -32,7 +34,7 @@ export function CropBar(props: CropBarProps): JSX.Element {
 
   return (
     <section class={styles.bar} data-crop-bar="" aria-label="الاقتصاص">
-      <h2 class={styles.title}>الاقتصاص</h2>
+      <h2 class={cx(styles.title, 't-arabic-ui-m-strong')}>الاقتصاص</h2>
 
       <div class={styles.presets} role="group" aria-label="نسبة الاقتصاص">
         {ASPECT_PRESETS.map((preset) => (
@@ -49,29 +51,56 @@ export function CropBar(props: CropBarProps): JSX.Element {
         ))}
       </div>
 
-      <p class={styles.readout} data-crop-readout>
+      {/* بطاقة القراءة كما في `editor / crop` (`303:22926`): المقاس ثمّ النسبة. */}
+      <dl class={styles.readout} data-crop-readout>
+        <div class={styles.readRow}>
+          <dt class="t-arabic-ui-xs">المقاس</dt>
+          <dd class="t-mono-xs">
+            {crop ? (
+              <TechnicalValue kind="dimension" variant="inherit">
+                {formatDimensions(Math.round(crop.width), Math.round(crop.height))}
+              </TechnicalValue>
+            ) : (
+              <span class="t-arabic-ui-xs">الصورة كاملة</span>
+            )}
+          </dd>
+        </div>
         {crop ? (
-          <>
-            <TechnicalValue kind="dimension" variant="inherit">
-              {formatDimensions(Math.round(crop.width), Math.round(crop.height))}
-            </TechnicalValue>{' '}
-            · {describeRatio(crop)}
-          </>
-        ) : (
-          'الصورة كاملة'
-        )}
+          <div class={styles.readRow}>
+            <dt class="t-arabic-ui-xs">النسبة</dt>
+            <dd class="t-mono-xs">
+              <bdi dir="ltr">{describeRatio(crop)}</bdi>
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+
+      <p class={cx(styles.note, 't-arabic-ui-xs')}>
+        الاقتصاص يُطبَّق على الصورة عند التصدير، والأصل محفوظ — تتراجع عنه متى شئت.
       </p>
 
       <div class={styles.actions}>
-        <button type="button" data-crop-apply disabled={crop === null} onClick={props.onApply}>
-          طبّق
-        </button>
-        <button type="button" data-crop-reset disabled={crop === null} onClick={props.onReset}>
+        <Button
+          variant="primary"
+          size="m"
+          data-crop-apply=""
+          state={crop === null ? 'disabled' : 'default'}
+          onClick={props.onApply}
+        >
+          طبّق الاقتصاص
+        </Button>
+        <Button
+          variant="secondary"
+          size="m"
+          data-crop-reset=""
+          state={crop === null ? 'disabled' : 'default'}
+          onClick={props.onReset}
+        >
           أعد الكلّ
-        </button>
-        <button type="button" data-crop-cancel onClick={props.onCancel}>
+        </Button>
+        <Button variant="ghost" size="m" data-crop-cancel="" onClick={props.onCancel}>
           إنهاء (⎋)
-        </button>
+        </Button>
       </div>
     </section>
   )

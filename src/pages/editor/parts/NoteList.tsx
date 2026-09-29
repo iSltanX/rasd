@@ -11,6 +11,8 @@ import {
 import { replaceNode, replaceNodes } from '@/modules/editor/scene-ops'
 import { isHistoryShortcut } from '@/modules/editor/typing'
 import { formatHuman } from '@/shared/bidi'
+import { cx } from '@/ui/cx'
+import { Icon } from '@/ui/icons/Icon'
 
 import { countByTag, filterByTag, NOTE_TAG_HINT, NOTE_TAG_ORDER, orderedNotes } from '../notes'
 import { createTextEditSession, type EditableField } from '../text-editing'
@@ -150,9 +152,22 @@ export function NoteList(props: NoteListProps): JSX.Element {
       </div>
 
       {shown.length === 0 ? (
-        <p class={styles.empty} data-note-empty="">
-          {all.length === 0 ? 'لا ملاحظات بعد. ضَع دبّوسًا أو بطاقة.' : 'لا ملاحظة بهذا التصنيف.'}
-        </p>
+        all.length === 0 ? (
+          // `editor / empty` (`303:23312`): حامل أيقونة وعنوان وتلميح يدلّ على الطريق.
+          <div class={styles.empty} data-note-empty="">
+            <span class={styles.emptyIcon}>
+              <Icon name="pen" size="sm" />
+            </span>
+            <p class={cx(styles.emptyTitle, 't-arabic-heading-xs')}>لا ملاحظات بعد</p>
+            <p class={cx(styles.emptyHint, 't-arabic-ui-s')}>
+              ضَع دبّوسًا أو بطاقة ملاحظة من السكّة، فتظهر هنا مرقّمة.
+            </p>
+          </div>
+        ) : (
+          <p class={styles.emptyFiltered} data-note-empty="">
+            لا ملاحظة بهذا التصنيف.
+          </p>
+        )
       ) : (
         <ul class={styles.list}>
           {shown.map(({ note, pin }) => (

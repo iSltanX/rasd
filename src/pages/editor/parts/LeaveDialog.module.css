@@ -1,0 +1,65 @@
+/*
+ * `editor / leave-unsaved` (`303:23804`): غطاء `overlay/scrim` وحوار على `surface/raised`
+ * بنصف قطر 12 وظلّ مرتفع؛ الرأس بعنوانه وسطر اللقطة وإغلاقه، ثمّ النصّ، ثمّ الأفعال الثلاثة
+ * في شريط سفلي بحدّ علوي.
+ */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--rasd-space-24);
+  background: var(--rasd-overlay-scrim);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  inline-size: 27.5rem;
+  max-inline-size: 100%;
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-surface-raised);
+  box-shadow: var(--rasd-elevation-4);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-16) var(--rasd-space-20) var(--rasd-space-12);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-2);
+  min-inline-size: 0;
+}
+.title {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+.subtitle {
+  margin: 0;
+  color: var(--rasd-text-tertiary);
+}
+
+.body {
+  margin: 0;
+  padding: var(--rasd-space-16) var(--rasd-space-20);
+  color: var(--rasd-text-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-8);
+  padding: var(--rasd-space-12) var(--rasd-space-20);
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-default);
+}

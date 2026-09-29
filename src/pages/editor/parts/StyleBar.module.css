@@ -38,21 +38,29 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* `swatch` في سكّة الأدوات (`70:2`): عمود بفجوة 5 وحشوة 6 ونصف قطر 8، والنقطة 16. */
 .swatches {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--rasd-space-4);
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--rasd-space-4) + var(--rasd-stroke-thin));
+  padding: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-md);
 }
 
 .swatch {
-  inline-size: 1.25rem;
-  block-size: 1.25rem;
+  inline-size: var(--rasd-icon-sm);
+  block-size: var(--rasd-icon-sm);
   border-radius: var(--rasd-radius-full);
   border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
   cursor: pointer;
   padding: 0;
 }
 .swatch[aria-pressed='true'] {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-space-2);
+}
+.swatch:focus-visible {
   outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
   outline-offset: var(--rasd-space-2);
 }
@@ -75,4 +83,25 @@
 .shape[aria-pressed='true'] {
   color: var(--rasd-text-primary);
   border-color: var(--rasd-border-focus);
+}
+
+/* حقل بداية الترقيم بسطح الحقول: غائر بحدّ ونصف قطر 6. */
+.row input[type='number'] {
+  inline-size: 4rem;
+  padding-block: var(--rasd-space-4);
+  padding-inline: var(--rasd-space-8);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-surface-sunken);
+  color: var(--rasd-text-primary);
+  font-family: var(--rasd-font-family-mono);
+  font-size: var(--rasd-font-size-xs);
+}
+.row input[type='number']:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+.row input[type='range'] {
+  flex: 1;
+  accent-color: var(--rasd-action-primary-rest);
 }

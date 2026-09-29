@@ -1,0 +1,216 @@
+/*
+ * `editor / annotating` (`70:2`): شريط علوي 61 (حشوة 12/18، فجوة 12، حدّ سفلي)، ثمّ صفّ
+ * بثلاثة أعمدة بترتيب القراءة: سكّة الأدوات 60 على `surface/default` بحدّها، والمسرح على
+ * `surface/sunken` بحشوة 28/32، ولوحة الملاحظات 320 على `surface/default`.
+ */
+.editor {
+  display: flex;
+  flex-direction: column;
+  block-size: 100vh;
+  background: var(--rasd-surface-canvas);
+  color: var(--rasd-text-primary);
+}
+
+/* ── الشريط العلوي ─────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  flex: none;
+  padding-block: var(--rasd-space-12) calc(var(--rasd-space-12) - var(--rasd-stroke-thin));
+  padding-inline: calc(var(--rasd-space-16) + var(--rasd-space-2));
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-default);
+}
+.titleBlock {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-12);
+  min-inline-size: 0;
+}
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-stroke-thin);
+  min-inline-size: 0;
+}
+.title {
+  margin: 0;
+  color: var(--rasd-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.subtitle {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rasd-space-4);
+  margin: 0;
+  color: var(--rasd-text-tertiary);
+  white-space: nowrap;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  flex: none;
+}
+.save {
+  display: flex;
+  align-items: center;
+  margin-inline-end: var(--rasd-space-4);
+}
+
+/* ── الجسم ─────────────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  min-block-size: 0;
+  display: flex;
+}
+
+/* سكّة الأدوات: عمود بفجوة 4 وحشوة 14/10، والأداة 37 بحشوة 9 ونصف قطر 9. */
+.rail {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-8);
+  box-sizing: border-box;
+  inline-size: calc(var(--rasd-space-56) + var(--rasd-space-4));
+  padding-block: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  padding-inline: var(--rasd-space-10);
+  border-inline-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-default);
+  overflow-y: auto;
+}
+.tools {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rasd-space-4);
+}
+.tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  inline-size: calc(var(--rasd-space-32) + var(--rasd-space-4) + var(--rasd-stroke-thin));
+  block-size: calc(var(--rasd-space-32) + var(--rasd-space-4) + var(--rasd-stroke-thin));
+  padding: 0;
+  border: var(--rasd-stroke-thin) solid transparent;
+  border-radius: calc(var(--rasd-radius-md) + var(--rasd-stroke-thin));
+  background: transparent;
+  color: var(--rasd-icon-secondary);
+  cursor: pointer;
+}
+.tool:hover {
+  background: var(--rasd-surface-hover);
+  color: var(--rasd-icon-primary);
+}
+.tool:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+}
+/* الأداة النشطة بدرجة أداة التعليق: سطحها وحدّها ولونها. */
+.toolActive,
+.toolActive:hover {
+  border-color: var(--rasd-tool-annotate-border);
+  background: var(--rasd-tool-annotate-surface);
+  color: var(--rasd-tool-annotate-fg);
+}
+.glyph {
+  line-height: 1;
+}
+
+/* المسرح: `surface/sunken` بحشوة 28/32، والمسرح يملأ ما بقي. */
+.canvas {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: calc(var(--rasd-space-24) + var(--rasd-space-4));
+  padding-inline: var(--rasd-space-32);
+  background: var(--rasd-surface-sunken);
+}
+.decoding {
+  color: var(--rasd-text-tertiary);
+}
+
+/* ── اللوحة ────────────────────────────────────────────────────── */
+.panel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  inline-size: 20rem;
+  min-block-size: 0;
+  overflow-y: auto;
+  border-inline-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-default);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+  padding: calc(var(--rasd-space-12) + var(--rasd-space-2)) var(--rasd-space-16);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+
+/* رأس الملاحظات: 50 بحشوة 14/16، العنوان `Arabic/UI/M Strong` والعدّاد رقاقة. */
+.notes {
+  display: flex;
+  flex-direction: column;
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: calc(var(--rasd-space-12) + var(--rasd-space-2))
+    calc(var(--rasd-space-12) + var(--rasd-space-2) - var(--rasd-stroke-thin));
+  padding-inline: var(--rasd-space-16) var(--rasd-space-12);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+.sectionTitle {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+.countChip {
+  padding-block: var(--rasd-space-2);
+  padding-inline: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-text-tertiary);
+}
+.noteBody {
+  padding: var(--rasd-space-12) var(--rasd-space-16);
+}
+.addNote {
+  inline-size: 100%;
+  border-radius: 0;
+}
+
+.notice {
+  margin: 0;
+  padding: var(--rasd-space-10) var(--rasd-space-16);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-status-warning-border);
+  background: var(--rasd-status-warning-surface);
+  color: var(--rasd-status-warning-fg);
+}
+.noticeDanger {
+  border-color: var(--rasd-status-danger-border);
+  background: var(--rasd-status-danger-surface);
+  color: var(--rasd-status-danger-fg);
+}
+
+.exported {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+}
+.exported a {
+  color: var(--rasd-text-link);
+}

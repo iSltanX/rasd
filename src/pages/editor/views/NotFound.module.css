@@ -1,0 +1,23 @@
+/* التحميل وتعذّر الفتح في وسط سطح المسرح (`303:23473`). */
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 100vh;
+  padding: var(--rasd-space-24);
+  box-sizing: border-box;
+  background: var(--rasd-surface-canvas);
+}
+.loading {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  margin: 0;
+  color: var(--rasd-text-tertiary);
+}
+.card {
+  max-inline-size: 26.25rem;
+}
+.link {
+  color: var(--rasd-text-link);
+}

@@ -15,7 +15,6 @@ import type { JSX } from 'preact'
 export interface StyleBarProps {
   readonly settings: ToolSettings
   readonly onSettings: (next: ToolSettings) => void
-  readonly palette: Palette
   readonly history: History
   readonly onChange: () => void
 }
@@ -52,6 +51,36 @@ const SHAPES: readonly PinNode['shape'][] = ['circle', 'square', 'pin']
  * **والأرقام مزدوجة القناة**: السمك وحجم الخطّ قياسان بأرقام غربية، ونقطة
  * البداية عدٌّ بشري بأرقام هندية.
  */
+export interface ColorSwatchesProps {
+  readonly settings: ToolSettings
+  readonly onSettings: (next: ToolSettings) => void
+  readonly palette: Palette
+}
+
+/**
+ * ألوان التعليق السبعة — في أسفل سكّة الأدوات كما في `editor / annotating` (`70:2`)، لا في
+ * اللوحة: اللون يُختار مع الأداة، واليد عند السكّة.
+ */
+export function ColorSwatches(props: ColorSwatchesProps): JSX.Element {
+  return (
+    <div class={styles.swatches} role="group" aria-label="لون التعليق">
+      {ANNOTATION_COLORS.map((token) => (
+        <button
+          key={token}
+          type="button"
+          class={styles.swatch}
+          data-style-color={token}
+          aria-label={COLOR_LABEL[token]}
+          title={COLOR_LABEL[token]}
+          aria-pressed={props.settings.colorToken === token}
+          style={{ background: props.palette[token] }}
+          onClick={() => props.onSettings({ ...props.settings, colorToken: token })}
+        />
+      ))}
+    </div>
+  )
+}
+
 export function StyleBar(props: StyleBarProps): JSX.Element {
   const scene = props.history.state.scene
 
@@ -66,26 +95,6 @@ export function StyleBar(props: StyleBarProps): JSX.Element {
   return (
     <section class={styles.bar} data-style-bar="" aria-label="نمط التعليق">
       <h2 class={styles.title}>النمط</h2>
-
-      <div class={styles.field}>
-        <span class={styles.label} id="style-color-label">
-          اللون
-        </span>
-        <div class={styles.swatches} role="group" aria-labelledby="style-color-label">
-          {ANNOTATION_COLORS.map((token) => (
-            <button
-              key={token}
-              type="button"
-              class={styles.swatch}
-              data-style-color={token}
-              aria-label={COLOR_LABEL[token]}
-              aria-pressed={props.settings.colorToken === token}
-              style={{ background: props.palette[token] }}
-              onClick={() => props.onSettings({ ...props.settings, colorToken: token })}
-            />
-          ))}
-        </div>
-      </div>
 
       <div class={styles.field}>
         <label class={styles.label} for="style-stroke">

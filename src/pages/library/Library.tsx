@@ -770,6 +770,7 @@ export function Library(): JSX.Element {
               ) : loadState === 'error' ? (
                 <div class={styles.center}>
                   <ErrorMessage
+                    layout="page"
                     title="تعذّرت قراءة المكتبة"
                     body="لم يستجب التخزين على هذا الجهاز. لقطاتك لم تُحذف — أعد المحاولة، أو أعد تحميل الصفحة."
                     onRetry={() => void reload()}

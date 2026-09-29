@@ -46,8 +46,9 @@ export function Toast({
   return (
     <div
       class={cx(styles.toast, styles[`tone-${tone}`], className)}
-      role="status"
-      aria-live="polite"
+      // الفشل يُقاطع قارئ الشاشة، والباقي ينتظر دوره.
+      role={tone === 'danger' ? 'alert' : 'status'}
+      aria-live={tone === 'danger' ? 'assertive' : 'polite'}
     >
       <span class={styles.badge}>
         <Icon name={TONE_ICON[tone]} size="xs" />

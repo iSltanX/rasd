@@ -2,8 +2,6 @@
   display: flex;
   align-items: center;
   gap: var(--rasd-space-6);
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-xs);
   color: var(--rasd-text-tertiary);
   margin: 0;
 }
@@ -25,23 +23,43 @@
   background: var(--rasd-status-danger-solid);
 }
 
-.banner {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rasd-space-8);
-  padding: var(--rasd-space-10);
-  border-radius: var(--rasd-radius-sm);
-  background: var(--rasd-surface-raised);
-  /* الحدّ عند بداية السطر — يمين في مستند عربي، بلا شيفرة اتجاه. */
-  border-inline-start: var(--rasd-stroke-thick) solid var(--rasd-status-danger-solid);
+.status {
+  white-space: nowrap;
 }
 
-.bannerText {
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-sm);
-  color: var(--rasd-text-secondary);
+/* الإشعار العائم أسفل منتصف النافذة — موضع `editor / save-error` (`303:23699`). */
+.dock {
+  position: fixed;
+  z-index: 5;
+  inset-inline: 0;
+  inset-block-end: var(--rasd-space-24);
+  display: flex;
+  justify-content: center;
+  padding-inline: var(--rasd-space-24);
+  pointer-events: none;
+}
+.dock > * {
+  pointer-events: auto;
+}
+
+/* التعارض ببطاقة الإشعار نفسها (زجاج وحدّ ونصف قطر 12) وفعلين. */
+.conflict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-10);
+  box-sizing: border-box;
+  inline-size: 28rem;
+  max-inline-size: 100%;
+  padding: calc(var(--rasd-space-12) - var(--rasd-stroke-thin));
+  border: var(--rasd-stroke-thin) solid var(--rasd-status-danger-border);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-overlay-glass);
+  backdrop-filter: blur(calc(var(--rasd-space-16) + var(--rasd-space-2)));
+  box-shadow: var(--rasd-elevation-3);
+}
+.conflictText {
   margin: 0;
-  line-height: 1.5;
+  color: var(--rasd-text-primary);
 }
 
 .actions {

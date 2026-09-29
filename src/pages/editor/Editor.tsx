@@ -23,7 +23,7 @@ import {
 import { createMeasurer } from './measure'
 import { CropBar } from './parts/CropBar'
 import { SaveStatus } from './parts/SaveStatus'
-import { StyleBar } from './parts/StyleBar'
+import { ColorSwatches, StyleBar } from './parts/StyleBar'
 import {
   DEFAULT_TOOL_SETTINGS,
   TOOL_LABEL,
@@ -41,6 +41,9 @@ import type { BakeReport } from '@/modules/editor/bake'
 import type { BaseSource } from '@/modules/editor/renderer'
 import type { NodeId } from '@/modules/editor/scene'
 import type { JSX } from 'preact'
+
+/** نتائج حفظ لا يضيع بعدها شيء بالمغادرة — ما عداها كتابةٌ جارية أو فاشلة. */
+const UNSAVED_SAFE: readonly SaveState['outcome'][] = ['idle', 'saved']
 
 /** هل يحرَّر نصٌّ داخل هذا العنصر؟ */
 const isEditable = (el: HTMLElement): boolean =>
@@ -383,10 +386,12 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
         <StyleBar
           settings={settings}
           onSettings={setSettings}
-          palette={style.palette}
           history={history}
           onChange={onSceneChanged}
         />
+      }
+      colors={
+        <ColorSwatches settings={settings} onSettings={setSettings} palette={style.palette} />
       }
       save={
         <SaveStatus
@@ -443,6 +448,12 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
       }
       onExport={(scale) => setExporting(scale)}
       onOpenExport={() => setExportOpen(true)}
+      unsaved={autosave !== null && (saveState.dirty || !UNSAVED_SAFE.includes(saveState.outcome))}
+      onFlush={async () => {
+        if (!autosave) return true
+        const outcome = await autosave.flush()
+        return UNSAVED_SAFE.includes(outcome)
+      }}
       title={context.capture.title}
       exported={exported}
       side={

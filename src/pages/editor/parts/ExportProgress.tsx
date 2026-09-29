@@ -1,6 +1,9 @@
 import { useEffect } from 'preact/hooks'
 
 import { formatPercent } from '@/shared/bidi'
+import { Button } from '@/ui/components/Button/Button'
+import { Spinner } from '@/ui/components/Spinner/Spinner'
+import { cx } from '@/ui/cx'
 
 import styles from './ExportProgress.module.css'
 
@@ -48,10 +51,17 @@ export function ExportProgress(props: ExportProgressProps): JSX.Element {
       aria-label="تصدير الصورة"
     >
       <div class={styles.card}>
-        <h2 class={styles.title}>جارٍ التصدير…</h2>
+        {/* `editor / exporting` (`99:415`): الدوّارة فوق العنوان، والتفاصيل بخطّ القياس. */}
+        {props.error ? null : <Spinner size="m" tone="brand" />}
+        <h2 class={cx(styles.title, 't-arabic-heading-s')}>
+          {props.error ? 'تعذّر إخراج الملف' : 'جارٍ إخراج الملف'}
+        </h2>
 
-        <p class={styles.detail} data-export-size>
-          {props.width} × {props.height} عند {props.scale}×
+        <p class={cx(styles.detail, 't-mono-xs')} data-export-size>
+          <bdi dir="ltr">
+            {props.width} × {props.height}
+          </bdi>{' '}
+          <span class="t-arabic-ui-xs">عند {props.scale}×</span>
         </p>
 
         <div
@@ -72,13 +82,20 @@ export function ExportProgress(props: ExportProgressProps): JSX.Element {
 
         <div class={styles.row}>
           {/* غربية: نسبة قياس لا عدٌّ بشري. */}
-          <span class={styles.hint} data-export-percent>
+          <span class={cx(styles.hint, 't-mono-xs')} data-export-percent>
             {formatPercent(pct)}
           </span>
-          <button type="button" data-export-cancel onClick={props.onCancel}>
-            إلغاء (⎋)
-          </button>
         </div>
+        <Button
+          variant="secondary"
+          size="m"
+          icon="close"
+          class={styles.cancel}
+          data-export-cancel=""
+          onClick={props.onCancel}
+        >
+          {props.error ? 'أغلق (⎋)' : 'ألغِ (⎋)'}
+        </Button>
       </div>
     </div>
   )

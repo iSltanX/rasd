@@ -1,4 +1,7 @@
 import { formatRelativeTime } from '@/shared/bidi'
+import { Button } from '@/ui/components/Button/Button'
+import { Toast } from '@/ui/components/Toast/Toast'
+import { cx } from '@/ui/cx'
 
 import styles from './SaveStatus.module.css'
 
@@ -54,9 +57,9 @@ export function SaveStatus(props: SaveStatusProps): JSX.Element {
   const blocked = BLOCKED.includes(outcome)
 
   return (
-    <div>
+    <>
       <p
-        class={styles.status}
+        class={cx(styles.status, 't-arabic-ui-xs')}
         data-save-status={outcome}
         data-outcome={outcome}
         data-blocked={blocked}
@@ -70,28 +73,44 @@ export function SaveStatus(props: SaveStatusProps): JSX.Element {
         </span>
       </p>
 
+      {/*
+       * الفشل إشعارٌ عائم أسفل المسرح كما في `editor / save-error` (`303:23699`) — لا شريطًا
+       * داخل الشريط العلوي. والتعارض فعلان لا فعل، فبطاقته بزرّيه.
+       */}
       {blocked ? (
-        <div class={styles.banner} data-save-banner={outcome} role="alert">
-          <p class={styles.bannerText}>{props.state.message ?? LABEL[outcome]}</p>
-
+        <div class={styles.dock} data-save-banner={outcome}>
           {outcome === 'conflict' ? (
-            <div class={styles.actions}>
-              <button type="button" data-conflict-keep onClick={props.onKeepMine}>
-                أبقِ ما عندي — يُكتَب فوق نسختهم
-              </button>
-              <button type="button" data-conflict-take onClick={props.onTakeTheirs}>
-                افتح نسختهم — يُفقَد ما لم يُحفَظ هنا
-              </button>
+            <div class={styles.conflict} role="alert">
+              <p class={cx(styles.conflictText, 't-arabic-ui-s')}>
+                {props.state.message ?? LABEL[outcome]}
+              </p>
+              <div class={styles.actions}>
+                <Button variant="secondary" size="s" data-conflict-keep onClick={props.onKeepMine}>
+                  أبقِ ما عندي — يُكتَب فوق نسختهم
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="s"
+                  data-conflict-take
+                  onClick={props.onTakeTheirs}
+                >
+                  افتح نسختهم — يُفقَد ما لم يُحفَظ هنا
+                </Button>
+              </div>
             </div>
           ) : (
-            <div class={styles.actions}>
-              <button type="button" data-save-retry onClick={props.onRetry}>
-                أعد المحاولة
-              </button>
-            </div>
+            <Toast
+              tone="danger"
+              action="with-action"
+              actionLabel="أعد المحاولة"
+              onAction={props.onRetry}
+              detail={props.state.message ?? undefined}
+            >
+              تعذّر حفظ التعديلات — {LABEL[outcome]}
+            </Toast>
           )}
         </div>
       ) : null}
-    </div>
+    </>
   )
 }

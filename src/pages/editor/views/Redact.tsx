@@ -1,3 +1,5 @@
+import { Button } from '@/ui/components/Button/Button'
+
 import { RedactPanel } from '../parts/RedactPanel'
 
 import type { History } from '@/modules/editor/history'
@@ -33,9 +35,9 @@ export function RedactView(props: RedactViewProps): JSX.Element {
         palette={props.palette}
         onChange={props.onChange}
       />
-      <button type="button" data-redact-exit onClick={props.onExit}>
+      <Button variant="secondary" size="m" data-redact-exit="" onClick={props.onExit}>
         إنهاء وضع الحجب
-      </button>
+      </Button>
     </div>
   )
 }
