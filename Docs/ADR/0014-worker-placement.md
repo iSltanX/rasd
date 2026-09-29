@@ -4,7 +4,7 @@
 
 ## السياق
 
-`Rasd_Plan.md` يسمّي **خمسة** ملفات في `src/workers/`، موزَّعة على خمس مراحل:
+`Docs/Engineering.md` يسمّي **خمسة** ملفات في `src/workers/`، موزَّعة على خمس مراحل:
 
 | الملفّ | المرحلة | ما نصّت عليه الخطة |
 | --- | --- | --- |
@@ -18,7 +18,7 @@
 (`background` · `content` · `modules` · `offscreen` · `pages` · `shared` · `tokens` · `ui`)
 وليس فيها `workers`.
 
-اثنان من الخمسة سقطا فعلًا: البند 18 في `Rasd_Plan.md §6` أسقط `crop.worker.ts` في
+اثنان من الخمسة سقطا فعلًا: البند 18 في `Docs/Engineering.md §6` أسقط `crop.worker.ts` في
 المرحلة 8، والبند 31 أسقط `stitch.worker.ts` في المرحلة 10. والثلاثة الباقية لم تُبلَغ
 مراحلها بعد.
 
@@ -30,7 +30,7 @@
 ### 1. Worker من داخل الـservice worker مستحيل — والحكم لا يتعدّى ذلك
 
 وراثة مباشرة من [ADR 0009](0009-capture-in-service-worker.md). والبند 31 في
-`Rasd_Plan.md §6` يعطي القياس حرفيًّا: `typeof Worker === 'undefined'` داخل الـservice
+`Docs/Engineering.md §6` يعطي القياس حرفيًّا: `typeof Worker === 'undefined'` داخل الـservice
 worker، و`URL.createObjectURL === 'undefined'` — فحتى حيلة blob مستحيلة. **والبناء يقبل
 السطر بلا شكوى ثم ينفجر وقت التشغيل**؛ أسوأ صنف فشل، لأن لا مدقّق أنواع ولا لنت يقف في
 وجهه.

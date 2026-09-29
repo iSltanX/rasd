@@ -16,7 +16,7 @@ export const PAGE_PATHS = {
    * المرحلة 17 — `compare/index.html?a=<captureId>&b=<captureId>`. تُفتح عبر
    * `page/open` القائمة (`background/lifecycle.ts`) — لا رسالة جديدة، ولا
    * سلك في المكتبة عمدًا: الاعتماديات المُقرَّة تنصّ «لا تحتاج واجهة
-   * المكتبة» (`Rasd_Plan.md §17`).
+   * المكتبة» (نصّ المرحلة 17 في الخطّة السابقة (تاريخ Git عند `63a0966`)).
    */
   compare: 'src/pages/compare/index.html',
 } as const

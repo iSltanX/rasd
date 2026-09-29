@@ -31,7 +31,7 @@ const BLACK = [0, 0, 0, 255] as const
 const GRAY = [100, 100, 100, 255] as const
 const RED = [250, 10, 10, 255] as const
 
-describe('computeDiff — الحالات الأساسية من Rasd_Plan.md §17', () => {
+describe('computeDiff — الحالات الأساسية', () => {
   it('صورتان متطابقتان ← 0% اختلاف', () => {
     const a = solid(20, 20, GRAY)
     const b = clone(a)

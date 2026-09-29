@@ -124,7 +124,7 @@ describe('Marquee', () => {
   })
 })
 
-describe('ElementHover — إجراءات سريعة (Rasd_Plan.md §6 صفّ 80)', () => {
+describe('ElementHover — إجراءات سريعة (Docs/Engineering.md §6 صفّ 80)', () => {
   const ACTIONS: QuickAction[] = [
     { id: 'measure', icon: 'dimension-h', label: 'قياس' },
     { id: 'code', icon: 'code', label: 'شيفرة' },

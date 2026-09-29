@@ -2,7 +2,7 @@
 /**
  * البوّابة A — كل التزام · حتمية بالكامل · صفر حكم لغوي.
  *
- * ([القسم 5 من الدستور](../Docs/Constitution.md)). تصمد لأنها لا تحتاج
+ * ([القسم 5 من الدستور](../AGENTS.md)). تصمد لأنها لا تحتاج
  * تقديرًا: كل بند فيها أمرٌ نتيجته ثنائية، فلا يمكن ختمها مجاملةً كما
  * تُختَم مراجعةٌ تحتاج حكمًا.
  *
@@ -50,6 +50,8 @@ const IMPACT = [
     scripts: ['verify:activate', 'verify:fullpage'],
   },
   { match: /^src\/content\/index\.ts/u, scripts: ['verify:activate'] },
+  // منطقة حسّاسة مسمّاة كانت خارج الجدول (الصفّ 114 في `Docs/Engineering.md §6`).
+  { match: /^src\/background\/lifecycle\.ts/u, scripts: ['verify:lifecycle'] },
   { match: /^src\/content\/host\.ts/u, scripts: ['verify:activate', 'verify:overlay'] },
   { match: /^src\/content\/tools\/compare\.ts/u, scripts: ['verify:compare'] },
   { match: /^src\/content\/tools\/measure\.ts/u, scripts: ['verify:measure'] },
@@ -67,7 +69,8 @@ const IMPACT = [
   },
   // توثيق وسكربتات وخطّة: لا أثر تشغيلي — تُستثنى صراحةً لا صمتًا.
   {
-    match: /^(Docs\/|scripts\/|tests\/|Rasd_Plan\.md|README\.md|STATUS\.md|package\.json)/u,
+    match:
+      /^(Docs\/|STAGES\/|scripts\/|tests\/|README\.md|ROADMAP\.md|STATUS\.md|AGENTS\.md|package\.json)/u,
     scripts: [],
   },
 ]
@@ -89,11 +92,11 @@ const STEPS = [
       }),
   },
   {
-    // خريطة المراحل كانت تُحدَّث يدويًّا داخل طقس الإغلاق، فانحرفت صامتةً حين
-    // أُغلقت مراحل بلا طقس كامل (§8). الحارس يجعل الانحراف مستحيلًا لا مُستبعَدًا.
-    name: 'حارس خريطة المراحل',
+    // الحالة تُكتب في ترويسات `STAGES/NN.md` وحدها، و`STATUS.md` وجدول `ROADMAP.md`
+    // مشتقّان منها. الحارس يجعل افتراق الثلاثة مستحيلًا لا مُستبعَدًا.
+    name: 'حارس مزامنة المراحل',
     run: () =>
-      execFileSync(process.execPath, ['scripts/phases-sync.mjs', '--check'], {
+      execFileSync(process.execPath, ['scripts/stages-sync.mjs', '--check'], {
         cwd: root,
         stdio: 'inherit',
       }),

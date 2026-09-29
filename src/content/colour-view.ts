@@ -148,7 +148,7 @@ export function variableView(pinned: PinnedColour): ColourVarView | null {
  * `CSSRule` في CSSOM لا يحمل موضعًا في المصدر، لا سطرًا ولا عمودًا ولا
  * إزاحة. وأدوات المطوّر تعرضه لأنها تقرأ نصّ الورقة عبر بروتوكول التنقيح،
  * وهو ليس متاحًا لإضافة محتوى. فيُعرض ما يُعرف — الورقة — ولا يُختلق رقم.
- * مسجَّل في `Rasd_Plan.md §6`، ويُصحَّح الملفّ في المرحلة 26أ.
+ * مسجَّل في `Docs/Engineering.md §6`، ويُصحَّح الملفّ في المرحلة 26أ.
  */
 function originText(source: SheetSource): string | null {
   if (source.kind === 'style') return source.label

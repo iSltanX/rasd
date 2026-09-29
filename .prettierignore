@@ -16,13 +16,13 @@ tests/fixtures/lint/
 public/icons/
 # وثائق مؤلَّفة بالعربية — إعادة تنسيق الجداول تُفسد محاذاتها
 Docs/Rasd_Ar.md
-Rasd_Plan.md
-Docs/Phases/Phase_*.md
+Docs/Engineering.md
 Docs/ADR/
 
-# مخرجات مشتقّة من §9 — تكتبها `phases-sync.mjs` ويحرسها `--check`
+# مشتقّ كاملًا من ترويسات `STAGES/NN.md` — يكتبه `stages-sync.mjs` ويحرسه `--check`
 STATUS.md
-Docs/Phases/INDEX.md
+# يحوي جدولًا مشتقًّا بين علامتَي stages:begin و stages:end — التنسيق يُفسد المطابقة
+ROADMAP.md
 
 # سجلّ ترقية الحرّاس — يكتبه `guards-sync.mjs` ويحرسه `--check`
 .github/guards-ledger.json

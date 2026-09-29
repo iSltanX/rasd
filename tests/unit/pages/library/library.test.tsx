@@ -229,7 +229,7 @@ describe('Library — التبويبات', () => {
     await flush()
 
     expect(root.textContent).toContain('محدَّدة')
-    // الحذف موجود فعليًا — سدّ فجوة `Phase_18.md §4/§8` — لا أيقونات اللقطات
+    // الحذف موجود فعليًا — سدّ فجوة ملفّ المرحلة 18 السابق (تاريخ Git) §4/§8` — لا أيقونات اللقطات
     // (تفضيل/أرشفة/مهملات/وسم) التي لا معنى لها على الأدلّة.
     expect(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]')).toBeTruthy()
     expect(root.querySelector('[aria-label="تفضيل المحدَّد"]')).toBeFalsy()

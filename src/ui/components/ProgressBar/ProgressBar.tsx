@@ -13,7 +13,7 @@ export interface ProgressBarProps {
   class?: string | undefined
   /**
    * درجة تعبئة الشريط — `primary` افتراضًا (لون الأداة، كما كانت التعبئة
-   * دومًا). `Rasd_Plan.md §6` صفّ 73: `Figma` لا يُظهر تنويعة درجة لهذا
+   * دومًا). `Docs/Engineering.md §6` صفّ 73: `Figma` لا يُظهر تنويعة درجة لهذا
    * المكوّن، فـ`warning`/`danger` أُضيفا لحاجة منتجية حقيقية (حالتا تحذير
    * ومنع `QuotaIndicator`) لا اختراعًا — والافتراضي يُبقي كل مستهلك آخر بلا
    * أثر.

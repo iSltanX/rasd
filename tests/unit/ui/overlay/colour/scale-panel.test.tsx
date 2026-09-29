@@ -260,7 +260,7 @@ describe('ScalePanel — بلا نسخ فرديّ (خلافًا لـColourPanel)
   })
 })
 
-/** `Rasd_Plan.md §3.5` البند 1 — القسمة بين عدٍّ بشري وقياس تقني. */
+/** `Docs/Engineering.md §3.5` البند 1 — القسمة بين عدٍّ بشري وقياس تقني. */
 describe('ScalePanel — سياسة الأرقام (§3.5)', () => {
   it('عدد الدرجات في التجزئة هنديٌّ (عدٌّ بشري)', () => {
     const el = mount(<ScalePanel {...panelProps()} />)
@@ -291,7 +291,7 @@ describe('ScalePanel — سياسة الأرقام (§3.5)', () => {
 })
 
 /**
- * `Rasd_Plan.md §3.5` البند 2 — كل قيمة تقنية داخل نصّ عربي تمرّ عبر
+ * `Docs/Engineering.md §3.5` البند 2 — كل قيمة تقنية داخل نصّ عربي تمرّ عبر
  * `<TechnicalValue>` (`<bdi dir="ltr" data-technical>`).
  */
 describe('ScalePanel — عزل bidi', () => {

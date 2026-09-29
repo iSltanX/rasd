@@ -75,7 +75,9 @@ describe('صيغ الخروج', () => {
       expect(info.reason.length).toBeGreaterThan(0)
       expect(info.label.length).toBeGreaterThan(0)
     }
-    expect(DEFERRED_FORMATS.pdf.reason).toContain('19.3')
-    expect(DEFERRED_FORMATS.svg.reason).toContain('§6')
+    // السبب يراه المستخدم: يشرح بلغته، ولا يحمل رقم مرحلة ولا رقم صفّ داخلي.
+    for (const info of Object.values(DEFERRED_FORMATS)) {
+      expect(info.reason).not.toMatch(/الوحدة|المرحلة|§|\d+\.\d+/u)
+    }
   })
 })

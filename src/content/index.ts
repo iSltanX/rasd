@@ -438,7 +438,7 @@ async function bootOverlay(
    * من إطار `compare / viewports` نفسه `127:315`). يُعاد الحساب في كل
    * استدعاء لا مرّة عند الإقلاع: تغيير حجم النافذة أثناء وضع المقارنة
    * نشطًا ينقل المرجع المستهدَف من مقاس إلى آخر، وهو المقصود بـ«تبديل
-   * المقاس عبر تغيير حجم النافذة» في `Rasd_Plan.md §8.6`.
+   * المقاس عبر تغيير حجم النافذة» في `Docs/Rasd_Ar.md §8.6`.
    */
   const currentViewport = (): Viewport => classifyViewport(space.layoutWidth)
 
@@ -560,7 +560,7 @@ async function bootOverlay(
    *
    * **عبر الخلفية لا مباشرةً**: سكربت المحتوى يعمل بأصل الصفحة المزارة،
    * فـ`indexedDB` عنده قاعدة الموقع لا قاعدة رصد — انظر الصفّ 78 في
-   * `Rasd_Plan.md §6` وتعليل `reference/load` في `contract.ts`.
+   * `Docs/Engineering.md §6` وتعليل `reference/load` في `contract.ts`.
    */
   const loadStoredReference = (): void => {
     if (compare.state.reference.peek()) return
@@ -628,7 +628,7 @@ async function bootOverlay(
   }
 
   /**
-   * ── معرض المقاسات — `compare / viewports` (`127:315`، `Rasd_Plan.md
+   * ── معرض المقاسات — `compare / viewports` (`127:315`، `Docs/Engineering.md
    * §8.6`) ─────────────────────────────────────────────────────────
    *
    * حالة مستقلّة عن المرجع الحيّ الواحد أعلاه عمدًا، بجيل خاصّ بها
@@ -851,7 +851,7 @@ async function bootOverlay(
     mode: modes.mode,
     /**
      * إجراءا «قياس»/«شيفرة» السريعان في `capture / element-hover`
-     * (`Rasd_Plan.md §6` صفّ 80) — تبديل وضع مباشر، نفس ما تفعله
+     * (`Docs/Engineering.md §6` صفّ 80) — تبديل وضع مباشر، نفس ما تفعله
      * `installShortcuts`/`modes.set` أعلاه حرفيًّا.
      */
     onSwitchMode: (mode) => modes.set(mode),

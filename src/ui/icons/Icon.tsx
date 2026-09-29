@@ -52,7 +52,7 @@ export function Icon({
       aria-label={title}
       title={title}
       // `dangerouslySetInnerHTML` و children لا يجتمعان على العنصر نفسه في
-      // Preact — الأول يبتلع الثاني بصمت (`Rasd_Plan.md §6` صفّ 72). الاسم
+      // Preact — الأول يبتلع الثاني بصمت (`Docs/Engineering.md §6` صفّ 72). الاسم
       // المتاح هنا `aria-label`/`title` على الـsvg نفسه، لا عنصر `<title>` كابن.
       dangerouslySetInnerHTML={{ __html: entry.markup }}
     />

@@ -1,5 +1,5 @@
 /* global agent, parallel, log, phase, args */
-// البوّابة B لرصد عبر Workflow — الشكل الوحيد المسموح (الدستور §6 و§7، CHANGELOG 1.6).
+// المراجعة المستقلّة لرصد عبر Workflow — الشكل الوحيد المسموح (AGENTS.md §4 و§6).
 // يُشغَّل بالاسم: Workflow({ name: 'gate-b', args: { unit, scope, lenses } })
 // ولا يُشغَّل إلا مع تفعيل مفتاح Dynamic workflows في التطبيق.
 // الحدود مكتوبة في الكود لا في النثر:
@@ -15,7 +15,7 @@ export const meta = {
   phases: [
     {
       title: 'Review',
-      detail: 'حتى ثلاث عدسات لم تكتب الكود، Sonnet 5، جهد medium',
+      detail: 'حتى ثلاث عدسات لم تكتب الكود، Sonnet 5.5، جهد medium',
       model: 'sonnet',
     },
     {
@@ -56,7 +56,7 @@ if (requested.length > MAX_LENSES) {
       .join(' · ')}`,
   )
 }
-// الشكل الافتراضي (عدسة واحدة) لا يُطلق دحّاضين — الدستور §6؛ الموسَّع يحتاج سببًا مكتوبًا.
+// الشكل الافتراضي (عدسة واحدة) لا يُطلق دحّاضين — AGENTS.md §4؛ الموسَّع يحتاج سببًا مكتوبًا.
 const expanded = lenses.length > 1
 
 const FINDINGS = {
@@ -102,7 +102,7 @@ ${expanded ? '' : 'أنت المراجع الوحيد: أثبت كل ملاحظ�
 // ── Review ─────────────────────────────────────────────────────────────
 phase('Review')
 log(
-  `${lenses.length} عدسة على ${unit} — ${expanded ? 'الشكل الموسَّع' : 'الشكل الافتراضي'}، Sonnet 5، جهد medium`,
+  `${lenses.length} عدسة على ${unit} — ${expanded ? 'الشكل الموسَّع' : 'الشكل الافتراضي'}، Sonnet 5.5، جهد medium`,
 )
 
 const reviews = await parallel(
@@ -199,7 +199,7 @@ if (expanded) {
     ),
   )
 } else {
-  log('الشكل الافتراضي: لا دحّاض مستقلّ — المراجع أثبت ملاحظاته بنفسه (الدستور §6)')
+  log('الشكل الافتراضي: لا دحّاض مستقلّ — المراجع أثبت ملاحظاته بنفسه (AGENTS.md §4)')
 }
 
 const confirmed = judged.filter(Boolean).filter((f) => f.verdict && !f.verdict.refuted)
@@ -229,7 +229,7 @@ return {
   // الشكل الافتراضي: ملاحظات المراجع الواحد كما أثبتها بنفسه. الموسَّع: ما صمد أمام الدحض.
   confirmed: expanded ? confirmed.map(strip) : deduped.map(strip),
   refuted: refuted.map((f) => ({ title: f.title, reason: f.verdict.reason })),
-  // الموسَّع فقط — متوسّطة ومنخفضة وما فاض عن السقف: يُثبتها المراجع الرئيسي بسيناريو ملموس (الدستور §6)
+  // الموسَّع فقط — متوسّطة ومنخفضة وما فاض عن السقف: يُثبتها المراجع الرئيسي بسيناريو ملموس (AGENTS.md §4)
   forLeadVerification: [...overflow, ...minor].map(strip),
   verifiedGood,
 }

@@ -8,7 +8,7 @@
  * أو عند موضعه.
  *
  * **`dtcg` مصدرها مختلف — نصّ المرحلة 19 لا `§6.14`.** «تصديرات المطوّر:
- * CSS · JSON · Tailwind · Design Tokens (W3C)» (`Rasd_Plan.md` سطر 1250)،
+ * CSS · JSON · Tailwind · Design Tokens (W3C)» (`Docs/Engineering.md` سطر 1250)،
  * وحُسم بناؤها صراحةً في الوحدة 19.2 («الناقص صيغة W3C DTCG وحدها»). وخلافًا
  * لـ`json` (سجلّ `rasd.*` الخاصّ، يحمل `share`/`count`/`neutral`) فـ`dtcg`
  * **مطابقة للمواصفة القياسية بلا امتداد**: `$type`/`$value` فقط، لأن غايتها

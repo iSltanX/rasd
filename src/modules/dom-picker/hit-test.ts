@@ -200,7 +200,7 @@ const isFrame = (el: Element): el is HTMLIFrameElement => el.tagName === 'IFRAME
  * جولة رسائل ≈1ms — لكن العدد ليس الحجّة. الحجّة أن `requestAnimationFrame`
  * **لا ينتظر**: مع الرسائل يُرسَم الإطار بالهدف السابق ويصل الجواب بعد
  * إطار أو أكثر، فيتخلّف الإبراز عن المؤشِّر دائمًا. سُجِّل تعارضًا في
- * `Rasd_Plan.md §6`.
+ * `Docs/Engineering.md §6`.
  */
 export function pickAt(doc: Document, x: number, y: number, skip?: Element | null): Hit | null {
   return pickIn(doc, x, y, skip, [], 0)

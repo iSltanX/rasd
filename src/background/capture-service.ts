@@ -75,7 +75,7 @@ export interface CaptureOutput {
  * `active`، `discarded`، `state`) غير محجوبة بدونها.
  *
  * تبقى فجوة زمنية بين الفحص والنداء لا تسدّها الواجهة المتاحة — تُذكَر في
- * `Phase_08.md` بدل ادّعاء إحكام لا وجود له.
+ * ملفّ المرحلة 08 السابق (تاريخ Git) بدل ادّعاء إحكام لا وجود له.
  */
 async function assertShootable(tabId: number): Promise<Result<chrome.tabs.Tab>> {
   let tab: chrome.tabs.Tab

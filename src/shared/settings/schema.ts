@@ -60,7 +60,7 @@ export const SettingsSchema = v.object({
        * `§12.1` — مكان الحفظ. المكتبة وحدها دائمًا الوجهة الفعلية اليوم
        * (`putCaptureWithBlob`)؛ `library-and-downloads` ضابطٌ محفوظٌ ومقروء
        * الآن، واستهلاكه في خط أنابيب الالتقاط خارج نطاق الوحدة 20.2
-       * (`Rasd_Plan.md §6` صفّ 115) — يحتاج صلاحية `downloads` الاختيارية
+       * (`Docs/Engineering.md §6` صفّ 115) — يحتاج صلاحية `downloads` الاختيارية
        * نفسها التي بنتها المرحلة 19 لمسار التصدير، لا سلكًا جديدًا موازيًا.
        */
       saveLocation: v.optional(v.picklist(['library', 'library-and-downloads']), 'library'),
@@ -171,7 +171,7 @@ export function defaultSettings(): Settings {
  * [ADR 0020](../../../Docs/ADR/0020-injection-gate.md) البند 5 («قُرئت وهي
  * فارغة ≠ لم تُقرأ») من بابٍ لا يمرّ بمسار الفشل الذي حرسه. وأسوأ من ذلك أن
  * `patchSettings` تكتب النتيجة المُنقَذة على القرص، فينقلب الفقد من عابرٍ
- * إلى دائم بصمت. (‏`Rasd_Plan.md §6` صفّ 119.)
+ * إلى دائم بصمت. (‏`Docs/Engineering.md §6` صفّ 119.)
  *
  * والمصفوفة تُرشَّح لا تُحذف بـ`delete`: الحذف بالفهرس يترك ثقبًا
  * (`undefined`) يسقط في إعادة التحقّق نفسها التي جاء الإنقاذ ليمرّرها.

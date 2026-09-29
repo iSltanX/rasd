@@ -5,7 +5,7 @@ import { ProgressBar } from '@/ui/components/ProgressBar/ProgressBar'
 import styles from '@/ui/components/ProgressBar/ProgressBar.module.css'
 
 /**
- * `Rasd_Plan.md §6` صفّ 73 — `tone` كانت غائبة، فحالتا التحذير والمنع في
+ * `Docs/Engineering.md §6` صفّ 73 — `tone` كانت غائبة، فحالتا التحذير والمنع في
  * `QuotaIndicator` لا تُلوَّنان. الافتراضي `primary` يبقي كل مستهلك قديم
  * (نافذة الإضافة، تقدّم الالتقاط) بلا أثر — هذا ما تثبته الحالة الأولى هنا.
  */

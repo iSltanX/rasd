@@ -94,7 +94,7 @@ describe('Card', () => {
   it('لقطة مفضَّلة تعرض شارة النجمة باسم إتاحة صريح', () => {
     const { root } = mount({ record: capture({ favorite: true }) })
     // الاسم الآن على الـsvg نفسه (`Icon`'s `title` → `aria-label` مباشرة —
-    // `Rasd_Plan.md §6` صفّ 72)، لا على غلاف منفصل كما كان قبل الإصلاح.
+    // `Docs/Engineering.md §6` صفّ 72)، لا على غلاف منفصل كما كان قبل الإصلاح.
     expect(root.querySelector('[role="img"][aria-label="مفضَّلة"]')).toBeTruthy()
   })
 

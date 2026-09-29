@@ -5,7 +5,7 @@
  * `saveLocation` ضابطٌ محفوظٌ ومقروء هنا فقط — استهلاكه في خطّ أنابيب
  * الالتقاط الفعلي (`background/capture-service.ts`) خارج نطاق هذه الوحدة،
  * ويحتاج صلاحية `downloads` الاختيارية نفسها التي بنتها المرحلة 19
- * (`Rasd_Plan.md §6` صفّ 115).
+ * (`Docs/Engineering.md §6` صفّ 115).
  */
 import { useState } from 'preact/hooks'
 

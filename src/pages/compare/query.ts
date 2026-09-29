@@ -3,7 +3,7 @@
  *
  * الصفحة تُفتح بـ`compare/index.html?a=<captureId>&b=<captureId>` (رسالة
  * `page/open`، `background/lifecycle.ts`) — لا آلية أخرى، ولا سلك اختيار من
- * المكتبة في هذه الدفعة (`Rasd_Plan.md §17`، الاعتماديات).
+ * المكتبة في هذه الدفعة (نصّ المرحلة 17 في الخطّة السابقة (تاريخ Git عند `63a0966`)، الاعتماديات).
  */
 
 export interface CompareQuery {

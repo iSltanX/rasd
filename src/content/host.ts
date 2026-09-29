@@ -341,7 +341,7 @@ function toPublic(i: Installed): OverlayHost {
     layer,
     reassert: () => i.reassert(),
     /**
-     * **البند 56 في `Rasd_Plan.md §6`**: هذا المسار (حقن ثانٍ على المستند نفسه —
+     * **البند 56 في `Docs/Engineering.md §6`**: هذا المسار (حقن ثانٍ على المستند نفسه —
      * `mountHost` يعيد `toPublic(existing)`) كان يفتح `hostEl` وحده وينسى
      * `layer`، فيسقط أي وضع تفاعلي صامتًا بعد إعادة تفعيل. يُطابق `setInteractive`
      * الأصلية في `mountHost` أعلاه سطرًا بسطر — يُفتَح الاثنان معًا أو لا يصل شيء.

@@ -10,7 +10,7 @@
  * **ولماذا هنا لا في Worker:** إنشاء `Worker` من داخل service worker غير
  * مدعوم؛ والبناء يقبل السطر ثم ينفجر وقت التشغيل. والـSW خيط مستقلّ عن خيط
  * عرض الصفحة أصلًا، فالغرض الذي أرادته الخطة («لا يجمّد الصفحة») محقَّق بلا
- * Worker. مُسجَّل في `Rasd_Plan.md §6` و[ADR 0009](../../Docs/ADR/0009-capture-in-service-worker.md).
+ * Worker. مُسجَّل في `Docs/Engineering.md §6` و[ADR 0009](../../Docs/ADR/0009-capture-in-service-worker.md).
  */
 
 import { isFullSource, planCrop } from '@/modules/capture/crop'

@@ -4,7 +4,7 @@
  *
  * `defaultFormat` مجموعة أزرار مستقلّة (`Radio`) لا `SegmentedControl`: خمس
  * صيغ تتجاوز حدّ Figma الموثَّق للأخير («3 variant» — `SegmentedControl.tsx`)،
- * وحدّ `Tabs` المماثل حُسم بتسجيل الانحراف لا بتجاوزه (`Rasd_Plan.md §6`
+ * وحدّ `Tabs` المماثل حُسم بتسجيل الانحراف لا بتجاوزه (`Docs/Engineering.md §6`
  * صفّ 111)؛ هنا يُتفادى الحدّ أصلًا باختيار مكوّن بلا محور تبايُن واحد.
  */
 import { useState } from 'preact/hooks'

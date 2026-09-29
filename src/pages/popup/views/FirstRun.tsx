@@ -15,7 +15,7 @@ export interface FirstRunProps {
  *
  * صفّ Figma للتلميح يحمل اختصارًا عامًّا `⌥⌘R` لـ«جولة سريعة» — خامسٌ فوق
  * الأربعة التي يقبلها Chrome في `commands` (القيد المُسجَّل تناقضًا رقم 6
- * في `Rasd_Plan.md`). لا اختصار خامس، فلا يُعرَض ادّعاء بمفتاح لا يعمل؛
+ * في `Docs/Engineering.md`). لا اختصار خامس، فلا يُعرَض ادّعاء بمفتاح لا يعمل؛
  * التلميح هنا يصف السلوك الحقيقي — أي أداة تُنقَر تُنهي الجولة الأولى.
  */
 export function FirstRun({ onTour, onSkip }: FirstRunProps): JSX.Element {

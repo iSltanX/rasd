@@ -90,7 +90,7 @@ export default defineManifest({
   //          صلة إيحائية، تمامًا كما حُسم T على ماك. **غير مقيس على ويندوز
   //          فعليًّا** — لا عدّاء Windows في `ci.yml` اليوم؛ الاستدلال أعلاه
   //          (جدول Views المشترك) سببٌ معلَّل لا قياسٌ مباشر، وهذا الفرق
-  //          مُعلَنٌ لا مُخفى (`Rasd_Plan.md §6` صفّ 99).
+  //          مُعلَنٌ لا مُخفى (`Docs/Engineering.md §6` صفّ 99).
   commands: {
     'capture-area': {
       suggested_key: { default: 'Ctrl+Shift+Q', mac: 'Command+Shift+T' },

@@ -222,7 +222,7 @@ if (manifest) {
    * خارجي في السياسة، لكن سياسةً **تحذف `connect-src` بالكامل** كانت تمرّ
    * خضراء: الغياب ليس مطابقةً للنمط المرفوض. وشاشة الخصوصية تعرض للمستخدم
    * أن «سياسة أمن المحتوى تحجب الاتصال الخارجي» — فادّعاءٌ معروض يجب أن
-   * يحرسه البناء لا النيّة. (‏`Rasd_Plan.md §6` صفّ 126.)
+   * يحرسه البناء لا النيّة. (‏`Docs/Engineering.md §6` صفّ 126.)
    */
   const connectSelf = /\bconnect-src\s+'self'/u
   connectSelf.test(csp)
@@ -284,7 +284,7 @@ group('قدرات محظورة لكل حزمة')
  * الحقيقي كان `content ← modules/compare/reference ← shared/storage`، وكل
  * حلقة فيه مشروعة منفردةً (`modules/library/search.ts` يستورد التخزين بحقّ
  * لأنه يعمل في صفحة إضافة). الحزمة المبنية وحدها تُظهر ما وصل فعلًا.
- * القسم 2 من `Docs/Constitution.md`.
+ * القسم 2 من `AGENTS.md`.
  */
 const BUNDLE_BANS = [
   {

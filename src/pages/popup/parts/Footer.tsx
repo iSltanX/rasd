@@ -14,7 +14,7 @@ export interface FooterProps {
  *
  * الإعدادات تعيش في زرّ الترويسة لا هنا: هكذا رسمها `13 — Extension Popup`
  * حرفيًا، خلافًا لنصّ الخطة الذي يصفهما معًا في التذييل. النصّ العربي في
- * `Rasd_Plan.md` تعليقًا لا تصميمًا مُلزمًا؛ الإطار المصمَّم يحسم.
+ * `Docs/Engineering.md` تعليقًا لا تصميمًا مُلزمًا؛ الإطار المصمَّم يحسم.
  */
 export function Footer({ version, onOpenLibrary }: FooterProps): JSX.Element {
   return (

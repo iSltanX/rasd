@@ -1,6 +1,6 @@
 /**
  * كشف منصّة العرض — مطلوب حين يختلف الاختصار الفعلي المسجَّل بين macOS
- * وغيرها (`manifest.config.ts`، `Rasd_Plan.md §6` صفّ 99)، والصفحة تعرض
+ * وغيرها (`manifest.config.ts`، `Docs/Engineering.md §6` صفّ 99)، والصفحة تعرض
  * حرفًا ثابتًا لا تقرأه حيًّا من `chrome.commands.getAll()`.
  *
  * نفس نمط `pages/editor/page-meta.ts` (`BrowserSource`): واجهة ضيّقة تُحقَن

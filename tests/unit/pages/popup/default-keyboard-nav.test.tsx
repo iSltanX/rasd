@@ -52,7 +52,7 @@ function buttonLabels(root: HTMLElement, selector: string): string[] {
 /**
  * حرف الاختصار المطبوع على كل بطاقة — بترتيب `13 — Extension Popup` نفسه.
  * بطاقة «منطقة» تعرض حرفًا يتبع المنصّة (`isMacPlatform`، الوحدة 20.2،
- * `Rasd_Plan.md §6` صفّ 99): `T` على ماك، `Q` على غيرها — و`jsdom` في بيئة
+ * `Docs/Engineering.md §6` صفّ 99): `T` على ماك، `Q` على غيرها — و`jsdom` في بيئة
  * الاختبار هذه تُقرأ منصّة غير-ماك، فالمتوقَّع هنا `Q`. الفرعان كلاهما
  * مختبَران في `tests/unit/shared/platform.test.ts` والاختبار أدناه.
  */

@@ -199,6 +199,6 @@ export type ExportFormat = 'png' | 'webp'
 - [ADR 0015](0015-redaction-single-exit.md) — بوّابة الخروج الواحدة · §5 (المُصحَّح) · §8 (التفاضلي)
 - [ADR 0011](0011-canvas-limits.md) — حدود Canvas · `modules/editor/budget.ts`
 - `Rasd_Ar.md §9.1` و`§9.2` — الحافظة وصيغ التنزيل وخيارات الجودة والدقّة
-- `Rasd_Plan.md §10.2` (الوحدة 19.1) · `§6` الصفوف 102–105
+- §10.2 من الخطّة السابقة (تاريخ Git عند `63a0966`) (الوحدة 19.1) · `§6` الصفوف 102–105
 - إطارا Figma `73:2` (‏`export / modal`) و`129:1249` (‏`export / done`)
 - أمر التحقّق: `pnpm verify:export` · السالب: `RASD_BREAK_DEGRADE=1 pnpm verify:export`

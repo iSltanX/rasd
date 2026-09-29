@@ -26,7 +26,7 @@ const LEVEL_HINT: Record<QuotaState['level'], string> = {
   block: 'التخزين ممتلئ تقريبًا — احذف أو أرشِف قبل المتابعة.',
 }
 
-/** `Rasd_Plan.md §6` صفّ 73 — الشريط الآن يُلوَّن بحالة الحصّة، لا النصّ وحده. */
+/** `Docs/Engineering.md §6` صفّ 73 — الشريط الآن يُلوَّن بحالة الحصّة، لا النصّ وحده. */
 const LEVEL_TONE: Record<QuotaState['level'], ProgressBarTone> = {
   ok: 'primary',
   warn: 'warning',

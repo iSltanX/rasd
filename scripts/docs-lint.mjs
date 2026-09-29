@@ -25,7 +25,7 @@ import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const PLAN = join(root, 'Rasd_Plan.md')
+const PLAN = join(root, 'Docs/Engineering.md')
 
 /** أوّل صفّ يحكمه هذا الحارس — صفّ التبنّي (81) وما قبله خارج نطاقه. */
 const FIRST_GOVERNED_ROW = 82
@@ -50,7 +50,7 @@ const COMMAND_PATTERNS = [
 const NO_COMMAND_DECLARATION = /\[بلا أمر:\s*[^\]]{8,}\]/u
 
 if (!existsSync(PLAN)) {
-  console.error('Rasd_Plan.md غير موجود.')
+  console.error('Docs/Engineering.md غير موجود.')
   process.exit(1)
 }
 

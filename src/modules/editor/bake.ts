@@ -108,7 +108,7 @@ export interface BakeReport {
    * **دائمًا `false` لـPNG** — لا مقطع فيها أصلًا (`§6` صفّ 103أ). ولـWebP:
    * `false` حين `stripMetadata` لم تُطلَب، أو طُلبت على حاويةٍ لسببٍ ما بلا
    * `ICCP`. الحقل يقرأ نتيجة `stripWebpIccp` لا الطلب — فشاشة `export / done`
-   * تعرض الحالة الفعلية لا وعدًا (`Docs/Phases/Phase_19.md §4`).
+   * تعرض الحالة الفعلية لا وعدًا (ملفّ المرحلة 19 السابق (تاريخ Git) §4`).
    */
   readonly metadataStripped: boolean
   /** حدودٌ **تُعلَن** لا تُبتلَع: ما لم يُرسَم، وما لم يُدمَّر. */

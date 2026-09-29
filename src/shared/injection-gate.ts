@@ -42,7 +42,7 @@ export type GateReason =
  * `shared/` هو `isIncognitoContext()` (‏`shared/env.ts`)، وهي تقرأ
  * `chrome.extension.inIncognitoContext` — واجهةٌ توثّقها أنواع Chrome
  * لـ«صفحات الإضافة» والـservice worker ليس صفحة، فقيمتها داخل العامل **غير
- * مقيسة في هذا المستودع** (‏`Rasd_Plan.md §6` صفّ 121). بينما
+ * مقيسة في هذا المستودع** (‏`Docs/Engineering.md §6` صفّ 121). بينما
  * `chrome.tabs.Tab.incognito` حقلٌ موثَّق على الكائن الذي يقرؤه
  * `background/gate.ts` **أصلًا** قبل كل قرار — فالقرار يقوم على المقيس لا
  * على المفترَض، ويبقى هذا الملفّ خالصًا كما هو.
