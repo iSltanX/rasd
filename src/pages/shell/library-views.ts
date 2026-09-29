@@ -11,13 +11,23 @@ export type LibraryView =
   | { readonly kind: 'all' }
   | { readonly kind: 'favorites' }
   | { readonly kind: 'recent' }
+  | { readonly kind: 'projects' }
   | { readonly kind: 'project'; readonly id: string }
   | { readonly kind: 'palettes' }
   | { readonly kind: 'references' }
   | { readonly kind: 'guides' }
   | { readonly kind: 'colors' }
 
-const SIMPLE = ['all', 'favorites', 'recent', 'palettes', 'references', 'guides', 'colors'] as const
+const SIMPLE = [
+  'all',
+  'favorites',
+  'recent',
+  'projects',
+  'palettes',
+  'references',
+  'guides',
+  'colors',
+] as const
 
 type SimpleKind = (typeof SIMPLE)[number]
 

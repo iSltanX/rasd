@@ -36,6 +36,7 @@ import { purgeCapture, TRASH_RETENTION_DAYS } from '@/modules/library/trash'
 import { formatHuman } from '@/shared/bidi/numerals'
 import { send } from '@/shared/messaging'
 import { captures } from '@/shared/storage/repository'
+import { Button } from '@/ui/components/Button/Button'
 import { EmptyState, type EmptyStateKind } from '@/ui/components/EmptyState/EmptyState'
 import { ErrorMessage } from '@/ui/components/ErrorMessage/ErrorMessage'
 import { SegmentedControl } from '@/ui/components/SegmentedControl/SegmentedControl'
@@ -68,6 +69,7 @@ import { ColorCard } from './parts/ColorCard'
 import { Grid } from './parts/Grid'
 import { GuideCard } from './parts/GuideCard'
 import { PaletteCard } from './parts/PaletteCard'
+import { ProjectsOverview } from './parts/ProjectsOverview'
 import { ProjectsPanel } from './parts/ProjectsPanel'
 import { ReferenceCard } from './parts/ReferenceCard'
 import { SelectionBar, type LibraryViewMode } from './parts/SelectionBar'
@@ -75,6 +77,7 @@ import { SimpleGrid } from './parts/SimpleGrid'
 import { SimpleSelectionBar } from './parts/SimpleSelectionBar'
 import { TagsPanel } from './parts/TagsPanel'
 import { dateFromFor, SortSelect, Toolbar, type DateFilter, type KindFilter } from './parts/Toolbar'
+import { loadProjectOverview, type ProjectOverview } from './project-overview'
 import {
   createProject,
   deleteProject,
@@ -156,6 +159,7 @@ const TITLE: Record<Exclude<LibraryView['kind'], 'project'>, string> = {
   all: 'كل اللقطات',
   favorites: 'المميّزة',
   recent: 'الأخيرة',
+  projects: 'المشاريع',
   palettes: 'اللوحات',
   references: 'المراجع',
   colors: 'الألوان',
@@ -181,6 +185,14 @@ interface CountForms {
   accusative: string
   /** مفرد التمييز المجرور (المئات): «لقطة» · «مرجع». */
   singular: string
+}
+
+const PROJECT_FORMS: CountForms = {
+  one: 'مشروع واحد',
+  two: 'مشروعان',
+  many: 'مشاريع',
+  accusative: 'مشروعًا',
+  singular: 'مشروع',
 }
 
 const COUNT_FORMS: Record<LibraryTab, CountForms> = {
@@ -304,6 +316,7 @@ export function Library(): JSX.Element {
 
   const [projects, setProjects] = useState<ProjectRecord[]>([])
   const [projectsPanelOpen, setProjectsPanelOpen] = useState(false)
+  const [overview, setOverview] = useState<ProjectOverview[] | null>(null)
 
   const [tags, setTags] = useState<TagRecord[]>([])
   const [tagsPanelOpen, setTagsPanelOpen] = useState(false)
@@ -465,6 +478,18 @@ export function Library(): JSX.Element {
   useEffect(() => {
     void reloadProjects()
   }, [reloadProjects])
+
+  /** بطاقات النظرة العامّة — تُعاد مع كل كتابة يعيد الشريط لها عدّه. */
+  useEffect(() => {
+    if (view.kind !== 'projects') return
+    let live = true
+    void loadProjectOverview().then((result) => {
+      if (live) setOverview(result.ok ? result.value : [])
+    })
+    return () => {
+      live = false
+    }
+  }, [view.kind, revision])
 
   const reloadTags = useCallback(async () => {
     const result = await loadTagsWithCounts()
@@ -677,7 +702,9 @@ export function Library(): JSX.Element {
     view.kind === 'project'
       ? (projects.find((p) => p.id === view.id)?.name ?? projectNames[view.id] ?? 'مشروع')
       : TITLE[view.kind]
-  const isCaptures = activeTab === 'captures'
+  const isProjects = view.kind === 'projects'
+  /** عروض اللقطات — لا نظرة المشاريع، وإن كانت تحت نوع اللقطات. */
+  const isCaptures = activeTab === 'captures' && !isProjects
   const showQuotaNotice = quota !== null && quota.level !== 'ok' && !quotaNoticeDismissed
 
   return (
@@ -691,7 +718,7 @@ export function Library(): JSX.Element {
         <Toolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          searchPlaceholder={SEARCH_PLACEHOLDER[activeTab]}
+          searchPlaceholder={isProjects ? 'ابحث في المشاريع…' : SEARCH_PLACEHOLDER[activeTab]}
           captureFilters={
             isCaptures
               ? {
@@ -723,7 +750,13 @@ export function Library(): JSX.Element {
           <div class={styles.head}>
             <div class={styles.heading}>
               <h1 class={`${styles.title} t-arabic-heading-m`}>{title}</h1>
-              {loadState === 'ready' && records.length > 0 ? (
+              {isProjects ? (
+                overview && overview.length > 0 ? (
+                  <span class={`${styles.count} t-arabic-ui-xs`}>
+                    {countText(overview.length, PROJECT_FORMS)}
+                  </span>
+                ) : null
+              ) : loadState === 'ready' && records.length > 0 ? (
                 <span class={`${styles.count} t-arabic-ui-xs`}>
                   {countText(records.length, COUNT_FORMS[activeTab])}
                 </span>
@@ -739,7 +772,16 @@ export function Library(): JSX.Element {
                 </button>
               ) : null}
             </div>
-            {isCaptures ? (
+            {isProjects ? (
+              <Button
+                variant="primary"
+                size="m"
+                icon="plus"
+                onClick={() => setProjectsPanelOpen(true)}
+              >
+                مشروع جديد
+              </Button>
+            ) : isCaptures ? (
               <div class={styles.headActions}>
                 <SegmentedControl
                   options={VIEW_MODE_OPTIONS}
@@ -761,7 +803,46 @@ export function Library(): JSX.Element {
 
           <div class={styles.body}>
             <div class={styles.main}>
-              {loadState === 'loading' ? (
+              {isProjects ? (
+                overview === null ? (
+                  <div
+                    class={styles.skeletonGrid}
+                    aria-busy="true"
+                    aria-label="جارٍ تحميل المشاريع"
+                  >
+                    {Array.from({ length: 4 }, (_, i) => (
+                      <Skeleton key={i} kind="panel" />
+                    ))}
+                  </div>
+                ) : overview.length === 0 ? (
+                  <div class={styles.center}>
+                    <EmptyState
+                      kind="no-projects"
+                      action={
+                        <Button
+                          variant="primary"
+                          size="m"
+                          icon="plus"
+                          onClick={() => setProjectsPanelOpen(true)}
+                        >
+                          مشروع جديد
+                        </Button>
+                      }
+                    />
+                  </div>
+                ) : (
+                  <ProjectsOverview
+                    items={
+                      searchQuery.trim()
+                        ? overview.filter((p) => p.name.includes(searchQuery.trim()))
+                        : overview
+                    }
+                    thumbnailUrls={thumbnailUrls}
+                    onNeedThumbnail={onNeedThumbnail}
+                    onOpen={(id) => switchView({ kind: 'project', id })}
+                  />
+                )
+              ) : loadState === 'loading' ? (
                 <div class={styles.skeletonGrid} aria-busy="true" aria-label="جارٍ تحميل المكتبة">
                   {Array.from({ length: SKELETON_CARD_COUNT }, (_, i) => (
                     <Skeleton key={i} kind="card" />

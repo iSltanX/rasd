@@ -711,3 +711,31 @@ describe('countText — العدد ومعدوده', () => {
     expect(countText(248, forms)).toBe('٢٤٨ مرجعًا')
   })
 })
+
+describe('Library — نظرة المشاريع', () => {
+  it('«كل المشاريع» تعرض بطاقة لكل مشروع بعدّها، والنقر يفتح المشروع', async () => {
+    const { createProject } = await import('@/pages/library/projects')
+    const created = await createProject('مشروع النظرة', '#0090FF', NOW)
+    const projectId = created.ok ? created.value.id : ''
+    await captures.put(capture('in', { projectId }))
+    const root = await mount()
+    await waitFor(() =>
+      [...root.querySelectorAll('a')].some((a) => a.textContent?.startsWith('كل المشاريع')),
+    )
+    ;(
+      [...root.querySelectorAll('a')].find((a) =>
+        a.textContent?.startsWith('كل المشاريع'),
+      ) as HTMLAnchorElement
+    ).click()
+
+    await waitFor(() => root.querySelector(`[data-overview-project="${projectId}"]`) !== null)
+    const card = root.querySelector(`[data-overview-project="${projectId}"]`) as HTMLButtonElement
+    expect(card.textContent).toContain('مشروع النظرة')
+    expect(card.textContent).toContain('١')
+    expect(location.search).toBe('?view=projects')
+
+    card.click()
+    await waitFor(() => root.querySelector('[data-capture-id="in"]') !== null)
+    expect(location.search).toBe(`?project=${projectId}`)
+  })
+})

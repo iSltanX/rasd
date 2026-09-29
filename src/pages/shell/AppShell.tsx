@@ -98,6 +98,8 @@ export function AppShell({
     {
       title: 'المشاريع',
       entries: [
+        // نظرة المشاريع العامّة (`72:2`) — لا مدخل لها في شريط الإطار، والعنوان نصٌّ لا رابط.
+        entry({ kind: 'projects' }, 'projects', 'folder', 'كل المشاريع', data?.projects.length),
         ...(data?.projects ?? []).map((p) =>
           entry({ kind: 'project', id: p.id }, `project:${p.id}`, 'project', p.name, p.count),
         ),
