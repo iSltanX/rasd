@@ -1,0 +1,65 @@
+/*
+ * Figma `Select`: الحدّ داخل التخطيط، فالحافّة إلى النصّ 8 × 12 وإلى السهم 9، والفجوة 8.
+ * النصّ `Arabic/UI/XS Strong`. التركيز حدّ 2 بكسل `border/focus`، والمفتوح `border/brand`.
+ */
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: var(--rasd-text-secondary);
+}
+
+.native {
+  appearance: none;
+  margin: 0;
+  padding-block: calc(var(--rasd-space-8) - var(--rasd-stroke-thin));
+  padding-inline-start: calc(var(--rasd-space-12) - var(--rasd-stroke-thin));
+  padding-inline-end: calc(var(--rasd-space-8) * 2 + var(--rasd-icon-xs));
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-sunken);
+  color: inherit;
+  font: inherit;
+  font-size: var(--rasd-font-size-sm);
+  font-weight: 600;
+  line-height: var(--rasd-leading-ui);
+  cursor: pointer;
+}
+
+.chevron {
+  position: absolute;
+  inset-inline-end: var(--rasd-space-8);
+  pointer-events: none;
+  color: var(--rasd-icon-secondary);
+}
+
+.wrap:hover .native,
+.forceHover .native {
+  background: var(--rasd-surface-raised);
+  border-color: var(--rasd-border-strong);
+  color: var(--rasd-text-primary);
+}
+
+.native:focus-visible,
+.forceFocus .native {
+  outline: var(--rasd-stroke-thin) solid var(--rasd-border-focus);
+  outline-offset: 0;
+  border-color: var(--rasd-border-focus);
+  color: var(--rasd-text-primary);
+}
+
+.forceOpen .native {
+  background: var(--rasd-surface-raised);
+  border-color: var(--rasd-border-brand);
+  color: var(--rasd-text-primary);
+}
+
+.disabled .native {
+  cursor: not-allowed;
+  background: var(--rasd-surface-disabled);
+  color: var(--rasd-text-disabled);
+}
+.disabled .chevron {
+  color: var(--rasd-icon-disabled);
+}

@@ -1,3 +1,4 @@
+import { isMacPlatform } from '@/shared/platform'
 import { cx } from '@/ui/cx'
 import { Icon, type IconName } from '@/ui/icons/Icon'
 
@@ -20,41 +21,49 @@ export interface EmptyStateProps {
   class?: string | undefined
 }
 
-const CONTENT: Record<EmptyStateKind, { icon: IconName; title: string; hint: string }> = {
+/**
+ * اختصار «التقاط منطقة» الافتراضي للمنصّة — `manifest.config.ts`: `⇧⌘T` على macOS،
+ * و`Ctrl+Shift+Q` على غيرها لأن `Ctrl+Shift+T` محجوزة هناك (`Docs/Engineering.md §6` الصفّ 99).
+ */
+const captureShortcut = (): string => (isMacPlatform() ? '⇧⌘T' : 'Ctrl+Shift+Q')
+
+/** نصوص الحالات الأربع المرسومة من مكوّن Figma `Empty State` (`89:297`). */
+const CONTENT: Record<EmptyStateKind, { icon: IconName; title: string; hint: () => string }> = {
   'no-captures': {
-    icon: 'capture-full',
-    title: 'لا لقطات بعد',
-    hint: 'ابدأ بالتقاط جزء من الصفحة أو الصفحة كاملة.',
+    icon: 'capture-area',
+    title: 'لا توجد لقطات بعد',
+    hint: () =>
+      `اضغط ${captureShortcut()} في أي صفحة لالتقاط الأولى، أو افتح نافذة رصد من شريط الأدوات.`,
   },
   'no-results': {
     icon: 'search',
-    title: 'لا نتائج مطابقة',
-    hint: 'جرّب كلمات بحث أو مرشِّحات مختلفة.',
+    title: 'لا نتائج',
+    hint: () => 'لا شيء يطابق البحث. جرّب قيمة HEX أو رابطًا، أو امسح المرشّحات.',
   },
   'no-reference': {
-    icon: 'overlay',
-    title: 'لا مرجع محفوظ',
-    hint: 'احفظ لقطة بوصفها مرجعًا لهذا المشروع.',
+    icon: 'split-view',
+    title: 'لا يوجد مرجع',
+    hint: () => 'ثبّت لقطة كمرجع لهذا المشروع، ثم ضعها فوق الصفحة الحيّة.',
   },
   'no-palette': {
-    icon: 'palette',
-    title: 'لا لوحة ألوان بعد',
-    hint: 'استخرج لوحة من الصفحة أو من لقطة محفوظة.',
+    icon: 'swatches',
+    title: 'لا ألوان محفوظة',
+    hint: () => 'اسحب لونًا بالقطّارة واحفظه — تُصدَّر اللوحات إلى CSS أو JSON أو إعداد Tailwind.',
   },
   'no-projects': {
     icon: 'folder',
     title: 'لا مشاريع بعد',
-    hint: 'أنشئ مشروعًا لتنظيم لقطاتك وموادّك تحته.',
+    hint: () => 'أنشئ مشروعًا لتنظيم لقطاتك وموادّك تحته.',
   },
   'no-colors': {
     icon: 'eyedropper',
     title: 'لا ألوان محفوظة بعد',
-    hint: 'التقط لونًا من الصفحة أو أضِفه يدويًّا لحفظه هنا.',
+    hint: () => 'التقط لونًا من الصفحة أو أضِفه يدويًّا لحفظه هنا.',
   },
   'no-guides': {
     icon: 'list-view',
     title: 'لا أدلّة خطوات بعد',
-    hint: 'اجمع لقطات مرقَّمة في دليل واحد لمشاركته.',
+    hint: () => 'اجمع لقطات مرقَّمة في دليل واحد لمشاركته.',
   },
 }
 
@@ -72,7 +81,7 @@ export function EmptyState({ kind, action, class: className }: EmptyStateProps):
         <Icon name={content.icon} size="xl" class={styles.icon} />
       </span>
       <p class={styles.title}>{content.title}</p>
-      <p class={styles.hint}>{content.hint}</p>
+      <p class={styles.hint}>{content.hint()}</p>
       {action ? <div class={styles.action}>{action}</div> : null}
     </div>
   )

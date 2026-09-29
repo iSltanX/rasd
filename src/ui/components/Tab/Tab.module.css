@@ -1,0 +1,47 @@
+/*
+ * Figma `Tab`: حشوة 6 × 10، نصف قطر 7 (بين درجتَي السلّم 6 و8 — أُخذت 6)،
+ * نصّ `Arabic/UI/XS`، والمحدَّد `Arabic/UI/XS Strong`.
+ */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rasd-space-4);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: var(--rasd-space-6);
+  padding-inline: var(--rasd-space-10);
+  border: none;
+  border-radius: var(--rasd-radius-sm);
+  background: transparent;
+  color: var(--rasd-text-secondary);
+  font: inherit;
+  font-size: var(--rasd-font-size-sm);
+  line-height: var(--rasd-leading-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab:hover,
+.forceHover {
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-text-primary);
+}
+
+.tab:focus-visible,
+.forceFocus {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: calc(var(--rasd-stroke-thick) * -1);
+  color: var(--rasd-text-primary);
+}
+
+.selected,
+.selected:hover {
+  background: var(--rasd-surface-brand-subtle);
+  color: var(--rasd-text-brand);
+  font-weight: 600;
+}

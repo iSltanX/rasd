@@ -75,6 +75,25 @@ export function formatBytes(bytes: number): string {
   return `${formatMeasure(rounded)} ${units[unit]}`
 }
 
+/**
+ * حجم بوحدة لاتينية لخانة أحادية المسافة: `184 MB` · `1.2 GB`.
+ *
+ * مؤشّر المساحة يعرض القيمة بخطّ `Geist Mono`، وهو بلا حروف عربية — فوحدة
+ * `formatBytes` العربية تسقط فيه إلى خطّ احتياطي مفكّك. أقلّ من عشرة بخانة عشرية.
+ */
+export function formatStorage(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return '—'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit++
+  }
+  const rounded = unit === 0 || value >= 10 ? Math.round(value) : Math.round(value * 10) / 10
+  return `${formatMeasure(rounded)} ${units[unit]}`
+}
+
 /** زمن نسبي بأرقام هندية: «قبل ٣ دقائق» · «الآن». */
 export function formatRelativeTime(timestamp: number, now = Date.now()): string {
   const seconds = Math.round((now - timestamp) / 1000)

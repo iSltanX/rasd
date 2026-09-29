@@ -8,6 +8,7 @@ import {
   formatPercent,
   formatRatio,
   formatRelativeTime,
+  formatStorage,
   formatUnit,
   plural,
 } from '@/shared/bidi'
@@ -112,6 +113,14 @@ describe('صيغ القياس المركّبة', () => {
     expect(formatBytes(1024 * 1024 * 3)).toBe('3 ميغابايت')
     expect(formatBytes(4710)).toMatch(WESTERN)
     expect(formatBytes(4710)).not.toMatch(ARABIC_INDIC)
+  })
+
+  it('حجم التخزين بوحدة لاتينية لخانة المونو: عشري تحت العشرة وصحيح فوقها', () => {
+    expect(formatStorage(512)).toBe('512 B')
+    expect(formatStorage(1024 * 1024 * 184.4)).toBe('184 MB')
+    expect(formatStorage(1024 * 1024 * 1024 * 1.25)).toBe('1.3 GB')
+    expect(formatStorage(Number.NaN)).toBe('—')
+    expect(formatStorage(1024 * 1024 * 184)).not.toMatch(ARABIC_INDIC)
   })
 })
 

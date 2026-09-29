@@ -66,7 +66,7 @@ export const MATRICES: readonly ComponentMatrix[] = [
   },
   {
     name: 'Chip',
-    figmaCount: 18,
+    figmaCount: 24,
     axes: [
       {
         prop: 'tone',
@@ -80,6 +80,9 @@ export const MATRICES: readonly ComponentMatrix[] = [
           'success',
           'warning',
           'danger',
+          'info',
+          'compare',
+          'colors',
         ],
       },
       { prop: 'style', values: ['soft', 'solid'] },
@@ -172,6 +175,63 @@ export const MATRICES: readonly ComponentMatrix[] = [
       },
     ],
   },
+  // ── المضافة في `STAGES/02` (`Docs/Design.md` §4) ──
+  {
+    name: 'Nav Item',
+    figmaCount: 8,
+    axes: [
+      { prop: 'count', values: ['on', 'off'] },
+      { prop: 'state', values: ['default', 'hover', 'active', 'focus'] },
+    ],
+  },
+  {
+    name: 'Select',
+    figmaCount: 5,
+    axes: [{ prop: 'state', values: ['default', 'hover', 'focus', 'open', 'disabled'] }],
+  },
+  {
+    name: 'Storage Meter',
+    figmaCount: 3,
+    axes: [{ prop: 'level', values: ['normal', 'near-full', 'unknown'] }],
+  },
+  {
+    name: 'Setting Row',
+    figmaCount: 12,
+    axes: [
+      { prop: 'control', values: ['toggle', 'select', 'key', 'chip', 'button', 'none'] },
+      { prop: 'divider', values: ['off', 'on'] },
+    ],
+  },
+  {
+    name: 'Footer',
+    figmaCount: 4,
+    axes: [
+      { prop: 'layout', values: ['inline', 'stacked'] },
+      { prop: 'repo', values: ['hidden', 'shown'] },
+    ],
+  },
+  { name: 'Error Message', figmaCount: 2, axes: [{ prop: 'layout', values: ['inline', 'page'] }] },
+  {
+    name: 'Tab',
+    figmaCount: 4,
+    axes: [{ prop: 'state', values: ['default', 'hover', 'selected', 'focus'] }],
+  },
+  {
+    name: 'Option Card',
+    figmaCount: 5,
+    axes: [{ prop: 'state', values: ['default', 'hover', 'selected', 'focus', 'disabled'] }],
+  },
+  {
+    name: 'Field',
+    figmaCount: 6,
+    axes: [
+      { prop: 'lines', values: ['single', 'multi'] },
+      { prop: 'state', values: ['default', 'focus', 'error'] },
+    ],
+  },
+  // مكوّنان مفردان بلا محاور: الحالة النشطة تُضبط في النسخة.
+  { name: 'Section Nav', figmaCount: 1, axes: [] },
+  { name: 'App Sidebar', figmaCount: 1, axes: [] },
 ]
 
 /** حاصل الضرب الديكارتي لمحاور مصفوفة — كل تركيبة variant ممكنة. */

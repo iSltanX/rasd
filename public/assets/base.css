@@ -138,17 +138,23 @@ video {
   flex: none;
 }
 
+/*
+ * مكوّن Figma `KeyCap`: ارتفاع 20 وأدنى عرض 20، يحتضن نصّه بحشوة 6، ونصف قطر 4.
+ * الحدّ خارج التخطيط في Figma، فالحشوة هنا 6 ناقص سماكته.
+ */
 .rasd-keycap {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-inline-size: var(--rasd-control-xs);
-  padding-inline: var(--rasd-space-6);
-  padding-block: var(--rasd-space-2);
-  border-radius: var(--rasd-radius-sm);
+  flex: none;
+  block-size: var(--rasd-icon-md);
+  min-inline-size: var(--rasd-icon-md);
+  padding-inline: calc(var(--rasd-space-6) - var(--rasd-stroke-thin));
+  border-radius: var(--rasd-radius-xs);
   border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
   background: var(--rasd-surface-raised);
   color: var(--rasd-text-secondary);
+  white-space: nowrap;
 }
 
 /* عناصر مخفيّة بصريًا لكنها متاحة لقارئ الشاشة — نمط قياسي. */

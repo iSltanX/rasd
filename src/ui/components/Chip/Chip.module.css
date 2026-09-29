@@ -1,13 +1,33 @@
+/*
+ * Figma `Chip`: ارتفاع 22، حشوة أفقية 8 يحتلّ الحدّ منها بكسلًا (الحدّ خارج
+ * التخطيط في Figma)، فجوة 5، نصف قطر 6، نصّ `Arabic/Label/XS`، ونقطة 6 × 6.
+ * كل درجة تضبط ثلاثة متغيّرات محلّية لا غير — السطح والحدّ واللون.
+ */
 .chip {
+  --chip-bg: var(--rasd-surface-raised);
+  --chip-border: var(--rasd-border-default);
+  --chip-fg: var(--rasd-text-secondary);
   display: inline-flex;
   align-items: center;
-  gap: var(--rasd-space-4);
-  padding-inline: var(--rasd-space-8);
-  block-size: var(--rasd-control-xs);
+  gap: calc(var(--rasd-space-4) + var(--rasd-stroke-thin));
+  padding-inline: calc(var(--rasd-space-8) - var(--rasd-stroke-thin));
+  block-size: calc(var(--rasd-space-20) + var(--rasd-space-2));
+  border: var(--rasd-stroke-thin) solid var(--chip-border);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  font-size: var(--rasd-font-size-xs);
+  font-weight: 700;
+  line-height: var(--rasd-leading-label);
+  white-space: nowrap;
+}
+
+.dot {
+  flex: none;
+  inline-size: var(--rasd-space-6);
+  block-size: var(--rasd-space-6);
   border-radius: var(--rasd-radius-full);
-  font-size: var(--rasd-font-size-sm);
-  font-weight: 600;
-  border: var(--rasd-stroke-thin) solid transparent;
+  background: currentColor;
 }
 
 .remove {
@@ -29,84 +49,101 @@
   border-radius: var(--rasd-radius-xs);
 }
 
-/* soft: خلفية الفام + نصّ الفام. solid: خلفية صلبة + نصّ معاكس. */
-.style-soft.tone-neutral {
-  background: var(--rasd-surface-hover);
-  color: var(--rasd-text-secondary);
+/* soft: سطح الدرجة وحدّها ولونها. */
+.tone-brand {
+  --chip-bg: var(--rasd-surface-brand-subtle);
+  --chip-border: var(--rasd-border-brand);
+  --chip-fg: var(--rasd-text-brand);
+}
+.tone-capture {
+  --chip-bg: var(--rasd-tool-capture-surface);
+  --chip-border: var(--rasd-tool-capture-border);
+  --chip-fg: var(--rasd-tool-capture-fg);
+}
+.tone-annotate {
+  --chip-bg: var(--rasd-tool-annotate-surface);
+  --chip-border: var(--rasd-tool-annotate-border);
+  --chip-fg: var(--rasd-tool-annotate-fg);
+}
+.tone-inspect {
+  --chip-bg: var(--rasd-tool-inspect-surface);
+  --chip-border: var(--rasd-tool-inspect-border);
+  --chip-fg: var(--rasd-tool-inspect-fg);
+}
+.tone-measure {
+  --chip-bg: var(--rasd-tool-measure-surface);
+  --chip-border: var(--rasd-tool-measure-border);
+  --chip-fg: var(--rasd-tool-measure-fg);
+}
+.tone-compare {
+  --chip-bg: var(--rasd-tool-compare-surface);
+  --chip-border: var(--rasd-tool-compare-border);
+  --chip-fg: var(--rasd-tool-compare-fg);
+}
+.tone-colors {
+  --chip-bg: var(--rasd-tool-colors-surface);
+  --chip-border: var(--rasd-tool-colors-border);
+  --chip-fg: var(--rasd-tool-colors-fg);
+}
+.tone-success {
+  --chip-bg: var(--rasd-status-success-surface);
+  --chip-border: var(--rasd-status-success-border);
+  --chip-fg: var(--rasd-status-success-fg);
+}
+.tone-warning {
+  --chip-bg: var(--rasd-status-warning-surface);
+  --chip-border: var(--rasd-status-warning-border);
+  --chip-fg: var(--rasd-status-warning-fg);
+}
+.tone-danger {
+  --chip-bg: var(--rasd-status-danger-surface);
+  --chip-border: var(--rasd-status-danger-border);
+  --chip-fg: var(--rasd-status-danger-fg);
+}
+.tone-info {
+  --chip-bg: var(--rasd-status-info-surface);
+  --chip-border: var(--rasd-status-info-border);
+  --chip-fg: var(--rasd-status-info-fg);
+}
+
+/* solid: اللون الصلب ونصّ معاكس، والحدّ بلون السطح فلا يتغيّر المقاس. */
+.style-solid {
+  --chip-fg: var(--rasd-text-inverse);
+  --chip-border: var(--chip-bg);
 }
 .style-solid.tone-neutral {
-  background: var(--rasd-icon-secondary);
-  color: var(--rasd-text-on-brand);
-}
-
-.style-soft.tone-brand {
-  background: var(--rasd-surface-brand-subtle);
-  color: var(--rasd-text-brand);
+  --chip-bg: var(--rasd-surface-inverse);
 }
 .style-solid.tone-brand {
-  background: var(--rasd-action-primary-rest);
-  color: var(--rasd-text-on-brand);
-}
-
-.style-soft.tone-capture {
-  background: var(--rasd-tool-capture-surface);
-  color: var(--rasd-tool-capture-fg);
+  --chip-bg: var(--rasd-action-primary-rest);
 }
 .style-solid.tone-capture {
-  background: var(--rasd-tool-capture-solid);
-  color: var(--rasd-text-on-brand);
-}
-
-.style-soft.tone-annotate {
-  background: var(--rasd-tool-annotate-surface);
-  color: var(--rasd-tool-annotate-fg);
+  --chip-bg: var(--rasd-tool-capture-solid);
 }
 .style-solid.tone-annotate {
-  background: var(--rasd-tool-annotate-solid);
-  color: var(--rasd-text-on-brand);
-}
-
-.style-soft.tone-inspect {
-  background: var(--rasd-tool-inspect-surface);
-  color: var(--rasd-tool-inspect-fg);
+  --chip-bg: var(--rasd-tool-annotate-solid);
 }
 .style-solid.tone-inspect {
-  background: var(--rasd-tool-inspect-solid);
-  color: var(--rasd-text-on-brand);
-}
-
-.style-soft.tone-measure {
-  background: var(--rasd-tool-measure-surface);
-  color: var(--rasd-tool-measure-fg);
+  --chip-bg: var(--rasd-tool-inspect-solid);
 }
 .style-solid.tone-measure {
-  background: var(--rasd-tool-measure-solid);
-  color: var(--rasd-text-on-brand);
+  --chip-bg: var(--rasd-tool-measure-solid);
 }
-
-.style-soft.tone-success {
-  background: var(--rasd-status-success-surface);
-  color: var(--rasd-status-success-fg);
+.style-solid.tone-compare {
+  --chip-bg: var(--rasd-tool-compare-solid);
+}
+.style-solid.tone-colors {
+  --chip-bg: var(--rasd-tool-colors-solid);
 }
 .style-solid.tone-success {
-  background: var(--rasd-status-success-solid);
-  color: var(--rasd-text-on-brand);
-}
-
-.style-soft.tone-warning {
-  background: var(--rasd-status-warning-surface);
-  color: var(--rasd-status-warning-fg);
+  --chip-bg: var(--rasd-status-success-solid);
 }
 .style-solid.tone-warning {
-  background: var(--rasd-status-warning-solid);
-  color: var(--rasd-text-on-brand);
-}
-
-.style-soft.tone-danger {
-  background: var(--rasd-status-danger-surface);
-  color: var(--rasd-status-danger-fg);
+  --chip-bg: var(--rasd-status-warning-solid);
 }
 .style-solid.tone-danger {
-  background: var(--rasd-status-danger-solid);
-  color: var(--rasd-text-on-brand);
+  --chip-bg: var(--rasd-status-danger-solid);
+}
+.style-solid.tone-info {
+  --chip-bg: var(--rasd-status-info-solid);
 }

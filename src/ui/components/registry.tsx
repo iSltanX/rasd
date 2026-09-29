@@ -5,24 +5,38 @@
  * وتضعها في الشبكة، واختبار `render-all.test.tsx` يستدعي الدالّة نفسها
  * ويؤكّد أنها لا ترمي. لا فرصة لانحراف بين ما يُعرض وما يُختبر.
  */
+import { KeyCap } from '../TechnicalValue'
+
 import { MATRICES, type ComponentMatrix } from './matrices'
 
 import {
+  AppSidebar,
   Avatar,
   Banner,
   Button,
   Checkbox,
   Chip,
   EmptyState,
+  ErrorMessage,
+  Field,
+  Footer,
   IconButton,
   Input,
   Menu,
+  NavItem,
+  OptionCard,
   ProgressBar,
   Radio,
+  SectionNav,
   SegmentedControl,
+  Select,
+  SettingRow,
   Skeleton,
   Slider,
   Spinner,
+  StorageMeter,
+  Tab,
+  TabRow,
   Tabs,
   Toast,
   Toggle,
@@ -176,6 +190,146 @@ export const RENDERERS: Record<string, RenderFn> = {
     />
   ),
 }
+
+/** أقسام الإعدادات التسعة بأيقوناتها كما في `Section Nav` (`280:740`). */
+const SECTIONS = [
+  { id: 'capture', label: 'التصوير', icon: 'capture-area' },
+  { id: 'annotation', label: 'التعليقات', icon: 'pen' },
+  { id: 'colors', label: 'الألوان', icon: 'eyedropper' },
+  { id: 'appearance', label: 'المظهر', icon: 'swatches' },
+  { id: 'shortcuts', label: 'الاختصارات', icon: 'keyboard' },
+  { id: 'privacy', label: 'الخصوصية', icon: 'shield' },
+  { id: 'data', label: 'البيانات', icon: 'folder' },
+  { id: 'integrations', label: 'التكاملات', icon: 'plug' },
+  { id: 'about', label: 'عن رصد', icon: 'info' },
+] as const
+
+const MB = 1024 * 1024
+
+const NEW_RENDERERS: Record<string, RenderFn> = {
+  'Nav Item': (c) => (
+    <NavItem
+      icon="grid-view"
+      label="كل اللقطات"
+      count={c.count === 'on' ? 248 : undefined}
+      state={c.state as never}
+    />
+  ),
+  Select: (c) => (
+    <Select
+      value="png"
+      options={[
+        { value: 'png', label: 'PNG' },
+        { value: 'webp', label: 'WebP' },
+      ]}
+      state={c.state as never}
+      aria-label="الصيغة الافتراضية"
+    />
+  ),
+  'Storage Meter': (c) => (
+    <div style={{ inlineSize: 'calc(var(--rasd-space-160) + var(--rasd-space-56))' }}>
+      <StorageMeter
+        usage={c.level === 'unknown' ? null : c.level === 'near-full' ? 900 * MB : 184 * MB}
+        quota={c.level === 'unknown' ? null : 1024 * MB}
+        level={c.level as never}
+      />
+    </div>
+  ),
+  'Setting Row': (c) => (
+    <SettingRow
+      label="افتح المحرّر بعد الالتقاط"
+      hint="انتقل مباشرة إلى التعليق"
+      divider={c.divider === 'on'}
+      control={
+        c.control === 'toggle' ? (
+          <Toggle on aria-label="افتح المحرّر بعد الالتقاط" />
+        ) : c.control === 'select' ? (
+          <Select value="png" options={[{ value: 'png', label: 'PNG' }]} aria-label="الصيغة" />
+        ) : c.control === 'key' ? (
+          <KeyCap>⇧⌘T</KeyCap>
+        ) : c.control === 'chip' ? (
+          <Chip tone="neutral">قريبًا</Chip>
+        ) : c.control === 'button' ? (
+          <Button variant="secondary" size="s">
+            استعِد
+          </Button>
+        ) : undefined
+      }
+    />
+  ),
+  Footer: (c) => <Footer layout={c.layout as never} showRepo={c.repo === 'shown'} />,
+  'Error Message': (c) => (
+    <ErrorMessage
+      layout={c.layout as never}
+      title="تعذّر حفظ اللقطة"
+      body="المساحة على هذا الجهاز لا تكفي. احذف لقطات قديمة ثمّ أعد المحاولة."
+      onRetry={() => undefined}
+    />
+  ),
+  Tab: (c) => (
+    <TabRow aria-label="أقسام اللوح">
+      <Tab label="الأنماط" state={c.state as never} />
+    </TabRow>
+  ),
+  'Option Card': (c) => (
+    <div role="radiogroup" aria-label="الصيغة">
+      <OptionCard
+        icon="image"
+        title="PNG"
+        hint={c.state === 'disabled' ? 'قريبًا' : 'بلا فقد'}
+        name={`format-${c.state}`}
+        value="png"
+        state={c.state as never}
+      />
+    </div>
+  ),
+  Field: (c) => (
+    <Field
+      id={`field-${c.lines}-${c.state}`}
+      label="عنوان المشكلة"
+      value=""
+      placeholder="اكتب هنا"
+      hint={c.state === 'error' ? 'اكتب عنوانًا من كلمتين على الأقل' : 'تلميح'}
+      multiline={c.lines === 'multi'}
+      state={c.state as never}
+    />
+  ),
+  'Section Nav': () => (
+    <SectionNav
+      entries={SECTIONS}
+      activeId="capture"
+      onSelect={() => undefined}
+      aria-label="أقسام الإعدادات"
+    />
+  ),
+  'App Sidebar': () => (
+    <AppSidebar
+      activeId="all"
+      primaryAction={{ label: 'لقطة جديدة', icon: 'capture-area', onClick: () => undefined }}
+      groups={[
+        {
+          entries: [
+            { id: 'all', icon: 'grid-view', label: 'كل اللقطات', count: 248 },
+            { id: 'favorites', icon: 'star', label: 'المميّزة', count: 12 },
+            { id: 'recent', icon: 'history', label: 'الأخيرة', count: 36 },
+          ],
+        },
+        {
+          title: 'المجموعات',
+          entries: [
+            { id: 'palettes', icon: 'swatches', label: 'اللوحات', count: 19 },
+            { id: 'references', icon: 'image', label: 'المراجع', count: 8 },
+            { id: 'guides', icon: 'file-code', label: 'أدلة الخطوات', count: 5 },
+          ],
+        },
+      ]}
+      storage={{ usage: 184 * MB, quota: 1024 * MB }}
+      settings={{ id: 'settings', icon: 'settings', label: 'الإعدادات' }}
+    />
+  ),
+}
+
+Object.assign(RENDERERS, NEW_RENDERERS)
 
 export function rendererFor(matrix: ComponentMatrix): RenderFn {
   const fn = RENDERERS[matrix.name]

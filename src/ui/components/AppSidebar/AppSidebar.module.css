@@ -1,0 +1,69 @@
+/*
+ * Figma `App Sidebar` (`270:264`): عرض 244، حشوة 18 × 14 وأسفلها 14، سطح
+ * `surface/default` وحدّ `border/subtle` في نهايته (يسارًا في RTL). الأعلى عمود بفجوة
+ * 20، والأسفل بفجوة 8. عنوان المجموعة `Arabic/Label/XS` بحشوة بداية 10 وأسفل 6.
+ */
+.sidebar {
+  position: sticky;
+  inset-block-start: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--rasd-space-20);
+  flex: none;
+  inline-size: calc(var(--rasd-space-160) + var(--rasd-space-80) + var(--rasd-space-4));
+  block-size: 100vh;
+  overflow-y: auto;
+  padding-block-start: calc(var(--rasd-space-16) + var(--rasd-space-2));
+  padding-block-end: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  background: var(--rasd-surface-default);
+  border-inline-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-20);
+}
+
+.brand {
+  display: inline-flex;
+  align-self: flex-start;
+  padding-block: var(--rasd-space-2);
+  padding-inline-start: var(--rasd-space-8);
+  border-radius: var(--rasd-radius-sm);
+  color: inherit;
+}
+
+.primary {
+  inline-size: 100%;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-20);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-2);
+}
+
+.groupTitle {
+  margin: 0;
+  padding-block-end: var(--rasd-space-6);
+  padding-inline-start: var(--rasd-space-10);
+  color: var(--rasd-text-secondary);
+  font-size: var(--rasd-font-size-xs);
+  font-weight: 700;
+  line-height: var(--rasd-leading-label);
+}
+
+.bottom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+}

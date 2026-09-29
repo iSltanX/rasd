@@ -1,0 +1,48 @@
+/*
+ * Figma `Error Message`: داخل السطح حشوة 16 وفجوة 10 (أقرب درجة: 12) على سطح
+ * `status/danger/surface` بحدّ `status/danger/border`؛ والصفحة حشوة 32 وفجوة 16 على
+ * `surface/default` متمركزة. العنوان `Arabic/UI/S Strong` والنصّ `Arabic/UI/XS`.
+ */
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid transparent;
+}
+
+.inline {
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-16);
+  background: var(--rasd-status-danger-surface);
+  border-color: var(--rasd-status-danger-border);
+}
+
+.page {
+  gap: var(--rasd-space-16);
+  align-items: center;
+  text-align: center;
+  padding: var(--rasd-space-32);
+  background: var(--rasd-surface-default);
+  border-color: var(--rasd-border-subtle);
+}
+
+.title {
+  margin: 0;
+  color: var(--rasd-text-primary);
+  font-size: var(--rasd-font-size-base);
+  font-weight: 600;
+  line-height: var(--rasd-leading-ui);
+}
+
+.body {
+  color: var(--rasd-text-secondary);
+  font-size: var(--rasd-font-size-sm);
+  line-height: var(--rasd-leading-ui);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-8);
+}

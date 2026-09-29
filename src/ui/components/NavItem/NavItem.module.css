@@ -1,0 +1,65 @@
+/*
+ * Figma `Nav Item`: حشوة 8 × 10، نصف قطر 8، أيقونة 16، فجوة 9 بين الأيقونة
+ * والعنوان (أقرب درجة من السلّم: 8)، عنوان `Arabic/UI/S` وعدّاد `Arabic/Label/XS`.
+ * التركيز حدّ 2 بكسل داخل العنصر فلا يتحرّك ما حوله.
+ */
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-8);
+  inline-size: 100%;
+  padding-block: var(--rasd-space-8);
+  padding-inline: var(--rasd-space-10);
+  border: none;
+  border-radius: var(--rasd-radius-md);
+  background: transparent;
+  color: var(--rasd-text-secondary);
+  font: inherit;
+  font-size: var(--rasd-font-size-base);
+  line-height: var(--rasd-leading-ui);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.labelGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  min-inline-size: 0;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  flex: none;
+  font-size: var(--rasd-font-size-xs);
+  font-weight: 700;
+  line-height: var(--rasd-leading-label);
+  color: var(--rasd-text-secondary);
+}
+
+.item:hover,
+.forceHover {
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-text-primary);
+}
+
+.item:focus-visible,
+.forceFocus {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: calc(var(--rasd-stroke-thick) * -1);
+  color: var(--rasd-text-primary);
+}
+
+.active,
+.active:hover {
+  background: var(--rasd-surface-brand-subtle);
+  color: var(--rasd-text-brand);
+  font-weight: 600;
+}

@@ -98,20 +98,20 @@ describe('Library — الحالات المصمَّمة', () => {
   it('حالة empty: لا لقطات ⇒ EmptyState بلا شبكة', async () => {
     const root = await mount()
     expect(root.querySelector('[data-testid="library-grid-scroller"]')).toBeFalsy()
-    expect(root.textContent).toContain('لا لقطات بعد')
+    expect(root.textContent).toContain('لا توجد لقطات بعد')
   })
 
   it('حالة grid: لقطات موجودة ⇒ الشبكة تُرسَم لا EmptyState', async () => {
     await captures.put(capture('a'))
     const root = await mount()
     expect(root.querySelector('[data-testid="library-grid-scroller"]')).toBeTruthy()
-    expect(root.textContent).not.toContain('لا لقطات بعد')
+    expect(root.textContent).not.toContain('لا توجد لقطات بعد')
   })
 
   it('المهملات لا تظهر في الشبكة الافتراضية', async () => {
     await captures.put(capture('trashed', { trashedAt: NOW }))
     const root = await mount()
-    expect(root.textContent).toContain('لا لقطات بعد')
+    expect(root.textContent).toContain('لا توجد لقطات بعد')
   })
 
   it('حالة selection: تحديد بطاقة يُظهر شريط الإجراءات بالعدد الصحيح', async () => {
@@ -143,9 +143,9 @@ describe('Library — الحالات المصمَّمة', () => {
     ) as HTMLButtonElement
     trashButton.click()
     // الشرط المباشر لا مؤشّر التحميل العابر — انظر تعليل `waitFor`.
-    await waitFor(() => root.textContent?.includes('لا لقطات بعد') ?? false)
+    await waitFor(() => root.textContent?.includes('لا توجد لقطات بعد') ?? false)
 
-    expect(root.textContent).toContain('لا لقطات بعد')
+    expect(root.textContent).toContain('لا توجد لقطات بعد')
     expect(root.querySelector('[role="toolbar"]')).toBeFalsy()
 
     const stored = await captures.get('a')
@@ -187,7 +187,9 @@ describe('Library — التبويبات', () => {
     const root = await mount()
     clickTab(root, 'اللوحات')
     await waitFor(() => !root.querySelector('[aria-busy="true"]'))
-    expect(root.textContent).toContain('لا لوحة ألوان بعد')
+    // نصّ الحالة من مكوّن Figma `Empty State / No palette`، وعبارة التصدير تخصّ اللوحات وحدها.
+    expect(root.textContent).toContain('لا ألوان محفوظة')
+    expect(root.textContent).toContain('تُصدَّر اللوحات')
   })
 
   it('شريط الترتيب والتفضيل يختفي خارج تبويب اللقطات، والبحث يبقى', async () => {

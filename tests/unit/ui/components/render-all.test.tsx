@@ -32,8 +32,10 @@ describe('MATRICES — عدد التركيبات يطابق Figma', () => {
   }
 
   it('الإجمالي عبر كل المجموعات كما في صفحة 12 — Components', () => {
+    // 249 قبل `STAGES/02`، ثمّ +6 لدرجات الرقاقة الثلاث، و+49 للمجموعات التسع الجديدة،
+    // و+2 للمكوّنين المفردين `Section Nav` و`App Sidebar`.
     const total = MATRICES.reduce((sum, m) => sum + m.figmaCount, 0)
-    expect(total).toBe(249)
+    expect(total).toBe(306)
   })
 })
 

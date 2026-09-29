@@ -1,0 +1,63 @@
+/*
+ * Figma `Storage Meter`: سطح `surface/raised`، حشوة 11 × 12 (أقرب درجة: 12)، فجوة 8،
+ * نصف قطر 10 (أقرب درجة: 12)، مسار 4 بكسل بنصف قطر 2، والقيمة `Mono/2XS`.
+ */
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+  padding: var(--rasd-space-12);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-text-secondary);
+  font-size: var(--rasd-font-size-sm);
+  line-height: var(--rasd-leading-ui);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-8);
+}
+
+.label,
+.value {
+  white-space: nowrap;
+}
+.value {
+  color: var(--rasd-text-secondary);
+}
+
+.track {
+  position: relative;
+  block-size: var(--rasd-space-4);
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-surface-sunken);
+  overflow: hidden;
+}
+
+.bar {
+  display: block;
+  block-size: 100%;
+  inline-size: calc(var(--rasd-storage-ratio) * 100%);
+  border-radius: var(--rasd-radius-xs);
+  background: var(--rasd-action-primary-rest);
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-6);
+}
+.noteIcon {
+  color: var(--rasd-icon-secondary);
+}
+
+.nearFull .value,
+.nearFull .noteIcon {
+  color: var(--rasd-status-warning-fg);
+}
+.nearFull .bar {
+  background: var(--rasd-status-warning-fg);
+}

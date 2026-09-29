@@ -20,7 +20,7 @@ export interface TechnicalValueProps {
   /** صنف القيمة — يظهر في `data-kind` للتنسيق والاختبار. */
   kind?: TechnicalKind
   /** فئة نمط النص. الافتراضي أحادي المسافة لأن هذه قيم تقنية. */
-  variant?: 'mono-s' | 'mono-xs' | 'mono-m' | 'inherit'
+  variant?: 'mono-s' | 'mono-xs' | 'mono-2xs' | 'mono-m' | 'inherit'
   class?: string | undefined
   title?: string
 }
@@ -63,11 +63,11 @@ export function ColorValue({
   )
 }
 
-/** مفتاح لوحة مفاتيح — لا يُعكس ولا يُترجم. */
+/** مفتاح لوحة مفاتيح — لا يُعكس ولا يُترجم. مكوّن Figma `KeyCap` (`45:164`): يحتضن نصّه بخطّ `Mono/2XS`. */
 export function KeyCap({ children }: { children: string }): JSX.Element {
   return (
     <kbd class="rasd-keycap">
-      <TechnicalValue kind="key" variant="mono-xs">
+      <TechnicalValue kind="key" variant="mono-2xs">
         {children}
       </TechnicalValue>
     </kbd>

@@ -1,0 +1,65 @@
+/*
+ * Figma `Field`: عمود بفجوة 6؛ العنوان `Arabic/UI/XS Strong`، والصندوق حشوته 9 × 12
+ * (الحدّ داخل التخطيط: ارتفاعه 41) ونصف قطره 8 على `surface/sunken`، والنصّ `Arabic/UI/S`،
+ * والتلميح `Arabic/UI/XS`. الخطأ يبدّل الحدّ ولون التلميح معًا.
+ */
+.field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--rasd-space-6);
+}
+
+.label {
+  color: var(--rasd-text-primary);
+  font-size: var(--rasd-font-size-sm);
+  font-weight: 600;
+  line-height: var(--rasd-leading-ui);
+}
+
+.box {
+  margin: 0;
+  padding-block: calc(var(--rasd-space-10) - var(--rasd-stroke-thin));
+  padding-inline: var(--rasd-space-12);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-sunken);
+  color: var(--rasd-text-primary);
+  font: inherit;
+  font-size: var(--rasd-font-size-base);
+  line-height: var(--rasd-leading-ui);
+}
+.box::placeholder {
+  color: var(--rasd-text-tertiary);
+}
+
+.multi {
+  min-block-size: var(--rasd-space-96);
+  resize: vertical;
+}
+
+.box:focus-visible,
+.forceFocus .box {
+  outline: var(--rasd-stroke-thin) solid var(--rasd-border-focus);
+  outline-offset: 0;
+  border-color: var(--rasd-border-focus);
+}
+
+.hint {
+  color: var(--rasd-text-secondary);
+  font-size: var(--rasd-font-size-sm);
+  line-height: var(--rasd-leading-ui);
+}
+
+.error .box {
+  border-color: var(--rasd-status-danger-border);
+}
+.error .hint {
+  color: var(--rasd-status-danger-fg);
+}
+
+.box:disabled {
+  cursor: not-allowed;
+  background: var(--rasd-surface-disabled);
+  color: var(--rasd-text-disabled);
+}
