@@ -1,10 +1,12 @@
+/* شريط `127:196`: حشوة 12/18 وحدّ سفلي خافت كشريط المحرّر. */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--rasd-space-16);
-  padding: var(--rasd-space-12) var(--rasd-space-16);
-  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  padding-block: var(--rasd-space-12) calc(var(--rasd-space-12) - var(--rasd-stroke-thin));
+  padding-inline: calc(var(--rasd-space-16) + var(--rasd-space-2));
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
   background: var(--rasd-surface-default);
 }
 
@@ -24,24 +26,19 @@
 
 .title {
   margin: 0;
-  font-family: var(--rasd-font-family-display);
-  font-size: var(--rasd-font-size-lg);
-  font-weight: 700;
   color: var(--rasd-text-primary);
 }
 
 .subtitle {
   margin: 0;
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-sm);
-  color: var(--rasd-text-secondary);
+  color: var(--rasd-text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .badgeIcon {
-  color: var(--rasd-text-tertiary);
+  color: var(--rasd-tool-compare-fg);
   flex-shrink: 0;
 }
 

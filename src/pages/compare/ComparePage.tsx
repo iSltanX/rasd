@@ -263,21 +263,10 @@ export function ComparePage(): JSX.Element {
         height={stage.height}
       />
       <div class={styles.body}>
-        <Sidebar
-          mode={mode}
-          onModeChange={setMode}
-          diffRatio={diffOutcome?.diffRatio ?? 0}
-          diffPixelCount={diffOutcome?.diffPixelCount ?? 0}
-          comparedPixels={diffOutcome?.comparedPixels ?? 0}
-          regionItems={regionItems}
-          selectedRegionIndex={selectedRegionIndex}
-          onSelectRegion={onSelectRegion}
-          onPrevRegion={onPrevRegion}
-          onNextRegion={onNextRegion}
-          thresholdFraction={threshold}
-          onThresholdChange={setThreshold}
-          hasExtraRegion={hasExtraRegion}
-        />
+        {/*
+         * المسرح أوّلًا والشريط بعده — ترتيب القراءة RTL في `127:196`: الصورة في البداية
+         * (يمينًا) وأدوات القراءة في النهاية.
+         */}
         <div class={styles.stageWrap}>
           <Stage
             mode={mode}
@@ -304,6 +293,21 @@ export function ComparePage(): JSX.Element {
             onSelectRegion={onSelectRegion}
           />
         </div>
+        <Sidebar
+          mode={mode}
+          onModeChange={setMode}
+          diffRatio={diffOutcome?.diffRatio ?? 0}
+          diffPixelCount={diffOutcome?.diffPixelCount ?? 0}
+          comparedPixels={diffOutcome?.comparedPixels ?? 0}
+          regionItems={regionItems}
+          selectedRegionIndex={selectedRegionIndex}
+          onSelectRegion={onSelectRegion}
+          onPrevRegion={onPrevRegion}
+          onNextRegion={onNextRegion}
+          thresholdFraction={threshold}
+          onThresholdChange={setThreshold}
+          hasExtraRegion={hasExtraRegion}
+        />
       </div>
     </div>
   )
