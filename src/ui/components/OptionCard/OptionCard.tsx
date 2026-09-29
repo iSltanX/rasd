@@ -19,7 +19,11 @@ export interface OptionCardProps {
   disabled?: boolean
   state?: OptionCardState
   onSelect?: (value: string) => void
+  /** سبب التعطيل أو التلميح — `title` على البطاقة والراديو معًا. */
+  reason?: string | undefined
   class?: string | undefined
+  /** سمات `data-*` تُمرَّر إلى الراديو الأصليّ — هو ما يُنقر ويُقرأ. */
+  [data: `data-${string}`]: string | undefined
 }
 
 /**
@@ -37,7 +41,9 @@ export function OptionCard({
   disabled = false,
   state = 'default',
   onSelect,
+  reason,
   class: className,
+  ...data
 }: OptionCardProps): JSX.Element {
   const isSelected = selected || state === 'selected'
   const isDisabled = disabled || state === 'disabled'
@@ -51,6 +57,7 @@ export function OptionCard({
         state === 'focus' && styles.forceFocus,
         className,
       )}
+      title={reason}
     >
       <input
         type="radio"
@@ -59,7 +66,9 @@ export function OptionCard({
         value={value}
         checked={isSelected}
         disabled={isDisabled}
+        title={reason}
         onChange={() => onSelect?.(value)}
+        {...data}
       />
       <Icon name={icon} size="sm" class={styles.icon} />
       <span class={styles.title}>{title}</span>

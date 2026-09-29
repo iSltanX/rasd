@@ -70,7 +70,13 @@ describe('صيغ الخروج', () => {
     expect(FORMAT_HINT.webp).toContain('الجودة')
   })
 
-  it('الصيغتان المؤجَّلتان تحملان سببًا معروضًا لا تعطيلًا صامتًا', () => {
+  it('المؤجَّلة PDF وحدها — الصيغة المتّجهة حُذفت بقرار النطاق ولا تُعرض', () => {
+    expect(Object.keys(DEFERRED_FORMATS)).toEqual(['pdf'])
+    const shown = [...EXPORT_FORMATS, ...Object.keys(DEFERRED_FORMATS)].map((f) => f.toLowerCase())
+    expect(shown).not.toContain('svg')
+  })
+
+  it('الصيغة المؤجَّلة تحمل سببًا معروضًا لا تعطيلًا صامتًا', () => {
     for (const info of Object.values(DEFERRED_FORMATS)) {
       expect(info.reason.length).toBeGreaterThan(0)
       expect(info.label.length).toBeGreaterThan(0)

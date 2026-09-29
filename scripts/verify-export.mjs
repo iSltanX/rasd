@@ -417,7 +417,8 @@ if (!extId || !sw) {
     } else {
       ok(`اللقطة مزروعة والمحرر جاهز (${W}×${H})`)
 
-      // ── 1) الصيغتان المؤجَّلتان معطَّلتان بسببٍ معروض ──────────────
+      // ── 1) PDF مؤجَّلة معطَّلة بسببٍ معروض، والصيغة المتّجهة محذوفة ──────
+      // `STAGES/03` حذفتها من الواجهة بقرار النطاق (الصفّ 107)، فعودتُها سقوط.
       await evalIn(S, `document.querySelector('[data-export-open]').click(), 1`, true)
       await waitFor(S, '[data-export-modal]')
       const tiles = JSON.parse(
@@ -432,10 +433,10 @@ if (!extId || !sw) {
       const deferred = tiles.filter((t) => t.off)
       if (
         enabled.join(',') === 'png,webp' &&
-        deferred.length === 2 &&
+        deferred.map((d) => d.id).join(',') === 'pdf' &&
         deferred.every((d) => d.why > 0)
       ) {
-        ok('أربع صيغ: png وwebp تعملان، وpdf وsvg معطَّلتان بسببٍ معروض لا مخفيَّتين')
+        ok('ثلاث صيغ: png وwebp تعملان، وpdf معطَّلة بسببٍ معروض، ولا صيغة متّجهة')
       } else {
         fail(`مُنتقي الصيغ غير متوقَّع: ${JSON.stringify(tiles)}`)
       }

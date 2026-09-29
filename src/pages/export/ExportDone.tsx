@@ -1,7 +1,10 @@
 import { useEffect, useRef } from 'preact/hooks'
 
-import { formatBytes, formatDimensions, formatHuman } from '@/shared/bidi'
+import { formatDimensions, formatHuman } from '@/shared/bidi'
+import { formatStorage } from '@/shared/bidi/numerals'
 import { Button } from '@/ui/components'
+import { cx } from '@/ui/cx'
+import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import styles from './export.module.css'
@@ -92,13 +95,13 @@ export function ExportDone(props: ExportDoneProps): JSX.Element {
             aria-label="إغلاق"
             onClick={props.onClose}
           >
-            ✕
+            <Icon name="close" size="sm" />
           </button>
           <div class={styles.headText}>
-            <h2 class={styles.title}>اكتمل التصدير</h2>
+            <h2 class={cx(styles.title, 't-arabic-heading-s')}>اكتمل التصدير</h2>
             {/* غربية: قياسٌ لا عدٌّ بشري — §3.5. */}
             <TechnicalValue kind="dimension" variant="mono-xs">
-              {`${props.report.format.toUpperCase()} · ${formatDimensions(props.report.width, props.report.height)} · ${formatBytes(props.report.bytes)}`}
+              {`${props.report.format.toUpperCase()} · ${formatDimensions(props.report.width, props.report.height)} · ${formatStorage(props.report.bytes)}`}
             </TechnicalValue>
           </div>
         </header>
@@ -186,11 +189,11 @@ export function ExportDone(props: ExportDoneProps): JSX.Element {
         </div>
 
         <footer class={styles.actions}>
-          <Button variant="secondary" icon="copy" onClick={props.onCopy}>
+          <Button variant="secondary" size="l" icon="copy" onClick={props.onCopy}>
             انسخ إلى الحافظة
           </Button>
           {props.downloadId === null ? null : (
-            <Button variant="primary" icon="folder" onClick={props.onReveal}>
+            <Button variant="primary" size="l" icon="folder" onClick={props.onReveal}>
               افتح المجلّد
             </Button>
           )}

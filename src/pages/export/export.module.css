@@ -19,14 +19,16 @@
   padding: var(--rasd-space-16);
 }
 
+/* `modal` (`73:2`): 560 على `surface/default` بحدّ `border/default` ونصف قطر 16 وظلّ 64/24. */
 .modal {
   inline-size: min(35rem, 100%);
   max-block-size: 90vh;
   display: flex;
   flex-direction: column;
   border-radius: var(--rasd-radius-xl);
-  background: var(--rasd-surface-raised);
-  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-default);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  box-shadow: var(--rasd-elevation-5);
   overflow: hidden;
 }
 
@@ -43,14 +45,15 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--rasd-space-12);
-  padding: var(--rasd-space-20);
+  padding-block: var(--rasd-space-16) calc(var(--rasd-space-16) - var(--rasd-stroke-thin));
+  padding-inline: var(--rasd-space-20) calc(var(--rasd-space-12) + var(--rasd-space-2));
   border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
 }
 
 .headText {
   display: flex;
   flex-direction: column;
-  gap: var(--rasd-space-4);
+  gap: var(--rasd-space-2);
   order: -1;
   min-inline-size: 0;
 }
@@ -80,16 +83,11 @@
 
 .title {
   margin: 0;
-  font-family: var(--rasd-font-family-display);
-  font-size: var(--rasd-font-size-lg);
-  font-weight: 700;
   color: var(--rasd-text-primary);
 }
 
 .subtitle {
   margin: 0;
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-sm);
   color: var(--rasd-text-secondary);
   overflow-wrap: anywhere;
 }
@@ -99,8 +97,9 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: var(--rasd-space-20);
-  padding: var(--rasd-space-20);
+  gap: calc(var(--rasd-space-16) + var(--rasd-space-2));
+  padding-block: calc(var(--rasd-space-16) + var(--rasd-space-2));
+  padding-inline: var(--rasd-space-20);
   overflow-y: auto;
 }
 
@@ -112,10 +111,7 @@
 
 .groupLabel {
   margin: 0;
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-xs);
-  font-weight: 600;
-  color: var(--rasd-text-tertiary);
+  color: var(--rasd-text-secondary);
 }
 
 /*
@@ -125,9 +121,10 @@
  * وصفَّين على الضيّقة، بلا استعلام وسائط وبلا عددٍ مثبَّت — فصيغةٌ خامسة
  * تدخل بلا لمس هذا الملفّ.
  */
+/* ثلاث بطاقات `Option Card` بعرض متساوٍ وفجوة 8. */
 .formats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--rasd-space-8);
 }
 
@@ -189,8 +186,28 @@
   flex-direction: column;
   border-radius: var(--rasd-radius-lg);
   border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
-  background: var(--rasd-surface-default);
+  background: var(--rasd-surface-sunken);
   overflow: hidden;
+}
+
+/* الملخّص (`summary`): بطاقة غائرة بصفّين، حشوة 10/14 وفاصل. */
+.summary {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-sunken);
+}
+.kv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-16);
+  padding-block: var(--rasd-space-10);
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
+}
+.kv + .kv {
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
 }
 
 .row {
@@ -342,10 +359,13 @@
 
 /* ── الإجراءات ────────────────────────────────────────────── */
 
+/* `actions`: شريط غائر بحدّ علوي، حشوة 14/20 وفجوة 10، والأفعال في طرف السطر. */
 .actions {
   display: flex;
-  gap: var(--rasd-space-8);
-  padding: var(--rasd-space-16);
+  justify-content: flex-end;
+  gap: var(--rasd-space-10);
+  padding-block: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  padding-inline: var(--rasd-space-20);
   border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
-  background: var(--rasd-surface-default);
+  background: var(--rasd-surface-sunken);
 }

@@ -24,6 +24,8 @@ export interface SelectProps {
   'aria-label'?: string | undefined
   'aria-describedby'?: string | undefined
   class?: string | undefined
+  /** سمات `data-*` تُمرَّر إلى `<select>` الأصليّ. */
+  [data: `data-${string}`]: string | undefined
 }
 
 /**
@@ -41,6 +43,7 @@ export function Select({
   'aria-label': ariaLabel,
   'aria-describedby': describedBy,
   class: className,
+  ...data
 }: SelectProps): JSX.Element {
   const isDisabled = disabled || state === 'disabled'
   return (
@@ -62,6 +65,7 @@ export function Select({
         aria-label={ariaLabel}
         aria-describedby={describedBy}
         onChange={(e: JSX.TargetedEvent<HTMLSelectElement>) => onChange?.(e.currentTarget.value)}
+        {...data}
       >
         {options.map((o) => (
           <option key={o.value} value={o.value} disabled={o.disabled}>

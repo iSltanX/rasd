@@ -16,8 +16,14 @@ import {
   type DeferredFormat,
   type ExportFormat,
 } from '@/modules/export/format'
-import { formatBytes, formatDimensions } from '@/shared/bidi'
+import { formatDimensions } from '@/shared/bidi'
+import { formatStorage } from '@/shared/bidi/numerals'
 import { Button, Toggle } from '@/ui/components'
+import { OptionCard } from '@/ui/components/OptionCard/OptionCard'
+import { Select } from '@/ui/components/Select/Select'
+import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
+import { cx } from '@/ui/cx'
+import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import styles from './export.module.css'
@@ -25,49 +31,33 @@ import styles from './export.module.css'
 import type { JSX } from 'preact'
 
 /**
- * ضوابط في التصميم لا محرّك لها في هذه الوحدة.
- *
- * **تُعرض معطَّلة بسببها لا تُخفى** — قاعدة الوحدة 21.1 نفسها: «معلَّم
- * «قريبًا» لا مخفيّ ولا موعود كذبًا». وإخفاؤها كان يجعل الشاشة تبدو مكتملة
- * وهي ليست كذلك، فتُغلَق المرحلة على نقصٍ لا يراه أحد.
+ * خياران في الإطار لا محرّك لهما بعد — يُعرضان معطَّلين وسببهما **نصٌّ مرئيّ** تحتهما لا
+ * تلميحٌ لا يراه إلا من يمرّ فوقه. قائمة الملاحظات وبيانات الصفحة تصلان مع PDF وتقرير
+ * المقارنة. و«خلفية شفافة» حُذفت من الإطار، و«دمج التعليقات» صار سطر ملخّص: الدمج دائمٌ
+ * بحكم ADR 0015 لا خيار.
  */
 const PENDING_TOGGLES: readonly {
   readonly id: string
   readonly label: string
   readonly on: boolean
-  readonly reason: string
+  readonly hint: string
 }[] = [
   {
-    id: 'transparent',
-    label: 'خلفية شفافة',
-    on: false,
-    reason: 'الصيغتان تدعمان الشفافية، ووصلُ الضابط بالخبز خارج نطاق 19.1.',
-  },
-  {
     id: 'page-meta',
-    label: 'تضمين بيانات الصفحة',
+    label: 'ضمّن بيانات الصفحة',
     on: false,
-    /*
-     * **19.2 نفّذت `stripMetadataOnExport` — لا هذا الضابط.** ما نُفِّذ هو
-     * حذف `ICCP` من WebP (البند المقيس الوحيد)، لا تضمينُ بيانات الصفحة
-     * الذي يعده هذا الضابط. فالتضمين نفسه يبقى بلا مالك مسمًّى، كالشفافية
-     * أعلاه — انظر `export / done` لحالة الحذف الفعلية.
-     */
-    reason: 'غير متاح في هذا الإصدار.',
+    hint: 'رابط الصفحة وعنوانها ووقت الالتقاط — قريبًا مع تصدير PDF.',
   },
   {
     id: 'notes-list',
-    label: 'تضمين قائمة الملاحظات',
-    on: true,
-    reason: 'قيد التطوير — يصل مع تقرير المقارنة في تحديث قادم.',
-  },
-  {
-    id: 'flatten',
-    label: 'دمج التعليقات في الصورة',
-    on: true,
-    reason: 'الدمج دائم بحكم ADR 0015 — والتصدير بطبقاتٍ منفصلة ليس في الخطّة.',
+    label: 'ضمّن قائمة الملاحظات',
+    on: false,
+    hint: 'قريبًا مع تصدير PDF وتقرير المقارنة.',
   },
 ]
+
+/** أيقونة كل صيغة على بطاقتها. */
+const FORMAT_ICON = { png: 'image', webp: 'image', pdf: 'file-code' } as const
 
 export interface ExportModalProps {
   /** عنوان اللقطة — يظهر في الترويسة ويشتقّ منه اسم الملفّ. */
@@ -91,16 +81,14 @@ export interface ExportModalProps {
 }
 
 /**
- * `export / modal` — إطار Figma `73:286`.
+ * `export / modal` — إطار Figma `73:2`: نافذة 560 بترويسة وجسم ومجموعتين («الصيغة» ببطاقات
+ * `Option Card`، و«الخيارات» بصفوف `Setting Row`) وملخّص، وشريط أفعال سفلي.
  *
- * **نافذةٌ لا صفحة.** نصّ الخطّة يقول `src/pages/export/` في سطر الوحدات
- * و«‏`export / modal`» في سطر العمل، والمصدر التصميمي يحسم: الإطار `73:2`
- * صفحةُ مكتبة كاملة فوقها `scrim` بمقاس الشاشة و`modal` بـ‏560×676. فالمسار
- * بقي مجلَّد مكوّنات، وسقطت قراءة «الصفحة» — ولا صفحة تُسجَّل في
- * `PAGE_PATHS`.
+ * **نافذةٌ لا صفحة.** الإطار صفحةُ مكتبة كاملة فوقها `scrim` و`modal` — فالمسار مجلَّد
+ * مكوّنات، ولا صفحة تُسجَّل في `PAGE_PATHS`.
  *
- * **وثلاثة من ضوابطها معطَّلة بسببٍ معروض** (وصيغتان كذلك). القياس والصدق
- * قبل اكتمال المظهر: ضابطٌ يعمل نصف عمله أسوأ من ضابطٍ يقول متى يعمل.
+ * **وسمات `data-export-*` عقد `verify:export`** — على الضوابط الأصلية نفسها (الراديو
+ * والقائمة) لأنها ما يُنقر ويُقرأ.
  */
 export function ExportModal(props: ExportModalProps): JSX.Element {
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -122,6 +110,8 @@ export function ExportModal(props: ExportModalProps): JSX.Element {
   const estimate = estimateSize(props.width, props.height, props.format, props.quality)
   const clipboardOk = clipboardAccepts(props.format)
   const disabled = props.busy || props.blocked !== null
+  const baseWidth = props.width / props.scale
+  const baseHeight = props.height / props.scale
 
   return (
     <div
@@ -129,10 +119,11 @@ export function ExportModal(props: ExportModalProps): JSX.Element {
       data-export-modal=""
       role="dialog"
       aria-modal="true"
-      aria-label="تصدير"
+      aria-labelledby="export-title"
     >
       <div class={styles.modal}>
         <header class={styles.head}>
+          {/* الإغلاق أوّلًا في ترتيب لوحة المفاتيح وآخرًا بصريًّا — ترويسة الورقة المشتركة. */}
           <button
             type="button"
             ref={closeRef}
@@ -141,119 +132,125 @@ export function ExportModal(props: ExportModalProps): JSX.Element {
             aria-label="إغلاق"
             onClick={props.onClose}
           >
-            ✕
+            <Icon name="close" size="sm" />
           </button>
           <div class={styles.headText}>
-            <h2 class={styles.title}>تصدير</h2>
-            <p class={styles.subtitle}>لقطة واحدة · {props.title}</p>
+            <h2 id="export-title" class={cx(styles.title, 't-arabic-heading-s')}>
+              تصدير
+            </h2>
+            <p class={cx(styles.subtitle, 't-arabic-ui-xs')}>لقطة واحدة · {props.title}</p>
           </div>
         </header>
 
         <div class={styles.body}>
-          <section class={styles.group}>
-            <h3 class={styles.groupLabel}>الصيغة</h3>
-            <div class={styles.formats} role="radiogroup" aria-label="الصيغة">
+          <section class={styles.group} aria-labelledby="export-format-label">
+            <h3 id="export-format-label" class={cx(styles.groupLabel, 't-arabic-label-xs')}>
+              الصيغة
+            </h3>
+            <div class={styles.formats} role="radiogroup" aria-labelledby="export-format-label">
               {EXPORT_FORMATS.map((format) => (
-                <button
+                <OptionCard
                   key={format}
-                  type="button"
-                  role="radio"
-                  aria-checked={props.format === format}
+                  name="export-format"
+                  value={format}
+                  icon={FORMAT_ICON[format]}
+                  title={format.toUpperCase()}
+                  hint={FORMAT_HINT[format]}
+                  selected={props.format === format}
+                  onSelect={() => props.onFormat(format)}
                   data-export-format={format}
-                  data-selected={props.format === format ? '' : undefined}
-                  class={styles.format}
-                  onClick={() => props.onFormat(format)}
-                >
-                  <TechnicalValue kind="format" variant="mono-s">
-                    {format.toUpperCase()}
-                  </TechnicalValue>
-                  <span class={styles.formatHint}>{FORMAT_HINT[format]}</span>
-                </button>
+                />
               ))}
-
               {(Object.keys(DEFERRED_FORMATS) as DeferredFormat[]).map((id) => (
-                <button
+                <OptionCard
                   key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={false}
-                  aria-disabled="true"
+                  name="export-format"
+                  value={id}
+                  icon={FORMAT_ICON[id]}
+                  title={DEFERRED_FORMATS[id].label}
+                  hint={DEFERRED_FORMATS[id].hint}
                   disabled
+                  reason={DEFERRED_FORMATS[id].reason}
                   data-export-format={id}
                   data-deferred=""
-                  class={styles.format}
-                  title={DEFERRED_FORMATS[id].reason}
-                >
-                  <TechnicalValue kind="format" variant="mono-s">
-                    {DEFERRED_FORMATS[id].label}
-                  </TechnicalValue>
-                  <span class={styles.formatHint}>{DEFERRED_FORMATS[id].hint}</span>
-                </button>
+                />
               ))}
             </div>
           </section>
 
-          <section class={styles.group}>
-            <h3 class={styles.groupLabel}>الخيارات</h3>
+          <section class={styles.group} aria-labelledby="export-options-label">
+            <h3 id="export-options-label" class={cx(styles.groupLabel, 't-arabic-label-xs')}>
+              الخيارات
+            </h3>
             <div class={styles.card}>
-              <div class={styles.row}>
-                <span class={styles.rowLabel}>الدقة</span>
-                <select
-                  class={styles.select}
-                  data-export-scale-select
-                  aria-label="الدقة"
-                  value={String(props.scale)}
-                  onChange={(e) =>
-                    props.onScale(Number((e.target as HTMLSelectElement).value) === 2 ? 2 : 1)
-                  }
-                >
-                  <option value="1">1×</option>
-                  <option value="2">2×</option>
-                </select>
-              </div>
-
-              <div class={styles.row}>
-                <span class={styles.rowLabel}>الجودة</span>
-                <select
-                  class={styles.select}
-                  data-export-quality
-                  aria-label="الجودة"
-                  disabled={!qualityApplies(props.format)}
-                  title={
-                    qualityApplies(props.format)
-                      ? undefined
-                      : 'مُرمِّج PNG يتجاهل الجودة — الصيغة بلا فقد دائمًا.'
-                  }
-                  value={props.quality}
-                  onChange={(e) =>
-                    props.onQuality((e.target as HTMLSelectElement).value as QualityLevel)
-                  }
-                >
-                  {QUALITY_LEVELS.map((level) => (
-                    <option key={level} value={level}>
-                      {QUALITY_LABEL[level]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {PENDING_TOGGLES.map((item) => (
-                <div key={item.id} class={styles.row} data-pending="">
-                  <span class={styles.rowLabel} title={item.reason}>
-                    {item.label}
-                  </span>
-                  <Toggle on={item.on} state="disabled" aria-label={item.label} />
+              <SettingRow
+                id="export-scale"
+                label="الدقّة"
+                divider
+                control={
+                  <Select
+                    aria-label="الدقة"
+                    value={String(props.scale)}
+                    data-export-scale-select=""
+                    // عزلٌ باتجاه اليسار (LRI…PDI): خيار القائمة الأصلية لا يقبل `<bdi>`،
+                    // وبلا عزل يقلب سياق RTL المقاسين حول «×».
+                    options={([1, 2] as const).map((k) => ({
+                      value: String(k),
+                      label: `\u2066${formatDimensions(baseWidth * k, baseHeight * k)} · ${k}×\u2069`,
+                    }))}
+                    onChange={(v) => props.onScale(Number(v) === 2 ? 2 : 1)}
+                  />
+                }
+              />
+              <SettingRow
+                id="export-quality"
+                label="الجودة"
+                hint={
+                  qualityApplies(props.format)
+                    ? 'أقلّ جودةً أصغر حجمًا.'
+                    : 'بلا فقد دائمًا، فلا أثر للجودة فيه — PNG.'
+                }
+                divider
+                control={
+                  <Select
+                    aria-label="الجودة"
+                    value={props.quality}
+                    disabled={!qualityApplies(props.format)}
+                    data-export-quality=""
+                    options={QUALITY_LEVELS.map((level) => ({
+                      value: level,
+                      label: QUALITY_LABEL[level],
+                    }))}
+                    onChange={(v) => props.onQuality(v as QualityLevel)}
+                  />
+                }
+              />
+              {PENDING_TOGGLES.map((item, i) => (
+                <div key={item.id} data-pending="">
+                  <SettingRow
+                    id={`export-${item.id}`}
+                    label={item.label}
+                    hint={item.hint}
+                    divider={i < PENDING_TOGGLES.length - 1}
+                    control={<Toggle on={item.on} state="disabled" aria-label={item.label} />}
+                  />
                 </div>
               ))}
             </div>
           </section>
 
-          <div class={styles.estimate} data-export-estimate>
-            <span class={styles.rowLabel}>الحجم التقديري</span>
-            {/* غربية: قياسٌ لا عدٌّ بشري — §3.5. */}
-            <TechnicalValue kind="dimension" variant="mono-xs">
-              {`${props.format.toUpperCase()} · ${formatDimensions(props.width, props.height)} · ~${formatBytes(estimate.bytes)}`}
-            </TechnicalValue>
+          <div class={styles.summary}>
+            <div class={styles.kv} data-export-estimate>
+              <span class={cx(styles.rowLabel, 't-arabic-ui-xs')}>الحجم التقديري</span>
+              {/* غربية: قياسٌ لا عدٌّ بشري — §3.5. */}
+              <TechnicalValue kind="dimension" variant="mono-xs">
+                {`${props.format.toUpperCase()} · ${formatDimensions(props.width, props.height)} · ~${formatStorage(estimate.bytes)}`}
+              </TechnicalValue>
+            </div>
+            <div class={styles.kv}>
+              <span class={cx(styles.rowLabel, 't-arabic-ui-xs')}>التعليقات</span>
+              <span class={cx(styles.rowValue, 't-arabic-ui-xs-strong')}>مدموجة في الصورة</span>
+            </div>
           </div>
 
           {props.blocked ? (
@@ -273,22 +270,25 @@ export function ExportModal(props: ExportModalProps): JSX.Element {
           )}
         </div>
 
+        {/* الأفعال في طرف السطر، والأساسيّ آخرها كما في الإطار. */}
         <footer class={styles.actions}>
           <Button
+            variant="secondary"
+            size="l"
+            icon="copy"
+            onClick={props.onCopy}
+            {...(disabled ? { state: 'disabled' } : {})}
+          >
+            انسخ إلى الحافظة
+          </Button>
+          <Button
             variant="primary"
+            size="l"
             icon="download"
             onClick={props.onDownload}
             {...(disabled ? { state: 'disabled' } : {})}
           >
             تنزيل
-          </Button>
-          <Button
-            variant="secondary"
-            icon="copy"
-            onClick={props.onCopy}
-            {...(disabled ? { state: 'disabled' } : {})}
-          >
-            نسخ إلى الحافظة
           </Button>
         </footer>
       </div>

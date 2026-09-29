@@ -46,15 +46,15 @@ const EXTENSION: Readonly<Record<ExportFormat, string>> = {
 /**
  * وصفٌ قصير تحت اسم الصيغة.
  *
- * **PNG منقولة من إطار `73:2` حرفًا، وWebP مُصحَّحة بالقياس.** الإطار يكتب
- * تحتها «أصغر»، والقياس على ستّ عشرة حالة من لقطات واجهة حقيقية أعطى العكس
- * عند الجودة «الأقصى» التي يعرضها الإطار نفسه افتراضًا: `VP8L` خرج **أكبر**
- * من PNG في أربع عشرة منها (وسيط 0.1564 مقابل 0.0789 بايت/بكسل). فالوعد
- * مشروطٌ بالجودة، والنصّ يقولها. التفصيل في ترويسة `estimate.ts` و`§6`.
+ * **النصّان من إطار `73:2` حرفًا، وWebP صُحِّحت فيه بالقياس.** كان الإطار يكتب تحتها
+ * «أصغر»، والقياس على ستّ عشرة حالة من لقطات واجهة حقيقية أعطى العكس عند الجودة
+ * «الأقصى» التي يعرضها افتراضًا: `VP8L` خرج **أكبر** من PNG في أربع عشرة منها (وسيط
+ * 0.1564 مقابل 0.0789 بايت/بكسل). فالوعد مشروطٌ بالجودة، و`STAGES/02` كتبها في الإطار
+ * «حجمه يتبع الجودة». التفصيل في ترويسة `estimate.ts` و`§6`.
  */
 export const FORMAT_HINT: Readonly<Record<ExportFormat, string>> = {
   png: 'بلا فقد',
-  webp: 'أصغر عند خفض الجودة',
+  webp: 'حجمه يتبع الجودة',
 }
 
 export function mimeFor(format: ExportFormat): string {
@@ -101,8 +101,8 @@ export function clipboardAccepts(format: ExportFormat): boolean {
  */
 export const CLIPBOARD_NOTE = 'الحافظة تقبل PNG وحدها — النسخ يُنتج PNG مهما كانت صيغة التنزيل.'
 
-/** صيغتان في التصميم بلا محرّك بعد — تُعرضان معطَّلتين بسببهما. */
-export type DeferredFormat = 'pdf' | 'svg'
+/** صيغة في التصميم بلا محرّك بعد — تُعرض معطَّلة بسببها. */
+export type DeferredFormat = 'pdf'
 
 export interface DeferredFormatInfo {
   readonly label: string
@@ -112,11 +112,11 @@ export interface DeferredFormatInfo {
 }
 
 /**
- * **معروضتان معطَّلتين لا مخفيّتين ولا موعودتين كذبًا.**
+ * **معروضة معطَّلة لا مخفيّة ولا موعودة كذبًا.**
  *
- * PDF تملكها `STAGES/05`. وSVG **مستبعدة** من النطاق بقرار (الصفّ 107 في
- * `Docs/Engineering.md §6`) ولا تُعاد تلقائيًّا: تُحذف من إطار `73:2` في
- * `STAGES/02` ومن هذه الواجهة في `STAGES/03`.
+ * PDF تملكها `STAGES/05`. والصيغة المتّجهة **مستبعدة** من النطاق بقرار (الصفّ 107 في
+ * `Docs/Engineering.md §6`) فحُذفت من إطار `73:2` في `STAGES/02` ومن هذه الواجهة في
+ * `STAGES/03`، ولا تُعاد إلا بقرار مالك مكتوب في `Docs/Scope.md`.
  *
  * **النصّ هنا يراه المستخدم** — فلا رقم مرحلة ولا رقم صفّ فيه
  * (يحرسه `tests/unit/no-plan-leak.test.ts`).
@@ -124,12 +124,7 @@ export interface DeferredFormatInfo {
 export const DEFERRED_FORMATS: Readonly<Record<DeferredFormat, DeferredFormatInfo>> = {
   pdf: {
     label: 'PDF',
-    hint: 'متعدد الصفحات',
+    hint: 'صفحة أو أكثر · قريبًا',
     reason: 'قيد التطوير — يصل مع تقرير المقارنة في تحديث قادم.',
-  },
-  svg: {
-    label: 'SVG',
-    hint: 'متجهات فقط',
-    reason: 'خارج نطاق هذا الإصدار — اللقطات صور نقطية لا متجهات.',
   },
 }
