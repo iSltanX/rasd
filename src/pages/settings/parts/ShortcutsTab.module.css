@@ -1,0 +1,26 @@
+.none,
+.listening {
+  color: var(--rasd-text-tertiary);
+  font-size: var(--rasd-font-size-sm);
+}
+
+/* المفتاح نفسه هو الضابط: نقرة تبدأ الاستماع لحرف جديد. */
+.keyButton {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--rasd-space-2);
+  border: none;
+  border-radius: var(--rasd-radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+.keyButton:hover {
+  background: var(--rasd-surface-hover);
+}
+.keyButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.keyButton[aria-pressed='true'] {
+  outline: var(--rasd-stroke-thin) solid var(--rasd-border-focus);
+}

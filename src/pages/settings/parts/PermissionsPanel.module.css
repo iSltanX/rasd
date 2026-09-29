@@ -1,0 +1,7 @@
+.note {
+  margin: 0;
+  margin-block-start: calc(var(--rasd-space-12) * -1);
+  color: var(--rasd-text-tertiary);
+  font-size: var(--rasd-font-size-sm);
+  line-height: var(--rasd-leading-ui);
+}

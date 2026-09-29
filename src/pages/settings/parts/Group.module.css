@@ -1,0 +1,21 @@
+/* Figma: فجوة 10 بين العنوان والبطاقة، والبطاقة `surface/default` بحدّ `border/subtle`. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-10);
+}
+
+.title {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+  font-size: var(--rasd-font-size-xs);
+  font-weight: 700;
+  line-height: var(--rasd-leading-label);
+}
+
+.card {
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-default);
+  overflow: hidden;
+}

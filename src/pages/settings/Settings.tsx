@@ -1,19 +1,20 @@
 /**
- * صفحة الإعدادات — الحاوية الجذر.
+ * صفحة الإعدادات — الحاوية الجذر (`25 — Settings` و`26 — Privacy`).
  *
- * ستّة تبويبات: المظهر (20.1)، وأربعة `§12` (التصوير · التعليقات · الألوان ·
- * الاختصارات، الوحدة 20.2)، والخصوصية والصلاحيات (`§11`، الوحدة 20.3).
- * التوجيه لم يُعَد بناؤه في أيٍّ منها — أُضيفت إلى `TAB_ITEMS`/`TAB_VALUES`
- * وحدهما، كما توقّع ملفّ المرحلة 20 السابق (تاريخ Git) §8` تمامًا.
+ * القشرة المشتركة (`App Sidebar`) في بداية الصفحة، ثمّ الرأس، ثمّ `Section Nav` بأقسامه
+ * التسعة والمحتوى بجواره (`Docs/Design.md` §7 القرار 15 — كان شريط تبويبات أفقيًّا بستّة،
+ * الصفّان 111 و125). القسم يُقرأ من الرابط (`?section=privacy&view=excluded-sites`) فتفتحه
+ * صفحة أخرى مباشرةً، ويُكتب فيه عند التنقّل فيبقى بعد إعادة التحميل.
  *
- * **الجذر يُطبَّق عليه المظهر مرّتين لا مرّة**: هذا المكوّن يعيش داخل صفحة
- * امتداد عادية، فتطبيق `applyTheme` هنا (عبر `watchSettings` في `main.tsx`)
- * كافٍ وحده — لا حاجة لتكراره هنا، خلافًا لطبقة العرض فوق الصفحة التي
- * تحتاج جذرًا صريحًا (`hostEl`) لأنها ليست `document.documentElement`.
+ * **الحفظ يُعلَن مرّة واحدة هنا** (`persist`): «حُفظ الإعداد» يختفي بعد أربع ثوانٍ، و«تعذّر
+ * حفظ الإعداد» يبقى بإعادة محاولة تعيد العملية نفسها (`settings / saved` و`save-error`).
  */
-import { useEffect, useMemo, useState } from 'preact/hooks'
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
-import { Tabs, type TabItem } from '@/ui/components/Tabs/Tabs'
+import { SectionNav, type SectionNavEntry } from '@/ui/components/SectionNav/SectionNav'
+import { Toast } from '@/ui/components/Toast/Toast'
+
+import { AppShell } from '../shell/AppShell'
 
 import {
   addExcludedSite,
@@ -26,70 +27,193 @@ import {
   savePrivacy,
   saveShortcut,
   watchSettings,
-  type Settings,
+  type Settings as SettingsValue,
 } from './context'
+import { AboutSection } from './parts/AboutSection'
 import { AnnotationTab } from './parts/AnnotationTab'
 import { AppearanceTab } from './parts/AppearanceTab'
 import { CaptureTab } from './parts/CaptureTab'
 import { ColorsTab } from './parts/ColorsTab'
-import { PrivacyTab } from './parts/PrivacyTab'
+import { DataSection } from './parts/DataSection'
+import { IntegrationsSection } from './parts/IntegrationsSection'
+import { PrivacyTab, type PrivacyView } from './parts/PrivacyTab'
 import { ShortcutsTab } from './parts/ShortcutsTab'
 import styles from './Settings.module.css'
 
-type SettingsTab = 'capture' | 'annotation' | 'colors' | 'appearance' | 'shortcuts' | 'privacy'
+import type { Persist } from './persist'
+import type { Result } from '@/shared/result'
 
-const TAB_ITEMS: readonly TabItem[] = [
-  { value: 'capture', label: 'التصوير' },
-  { value: 'annotation', label: 'التعليقات' },
-  { value: 'colors', label: 'الألوان' },
-  { value: 'appearance', label: 'المظهر' },
-  { value: 'shortcuts', label: 'الاختصارات' },
-  { value: 'privacy', label: 'الخصوصية' },
+type SectionId =
+  | 'capture'
+  | 'annotation'
+  | 'colors'
+  | 'appearance'
+  | 'shortcuts'
+  | 'privacy'
+  | 'data'
+  | 'integrations'
+  | 'about'
+
+/** الأقسام التسعة بأيقوناتها كما في `Section Nav` (`280:740`). */
+const SECTIONS: readonly (SectionNavEntry & { id: SectionId })[] = [
+  { id: 'capture', label: 'التصوير', icon: 'capture-area' },
+  { id: 'annotation', label: 'التعليقات', icon: 'pen' },
+  { id: 'colors', label: 'الألوان', icon: 'eyedropper' },
+  { id: 'appearance', label: 'المظهر', icon: 'swatches' },
+  { id: 'shortcuts', label: 'الاختصارات', icon: 'keyboard' },
+  { id: 'privacy', label: 'الخصوصية', icon: 'shield' },
+  { id: 'data', label: 'البيانات', icon: 'folder' },
+  { id: 'integrations', label: 'التكاملات', icon: 'plug' },
+  { id: 'about', label: 'عن رصد', icon: 'info' },
 ]
-const TAB_VALUES: readonly SettingsTab[] = [
-  'capture',
-  'annotation',
-  'colors',
-  'appearance',
-  'shortcuts',
-  'privacy',
-]
+
+const DEFAULT_HEADER = { title: 'الإعدادات', subtitle: 'كل تفضيل محفوظ على هذا الجهاز وحده.' }
+
+/** رأس الصفحة لكل قسم وصفحة فرعية — نصوص رؤوس الإطارات. */
+function headerFor(section: SectionId, view: PrivacyView) {
+  if (section !== 'privacy') return DEFAULT_HEADER
+  if (view === 'excluded-sites')
+    return {
+      title: 'المواقع المستثناة',
+      subtitle: 'رصد لا يُحقَن في هذه المواقع ولا يلتقط منها. القائمة محفوظة على هذا الجهاز.',
+    }
+  if (view === 'permissions')
+    return {
+      title: 'صلاحيات المتصفّح',
+      subtitle: 'رصد يطلب أقلّ ما يلزمه. كل صلاحية اختيارية تُمنح حين تحتاجها وتُسحب متى شئت.',
+    }
+  return {
+    title: 'الخصوصية',
+    subtitle: 'رصد يعمل على الصفحة حين تطلبه أنت، ويحفظ ما يلتقطه على هذا الجهاز.',
+  }
+}
+
+function readLocation(): { section: SectionId; view: PrivacyView } {
+  const params = new URLSearchParams(location.search)
+  const section = SECTIONS.find((s) => s.id === params.get('section'))?.id ?? 'capture'
+  const view = params.get('view')
+  return {
+    section,
+    view: view === 'excluded-sites' || view === 'permissions' ? view : 'controls',
+  }
+}
+
+type Notice =
+  { tone: 'success' } | { tone: 'danger'; retry: () => Promise<Result<SettingsValue>> } | null
 
 export function Settings() {
-  const [settings, setSettings] = useState<Settings | null>(null)
-  const [activeTab, setActiveTab] = useState<SettingsTab>('capture')
+  const [settings, setSettings] = useState<SettingsValue | null>(null)
+  const [{ section, view }, setPlace] = useState(readLocation)
+  const [notice, setNotice] = useState<Notice>(null)
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => watchSettings(setSettings), [])
 
-  const tabIndex = useMemo(() => Math.max(0, TAB_VALUES.indexOf(activeTab)), [activeTab])
-  const switchTab = (index: number) => setActiveTab(TAB_VALUES[index] ?? 'capture')
+  const go = (next: SectionId, nextView: PrivacyView = 'controls') => {
+    setPlace({ section: next, view: nextView })
+    const params = new URLSearchParams({ section: next })
+    if (next === 'privacy' && nextView !== 'controls') params.set('view', nextView)
+    history.replaceState(null, '', `?${params.toString()}`)
+  }
+
+  const persist = useCallback<Persist>((op) => {
+    void op().then((result) => {
+      if (hideTimer.current) clearTimeout(hideTimer.current)
+      if (result.ok) {
+        setNotice({ tone: 'success' })
+        hideTimer.current = setTimeout(() => setNotice(null), 4000)
+      } else {
+        setNotice({ tone: 'danger', retry: op })
+      }
+    })
+  }, [])
 
   if (!settings) return null
 
-  return (
-    <div class={styles.page}>
-      <h1 class={styles.title}>الإعدادات</h1>
-      <Tabs items={TAB_ITEMS} selected={tabIndex} onChange={switchTab} />
-      {activeTab === 'capture' ? <CaptureTab settings={settings} onSave={saveCapture} /> : null}
-      {activeTab === 'annotation' ? (
-        <AnnotationTab settings={settings} onSave={saveAnnotation} />
-      ) : null}
-      {activeTab === 'colors' ? <ColorsTab settings={settings} onSave={saveColors} /> : null}
-      {activeTab === 'appearance' ? (
-        <AppearanceTab settings={settings} onSave={saveAppearance} />
-      ) : null}
-      {activeTab === 'shortcuts' ? (
-        <ShortcutsTab settings={settings} onSave={saveShortcut} />
-      ) : null}
-      {activeTab === 'privacy' ? (
+  const header = headerFor(section, view)
+  const onSub = section === 'privacy' && view !== 'controls'
+
+  let content
+  switch (section) {
+    case 'capture':
+      content = <CaptureTab settings={settings} onSave={saveCapture} persist={persist} />
+      break
+    case 'annotation':
+      content = <AnnotationTab settings={settings} onSave={saveAnnotation} persist={persist} />
+      break
+    case 'colors':
+      content = <ColorsTab settings={settings} onSave={saveColors} persist={persist} />
+      break
+    case 'appearance':
+      content = <AppearanceTab settings={settings} onSave={saveAppearance} persist={persist} />
+      break
+    case 'shortcuts':
+      content = <ShortcutsTab settings={settings} onSave={saveShortcut} persist={persist} />
+      break
+    case 'privacy':
+      content = (
         <PrivacyTab
           settings={settings}
+          view={view}
+          onView={(v) => go('privacy', v)}
           onSave={savePrivacy}
           onAddSite={addExcludedSite}
           onRemoveSite={removeExcludedSite}
           onImportSites={importExcludedSites}
+          persist={persist}
         />
+      )
+      break
+    case 'data':
+      content = <DataSection />
+      break
+    case 'integrations':
+      content = <IntegrationsSection />
+      break
+    case 'about':
+      content = <AboutSection version={chrome.runtime.getManifest().version} />
+      break
+  }
+
+  return (
+    <AppShell activeId="settings">
+      <header class={styles.header}>
+        {onSub ? (
+          <button type="button" class={styles.back} onClick={() => go('privacy')}>
+            الخصوصية
+          </button>
+        ) : null}
+        <h1 class={`${styles.title} t-arabic-heading-l`}>{header.title}</h1>
+        <p class={`${styles.subtitle} t-arabic-ui-s`}>{header.subtitle}</p>
+      </header>
+      <div class={styles.body}>
+        <SectionNav
+          entries={SECTIONS}
+          activeId={section}
+          onSelect={(id) => go(id as SectionId)}
+          aria-label="أقسام الإعدادات"
+        />
+        <main class={styles.pane}>{content}</main>
+      </div>
+      {notice ? (
+        <div class={styles.toastRegion}>
+          {notice.tone === 'success' ? (
+            <Toast tone="success" onDismiss={() => setNotice(null)}>
+              حُفظ الإعداد — يسري على كل صفحات رصد المفتوحة
+            </Toast>
+          ) : (
+            <Toast
+              tone="danger"
+              action="with-action"
+              actionLabel="أعد المحاولة"
+              onAction={() => persist(notice.retry)}
+              onDismiss={() => setNotice(null)}
+            >
+              تعذّر حفظ الإعداد — لم يتغيّر شيء. القيمة السابقة باقية.
+            </Toast>
+          )}
+        </div>
       ) : null}
-    </div>
+    </AppShell>
   )
 }

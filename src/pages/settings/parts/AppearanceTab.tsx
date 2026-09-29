@@ -1,83 +1,82 @@
 /**
- * تبويب المظهر — الوضع الداكن/الفاتح/النظام والكثافة.
+ * قسم المظهر (`settings / appearance`، `129:579`): «السمة» و«اللغة والاتجاه».
  *
- * كل تغيير يُكتب فورًا — لا زرّ حفظ، بنفس نمط بقية مفاتيح الإعدادات
- * التبديلية القائمة في المشروع.
+ * الكثافة تسري على كل صفحات رصد: `applyTheme` يكتب `data-density` على الجذر، وقاعدة
+ * `[data-density='compact']` في `base.css` تشدّ فجوات صفحات الإضافة كلّها (الصفّ 110).
+ * واللغة سطر معلومة لا ضابط: رصد عربي فقط (ADR 0022).
  */
-import { useState } from 'preact/hooks'
+import { Chip } from '@/ui/components/Chip/Chip'
+import { Select } from '@/ui/components/Select/Select'
+import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 
-import { Banner } from '@/ui/components/Banner/Banner'
-import {
-  SegmentedControl,
-  type SegmentedOption,
-} from '@/ui/components/SegmentedControl/SegmentedControl'
+import { Group } from './Group'
 
-import styles from './SettingsTab.module.css'
-
+import type { Persist } from '../persist'
 import type { Result } from '@/shared/result'
 import type { Settings } from '@/shared/settings'
 
-const THEME_OPTIONS: readonly SegmentedOption[] = [
+const THEME_OPTIONS = [
+  { value: 'system', label: 'النظام' },
   { value: 'dark', label: 'داكن' },
   { value: 'light', label: 'فاتح' },
-  { value: 'system', label: 'النظام' },
-]
+] as const
 
-const DENSITY_OPTIONS: readonly SegmentedOption[] = [
+const DENSITY_OPTIONS = [
   { value: 'comfortable', label: 'مريحة' },
   { value: 'compact', label: 'مضغوطة' },
-]
+] as const
 
 export interface AppearanceTabProps {
   settings: Settings
   onSave: (patch: Partial<Settings['appearance']>) => Promise<Result<Settings>>
+  persist: Persist
 }
 
-export function AppearanceTab({ settings, onSave }: AppearanceTabProps) {
-  const [failed, setFailed] = useState(false)
-
-  const themeIndex = Math.max(
-    0,
-    THEME_OPTIONS.findIndex((o) => o.value === settings.appearance.theme),
-  )
-  const densityIndex = Math.max(
-    0,
-    DENSITY_OPTIONS.findIndex((o) => o.value === settings.appearance.density),
-  )
-
-  const save = (patch: Partial<Settings['appearance']>) => {
-    void onSave(patch).then((result) => setFailed(!result.ok))
-  }
+export function AppearanceTab({ settings, onSave, persist }: AppearanceTabProps) {
+  const save = (patch: Partial<Settings['appearance']>) => persist(() => onSave(patch))
 
   return (
-    <section class={styles.tab}>
-      {failed ? (
-        <Banner tone="danger">تعذّر حفظ الإعداد — أُعيد المعروض إلى آخر قيمة محفوظة.</Banner>
-      ) : null}
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>الوضع</span>
-        <SegmentedControl
-          options={THEME_OPTIONS}
-          selected={themeIndex}
-          onChange={(i) =>
-            save({ theme: THEME_OPTIONS[i]?.value as Settings['appearance']['theme'] })
+    <>
+      <Group title="السمة" id="settings-theme">
+        <SettingRow
+          id="appearance-theme"
+          label="وضع السمة"
+          hint="«النظام» يتبع إعداد جهازك"
+          divider
+          control={
+            <Select
+              value={settings.appearance.theme}
+              options={THEME_OPTIONS}
+              aria-label="وضع السمة"
+              aria-describedby="appearance-theme-hint"
+              onChange={(v) => save({ theme: v as Settings['appearance']['theme'] })}
+            />
           }
-          aria-label="وضع السمة: داكن أو فاتح أو النظام"
         />
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>الكثافة</span>
-        <SegmentedControl
-          options={DENSITY_OPTIONS}
-          selected={densityIndex}
-          onChange={(i) =>
-            save({ density: DENSITY_OPTIONS[i]?.value as Settings['appearance']['density'] })
+        <SettingRow
+          id="appearance-density"
+          label="كثافة العرض"
+          hint="تسري على كل صفحات رصد"
+          control={
+            <Select
+              value={settings.appearance.density}
+              options={DENSITY_OPTIONS}
+              aria-label="كثافة العرض"
+              aria-describedby="appearance-density-hint"
+              onChange={(v) => save({ density: v as Settings['appearance']['density'] })}
+            />
           }
-          aria-label="كثافة العرض: مريحة أو مضغوطة"
         />
-      </div>
-    </section>
+      </Group>
+
+      <Group title="اللغة والاتجاه" id="settings-language">
+        <SettingRow
+          id="appearance-language"
+          label="لغة الواجهة"
+          hint="رصد عربي، واتجاهه من اليمين إلى اليسار"
+          control={<Chip tone="neutral">العربية</Chip>}
+        />
+      </Group>
+    </>
   )
 }

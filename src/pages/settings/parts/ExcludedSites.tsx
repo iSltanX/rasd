@@ -18,13 +18,13 @@ import { useRef, useState } from 'preact/hooks'
 import { plural } from '@/shared/bidi'
 import { Banner } from '@/ui/components/Banner/Banner'
 import { Button } from '@/ui/components/Button/Button'
-import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { Input } from '@/ui/components/Input/Input'
+import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 
 import { savedFormOf } from '../context'
 
 import listStyles from './ExcludedSites.module.css'
-import styles from './SettingsTab.module.css'
+import { Group } from './Group'
 
 import type { JSX } from 'preact'
 
@@ -160,15 +160,17 @@ export function ExcludedSites({
   })
 
   return (
-    <div class={listStyles.panel}>
+    <div class={listStyles.page}>
       {notice ? (
         <Banner tone={notice.tone} onDismiss={() => setNotice(null)}>
           {notice.text}
         </Banner>
       ) : null}
 
-      <form class={listStyles.addForm} onSubmit={submit}>
+      {/* شريط الإضافة كما في الإطار: الحقل ثمّ «أضف» ثمّ «استورد» و«صدّر». */}
+      <form class={listStyles.addBar} onSubmit={submit}>
         <Input
+          class={listStyles.field}
           value={draft}
           onInput={(value) => {
             setDraft(value)
@@ -179,74 +181,19 @@ export function ExcludedSites({
           placeholder="bank.com أو ‎*.bank.com"
           aria-label="نمط موقع يُستثنى"
         />
-        <Button type="submit" variant="primary" size="s" icon="plus">
-          استثنِ
+        <Button type="submit" variant="primary" size="m" icon="plus">
+          أضف
         </Button>
-      </form>
-
-      {sites.length === 0 ? (
-        <p class={listStyles.empty}>
-          لا مواقع مستثناة بعد — رصد يعمل في كل موقع تفتحه فيه أداةً بنفسك.
-        </p>
-      ) : (
-        <ul class={listStyles.list}>
-          {sites.map((site) => (
-            <li key={site} class={listStyles.item}>
-              <bdi class={listStyles.host} dir="ltr">
-                {site}
-              </bdi>
-              <IconButton
-                icon="trash"
-                aria-label={`احذف ${site} من المواقع المستثناة`}
-                onClick={() =>
-                  void onRemove(site).then((ok) => {
-                    // الحذف كان يفشل صامتًا بينما الإضافة تُعلن فشلها — والصفّ
-                    // يبقى معروضًا فيبدو أن شيئًا لم يقع. رصدته مراجعة Gate B.
-                    if (!ok)
-                      setNotice({ tone: 'danger', text: 'تعذّر حفظ القائمة — لم يُحذف الموقع.' })
-                  })
-                }
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {missing.length > 0 ? (
-        <div class={listStyles.suggested}>
-          <span class={styles.rowHint}>أنماط شائعة — أضِفها بنقرة ثم عدّلها:</span>
-          <div class={listStyles.suggestedRow}>
-            {missing.map((suggestion) => (
-              <Button
-                key={suggestion}
-                variant="ghost"
-                size="s"
-                icon="plus"
-                onClick={() => void add(suggestion, false)}
-              >
-                <bdi dir="ltr">{suggestion}</bdi>
-              </Button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <div class={listStyles.transferRow}>
-        <Button variant="secondary" size="s" icon="download" onClick={exportList}>
-          صدِّر القائمة
+        <Button variant="secondary" size="m" onClick={() => fileRef.current?.click()}>
+          استورد
         </Button>
-        <Button variant="secondary" size="s" icon="folder" onClick={() => fileRef.current?.click()}>
-          استورد قائمة
+        <Button variant="secondary" size="m" onClick={exportList}>
+          صدّر
         </Button>
         {/*
-         * حقل الملفّ مخفيّ بصريًّا ويُنقر برمجيًّا من زرٍّ حقيقي: مظهر
-         * `input[type=file]` غير قابل للتنسيق بما يطابق نظام التصميم، وهذا
-         * أوّل حقل ملفّ في المشروع كلّه فلا نمط سابق يُتبع.
-         *
-         * و`rasd-sr-only` القائم في `public/assets/base.css` لا نسخةٌ منه:
-         * إخفاءٌ بلا `display: none` — وعنصرٌ بـ`display: none` لا يقبل
-         * `.click()` في كل المتصفّحات. ومُخرَجٌ من ترتيب Tab بـ`tabIndex`
-         * و`aria-hidden`، فالزرّ الحقيقي هو نقطة الوصول الوحيدة.
+         * حقل الملفّ مخفيّ بصريًّا ويُنقر برمجيًّا من زرٍّ حقيقي: مظهر `input[type=file]`
+         * غير قابل للتنسيق بما يطابق نظام التصميم. و`rasd-sr-only` لا `display: none`،
+         * فعنصرٌ مخفيّ كليًّا لا يقبل `.click()` في كل المتصفّحات.
          */}
         <input
           ref={fileRef}
@@ -263,7 +210,66 @@ export function ExcludedSites({
             input.value = ''
           }}
         />
-      </div>
+      </form>
+
+      {missing.length > 0 ? (
+        <div class={listStyles.suggested}>
+          <span class={listStyles.hint}>أنماط شائعة — أضِفها بنقرة ثم عدّلها:</span>
+          <div class={listStyles.suggestedRow}>
+            {missing.map((suggestion) => (
+              <Button
+                key={suggestion}
+                variant="ghost"
+                size="s"
+                icon="plus"
+                onClick={() => void add(suggestion, false)}
+              >
+                <bdi dir="ltr">{suggestion}</bdi>
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {sites.length === 0 ? (
+        <p class={listStyles.empty}>
+          لا مواقع مستثناة بعد — رصد يعمل في كل موقع تفتحه فيه أداةً بنفسك.
+        </p>
+      ) : (
+        <Group
+          title={plural(sites.length, 'موقع مستثنى', 'موقعان مستثنيان', 'مواقع مستثناة')}
+          id="excluded-sites-list"
+        >
+          {sites.map((site, i) => (
+            <SettingRow
+              key={site}
+              label={
+                <bdi class={listStyles.host} dir="ltr">
+                  {site}
+                </bdi>
+              }
+              divider={i < sites.length - 1}
+              control={
+                <Button
+                  variant="secondary"
+                  size="s"
+                  aria-label={`احذف ${site} من المواقع المستثناة`}
+                  onClick={() =>
+                    void onRemove(site).then((ok) => {
+                      // الحذف كان يفشل صامتًا بينما الإضافة تُعلن فشلها — والصفّ
+                      // يبقى معروضًا فيبدو أن شيئًا لم يقع. رصدته مراجعة Gate B.
+                      if (!ok)
+                        setNotice({ tone: 'danger', text: 'تعذّر حفظ القائمة — لم يُحذف الموقع.' })
+                    })
+                  }
+                >
+                  احذف
+                </Button>
+              }
+            />
+          ))}
+        </Group>
+      )}
     </div>
   )
 }

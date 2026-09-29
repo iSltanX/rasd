@@ -1,0 +1,88 @@
+/*
+ * Figma `shortcuts / sheet` (`292:1691`): نافذة 600 على غشاء `overlay/scrim`، رأس بعنوان
+ * `Arabic/Heading/S` وزرّ إغلاق، ومجموعتان كبطاقات الإعدادات، وزرّ `Secondary/L` في الأسفل.
+ */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--rasd-space-24);
+  background: var(--rasd-overlay-scrim);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  inline-size: min(100%, calc(var(--rasd-space-160) * 3 + var(--rasd-space-120)));
+  max-block-size: calc(100vh - var(--rasd-space-48));
+  border-radius: var(--rasd-radius-xl);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  background: var(--rasd-surface-default);
+  box-shadow: var(--rasd-elevation-5);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--rasd-space-16);
+  padding: var(--rasd-space-20);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-2);
+}
+.title,
+.subtitle {
+  margin: 0;
+}
+.title {
+  color: var(--rasd-text-primary);
+}
+.subtitle {
+  color: var(--rasd-text-secondary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-20);
+  padding: var(--rasd-space-20);
+  overflow-y: auto;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-10);
+}
+.groupTitle {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+  font-size: var(--rasd-font-size-xs);
+  font-weight: 700;
+  line-height: var(--rasd-leading-label);
+}
+.card {
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-raised);
+}
+
+.none {
+  color: var(--rasd-text-tertiary);
+  font-size: var(--rasd-font-size-sm);
+}
+
+.actions {
+  padding: var(--rasd-space-16) var(--rasd-space-20);
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+.change {
+  inline-size: 100%;
+}

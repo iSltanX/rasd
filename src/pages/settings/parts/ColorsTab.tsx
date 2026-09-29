@@ -1,118 +1,115 @@
 /**
- * تبويب الألوان — `§12.3`: صيغة النسخ الافتراضية، عدد ألوان اللوحة، إخفاء
- * الحياديات، نظام الدرجات.
+ * قسم الألوان (`settings / colors`، `129:313`): «استخراج اللوحة» و«الدرجات».
  *
- * `defaultFormat` مجموعة أزرار مستقلّة (`Radio`) لا `SegmentedControl`: خمس
- * صيغ تتجاوز حدّ Figma الموثَّق للأخير («3 variant» — `SegmentedControl.tsx`)،
- * وحدّ `Tabs` المماثل حُسم بتسجيل الانحراف لا بتجاوزه (`Docs/Engineering.md §6`
- * صفّ 111)؛ هنا يُتفادى الحدّ أصلًا باختيار مكوّن بلا محور تبايُن واحد.
+ * **ومجموعة «النسخ» ليست في الإطار:** صيغة النسخ الافتراضية إعداد قائم في المنتج تقرؤه
+ * أداة الألوان، وحذفها من الواجهة يُسقط ميزة تعمل. الاختلاف مكتوب في `Docs/Design.md`.
  */
-import { useState } from 'preact/hooks'
-
-import { plural } from '@/shared/bidi'
-import { Banner } from '@/ui/components/Banner/Banner'
-import { Radio } from '@/ui/components/Radio/Radio'
-import {
-  SegmentedControl,
-  type SegmentedOption,
-} from '@/ui/components/SegmentedControl/SegmentedControl'
+import { formatHuman, plural } from '@/shared/bidi'
+import { Select } from '@/ui/components/Select/Select'
+import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { Toggle } from '@/ui/components/Toggle/Toggle'
 
-import styles from './SettingsTab.module.css'
+import { Group } from './Group'
 
+import type { Persist } from '../persist'
 import type { Result } from '@/shared/result'
 import type { Settings } from '@/shared/settings'
 
-const FORMAT_OPTIONS: readonly { value: Settings['colors']['defaultFormat']; label: string }[] = [
+const FORMAT_OPTIONS = [
   { value: 'hex', label: 'HEX' },
   { value: 'rgb', label: 'RGB' },
   { value: 'hsl', label: 'HSL' },
   { value: 'oklch', label: 'OKLCH' },
   { value: 'css', label: 'CSS' },
-]
+] as const
 
-const SCALE_OPTIONS: readonly SegmentedOption[] = [
+const SCALE_OPTIONS = [
   { value: '50-950', label: 'سلّم 50–950' },
   { value: 'tints-shades', label: 'تفتيح وتغميق' },
-]
+] as const
+
+const PALETTE_SIZES = [4, 6, 8, 10, 12, 16, 20, 24]
+
+const colourCount = (n: number) => plural(n, 'لون', 'لونان', 'ألوان')
 
 export interface ColorsTabProps {
   settings: Settings
   onSave: (patch: Partial<Settings['colors']>) => Promise<Result<Settings>>
+  persist: Persist
 }
 
-export function ColorsTab({ settings, onSave }: ColorsTabProps) {
-  const [failed, setFailed] = useState(false)
+export function ColorsTab({ settings, onSave, persist }: ColorsTabProps) {
   const { colors } = settings
-
-  const save = (patch: Partial<Settings['colors']>) => {
-    void onSave(patch).then((result) => setFailed(!result.ok))
-  }
-
-  const scaleIndex = Math.max(
-    0,
-    SCALE_OPTIONS.findIndex((o) => o.value === colors.scaleSystem),
-  )
+  const save = (patch: Partial<Settings['colors']>) => persist(() => onSave(patch))
+  const sizes = PALETTE_SIZES.includes(colors.paletteSize)
+    ? PALETTE_SIZES
+    : [...PALETTE_SIZES, colors.paletteSize].sort((a, b) => a - b)
 
   return (
-    <section class={styles.tab}>
-      {failed ? (
-        <Banner tone="danger">تعذّر حفظ الإعداد — أُعيد المعروض إلى آخر قيمة محفوظة.</Banner>
-      ) : null}
-
-      <div class={styles.section}>
-        <span class={styles.sectionTitle} id="colors-format-label">
-          صيغة النسخ الافتراضية
-        </span>
-        <div role="radiogroup" aria-labelledby="colors-format-label">
-          {FORMAT_OPTIONS.map((opt) => (
-            <Radio
-              key={opt.value}
-              name="colors-default-format"
-              label={opt.label}
-              selected={colors.defaultFormat === opt.value ? 'on' : 'off'}
-              onChange={(on) => on && save({ defaultFormat: opt.value })}
+    <>
+      <Group title="استخراج اللوحة" id="settings-palette">
+        <SettingRow
+          id="colors-size"
+          label="عدد ألوان اللوحة"
+          hint="أكثر ما يُستخرج من صفحة واحدة"
+          divider
+          control={
+            <Select
+              value={String(colors.paletteSize)}
+              options={sizes.map((n) => ({ value: String(n), label: colourCount(n) }))}
+              aria-label="عدد ألوان اللوحة"
+              aria-describedby="colors-size-hint"
+              onChange={(v) => save({ paletteSize: Number(v) })}
             />
-          ))}
-        </div>
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>عدد ألوان اللوحة</span>
-        <div class={styles.rowControl}>
-          <input
-            type="range"
-            min={3}
-            max={24}
-            step={1}
-            value={colors.paletteSize}
-            aria-label="عدد ألوان لوحة الاستخراج"
-            onInput={(e) => save({ paletteSize: Number(e.currentTarget.value) })}
-          />
-          <span>{plural(colors.paletteSize, 'لون', 'لونين', 'ألوان')}</span>
-        </div>
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>إخفاء الحياديات</span>
-        <Toggle
-          on={colors.hideNeutrals}
-          onChange={(on) => save({ hideNeutrals: on })}
-          aria-label="إخفاء الألوان الحيادية من اللوحة"
-        />
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>نظام الدرجات</span>
-        <SegmentedControl
-          options={SCALE_OPTIONS}
-          selected={scaleIndex}
-          onChange={(i) =>
-            save({ scaleSystem: SCALE_OPTIONS[i]?.value as Settings['colors']['scaleSystem'] })
           }
-          aria-label="نظام درجات اللون"
         />
-      </div>
-    </section>
+        <SettingRow
+          id="colors-neutrals"
+          label="أخفِ الألوان الحيادية"
+          hint="يستبعد الرماديات والأبيض والأسود من اللوحة"
+          control={
+            <Toggle
+              on={colors.hideNeutrals}
+              onChange={(on) => save({ hideNeutrals: on })}
+              aria-label="أخفِ الألوان الحيادية"
+            />
+          }
+        />
+      </Group>
+
+      <Group title="الدرجات" id="settings-scale">
+        <SettingRow
+          id="colors-scale"
+          label="نظام درجات اللون"
+          hint="طريقة توليد السلّم من لون واحد"
+          control={
+            <Select
+              value={colors.scaleSystem}
+              options={SCALE_OPTIONS}
+              aria-label="نظام درجات اللون"
+              aria-describedby="colors-scale-hint"
+              onChange={(v) => save({ scaleSystem: v as Settings['colors']['scaleSystem'] })}
+            />
+          }
+        />
+      </Group>
+
+      <Group title="النسخ" id="settings-copy-format">
+        <SettingRow
+          id="colors-format"
+          label="صيغة النسخ الافتراضية"
+          hint={`تُنسخ بها القيمة بنقرة واحدة من أداة الألوان — ${formatHuman(5)} صيغ`}
+          control={
+            <Select
+              value={colors.defaultFormat}
+              options={FORMAT_OPTIONS}
+              aria-label="صيغة النسخ الافتراضية"
+              aria-describedby="colors-format-hint"
+              onChange={(v) => save({ defaultFormat: v as Settings['colors']['defaultFormat'] })}
+            />
+          }
+        />
+      </Group>
+    </>
   )
 }

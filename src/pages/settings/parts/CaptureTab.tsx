@@ -1,140 +1,145 @@
 /**
- * تبويب التصوير — `§12.1`: الصيغة الافتراضية، الجودة، مكان الحفظ، فتح
- * المحرّر بعد الالتقاط، النسخ التلقائي، والتأجيل.
+ * قسم التصوير (`settings / capture`، `68:2`): مجموعتا «الالتقاط» و«بعد الالتقاط».
  *
- * `saveLocation` ضابطٌ محفوظٌ ومقروء هنا فقط — استهلاكه في خطّ أنابيب
- * الالتقاط الفعلي (`background/capture-service.ts`) خارج نطاق هذه الوحدة،
- * ويحتاج صلاحية `downloads` الاختيارية نفسها التي بنتها المرحلة 19
- * (`Docs/Engineering.md §6` صفّ 115).
+ * **«احفظ نسخة في مجلّد التنزيلات» يُعرض «قريبًا» لا مفتاحًا.** المفتاح `saveLocation`
+ * محفوظ ومقروء، لكن خطّ الالتقاط يحفظ في المكتبة وحدها ولا يقرؤه (`Docs/Engineering.md
+ * §6` الصفّ 115)، ووصله بتدفّق التنزيلات في `STAGES/05`. مفتاح يُقلَب ولا يفعل شيئًا
+ * ضابط صامت. والقيمة المحفوظة لا تُمسّ، فلا تنكسر إعدادات قائمة.
  */
-import { useState } from 'preact/hooks'
-
-import { formatPercent, plural } from '@/shared/bidi'
-import { Banner } from '@/ui/components/Banner/Banner'
-import {
-  SegmentedControl,
-  type SegmentedOption,
-} from '@/ui/components/SegmentedControl/SegmentedControl'
-import { Slider } from '@/ui/components/Slider/Slider'
+import { formatHuman, formatPercent } from '@/shared/bidi'
+import { Chip } from '@/ui/components/Chip/Chip'
+import { Select } from '@/ui/components/Select/Select'
+import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { Toggle } from '@/ui/components/Toggle/Toggle'
 
-import styles from './SettingsTab.module.css'
+import { Group } from './Group'
 
+import type { Persist } from '../persist'
 import type { Result } from '@/shared/result'
 import type { Settings } from '@/shared/settings'
 
-const FORMAT_OPTIONS: readonly SegmentedOption[] = [
+const FORMAT_OPTIONS = [
   { value: 'png', label: 'PNG' },
   { value: 'webp', label: 'WebP' },
+] as const
+
+/** درجات الجودة المقيسة في `Docs/Engineering.md §6` الصفّ 104، وقيمة مخصّصة إن حُفظت غيرها. */
+const QUALITY_PRESETS: readonly { value: number; label: string }[] = [
+  { value: 1, label: 'الأقصى' },
+  { value: 0.92, label: 'عالية' },
+  { value: 0.82, label: 'متوسّطة' },
+  { value: 0.6, label: 'منخفضة' },
 ]
 
-const DELAY_OPTIONS: readonly SegmentedOption[] = [
+const DELAY_OPTIONS = [
   { value: '0', label: 'بلا تأجيل' },
-  { value: '3', label: plural(3, 'ثانية', 'ثانيتين', 'ثوانٍ') },
-  { value: '5', label: plural(5, 'ثانية', 'ثانيتين', 'ثوانٍ') },
-  { value: '10', label: plural(10, 'ثانية', 'ثانيتين', 'ثوانٍ') },
-]
-
-/** `0.1–1` ↔ `0–100`: نطاق `Slider` المشترك ثابتٌ بالتصميم (`§0.3`). */
-const qualityToSlider = (q: number) => Math.round(((q - 0.1) / 0.9) * 100)
-const sliderToQuality = (v: number) => Math.round((0.1 + (v / 100) * 0.9) * 100) / 100
+  { value: '3', label: `${formatHuman(3)} ثوانٍ` },
+  { value: '5', label: `${formatHuman(5)} ثوانٍ` },
+  { value: '10', label: `${formatHuman(10)} ثوانٍ` },
+] as const
 
 export interface CaptureTabProps {
   settings: Settings
   onSave: (patch: Partial<Settings['capture']>) => Promise<Result<Settings>>
+  persist: Persist
 }
 
-export function CaptureTab({ settings, onSave }: CaptureTabProps) {
-  const [failed, setFailed] = useState(false)
+export function CaptureTab({ settings, onSave, persist }: CaptureTabProps) {
   const { capture } = settings
+  const save = (patch: Partial<Settings['capture']>) => persist(() => onSave(patch))
 
-  const save = (patch: Partial<Settings['capture']>) => {
-    void onSave(patch).then((result) => setFailed(!result.ok))
-  }
-
-  const formatIndex = Math.max(
-    0,
-    FORMAT_OPTIONS.findIndex((o) => o.value === capture.format),
-  )
-  const delayIndex = Math.max(
-    0,
-    DELAY_OPTIONS.findIndex((o) => o.value === String(capture.delaySeconds)),
-  )
+  const qualityOptions = QUALITY_PRESETS.some((p) => p.value === capture.quality)
+    ? QUALITY_PRESETS
+    : [
+        ...QUALITY_PRESETS,
+        { value: capture.quality, label: `مخصّصة (${formatPercent(capture.quality)})` },
+      ]
 
   return (
-    <section class={styles.tab}>
-      {failed ? (
-        <Banner tone="danger">تعذّر حفظ الإعداد — أُعيد المعروض إلى آخر قيمة محفوظة.</Banner>
-      ) : null}
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>الصيغة الافتراضية</span>
-        <SegmentedControl
-          options={FORMAT_OPTIONS}
-          selected={formatIndex}
-          onChange={(i) =>
-            save({ format: FORMAT_OPTIONS[i]?.value as Settings['capture']['format'] })
+    <>
+      <Group title="الالتقاط" id="settings-capture">
+        <SettingRow
+          id="capture-format"
+          label="الصيغة الافتراضية"
+          hint="الصيغة التي تُحفظ بها اللقطات الجديدة"
+          divider
+          control={
+            <Select
+              value={capture.format}
+              options={FORMAT_OPTIONS}
+              aria-label="الصيغة الافتراضية"
+              aria-describedby="capture-format-hint"
+              onChange={(v) => save({ format: v as Settings['capture']['format'] })}
+            />
           }
-          aria-label="صيغة الالتقاط الافتراضية"
         />
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>الجودة</span>
-        <div class={styles.rowControl}>
-          <Slider
-            value={qualityToSlider(capture.quality)}
-            onChange={(v) => save({ quality: sliderToQuality(v) })}
-            aria-label="جودة الالتقاط"
-          />
-          <span>{formatPercent(capture.quality)}</span>
-        </div>
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>
-          نسخة أيضًا في مجلّد التنزيلات
-          <span class={styles.rowHint}>
-            بلا هذا الخيار تبقى اللقطة في المكتبة وحدها حتى تُصدَّر يدويًّا.
-          </span>
-        </span>
-        <Toggle
-          on={capture.saveLocation === 'library-and-downloads'}
-          onChange={(on) => save({ saveLocation: on ? 'library-and-downloads' : 'library' })}
-          aria-label="نسخ اللقطة تلقائيًا إلى مجلّد التنزيلات"
+        <SettingRow
+          id="capture-quality"
+          label="الجودة"
+          hint="تسري على WebP وحدها. PNG بلا فقد دائمًا"
+          divider
+          control={
+            <Select
+              value={String(capture.quality)}
+              options={qualityOptions.map((p) => ({ value: String(p.value), label: p.label }))}
+              aria-label="الجودة"
+              aria-describedby="capture-quality-hint"
+              onChange={(v) => save({ quality: Number(v) })}
+            />
+          }
         />
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>فتح المحرّر بعد الالتقاط</span>
-        <Toggle
-          on={capture.openEditorAfter}
-          onChange={(on) => save({ openEditorAfter: on })}
-          aria-label="فتح المحرّر تلقائيًا بعد كل التقاط"
+        <SettingRow
+          id="capture-delay"
+          label="مهلة قبل الالتقاط"
+          hint="تمنحك وقتًا لفتح قائمة أو تمرير المؤشّر"
+          control={
+            <Select
+              value={String(capture.delaySeconds)}
+              options={DELAY_OPTIONS}
+              aria-label="مهلة قبل الالتقاط"
+              aria-describedby="capture-delay-hint"
+              onChange={(v) =>
+                save({ delaySeconds: Number(v) as Settings['capture']['delaySeconds'] })
+              }
+            />
+          }
         />
-      </div>
+      </Group>
 
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>النسخ التلقائي إلى الحافظة</span>
-        <Toggle
-          on={capture.copyToClipboard}
-          onChange={(on) => save({ copyToClipboard: on })}
-          aria-label="نسخ اللقطة تلقائيًا إلى الحافظة"
+      <Group title="بعد الالتقاط" id="settings-after-capture">
+        <SettingRow
+          id="capture-open-editor"
+          label="افتح المحرّر بعد كل التقاط"
+          hint="تنتقل مباشرةً إلى التعليق"
+          divider
+          control={
+            <Toggle
+              on={capture.openEditorAfter}
+              onChange={(on) => save({ openEditorAfter: on })}
+              aria-label="افتح المحرّر بعد كل التقاط"
+            />
+          }
         />
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>تأجيل الالتقاط الفوري</span>
-        <SegmentedControl
-          options={DELAY_OPTIONS}
-          selected={delayIndex}
-          onChange={(i) => {
-            const value = DELAY_OPTIONS[i]?.value
-            if (value) save({ delaySeconds: Number(value) as Settings['capture']['delaySeconds'] })
-          }}
-          aria-label="مدّة تأجيل الالتقاط الفوري"
+        <SettingRow
+          id="capture-clipboard"
+          label="انسخ اللقطة إلى الحافظة"
+          hint="تُنسخ الصورة مع حفظها في المكتبة"
+          divider
+          control={
+            <Toggle
+              on={capture.copyToClipboard}
+              onChange={(on) => save({ copyToClipboard: on })}
+              aria-label="انسخ اللقطة إلى الحافظة"
+            />
+          }
         />
-      </div>
-    </section>
+        <SettingRow
+          id="capture-downloads"
+          label="احفظ نسخة في مجلّد التنزيلات"
+          hint="تصل مع تدفّق التنزيلات قريبًا. اللقطة تُحفظ في المكتبة وحدها اليوم."
+          control={<Chip tone="neutral">قريبًا</Chip>}
+        />
+      </Group>
+    </>
   )
 }

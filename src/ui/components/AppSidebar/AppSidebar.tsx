@@ -53,17 +53,32 @@ export function AppSidebar({
   homeHref,
   class: className,
 }: AppSidebarProps): JSX.Element {
-  const item = (entry: SidebarEntry) => (
-    <NavItem
-      key={entry.id}
-      icon={entry.icon}
-      label={entry.label}
-      count={entry.count}
-      active={entry.id === activeId}
-      {...(entry.href ? { href: entry.href } : {})}
-      {...(entry.onClick ? { onClick: entry.onClick } : {})}
-    />
-  )
+  /**
+   * عنصر برابط ودالّة معًا يبدّل العرض في مكانه بلا تنقّل، ويبقى رابطًا حقيقيًّا: النقر
+   * مع ⌘ أو Ctrl أو Shift يفتحه في تبويب جديد كأي رابط.
+   */
+  const item = (entry: SidebarEntry) => {
+    const run = entry.onClick
+    return (
+      <NavItem
+        key={entry.id}
+        icon={entry.icon}
+        label={entry.label}
+        count={entry.count}
+        active={entry.id === activeId}
+        {...(entry.href ? { href: entry.href } : {})}
+        {...(run
+          ? {
+              onClick: (e: MouseEvent) => {
+                if (entry.href && (e.metaKey || e.ctrlKey || e.shiftKey)) return
+                e.preventDefault()
+                run()
+              },
+            }
+          : {})}
+      />
+    )
+  }
   return (
     <aside class={cx(styles.sidebar, className)}>
       <div class={styles.top}>

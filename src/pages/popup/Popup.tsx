@@ -308,7 +308,12 @@ export function Popup(): JSX.Element | null {
         ) : (
           <Restricted
             reason={context.restriction.reason}
-            onManageSites={() => openPage('settings')}
+            onManageSites={() =>
+              void send('page/open', {
+                page: 'settings',
+                params: { section: 'privacy', view: 'excluded-sites' },
+              }).then(() => window.close())
+            }
           />
         )
         break

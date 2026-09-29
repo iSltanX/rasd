@@ -39,8 +39,10 @@ import {
 } from '@/shared/permissions'
 import { Button } from '@/ui/components/Button/Button'
 import { Chip } from '@/ui/components/Chip/Chip'
+import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 
-import styles from './SettingsTab.module.css'
+import { Group } from './Group'
+import panelStyles from './PermissionsPanel.module.css'
 
 import type { JSX } from 'preact'
 
@@ -101,102 +103,86 @@ export function PermissionsPanel(): JSX.Element {
 
   return (
     <>
-      <div class={styles.section}>
-        <span class={styles.sectionTitle}>صلاحيات دائمة — سبع، وصفر تحذير عند التثبيت</span>
-        <span class={styles.rowHint}>{REQUIRED_PERMISSION_NOTE}</span>
-      </div>
+      <Group title="صلاحيات أساسية" id="permissions-required">
+        {REQUIRED_PERMISSIONS.map((name, i) => (
+          <SettingRow
+            key={name}
+            label={<bdi dir="ltr">{name}</bdi>}
+            hint={REQUIRED_PERMISSION_RATIONALE[name]}
+            divider={i < REQUIRED_PERMISSIONS.length - 1}
+            control={<Chip tone="success">ممنوحة</Chip>}
+          />
+        ))}
+      </Group>
+      <p class={panelStyles.note}>{REQUIRED_PERMISSION_NOTE}</p>
 
-      {REQUIRED_PERMISSIONS.map((name) => (
-        <div key={name} class={styles.row}>
-          <span class={styles.rowLabel}>
-            <bdi dir="ltr">{name}</bdi>
-            <span class={styles.rowHint}>{REQUIRED_PERMISSION_RATIONALE[name]}</span>
-          </span>
-          <div class={styles.rowControl}>
-            <Chip tone="neutral">دائمة</Chip>
-          </div>
-        </div>
-      ))}
-
-      <div class={styles.section}>
-        <span class={styles.sectionTitle}>صلاحيات اختيارية — تُطلب عند الحاجة، وتُسحب متى شئت</span>
-      </div>
-
-      {OPTIONAL_PERMISSIONS.map((name) => (
-        <div key={name} class={styles.row}>
-          <span class={styles.rowLabel}>
-            <bdi dir="ltr">{name}</bdi>
-            <span class={styles.rowHint}>{OPTIONAL_PERMISSION_RATIONALE[name]}</span>
-            <span class={styles.rowHint}>عند الرفض: {OPTIONAL_PERMISSION_DENIAL[name]}</span>
-          </span>
-          <div class={styles.rowControl}>
-            <Chip tone={granted[name] ? 'success' : 'neutral'}>
-              {granted[name] ? 'ممنوحة' : 'غير ممنوحة'}
-            </Chip>
-            {/*
-             * التسمية تحمل اسم الصلاحية — رصدته قراءة شجرة الإتاحة الحقيقية
-             * في هذه الوحدة: أربعة أزرار نصُّها «امنح» حرفيًّا تُقرأ لقارئ
-             * الشاشة أربع مرّات متطابقة، فلا يُعرف أيُّها لأي صلاحية. نفس
-             * علّة `Chip.onRemove` التي تجنّبناها في قائمة المواقع، وكانت
-             * ستتكرّر هنا لولا القياس.
-             */}
+      <Group title="صلاحيات اختيارية" id="permissions-optional">
+        {OPTIONAL_PERMISSIONS.map((name) => (
+          <SettingRow
+            key={name}
+            label={<bdi dir="ltr">{name}</bdi>}
+            hint={
+              <>
+                {OPTIONAL_PERMISSION_RATIONALE[name]} {granted[name] ? 'ممنوحة.' : 'غير ممنوحة.'}{' '}
+                عند الرفض: {OPTIONAL_PERMISSION_DENIAL[name]}
+              </>
+            }
+            divider
+            control={
+              /*
+               * التسمية تحمل اسم الصلاحية — أربعة أزرار نصُّها «امنح» حرفيًّا تُقرأ لقارئ
+               * الشاشة أربع مرّات متطابقة، فلا يُعرف أيُّها لأي صلاحية.
+               */
+              <Button
+                variant="secondary"
+                size="s"
+                state={busy === name ? 'loading' : 'default'}
+                aria-label={`${granted[name] ? 'اسحب' : 'امنح'} صلاحية ${name}`}
+                onClick={() => void toggleOptional(name)}
+              >
+                {granted[name] ? 'اسحب' : 'امنح'}
+              </Button>
+            }
+          />
+        ))}
+        <SettingRow
+          label="الوصول إلى المواقع"
+          hint={
+            <>
+              {HOST_PERMISSION_RATIONALE}{' '}
+              {hasAll
+                ? 'ممنوحة لكل المواقع.'
+                : named.length > 0
+                  ? `ممنوحة ${plural(named.length, 'لموقع', 'لموقعين', 'لمواقع')}: `
+                  : 'غير ممنوحة.'}
+              {!hasAll
+                ? named.map((origin, i) => (
+                    <span key={origin}>
+                      {i > 0 ? ' · ' : ''}
+                      <bdi dir="ltr">{origin}</bdi>
+                    </span>
+                  ))
+                : null}{' '}
+              عند الرفض: {HOST_PERMISSION_DENIAL}
+            </>
+          }
+          control={
             <Button
               variant="secondary"
               size="s"
-              state={busy === name ? 'loading' : 'default'}
-              aria-label={`${granted[name] ? 'اسحب' : 'امنح'} صلاحية ${name}`}
-              onClick={() => void toggleOptional(name)}
+              state={busy === ALL_URLS ? 'loading' : 'default'}
+              aria-label={
+                origins.length > 0
+                  ? 'اسحب صلاحية الوصول من كل المواقع الممنوحة'
+                  : 'امنح صلاحية الوصول إلى كل المواقع'
+              }
+              onClick={() => void toggleHost()}
             >
-              {granted[name] ? 'اسحب' : 'امنح'}
+              {origins.length > 0 ? 'اسحب الكلّ' : 'امنح للكلّ'}
             </Button>
-          </div>
-        </div>
-      ))}
-
-      <div class={styles.section}>
-        <span class={styles.sectionTitle}>صلاحية المواقع</span>
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>
-          الوصول إلى المواقع
-          <span class={styles.rowHint}>{HOST_PERMISSION_RATIONALE}</span>
-          <span class={styles.rowHint}>عند الرفض: {HOST_PERMISSION_DENIAL}</span>
-          {named.length > 0 ? (
-            <span class={styles.rowHint}>
-              ممنوحة لهذه المواقع:{' '}
-              {named.map((origin, i) => (
-                <span key={origin}>
-                  {i > 0 ? ' · ' : ''}
-                  <bdi dir="ltr">{origin}</bdi>
-                </span>
-              ))}
-            </span>
-          ) : null}
-        </span>
-        <div class={styles.rowControl}>
-          <Chip tone={origins.length > 0 ? 'success' : 'neutral'}>
-            {hasAll
-              ? 'كل المواقع'
-              : named.length > 0
-                ? plural(named.length, 'موقع', 'موقعان', 'مواقع')
-                : 'لا موقع'}
-          </Chip>
-          <Button
-            variant="secondary"
-            size="s"
-            state={busy === ALL_URLS ? 'loading' : 'default'}
-            aria-label={
-              origins.length > 0
-                ? 'اسحب صلاحية الوصول من كل المواقع الممنوحة'
-                : 'امنح صلاحية الوصول إلى كل المواقع'
-            }
-            onClick={() => void toggleHost()}
-          >
-            {origins.length > 0 ? 'اسحب الكلّ' : 'امنح للكلّ'}
-          </Button>
-        </div>
-      </div>
+          }
+        />
+      </Group>
     </>
   )
 }

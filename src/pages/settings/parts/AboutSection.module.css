@@ -1,0 +1,5 @@
+/* التذييل بسطر كامل في أسفل القسم، وحدّه العلوي يفصله كما في الإطار. */
+.footer {
+  margin-block-start: auto;
+  padding-inline: 0;
+}

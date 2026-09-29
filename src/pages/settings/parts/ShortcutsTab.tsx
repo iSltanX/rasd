@@ -1,39 +1,43 @@
 /**
- * تبويب الاختصارات — `§12.4`: عرض الخريطة الكاملة، تعديل اختصارات الأدوات
- * داخل الصفحة، ورابط `chrome://extensions/shortcuts` للأربعة العامة مع شرح
- * سبب القيد.
+ * قسم الاختصارات (`settings / shortcuts`، `281:862`): الالتقاط من أي صفحة، والأدوات داخل
+ * الصفحة، والثابتة.
  *
- * **الأربعة العامة تُقرأ حيًّا من `chrome.commands.getAll()`** لا بحرف مفترَض
- * ثابت — بالضبط العلّة التي كشفها `Docs/Engineering.md §6` صفّ 99: شارة ثابتة يمكن
- * أن تكذب حين يحجز المتصفّح التركيبة صامتًا على منصّة بعينها. القراءة الحيّة
- * تعرض الفراغ بصدق بدل حرفٍ لا يعمل.
+ * **الأربعة العامة تُقرأ حيًّا من `chrome.commands.getAll()`** لا بحرف مفترَض: المتصفّح
+ * قد يحجز التركيبة صامتًا على منصّة بعينها (`Docs/Engineering.md §6` الصفّ 99)، والقراءة
+ * الحيّة تعرض الفراغ بصدق. وحروف الأدوات تُغيَّر هنا بضغطة حرف، وتسري على الطبقة
+ * المفتوحة فورًا بلا إعادة حقن (الصفّ 117).
  */
 import { useEffect, useState } from 'preact/hooks'
 
 import { DEFAULT_TOOL_KEYS, MODE_META, type ToolShortcutMode } from '@/shared/modes'
+import { isMacPlatform } from '@/shared/platform'
 import { Banner } from '@/ui/components/Banner/Banner'
 import { Button } from '@/ui/components/Button/Button'
+import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { KeyCap } from '@/ui/TechnicalValue'
 
-import styles from './SettingsTab.module.css'
+import { Group } from './Group'
+import styles from './ShortcutsTab.module.css'
 
+import type { Persist } from '../persist'
 import type { Result } from '@/shared/result'
 import type { Settings } from '@/shared/settings'
 
 const TOOL_MODES: readonly ToolShortcutMode[] = ['inspect', 'measure', 'colour', 'compare']
 
-/** أسماء الأوامر الأربعة وتسمياتها — تطابق `pages/popup/views/Default.tsx` حرفًا بحرف. */
-const CAPTURE_COMMAND_LABEL: Readonly<Record<string, string>> = {
-  'capture-element': 'عنصر',
-  'capture-area': 'منطقة',
-  'capture-full-page': 'صفحة كاملة',
-  'capture-viewport': 'الظاهر',
+const TOOL_LABEL: Readonly<Record<ToolShortcutMode, string>> = {
+  inspect: 'فحص',
+  measure: 'قياس',
+  colour: 'ألوان',
+  compare: 'مقارنة',
 }
-const CAPTURE_COMMAND_ORDER = [
-  'capture-element',
-  'capture-area',
-  'capture-full-page',
-  'capture-viewport',
+
+/** أوامر الالتقاط بترتيب القراءة وتسمياتها كما في الإطار. */
+const CAPTURE_COMMANDS: readonly { name: string; label: string }[] = [
+  { name: 'capture-area', label: 'التقاط منطقة' },
+  { name: 'capture-element', label: 'التقاط عنصر' },
+  { name: 'capture-viewport', label: 'الجزء الظاهر' },
+  { name: 'capture-full-page', label: 'صفحة كاملة' },
 ]
 
 const KEY_LETTER = /^Key([A-Z])$/
@@ -47,10 +51,10 @@ function letterFromCode(code: string): string | null {
 export interface ShortcutsTabProps {
   settings: Settings
   onSave: (mode: ToolShortcutMode, code: string) => Promise<Result<Settings>>
+  persist: Persist
 }
 
-export function ShortcutsTab({ settings, onSave }: ShortcutsTabProps) {
-  const [failed, setFailed] = useState(false)
+export function ShortcutsTab({ settings, onSave, persist }: ShortcutsTabProps) {
   const [commands, setCommands] = useState<readonly chrome.commands.Command[] | null>(null)
   const [listening, setListening] = useState<ToolShortcutMode | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -85,100 +89,102 @@ export function ShortcutsTab({ settings, onSave }: ShortcutsTabProps) {
       }
       setError(null)
       setListening(null)
-      void onSave(mode, code).then((result) => setFailed(!result.ok))
+      persist(() => onSave(mode, code))
     }
 
     window.addEventListener('keydown', onKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
-  }, [listening, settings.shortcuts.toolKeys, onSave])
-
-  const startListening = (mode: ToolShortcutMode) => {
-    setError(null)
-    setListening(mode)
-  }
+  }, [listening, settings.shortcuts.toolKeys, onSave, persist])
 
   const openChromeShortcuts = () => {
     void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' })
   }
 
+  const mac = isMacPlatform()
+
   return (
-    <section class={styles.tab}>
-      {failed ? (
-        <Banner tone="danger">تعذّر حفظ الإعداد — أُعيد المعروض إلى آخر قيمة محفوظة.</Banner>
+    <>
+      {error ? (
+        <Banner tone="danger" onDismiss={() => setError(null)}>
+          {error}
+        </Banner>
       ) : null}
-      {error ? <Banner tone="danger">{error}</Banner> : null}
 
-      <div class={styles.section}>
-        <span class={styles.sectionTitle}>الاختصارات العامة</span>
-        <span class={styles.rowHint}>
-          يقبل Chrome أربعة اختصارات عامة فقط لكل إضافة — وهذا حدّ المنصّة لا اختيار رصد. عدِّلها من
-          صفحة اختصارات Chrome نفسها.
-        </span>
-      </div>
-      {CAPTURE_COMMAND_ORDER.map((name) => {
-        const command = commands?.find((c) => c.name === name)
-        return (
-          <div class={styles.row} key={name}>
-            <span class={styles.rowLabel}>{CAPTURE_COMMAND_LABEL[name]}</span>
-            {command?.shortcut ? (
-              <KeyCap>{command.shortcut}</KeyCap>
-            ) : (
-              <span class={styles.rowHint}>{commands ? 'بلا اختصار فعلي' : '…'}</span>
-            )}
-          </div>
-        )
-      })}
-      <div class={styles.row}>
-        <Button variant="secondary" size="s" onClick={openChromeShortcuts}>
-          فتح صفحة اختصارات Chrome
-        </Button>
-      </div>
+      <Group title="الالتقاط من أي صفحة" id="settings-capture-shortcuts">
+        {CAPTURE_COMMANDS.map(({ name, label }) => {
+          const shortcut = commands?.find((c) => c.name === name)?.shortcut
+          return (
+            <SettingRow
+              key={name}
+              label={label}
+              divider
+              control={
+                shortcut ? (
+                  <KeyCap>{shortcut}</KeyCap>
+                ) : (
+                  <span class={styles.none}>{commands ? 'بلا اختصار فعلي' : '…'}</span>
+                )
+              }
+            />
+          )
+        })}
+        <SettingRow
+          id="shortcuts-change"
+          label="غيّر اختصارات الالتقاط"
+          hint="يحفظها المتصفّح نفسه، فتُغيَّر من صفحة اختصاراته"
+          control={
+            <Button variant="secondary" size="s" onClick={openChromeShortcuts}>
+              افتح صفحة الاختصارات
+            </Button>
+          }
+        />
+      </Group>
 
-      <div class={styles.section}>
-        <span class={styles.sectionTitle}>اختصارات الأدوات</span>
-        <span class={styles.rowHint}>مُعدِّل ⌥⇧ ثابت لكل الأدوات؛ الحرف وحده قابل للتغيير.</span>
-      </div>
-      {TOOL_MODES.map((mode) => {
-        const code = settings.shortcuts.toolKeys[mode] ?? DEFAULT_TOOL_KEYS[mode]
-        const letter = letterFromCode(code) ?? code
-        return (
-          <div class={styles.row} key={mode}>
-            <span class={styles.rowLabel}>{MODE_META[mode].label}</span>
-            <div class={styles.rowControl}>
-              {listening === mode ? (
-                <span class={styles.rowHint}>بانتظار ضغطة مفتاح… (Esc للإلغاء)</span>
-              ) : (
-                <KeyCap>{`⌥⇧${letter}`}</KeyCap>
-              )}
-              <Button
-                variant="ghost"
-                size="s"
-                state={listening !== null ? 'disabled' : 'default'}
-                onClick={() => startListening(mode)}
-                aria-label={`تغيير اختصار أداة ${MODE_META[mode].label}`}
-              >
-                تعديل
-              </Button>
-            </div>
-          </div>
-        )
-      })}
+      <Group title="الأدوات داخل الصفحة" id="settings-tool-shortcuts">
+        {TOOL_MODES.map((mode, i) => {
+          const code = settings.shortcuts.toolKeys[mode] ?? DEFAULT_TOOL_KEYS[mode]
+          const letter = letterFromCode(code) ?? code
+          const active = listening === mode
+          return (
+            <SettingRow
+              key={mode}
+              label={TOOL_LABEL[mode]}
+              hint={i === 0 ? 'اضغط الحرف لتغييره. حرف لاتيني واحد، لا رقم ولا رمز' : undefined}
+              divider={i < TOOL_MODES.length - 1}
+              control={
+                <button
+                  type="button"
+                  class={styles.keyButton}
+                  aria-pressed={active}
+                  aria-label={`غيّر اختصار ${TOOL_LABEL[mode]}، الحالي ⌥⇧${letter}`}
+                  disabled={listening !== null && !active}
+                  onClick={() => {
+                    setError(null)
+                    setListening(active ? null : mode)
+                  }}
+                >
+                  {active ? (
+                    <span class={styles.listening}>اضغط حرفًا… (Esc للإلغاء)</span>
+                  ) : (
+                    <KeyCap>{`⌥⇧${letter}`}</KeyCap>
+                  )}
+                </button>
+              }
+            />
+          )
+        })}
+      </Group>
 
-      <div class={styles.section}>
-        <span class={styles.sectionTitle}>اختصارات ثابتة</span>
-      </div>
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>لوحة استخراج الألوان</span>
-        <KeyCap>⌘K · Ctrl+K</KeyCap>
-      </div>
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>إلغاء الوضع النشط</span>
-        <KeyCap>Esc</KeyCap>
-      </div>
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>تبديل درجة القياس</span>
-        <KeyCap>↑ / ↓</KeyCap>
-      </div>
-    </section>
+      <Group title="ثابتة" id="settings-fixed-shortcuts">
+        <SettingRow
+          label="استخراج لوحة الصفحة"
+          divider
+          control={<KeyCap>{mac ? '⌘K' : 'Ctrl+K'}</KeyCap>}
+        />
+        <SettingRow label="درجة القياس التالية والسابقة" divider control={<KeyCap>↑ / ↓</KeyCap>} />
+        <SettingRow label="خروج من الأداة" divider control={<KeyCap>Esc</KeyCap>} />
+        <SettingRow label="ورقة الاختصارات" control={<KeyCap>?</KeyCap>} />
+      </Group>
+    </>
   )
 }

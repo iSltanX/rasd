@@ -1,0 +1,14 @@
+/* القشرة: الشريط في بداية السطر (يمينًا في RTL) والمحتوى يملأ الباقي. */
+.shell {
+  display: flex;
+  align-items: stretch;
+  min-block-size: 100vh;
+  background: var(--rasd-surface-canvas);
+}
+
+.main {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+}

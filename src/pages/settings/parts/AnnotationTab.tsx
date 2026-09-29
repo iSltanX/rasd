@@ -1,22 +1,18 @@
 /**
- * تبويب التعليقات — `§12.2`: اللون الافتراضي، سماكة الخط، حجم النص، شكل
- * الترقيم.
+ * قسم التعليقات (`settings / annotation`، `129:35`): «الرسم» و«الترقيم».
  *
- * تسميات الألوان والأشكال منقولة حرفًا بحرف من `pages/editor/parts/StyleBar.tsx`
- * (المرحلة 15) — نفس الثوابت، مصدرا عرضٍ مختلفان لعقد بيانات واحد.
+ * تسميات الألوان والأشكال منقولة حرفًا بحرف من `pages/editor/parts/StyleBar.tsx` — نفس
+ * الثوابت، مصدرا عرضٍ مختلفان لعقد بيانات واحد. والمقاسات قائمة درجات تحمل القيمة
+ * المحفوظة دائمًا، ولو خارجها، فلا تُستبدَل قيمة المستخدم بأقرب درجة صامتًا.
  */
-import { useState } from 'preact/hooks'
-
-import { formatUnit } from '@/shared/bidi'
+import { formatHuman, formatUnit } from '@/shared/bidi'
 import { ANNOTATION_COLORS, type Settings } from '@/shared/settings'
-import { Banner } from '@/ui/components/Banner/Banner'
-import {
-  SegmentedControl,
-  type SegmentedOption,
-} from '@/ui/components/SegmentedControl/SegmentedControl'
+import { Select } from '@/ui/components/Select/Select'
+import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 
-import styles from './SettingsTab.module.css'
+import { Group } from './Group'
 
+import type { Persist } from '../persist'
 import type { Result } from '@/shared/result'
 
 const COLOR_LABEL: Readonly<Record<(typeof ANNOTATION_COLORS)[number], string>> = {
@@ -29,101 +25,95 @@ const COLOR_LABEL: Readonly<Record<(typeof ANNOTATION_COLORS)[number], string>> 
   'status/success/solid': 'أخضر',
 }
 
-const SHAPE_OPTIONS: readonly SegmentedOption[] = [
+const SHAPE_OPTIONS = [
   { value: 'circle', label: 'دائرة' },
   { value: 'square', label: 'مربّع' },
   { value: 'pin', label: 'دبّوس' },
-]
+] as const
 
-/** `token/path/solid` → `--rasd-token-path-solid` (`public/assets/tokens.css`). */
-const tokenVar = (token: string) => `var(--rasd-${token.replaceAll('/', '-')})`
+const STROKES = [1, 2, 3, 4, 6, 8, 12]
+const FONT_SIZES = [12, 14, 16, 18, 20, 24, 32]
+
+/** درجات القائمة، ومعها القيمة المحفوظة إن لم تكن منها — مرتّبة تصاعديًّا. */
+function sizeOptions(steps: readonly number[], current: number) {
+  const values = steps.includes(current) ? steps : [...steps, current].sort((a, b) => a - b)
+  return values.map((v) => ({ value: String(v), label: formatUnit(v) }))
+}
 
 export interface AnnotationTabProps {
   settings: Settings
   onSave: (patch: Partial<Settings['annotation']>) => Promise<Result<Settings>>
+  persist: Persist
 }
 
-export function AnnotationTab({ settings, onSave }: AnnotationTabProps) {
-  const [failed, setFailed] = useState(false)
+export function AnnotationTab({ settings, onSave, persist }: AnnotationTabProps) {
   const { annotation } = settings
-
-  const save = (patch: Partial<Settings['annotation']>) => {
-    void onSave(patch).then((result) => setFailed(!result.ok))
-  }
-
-  const shapeIndex = Math.max(
-    0,
-    SHAPE_OPTIONS.findIndex((o) => o.value === annotation.pinShape),
-  )
+  const save = (patch: Partial<Settings['annotation']>) => persist(() => onSave(patch))
 
   return (
-    <section class={styles.tab}>
-      {failed ? (
-        <Banner tone="danger">تعذّر حفظ الإعداد — أُعيد المعروض إلى آخر قيمة محفوظة.</Banner>
-      ) : null}
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel} id="annotation-color-label">
-          اللون الافتراضي
-        </span>
-        <div class={styles.rowControl} role="group" aria-labelledby="annotation-color-label">
-          {ANNOTATION_COLORS.map((token) => (
-            <button
-              key={token}
-              type="button"
-              class={styles.swatch}
-              aria-label={COLOR_LABEL[token]}
-              aria-pressed={annotation.color === token}
-              style={{ background: tokenVar(token) }}
-              onClick={() => save({ color: token })}
+    <>
+      <Group title="الرسم" id="settings-drawing">
+        <SettingRow
+          id="annotation-color"
+          label="لون التعليق الافتراضي"
+          hint="يبدأ به كل سهم ومستطيل ونصّ جديد"
+          divider
+          control={
+            <Select
+              value={annotation.color}
+              options={ANNOTATION_COLORS.map((token) => ({
+                value: token,
+                label: COLOR_LABEL[token],
+              }))}
+              aria-label="لون التعليق الافتراضي"
+              aria-describedby="annotation-color-hint"
+              onChange={(v) => save({ color: v as Settings['annotation']['color'] })}
             />
-          ))}
-        </div>
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>سماكة الخط</span>
-        <div class={styles.rowControl}>
-          <input
-            type="range"
-            min={1}
-            max={24}
-            step={1}
-            value={annotation.strokeWidth}
-            aria-label="سماكة خط التعليق"
-            onInput={(e) => save({ strokeWidth: Number(e.currentTarget.value) })}
-          />
-          <span>{formatUnit(annotation.strokeWidth)}</span>
-        </div>
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>حجم النص</span>
-        <div class={styles.rowControl}>
-          <input
-            type="range"
-            min={10}
-            max={72}
-            step={1}
-            value={annotation.fontSize}
-            aria-label="حجم نص التعليق"
-            onInput={(e) => save({ fontSize: Number(e.currentTarget.value) })}
-          />
-          <span>{formatUnit(annotation.fontSize)}</span>
-        </div>
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>شكل الترقيم</span>
-        <SegmentedControl
-          options={SHAPE_OPTIONS}
-          selected={shapeIndex}
-          onChange={(i) =>
-            save({ pinShape: SHAPE_OPTIONS[i]?.value as Settings['annotation']['pinShape'] })
           }
-          aria-label="شكل دبّوس الترقيم"
         />
-      </div>
-    </section>
+        <SettingRow
+          id="annotation-stroke"
+          label="سماكة الخطّ"
+          divider
+          control={
+            <Select
+              value={String(annotation.strokeWidth)}
+              options={sizeOptions(STROKES, annotation.strokeWidth)}
+              aria-label="سماكة الخطّ"
+              onChange={(v) => save({ strokeWidth: Number(v) })}
+            />
+          }
+        />
+        <SettingRow
+          id="annotation-font"
+          label="حجم النصّ"
+          control={
+            <Select
+              value={String(annotation.fontSize)}
+              options={sizeOptions(FONT_SIZES, annotation.fontSize)}
+              aria-label="حجم النصّ"
+              onChange={(v) => save({ fontSize: Number(v) })}
+            />
+          }
+        />
+      </Group>
+
+      <Group title="الترقيم" id="settings-numbering">
+        <SettingRow
+          id="annotation-pin"
+          label="شكل دبّوس الترقيم"
+          hint={`الأرقام داخل الدبّوس هندية وتبدأ من ${formatHuman(annotation.pinStart)}`}
+          control={
+            <Select
+              value={annotation.pinShape}
+              options={SHAPE_OPTIONS}
+              aria-label="شكل دبّوس الترقيم"
+              aria-describedby="annotation-pin-hint"
+              onChange={(v) => save({ pinShape: v as Settings['annotation']['pinShape'] })}
+            />
+          }
+        />
+      </Group>
+    </>
   )
 }

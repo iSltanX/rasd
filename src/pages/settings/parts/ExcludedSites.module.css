@@ -1,61 +1,35 @@
-/**
- * أنماط قائمة المواقع المستثناة — ما لا يوجد في `SettingsTab.module.css`.
- *
- * صفُّ الإعداد ووسومه وتلميحاته تأتي من الورقة المشتركة؛ هنا ما تخصّ القائمة
- * وحدها: نموذج الإضافة، وصفوف القائمة، وصفّ النقل (تصدير/استيراد).
+/*
+ * صفحة المواقع المستثناة (`privacy / excluded-sites`، `285:444`): شريط إضافة ارتفاعه 36
+ * بفجوة 8، ثمّ مجموعة القائمة. والاقتراحات تحت الشريط ليست في الإطار — ميزة قائمة تُبقى.
  */
-
-.panel {
+.page {
   display: flex;
   flex-direction: column;
-  gap: var(--rasd-space-12);
-  padding-inline: var(--rasd-space-12);
-  padding-block-end: var(--rasd-space-16);
+  gap: var(--rasd-space-20);
 }
 
-.addForm {
+.addBar {
   display: flex;
   align-items: flex-start;
   gap: var(--rasd-space-8);
 }
-
-.addForm > :first-child {
+.field {
   flex: 1;
 }
 
+.hint,
 .empty {
-  font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-sm);
+  margin: 0;
   color: var(--rasd-text-secondary);
-  margin: 0;
+  font-size: var(--rasd-font-size-sm);
+  line-height: var(--rasd-leading-ui);
 }
 
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--rasd-space-8);
-  padding-block: var(--rasd-space-8);
-  border-block-end: var(--rasd-stroke-hairline) solid var(--rasd-border-subtle);
-}
-
-.item:last-child {
-  border-block-end: 0;
-}
-
-/* المضيف مقطع لاتيني داخل سياق عربي — يُعزل كي لا تنقلب نقاطه. */
+/* المضيف مقطع لاتيني داخل سياق عربي — يُعزل كي لا تنقلب نقاطه ونجمته. */
 .host {
   font-family: var(--rasd-font-family-mono);
-  font-size: var(--rasd-font-size-sm);
-  color: var(--rasd-text-primary);
+  font-size: var(--rasd-font-size-base);
+  font-weight: 400;
 }
 
 .suggested {
@@ -63,14 +37,7 @@
   flex-direction: column;
   gap: var(--rasd-space-8);
 }
-
 .suggestedRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rasd-space-8);
-}
-
-.transferRow {
   display: flex;
   flex-wrap: wrap;
   gap: var(--rasd-space-8);

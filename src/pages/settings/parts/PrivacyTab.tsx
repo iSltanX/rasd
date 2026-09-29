@@ -1,53 +1,53 @@
 /**
- * تبويب الخصوصية والصلاحيات — `§11` و`§12.5` (الوحدة 20.3).
+ * قسم الخصوصية (`privacy / controls`، `68:416`) وصفحتاه الفرعيتان: المواقع المستثناة
+ * (`285:444`) وصلاحيات المتصفّح (`285:1073`).
  *
- * **ولماذا تبويبٌ هنا لا صفحةٌ مستقلّة في `PAGE_PATHS`.** سؤالٌ تركته
- * ملفّ المرحلة 20 السابق (تاريخ Git) §8` مفتوحًا وأمرت بالتحقّق منه لا افتراضه — وحُسم بالقياس في
- * المصدر: إطار `privacy / controls` (‏`68:416`) وإطار `settings / capture`
- * (‏`68:306`) يتقاسمان `section-nav` **واحدًا متطابقًا حرفًا بحرف** في الموضع
- * والمقاس (‏x=984 · 212×790) وبالعناصر الثمانية نفسها بالترتيب نفسه، و«الخصوصية»
- * عنصره الخامس. فالتصميم يجعلها **قسمًا شقيقًا داخل قشرة الإعدادات** لا شاشة
- * منفصلة. والاختبار المطبَّق هو نفسه الذي حسم `22 — Export` في المرحلة 19
- * (صفحة Figma مستقلّة نُفِّذت نافذةً بلا مدخل في `PAGE_PATHS`): **هندسة الإطار
- * تحكم، لا اسم الصفحة**.
+ * **النصوص تقول ما يصدق اليوم، ولو خالفت الإطار في حرف:**
+ * - «الوضع المحلّي فقط» — لا يرسل رصد شيئًا خارج هذا الجهاز (`Docs/Design.md` §7 القرار 8).
+ *   وجملة الإطار عن التكاملات تُحذف: لا تكامل مبنيّ بعد (`STAGES/11`)، ولا مسار رفع
+ *   قائم أصلًا (`Docs/Engineering.md §6` الصفّ 126).
+ * - «احذف البيانات الوصفية» يزيل ملفّ الألوان المضمَّن من WebP (`webp-strip.ts`)؛ وPNG
+ *   تخرج بلا مقطع وصفي أصلًا. نصّ الإطار («رابط الصفحة وعنوانها ووقت الالتقاط») يصف
+ *   بيانات لا يكتبها التصدير في الملفّ.
+ * - «قفل المكتبة» «قريبًا» حتى `STAGES/08`، و«احذف كل البيانات» انتقل إلى قسم البيانات.
  *
- * والانحراف الباقي مُسجَّل لا مطويّ: المنفَّذ شريط `Tabs` أفقي بستّة عناصر،
- * والمرسوم تنقّل رأسيّ بثمانية (فيه «التكاملات» و«عن رصد» بلا شاشة مبنيّة بعد).
- * يُصحَّح في Figma عند الوحدة 26.1 مع الصفّ 111 (‏`Docs/Engineering.md §6` صفّ 125).
+ * والتصفّح الخاص قائمة منسدلة كما في الإطار، وتلميحها يصف الخيار المحدَّد بنصوص صفحة
+ * `privacy / incognito` نفسها — فالصفحة الفرعية لا تلزم.
  */
-import { useState } from 'preact/hooks'
-
 import { formatHuman, plural } from '@/shared/bidi'
-import { Banner } from '@/ui/components/Banner/Banner'
+import { Button } from '@/ui/components/Button/Button'
 import { Chip } from '@/ui/components/Chip/Chip'
-import {
-  SegmentedControl,
-  type SegmentedOption,
-} from '@/ui/components/SegmentedControl/SegmentedControl'
+import { Select } from '@/ui/components/Select/Select'
+import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { Toggle } from '@/ui/components/Toggle/Toggle'
 
 import { ExcludedSites } from './ExcludedSites'
+import { Group } from './Group'
 import { PermissionsPanel } from './PermissionsPanel'
-import styles from './SettingsTab.module.css'
 
+import type { Persist } from '../persist'
 import type { Result } from '@/shared/result'
 import type { Settings } from '@/shared/settings'
 
-const INCOGNITO_OPTIONS: readonly SegmentedOption[] = [
-  { value: 'allow', label: 'يعمل ويحفظ' },
-  { value: 'no-save', label: 'يعمل بلا حفظ' },
+export type PrivacyView = 'controls' | 'excluded-sites' | 'permissions'
+
+const INCOGNITO_OPTIONS = [
   { value: 'off', label: 'معطَّل' },
-]
+  { value: 'no-save', label: 'يعمل بلا حفظ' },
+  { value: 'allow', label: 'يعمل ويحفظ' },
+] as const
+
+const INCOGNITO_HINT: Record<Settings['privacy']['incognito'], string> = {
+  off: 'رصد لا يُحقَن في النوافذ الخاصّة إطلاقًا.',
+  'no-save': 'رصد يعمل في النوافذ الخاصّة ولا يكتب شيئًا على القرص: لا لقطة ولا سجلّ.',
+  allow: 'رصد يعمل ويحفظ في النوافذ الخاصّة كما في العادية.',
+}
 
 /**
- * المدد الأربع كما يعرضها الضابط.
- *
- * **و`plural` لا تصلح لـ30 و90**: قاعدتها تُرجع صيغة المفرد المرفوع لما فوق
- * العشرة (`numerals.ts`: `count >= 11` ⟵ `one`)، فتُنتج «٣٠ يوم» والصواب
- * التمييز المنصوب «٣٠ يومًا». وهي صحيحة لـ7 (‏3–10 ⟵ جمع قلّة: «٧ أيام»).
- * رصدته قراءة شجرة الإتاحة الحقيقية في هذه الوحدة.
+ * المدد الأربع. **و`plural` لا تصلح لـ30 و90**: قاعدتها تُرجع صيغة المفرد المرفوع لما
+ * فوق العشرة، فتُنتج «٣٠ يوم» والصواب التمييز المنصوب «٣٠ يومًا».
  */
-const RETENTION_OPTIONS: readonly SegmentedOption[] = [
+const RETENTION_OPTIONS = [
   { value: '0', label: 'بلا حذف' },
   { value: '7', label: plural(7, 'يوم', 'يومان', 'أيام') },
   { value: '30', label: `${formatHuman(30)} يومًا` },
@@ -56,69 +56,32 @@ const RETENTION_OPTIONS: readonly SegmentedOption[] = [
 
 export interface PrivacyTabProps {
   settings: Settings
+  view: PrivacyView
+  onView: (view: PrivacyView) => void
   onSave: (patch: Partial<Settings['privacy']>) => Promise<Result<Settings>>
   onAddSite: (raw: string) => Promise<Result<Settings> | 'invalid'>
   onRemoveSite: (value: string) => Promise<Result<Settings>>
   onImportSites: (
     entries: readonly unknown[],
   ) => Promise<{ result: Result<Settings>; added: number; rejected: number }>
+  persist: Persist
 }
 
 export function PrivacyTab({
   settings,
+  view,
+  onView,
   onSave,
   onAddSite,
   onRemoveSite,
   onImportSites,
+  persist,
 }: PrivacyTabProps) {
-  const [failed, setFailed] = useState(false)
   const { privacy } = settings
+  const save = (patch: Partial<Settings['privacy']>) => persist(() => onSave(patch))
 
-  const save = (patch: Partial<Settings['privacy']>) => {
-    void onSave(patch).then((result) => setFailed(!result.ok))
-  }
-
-  const incognitoIndex = Math.max(
-    0,
-    INCOGNITO_OPTIONS.findIndex((o) => o.value === privacy.incognito),
-  )
-  const retentionIndex = Math.max(
-    0,
-    RETENTION_OPTIONS.findIndex((o) => o.value === String(privacy.autoDeleteAfterDays)),
-  )
-
-  return (
-    <section class={styles.tab}>
-      {failed ? (
-        <Banner tone="danger">تعذّر حفظ الإعداد — أُعيد المعروض إلى آخر قيمة محفوظة.</Banner>
-      ) : null}
-
-      <div class={styles.section}>
-        <span class={styles.sectionTitle}>المواقع</span>
-      </div>
-
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>
-          لا يعمل في
-          <span class={styles.rowHint}>
-            المواقع البنكية والبريد ولوحات الإدارة. الاستثناء يُنفَّذ عند بوّابة الحقن نفسها — فلا
-            يُحقَن شيء في الموقع المستثنى ولو منحتَه إذنًا من قبل.
-          </span>
-        </span>
-        <div class={styles.rowControl}>
-          <Chip tone={privacy.excludedSites.length > 0 ? 'brand' : 'neutral'}>
-            {privacy.excludedSites.length === 0
-              ? 'لا استثناءات'
-              : plural(
-                  privacy.excludedSites.length,
-                  'موقع مستثنى',
-                  'موقعان مستثنيان',
-                  'مواقع مستثناة',
-                )}
-          </Chip>
-        </div>
-      </div>
-
+  if (view === 'excluded-sites') {
+    return (
       <ExcludedSites
         sites={privacy.excludedSites}
         onAdd={async (raw) => {
@@ -132,119 +95,115 @@ export function PrivacyTab({
           return result.ok ? { added, rejected } : 'failed'
         }}
       />
+    )
+  }
 
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>
-          التصفّح الخاص
-          <span class={styles.rowHint}>
-            {privacy.incognito === 'off'
-              ? 'رصد لا يُحقَن في النوافذ الخاصّة إطلاقًا.'
-              : privacy.incognito === 'no-save'
-                ? 'رصد يعمل في النوافذ الخاصّة ولا يكتب شيئًا على القرص — لا لقطة ولا سجلّ.'
-                : 'رصد يعمل ويحفظ في النوافذ الخاصّة كما في العادية.'}
-          </span>
-        </span>
-        <div class={styles.rowControl}>
-          <SegmentedControl
-            options={INCOGNITO_OPTIONS}
-            selected={incognitoIndex}
-            aria-label="سلوك رصد في التصفّح الخاص"
-            onChange={(index) =>
-              save({
-                incognito: INCOGNITO_OPTIONS[index]?.value as Settings['privacy']['incognito'],
-              })
-            }
-          />
-        </div>
-      </div>
+  if (view === 'permissions') return <PermissionsPanel />
 
-      <div class={styles.section}>
-        <span class={styles.sectionTitle}>البيانات</span>
-      </div>
+  const sites = privacy.excludedSites.length
 
-      {/*
-       * **«الوضع المحلي فقط» يُعرض وصفًا لواقعٍ مقيس، لا ضمانًا لحراسةٍ قائمة.**
-       * لا مسار رفع في المنتج اليوم — ثلاثة نداءات `fetch` كلّها محلّية — و
-       * `connect-src 'self'` تُنفَّذ فعلًا (‏مقيسةً: ترفض حتى عناوين `data:`
-       * الخاصّة بنا)، و`verify:dist` يُسقط البناء على أي مصدر خارجي فيها **أو
-       * على غيابها**. أمّا المفتاح نفسه فبلا إنفاذ برمجيّ اليوم بحكم
-       * [ADR 0020](../../../Docs/ADR/0020-injection-gate.md): إنفاذه يخصّ طبقة
-       * الرفع التي تبنيها الوحدة 21.2، وسلكُه في بوّابة الحقن كان سيمنع الحقن
-       * على كل صفحة لكل مستخدم لأن افتراضه `true`. ولذلك يقول التلميح ما يصدق
-       * اليوم ويصدق غدًا: التزامٌ يقرؤه عميل المشاركة قبل أوّل طلب — لا وعدٌ
-       * بحاجزٍ لا وجود له. (‏`Docs/Engineering.md §6` صفّ 126.)
-       */}
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>
-          الوضع المحلي فقط
-          <span class={styles.rowHint}>
-            لا يحتوي رصد اليوم على أي مسار يرسل بياناتك إلى الشبكة، وسياسة أمن المحتوى في صفحات
-            الإضافة وعاملها تحجب الاتصال الخارجي أصلًا. وهذا المفتاح التزامٌ مسبق: مسارات المشاركة
-            حين تُبنى تقرؤه قبل أن يخرج أي طلب.
-          </span>
-        </span>
-        <div class={styles.rowControl}>
-          <Toggle
-            on={privacy.localOnly}
-            label="الوضع المحلي فقط"
-            onChange={(on) => save({ localOnly: on })}
-          />
-        </div>
-      </div>
+  return (
+    <>
+      <Group title="البيانات" id="privacy-data">
+        <SettingRow
+          id="privacy-local"
+          label="الوضع المحلّي فقط"
+          hint="لا يرسل رصد شيئًا خارج هذا الجهاز."
+          divider
+          control={
+            <Toggle
+              on={privacy.localOnly}
+              onChange={(on) => save({ localOnly: on })}
+              aria-label="الوضع المحلّي فقط"
+            />
+          }
+        />
+        <SettingRow
+          id="privacy-retention"
+          label="مدّة الاحتفاظ باللقطات"
+          hint="تُحذف اللقطات الأقدم تلقائيًّا حذفًا نهائيًّا. المميّزة لا تُحذف"
+          divider
+          control={
+            <Select
+              value={String(privacy.autoDeleteAfterDays)}
+              options={RETENTION_OPTIONS}
+              aria-label="مدّة الاحتفاظ باللقطات"
+              aria-describedby="privacy-retention-hint"
+              onChange={(v) =>
+                save({
+                  autoDeleteAfterDays: Number(v) as Settings['privacy']['autoDeleteAfterDays'],
+                })
+              }
+            />
+          }
+        />
+        <SettingRow
+          id="privacy-metadata"
+          label="احذف البيانات الوصفية عند التصدير"
+          hint="يُزال ملفّ الألوان المضمَّن من صور WebP. صور PNG تخرج بلا بيانات وصفية أصلًا"
+          control={
+            <Toggle
+              on={privacy.stripMetadataOnExport}
+              onChange={(on) => save({ stripMetadataOnExport: on })}
+              aria-label="احذف البيانات الوصفية عند التصدير"
+            />
+          }
+        />
+      </Group>
 
-      <div class={styles.row}>
-        <span class={styles.rowLabel}>
-          احذف تلقائيًا اللقطات الأقدم من
-          <span class={styles.rowHint}>
-            حذفٌ نهائيّ لا إلى المهملات — «سبعة أيام» تعني سبعة لا سبعة وثلاثين. واللقطات المميَّزة
-            مستثناة دائمًا.
-          </span>
-        </span>
-        <div class={styles.rowControl}>
-          <SegmentedControl
-            options={RETENTION_OPTIONS}
-            selected={retentionIndex}
-            aria-label="مدّة الاحتفاظ باللقطات"
-            onChange={(index) =>
-              save({
-                autoDeleteAfterDays: Number(
-                  RETENTION_OPTIONS[index]?.value,
-                ) as Settings['privacy']['autoDeleteAfterDays'],
-              })
-            }
-          />
-        </div>
-      </div>
+      <Group title="المواقع" id="privacy-sites">
+        <SettingRow
+          id="privacy-excluded"
+          label="المواقع المستثناة"
+          hint={
+            sites === 0
+              ? 'لا مواقع مستثناة. رصد يعمل حيث تفتح أداته بنفسك'
+              : `${plural(sites, 'موقع مستثنى', 'موقعان مستثنيان', 'مواقع مستثناة')}. رصد لا يعمل فيها إطلاقًا`
+          }
+          divider
+          control={
+            <Button variant="secondary" size="s" onClick={() => onView('excluded-sites')}>
+              أدِر القائمة
+            </Button>
+          }
+        />
+        <SettingRow
+          id="privacy-incognito"
+          label="سلوك رصد في التصفّح الخاص"
+          hint={INCOGNITO_HINT[privacy.incognito]}
+          control={
+            <Select
+              value={privacy.incognito}
+              options={INCOGNITO_OPTIONS}
+              aria-label="سلوك رصد في التصفّح الخاص"
+              aria-describedby="privacy-incognito-hint"
+              onChange={(v) => save({ incognito: v as Settings['privacy']['incognito'] })}
+            />
+          }
+        />
+      </Group>
 
-      {/*
-       * صفّان يرسمهما إطار Figma داخل هذه البطاقة نفسها، ونطاقهما وحدتان
-       * أخريان (‏`20.5` التشفير · `20.4` الحذف الكامل). يُعرضان معطَّلَين
-       * بوسم «قريبًا» لا يُتركان ثقبًا في وسط البطاقة: نمط الصفّ 4 في `§6`
-       * حرفيًّا — «معلَّم قريبًا لا مخفيّ ولا موعود كذبًا».
-       */}
-      <div class={styles.row} aria-disabled="true">
-        <span class={styles.rowLabel}>
-          شفّر المكتبة المحلية
-          <span class={styles.rowHint}>افتحها برمز — قيد التطوير.</span>
-        </span>
-        <div class={styles.rowControl}>
-          <Chip tone="neutral">قريبًا</Chip>
-        </div>
-      </div>
+      <Group title="الصلاحيات" id="privacy-permissions">
+        <SettingRow
+          id="privacy-browser-permissions"
+          label="صلاحيات المتصفّح"
+          hint="ما مُنح لرصد، ولماذا، وكيف تسحبه"
+          control={
+            <Button variant="secondary" size="s" onClick={() => onView('permissions')}>
+              اعرض الصلاحيات
+            </Button>
+          }
+        />
+      </Group>
 
-      <div class={styles.row} aria-disabled="true">
-        <span class={styles.rowLabel}>
-          احذف كل البيانات
-          <span class={styles.rowHint}>
-            يحذف اللقطات واللوحات والسجلّ بتأكيد مزدوج — قيد التطوير.
-          </span>
-        </span>
-        <div class={styles.rowControl}>
-          <Chip tone="neutral">قريبًا</Chip>
-        </div>
-      </div>
-
-      <PermissionsPanel />
-    </section>
+      <Group title="الحماية" id="privacy-protection">
+        <SettingRow
+          id="privacy-lock"
+          label="قفل المكتبة"
+          hint="لا تُقرأ لقطة قبل إدخال الرمز. يصل في تحديث قريب"
+          control={<Chip tone="neutral">قريبًا</Chip>}
+        />
+      </Group>
+    </>
   )
 }

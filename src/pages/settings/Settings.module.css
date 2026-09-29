@@ -1,15 +1,72 @@
-.page {
+/*
+ * Figma `settings / capture` (`68:2`): رأس بحشوة 26 × 32 وأسفل 18 وفجوة 6، على
+ * `surface/default` بحدّ سفلي؛ ثمّ `Section Nav` واللوح بحشوة 24 × 32 وأسفل 28 وفجوة 22
+ * (أقرب درجة: 24) بين المجموعات، وعرض المحتوى 920.
+ */
+.header {
   display: flex;
   flex-direction: column;
-  gap: var(--rasd-space-12);
-  padding: var(--rasd-space-16);
-  max-inline-size: 40rem;
-  margin-inline: auto;
+  align-items: flex-start;
+  gap: var(--rasd-space-6);
+  padding-block: calc(var(--rasd-space-24) + var(--rasd-space-2)) var(--rasd-space-16);
+  padding-inline: var(--rasd-space-32);
+  background: var(--rasd-surface-default);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+.title,
+.subtitle {
+  margin: 0;
+}
+.title {
+  color: var(--rasd-text-primary);
+}
+.subtitle {
+  color: var(--rasd-text-secondary);
 }
 
-.title {
-  font-family: var(--rasd-font-family-display);
-  font-size: var(--rasd-font-size-xl);
-  color: var(--rasd-text-primary);
-  margin: 0;
+/* رجوع من صفحة فرعية إلى الخصوصية — ليس في الإطار، ويغني عن تخمين أن «الخصوصية» في التنقّل رجوع. */
+.back {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--rasd-text-link);
+  font-size: var(--rasd-font-size-sm);
+  cursor: pointer;
+}
+.back::before {
+  content: '← ';
+}
+[dir='rtl'] .back::before {
+  content: '→ ';
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+}
+
+.pane {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-24);
+  max-inline-size: calc(
+    var(--rasd-space-160) * 6 + var(--rasd-space-24) + var(--rasd-space-32) * 2
+  );
+  padding-block: var(--rasd-space-24) var(--rasd-space-28);
+  padding-inline: var(--rasd-space-32);
+}
+
+.toastRegion {
+  position: fixed;
+  inset-block-end: var(--rasd-space-24);
+  inset-inline: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.toastRegion > * {
+  pointer-events: auto;
 }

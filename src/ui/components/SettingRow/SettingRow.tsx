@@ -5,7 +5,8 @@ import styles from './SettingRow.module.css'
 import type { ComponentChildren, JSX } from 'preact'
 
 export interface SettingRowProps {
-  label: string
+  /** نصّ غالبًا؛ ويقبل عنصرًا لقيمة تقنية معزولة الاتجاه (نطاق موقع مثلًا). */
+  label: ComponentChildren
   hint?: ComponentChildren
   /** الضابط: `Toggle` أو `Select` أو `KeyCap` أو `Chip` أو زرّ — أو لا شيء. */
   control?: ComponentChildren
