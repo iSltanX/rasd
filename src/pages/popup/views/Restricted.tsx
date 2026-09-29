@@ -1,3 +1,5 @@
+import { useState } from 'preact/hooks'
+
 import { gateMessage, type GateReason } from '@/shared/injection-gate'
 
 import { MessageState } from '../parts/MessageState'
@@ -7,11 +9,14 @@ import type { JSX } from 'preact'
 export interface RestrictedProps {
   reason: GateReason
   onManageSites: () => void
-  onWhy: () => void
 }
 
-/** `restricted` — البوّابة رفضت هذا التبويب؛ السبب يُشرح لا يُعمَّم. */
-export function Restricted({ reason, onManageSites, onWhy }: RestrictedProps): JSX.Element {
+/**
+ * `restricted` — البوّابة رفضت هذا التبويب. الوصف عامّ كما في الإطار، و«لماذا؟» يكشف
+ * السبب الفعلي لهذا التبويب من `gateMessage` في مكانه — كان الزرّ صامتًا بلا وجهة.
+ */
+export function Restricted({ reason, onManageSites }: RestrictedProps): JSX.Element {
+  const [why, setWhy] = useState(false)
   return (
     <MessageState
       icon="lock"
@@ -19,9 +24,13 @@ export function Restricted({ reason, onManageSites, onWhy }: RestrictedProps): J
       title="لا يمكن تشغيل رصد هنا"
       primary={{ label: 'إدارة المواقع المستثناة', onClick: onManageSites }}
       primaryVariant="secondary"
-      secondary={{ label: 'لماذا؟', onClick: onWhy }}
+      secondary={why ? undefined : { label: 'لماذا؟', onClick: () => setWhy(true) }}
     >
-      {gateMessage(reason)}
+      <p>
+        المتصفّح يمنع الإضافات من صفحاته الداخلية، والمواقع المستثناة لا يعمل رصد فيها. افتح صفحة
+        أخرى لتكمل.
+      </p>
+      {why ? <p data-gate-reason={reason}>{gateMessage(reason)}</p> : null}
     </MessageState>
   )
 }

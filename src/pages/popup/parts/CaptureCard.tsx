@@ -1,11 +1,12 @@
 import { Icon, type IconName } from '@/ui/icons/Icon'
+import { KeyCap } from '@/ui/TechnicalValue'
 
 import styles from './CaptureCard.module.css'
 
 import type { JSX } from 'preact'
 
 export interface CaptureCardProps {
-  /** الحرف الوحيد المطبوع على شارة الاختصار داخل الصفحة: `⌥⇧` + هذا الحرف. */
+  /** الحرف الوحيد المطبوع على شارة الاختصار: `⇧⌘` + هذا الحرف. */
   shortcutKey: string
   icon: IconName
   title: string
@@ -17,9 +18,8 @@ export interface CaptureCardProps {
 /**
  * بطاقة أداة التقاط في `group-capture` — شبكة 2×2.
  *
- * بنية Figma مختلفة عن مكوّن `ToolCard` المشترك: شارة حرف الاختصار مجاورة
- * للأيقونة أعلى البطاقة، ثم عنوان ووصف تحتها — لا أيقونة مركزية ونصّ واحد.
- * لذلك بُنيت بطاقة خاصّة هنا بدل إعادة تشكيل `ToolCard` لحالة لا تخصّه.
+ * الأيقونة في بداية السطر العلوي (يمينًا) ومكوّن `KeyCap` في نهايته، ثم العنوان والوصف
+ * — كما في الإطار. بنية تختلف عن `ToolCard` المشترك، فبُنيت هنا لا بإعادة تشكيله.
  */
 export function CaptureCard({
   shortcutKey,
@@ -32,8 +32,8 @@ export function CaptureCard({
   return (
     <button type="button" class={styles.card} onClick={onClick} disabled={disabled}>
       <span class={styles.top}>
-        <kbd class={styles.key}>{shortcutKey}</kbd>
         <Icon name={icon} size="md" class={styles.icon} />
+        <KeyCap>{shortcutKey}</KeyCap>
       </span>
       <span class={styles.body}>
         <span class={styles.title}>{title}</span>

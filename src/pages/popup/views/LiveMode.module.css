@@ -1,0 +1,55 @@
+/*
+ * Figma: لافتة بحشوة 7 × 10 (أقرب درجة: 8 × 10) ونصف قطر 8، بسطح الأداة وحدّها، ونصّها
+ * `Arabic/UI/XS Strong` بلون الأداة ونقطة 7؛ ثم صندوق تلميح بسطح `surface/sunken`.
+ */
+.state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-12);
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-8);
+  padding-block: var(--rasd-space-6);
+  padding-inline: var(--rasd-space-10);
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-thin) solid transparent;
+}
+.inspect {
+  background: var(--rasd-tool-inspect-surface);
+  border-color: var(--rasd-tool-inspect-border);
+  color: var(--rasd-tool-inspect-fg);
+}
+.colors {
+  background: var(--rasd-tool-colors-surface);
+  border-color: var(--rasd-tool-colors-border);
+  color: var(--rasd-tool-colors-fg);
+}
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+}
+.dot {
+  inline-size: var(--rasd-space-6);
+  block-size: var(--rasd-space-6);
+  border-radius: var(--rasd-radius-full);
+  background: currentColor;
+}
+
+.hint {
+  margin: 0;
+  padding-block: var(--rasd-space-8);
+  padding-inline: var(--rasd-space-10);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-sunken);
+  color: var(--rasd-text-tertiary);
+}
+
+.exit {
+  inline-size: 100%;
+}

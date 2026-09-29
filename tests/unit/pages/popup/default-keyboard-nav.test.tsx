@@ -12,6 +12,11 @@ import { Default } from '@/pages/popup/views/Default'
  * ما يستحقّ إثباتًا هنا تحديدًا هو ما **لا** يأتي مجّانًا: أن ترتيب DOM نفسه
  * (لا أي إعادة ترتيب بصري بـCSS) يطابق ترتيب قراءة RTL في Figma، وأنه
  * ثابت بصرف النظر عن اتجاه الحاوية — Tab يتبع DOM لا الاتجاه المرئي.
+ *
+ * **وترتيب القراءة عكسُ ترتيب أبناء الإطار** (`STAGES/03`): Figma يرتّب أبناء الصفّ
+ * الأفقي من اليسار، فأوّل ابن هو أقصى اليسار. والشيفرة القديمة نسخت ترتيب الأبناء
+ * كما هو ثمّ رُسمت RTL، فخرجت النافذة مرآةً لإطارها: «عنصر» مكان «منطقة»، و«مقارنة»
+ * مكان «فحص». هذا الاختبار يسقط على ذلك الترتيب وينجح على الصحيح.
  */
 
 let container: HTMLDivElement | null = null
@@ -63,15 +68,15 @@ function shortcutOrder(root: HTMLElement): string[] {
 }
 
 describe('Default — ترتيب Tab لشبكة الالتقاط', () => {
-  it('ترتيب DOM: E عنصر، Q منطقة (غير-ماك)، S صفحة كاملة، V الظاهر — كما في 13 — Extension Popup', () => {
+  it('ترتيب DOM: Q منطقة (غير-ماك)، E عنصر، V الظاهر، S صفحة كاملة — قراءةُ 13 — Extension Popup من اليمين', () => {
     mount('rtl', () => undefined)
-    expect(shortcutOrder(container!)).toEqual(['E', 'Q', 'S', 'V'])
+    expect(shortcutOrder(container!)).toEqual(['Q', 'E', 'V', 'S'])
   })
 
   it('بطاقة «منطقة» تعرض T حين تكون المنصّة ماك', () => {
     vi.stubGlobal('navigator', { userAgentData: { platform: 'macOS' } })
     mount('rtl', () => undefined)
-    expect(shortcutOrder(container!)).toEqual(['E', 'T', 'S', 'V'])
+    expect(shortcutOrder(container!)).toEqual(['T', 'E', 'V', 'S'])
   })
 
   it('لا يتغيّر بتبديل الاتجاه — Tab يتبع DOM لا CSS', () => {
@@ -102,7 +107,7 @@ describe('Default — ترتيب Tab لشبكة الالتقاط', () => {
     const buttons = [
       ...container!.querySelectorAll<HTMLButtonElement>('[aria-label="الالتقاط"] button'),
     ]
-    const expected = ['element', 'area', 'full-page', 'viewport']
+    const expected = ['area', 'element', 'viewport', 'full-page']
     buttons.forEach((btn, i) => {
       btn.click()
       expect(onTool).toHaveBeenNthCalledWith(i + 1, expected[i])
@@ -111,10 +116,10 @@ describe('Default — ترتيب Tab لشبكة الالتقاط', () => {
 })
 
 describe('Default — ترتيب Tab لصفّ الفحص', () => {
-  it('ترتيب DOM الفعلي: مقارنة، ألوان، قياس، فحص — يطابق Figma لا نصّ الخطة', () => {
+  it('ترتيب DOM: فحص، قياس، ألوان، مقارنة — «فحص» أقصى اليمين في الإطار', () => {
     mount('rtl', () => undefined)
     const labels = buttonLabels(container!, '[aria-label="الفحص"] button')
-    expect(labels).toEqual(['مقارنة', 'ألوان', 'قياس', 'فحص'])
+    expect(labels).toEqual(['فحص', 'قياس', 'ألوان', 'مقارنة'])
   })
 
   it('كل أداة تُفعِّل قيمة Mode الصحيحة عند النقر', () => {
@@ -123,7 +128,7 @@ describe('Default — ترتيب Tab لصفّ الفحص', () => {
     const buttons = [
       ...container!.querySelectorAll<HTMLButtonElement>('[aria-label="الفحص"] button'),
     ]
-    const expected = ['compare', 'colour', 'measure', 'inspect']
+    const expected = ['inspect', 'measure', 'colour', 'compare']
     buttons.forEach((btn, i) => {
       btn.click()
       expect(onTool).toHaveBeenNthCalledWith(i + 1, expected[i])

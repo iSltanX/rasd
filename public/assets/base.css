@@ -29,6 +29,15 @@ video {
   accent-color: var(--rasd-action-primary-rest);
 }
 
+/*
+ * عناصر النماذج ترث خطّ الصفحة. بلا هذا يأخذ الزرّ خطّ المتصفّح وارتفاع سطر `normal`،
+ * وهو في Cairo نحو 1.87 لا 1.6 — فتطول كل بطاقة وزرّ عن إطارها (قِيس في النافذة: 27
+ * بكسل زائدة أجبرت التمرير). `:where` يُبقي الأولوية صفرًا فيغلبها صنف أي مكوّن.
+ */
+:where(.rasd-page) :where(button, input, select, textarea) {
+  font: inherit;
+}
+
 .rasd-page :focus-visible {
   outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
   outline-offset: var(--rasd-stroke-thin);

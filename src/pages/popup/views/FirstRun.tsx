@@ -1,40 +1,40 @@
-import { Icon } from '@/ui/icons/Icon'
+import { isMacPlatform } from '@/shared/platform'
 import { RasdMark } from '@/ui/RasdMark'
+import { KeyCap } from '@/ui/TechnicalValue'
 
-import styles from './FirstRun.module.css'
+import { MessageState } from '../parts/MessageState'
 
 import type { JSX } from 'preact'
 
 export interface FirstRunProps {
-  onTour: () => void
-  onSkip: () => void
+  /** يُتمّ الجولة الأولى ويعرض الأدوات. */
+  onStart: () => void
 }
 
 /**
  * `first-run` — أوّل فتح للنافذة، قبل أن تُحفظ `settings.onboarding.completed`.
  *
- * صفّ Figma للتلميح يحمل اختصارًا عامًّا `⌥⌘R` لـ«جولة سريعة» — خامسٌ فوق
- * الأربعة التي يقبلها Chrome في `commands` (القيد المُسجَّل تناقضًا رقم 6
- * في `Docs/Engineering.md`). لا اختصار خامس، فلا يُعرَض ادّعاء بمفتاح لا يعمل؛
- * التلميح هنا يصف السلوك الحقيقي — أي أداة تُنقَر تُنهي الجولة الأولى.
+ * **زرّ «جولة سريعة» المرسوم لا يُعرض قبل `STAGES/09`:** وجهته صفحة التأهيل، وهي اليوم
+ * صفحة نائبة («قيد التطوير») — وزرّ يقود إلى لا شيء زرّ صامت. فالإجراء الأساسي «ابدأ»
+ * يُتمّ الجولة ويعرض الأدوات، والتلميح يسمّي الاختصار الحقيقي لبدء الالتقاط.
  */
-export function FirstRun({ onTour, onSkip }: FirstRunProps): JSX.Element {
+export function FirstRun({ onStart }: FirstRunProps): JSX.Element {
   return (
-    <div class={styles.state}>
-      <RasdMark size="2xl" class={styles.mark} title="رصد" />
-      <h2 class={styles.title}>مرحبًا بك في رصد</h2>
-      <p class={styles.tagline}>فحص بصري للويب، من داخل الصفحة</p>
-      <p class={styles.desc}>التقط وافحص وقِس وقارن — دون مغادرة الصفحة التي تراجعها.</p>
-
-      <button type="button" class={styles.tour} onClick={onTour}>
-        <Icon name="capture-area" size="sm" />
-        <span>جولة سريعة</span>
-      </button>
-      <button type="button" class={styles.skip} onClick={onSkip}>
-        تخطَّ — أعرف طريقي
-      </button>
-
-      <p class={styles.hint}>نقر أي أداة أدناه يبدأ العمل مباشرة</p>
-    </div>
+    <MessageState
+      tone="brand"
+      badge={<RasdMark size="2xl" title="رصد" />}
+      title="مرحبًا بك في رصد"
+      primary={{ label: 'ابدأ', onClick: onStart }}
+      hint={
+        <>
+          <span>اضغط</span>
+          <KeyCap>{isMacPlatform() ? '⇧⌘T' : 'Ctrl+Shift+Q'}</KeyCap>
+          <span>في أي مكان للبدء</span>
+        </>
+      }
+    >
+      <p>فحص بصري للويب، من داخل الصفحة</p>
+      <p>التقط وافحص وقِس وقارن — دون مغادرة الصفحة التي تراجعها.</p>
+    </MessageState>
   )
 }

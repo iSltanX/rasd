@@ -29,10 +29,7 @@ export function RecentThumb({
 }: RecentThumbProps): JSX.Element {
   return (
     <button type="button" class={styles.thumb} onClick={onClick} data-withheld={withheld}>
-      <span class={styles.text}>
-        <span class={styles.title}>{title}</span>
-        <span class={styles.time}>{formatRelativeTime(createdAt)}</span>
-      </span>
+      {/* المصغَّرة في بداية السطر (يمينًا) والنصّ بعدها، كما في الإطار. */}
       {withheld ? (
         <span class={styles.withheld} data-thumb-withheld>
           معلَّق عليها بحجب — افتح المحرر
@@ -42,6 +39,10 @@ export function RecentThumb({
           {thumbUrl ? <img src={thumbUrl} alt="" class={styles.img} /> : null}
         </span>
       )}
+      <span class={styles.text}>
+        <span class={styles.title}>{title}</span>
+        <span class={styles.time}>{formatRelativeTime(createdAt)}</span>
+      </span>
     </button>
   )
 }

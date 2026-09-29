@@ -30,28 +30,29 @@
   gap: var(--rasd-space-8);
   min-inline-size: 0;
 }
+/*
+ * الاسم وسطر الحالة عمود محاذٍ لبداية السطر (يمينًا في RTL). `flex-start` لا `flex-end`:
+ * الأخيرة كانت منسوخة من تصدير Figma الأفقي (`items-end`)، وفي RTL هي اليسار.
+ */
 .brandNames {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: var(--rasd-space-2);
   min-inline-size: 0;
-}
-.brandRow {
-  display: flex;
-  align-items: baseline;
-  gap: var(--rasd-space-6);
 }
 .brandName {
   font-family: var(--rasd-font-family-text);
   font-size: var(--rasd-font-size-md);
   font-weight: 600;
+  line-height: var(--rasd-leading-ui);
   color: var(--rasd-text-primary);
   margin: 0;
 }
+/* Figma `Mono/2XS`. سطر الحالة عربي أحيانًا، فيرث خطّ النصّ ويصير أحاديًّا للقيم التقنية وحدها. */
 .brandStatus {
-  font-family: var(--rasd-font-family-mono);
-  font-size: var(--rasd-font-size-sm);
+  font-size: var(--rasd-font-size-2xs);
+  line-height: var(--rasd-leading-label);
   color: var(--rasd-text-tertiary);
   max-inline-size: 15rem;
   overflow: hidden;
@@ -85,7 +86,7 @@
 }
 .version {
   font-family: var(--rasd-font-family-mono);
-  font-size: var(--rasd-font-size-sm);
+  font-size: var(--rasd-font-size-2xs);
   color: var(--rasd-text-disabled);
   direction: ltr;
   unicode-bidi: isolate;
@@ -99,7 +100,7 @@
   padding: 0;
   color: var(--rasd-text-secondary);
   font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-md);
+  font-size: var(--rasd-font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -124,15 +125,17 @@
   align-items: center;
   justify-content: space-between;
 }
+/* Figma `Arabic/Label/XS` للعنوان، و`Mono/2XS` للمُعدِّلين، و`Arabic/UI/XS Strong` للرابط. */
 .groupLabel {
   font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-sm);
+  font-size: var(--rasd-font-size-xs);
   font-weight: 700;
+  line-height: var(--rasd-leading-label);
   color: var(--rasd-text-tertiary);
 }
 .groupShortcut {
   font-family: var(--rasd-font-family-mono);
-  font-size: var(--rasd-font-size-sm);
+  font-size: var(--rasd-font-size-2xs);
   color: var(--rasd-text-disabled);
   direction: ltr;
   unicode-bidi: isolate;
@@ -142,10 +145,16 @@
   border: none;
   padding: 0;
   font-family: var(--rasd-font-family-text);
-  font-size: var(--rasd-font-size-md);
+  font-size: var(--rasd-font-size-sm);
   font-weight: 600;
   color: var(--rasd-text-brand);
   cursor: pointer;
+}
+.groupEmpty {
+  margin: 0;
+  font-size: var(--rasd-font-size-sm);
+  line-height: var(--rasd-leading-ui);
+  color: var(--rasd-text-secondary);
 }
 .groupLink:focus-visible {
   outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);

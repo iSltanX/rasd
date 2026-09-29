@@ -211,3 +211,25 @@ async function findPermissionNeed(
     return null
   }
 }
+
+/** نتيجة نسخ اللقطة من شاشة النجاح. */
+export type CopyOutcome = 'copied' | 'unsupported' | 'failed'
+
+/**
+ * ينسخ لقطة التُقطت للتوّ إلى الحافظة — من النافذة، وهي مركَّزة بإيماءة النقر نفسها.
+ *
+ * البايتات كما حُفظت بلا إعادة ترميز: شاشة النجاح تسبق أي تعليق، فلا حجب يُتجاوَز
+ * (ADR 0015)، وإعادة الترميز لها مخرجها الواحد في التصدير (ADR 0021). والحافظة في
+ * Chrome تقبل PNG وحدها، فلقطة بصيغة أخرى تُحال إلى المحرّر بدل فشل صامت.
+ */
+export async function copyCaptureImage(id: string): Promise<CopyOutcome> {
+  const stored = await blobs.get(id)
+  if (!stored.ok) return 'failed'
+  if (stored.value.blob.type !== 'image/png') return 'unsupported'
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': stored.value.blob })])
+    return 'copied'
+  } catch {
+    return 'failed'
+  }
+}

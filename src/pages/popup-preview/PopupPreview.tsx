@@ -1,6 +1,6 @@
 /**
  * جولة بصرية بلا `chrome.*` — أداة تطوير داخلية (مثل `gallery/`)، مستبعَدة
- * عمدًا من بناء الإنتاج. تعرض الحالات العشر جنبًا إلى جنب لمقارنتها بصريًا
+ * عمدًا من بناء الإنتاج. تعرض الحالات الاثنتي عشرة جنبًا إلى جنب لمقارنتها بصريًا
  * بإطارات `13 — Extension Popup` في Figma، ولالتقاط لقطة a11y-tree عبر
  * متصفح Claude — كلاهما مطلوب صراحةً في معايير اختبار المرحلة 7.
  *
@@ -14,11 +14,12 @@
 import { Footer } from '../popup/parts/Footer'
 import { Header } from '../popup/parts/Header'
 import styles from '../popup/Popup.module.css'
+import { Cancelled } from '../popup/views/Cancelled'
+import { CaptureError } from '../popup/views/CaptureError'
 import { Capturing } from '../popup/views/Capturing'
-import { Colors } from '../popup/views/Colors'
 import { Default } from '../popup/views/Default'
 import { FirstRun } from '../popup/views/FirstRun'
-import { InspectActive } from '../popup/views/InspectActive'
+import { LiveMode } from '../popup/views/LiveMode'
 import { Offline } from '../popup/views/Offline'
 import { Permission } from '../popup/views/Permission'
 import { Restricted } from '../popup/views/Restricted'
@@ -77,10 +78,10 @@ const RECENT: RecentEntry[] = [
 ]
 
 const SUCCESS_ACTIONS: SuccessAction[] = [
-  { icon: 'split-view', label: 'مقارنة', onClick: noop },
   { icon: 'pen', label: 'تعليق', onClick: noop },
-  { icon: 'share', label: 'رابط مشاركة', onClick: noop },
+  { icon: 'split-view', label: 'مقارنة', onClick: noop },
   { icon: 'copy', label: 'نسخ', onClick: noop },
+  { icon: 'share', label: 'مشاركة', onClick: noop, soon: true },
 ]
 
 interface FrameProps {
@@ -100,7 +101,7 @@ function Frame({ name, state, status, children }: FrameProps): JSX.Element {
         <div class={styles.shell}>
           <Header status={status} onSettings={noop} />
           <div class={styles.body}>{children}</div>
-          <Footer version="2.0.0" onOpenLibrary={noop} />
+          <Footer version="1.0" onOpenLibrary={noop} />
         </div>
       </div>
     </div>
@@ -115,28 +116,56 @@ function Frame({ name, state, status, children }: FrameProps): JSX.Element {
 export function PopupPreview(): JSX.Element {
   return (
     <>
-      <Frame name="default" state="default" status="figma.com">
+      <Frame name="default" state="default" status="figma.com / design-systems">
         <Default onTool={noop} recent={RECENT} onOpenRecent={noop} onOpenLibrary={noop} />
       </Frame>
 
-      <Frame name="capturing" state="capturing" status="full-page — 4/6">
-        <Capturing kind="full-page" done={4} total={6} onCancel={noop} />
+      <Frame name="no-recent" state="default" status="figma.com / design-systems">
+        <Default onTool={noop} recent={[]} onOpenRecent={noop} onOpenLibrary={noop} />
+      </Frame>
+
+      <Frame name="capturing" state="capturing" status="تجميع المقطع ٤ من ٦">
+        <Capturing done={4} total={6} onCancel={noop} />
       </Frame>
 
       <Frame name="inspect-active" state="inspect-active" status="مرّر فوق أي عنصر لفحصه">
-        <InspectActive onExit={noop} />
+        <LiveMode
+          tone="inspect"
+          title="وضع الفحص مُفعّل"
+          hint="مرّر فوق أي عنصر في الصفحة لفحصه. تفاصيله في لوح الفحص داخل الصفحة."
+          exitLabel="إنهاء الفحص"
+          onExit={noop}
+        />
       </Frame>
 
       <Frame name="colors" state="colors" status="مرّر فوق أي نقطة والتقط لونها">
-        <Colors onExit={noop} />
+        <LiveMode
+          tone="colors"
+          title="وضع اختيار اللون مُفعّل"
+          hint="مرّر فوق أي نقطة في الصفحة والتقط لونها. قيمه وصيغه في لوح الألوان داخل الصفحة."
+          exitLabel="إنهاء الاختيار"
+          onExit={noop}
+        />
       </Frame>
 
-      <Frame name="success" state="default" status="حُفظت اللقطة">
-        <Success width={1440} height={3820} actions={SUCCESS_ACTIONS} onOpenLibrary={noop} />
+      <Frame name="success" state="success" status="محفوظة محليًا · 1440 × 3820">
+        <Success thumbUrl={null} actions={SUCCESS_ACTIONS} onOpenLibrary={noop} />
+      </Frame>
+
+      <Frame name="error" state="error" status="تعذّر الالتقاط">
+        <CaptureError
+          title="لم تُحفظ اللقطة"
+          message="توقّفت الصفحة عن الاستجابة قبل اكتمال الالتقاط. أعد المحاولة."
+          onRetry={noop}
+        />
+      </Frame>
+
+      <Frame name="cancelled" state="cancelled" status="أُلغي الالتقاط">
+        <Cancelled onRestart={noop} onClose={noop} />
       </Frame>
 
       <Frame name="first-run" state="first-run" status="جاهز في هذه الصفحة">
-        <FirstRun onTour={noop} onSkip={noop} />
+        <FirstRun onStart={noop} />
       </Frame>
 
       <Frame name="permission" state="permission" status="لم يُمنح الإذن">
@@ -147,8 +176,8 @@ export function PopupPreview(): JSX.Element {
         <Offline onContinue={noop} onRetry={noop} />
       </Frame>
 
-      <Frame name="restricted" state="restricted" status="">
-        <Restricted reason="browser-internal" onManageSites={noop} onWhy={noop} />
+      <Frame name="restricted" state="restricted" status="chrome://settings">
+        <Restricted reason="browser-internal" onManageSites={noop} />
       </Frame>
     </>
   )

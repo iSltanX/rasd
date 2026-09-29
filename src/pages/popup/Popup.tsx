@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 
+import { formatDimensions, formatHuman } from '@/shared/bidi'
 import { CHANNELS, openChannel, send, sendToTab, type ToolName } from '@/shared/messaging'
 import { originPatternFor, requestHostPermission } from '@/shared/permissions'
 import { selectPopupState, type PopupContext, type PopupStateName } from '@/shared/popup-state'
 
-import { loadPopupContext, loadRecent, type RecentEntry } from './context'
+import { copyCaptureImage, loadPopupContext, loadRecent, type RecentEntry } from './context'
 import { Footer } from './parts/Footer'
 import { Header } from './parts/Header'
 import styles from './Popup.module.css'
+import { Cancelled } from './views/Cancelled'
+import { CaptureError } from './views/CaptureError'
 import { Capturing } from './views/Capturing'
-import { Colors } from './views/Colors'
 import { Default } from './views/Default'
 import { FirstRun } from './views/FirstRun'
-import { InspectActive } from './views/InspectActive'
+import { LiveMode } from './views/LiveMode'
 import { Offline } from './views/Offline'
 import { Permission } from './views/Permission'
 import { Restricted } from './views/Restricted'
@@ -27,29 +29,55 @@ interface Loaded {
   recent: RecentEntry[]
 }
 
+/** مضيف التبويب ومساره الأوّل كما يكتبه الإطار: `figma.com / design-systems`. */
+function pageLabel(url: string): string {
+  try {
+    const u = new URL(url)
+    const first = u.pathname.split('/').find(Boolean)
+    const host = u.hostname.replace(/^www\./, '') || u.protocol + '//'
+    return first ? `${host} / ${first}` : host
+  } catch {
+    return url
+  }
+}
+
+/** سطر الحالة تحت الاسم لكل حالة — نصوص ترويسات `13 — Extension Popup`. */
 const STATUS_BY_STATE: Record<PopupStateName, (l: Loaded) => string> = {
-  default: (l) => l.origin,
-  // نصّ السبب تعرضه `Restricted.tsx` نفسها عبر `gateMessage` — والشريط هنا
-  // يبقى فارغًا عمدًا كي لا يتكرّر السبب مرّتين في نافذة واحدة.
-  restricted: () => '',
+  default: (l) => pageLabel(l.origin),
+  // الإطار يكتب عنوان الصفحة الممنوعة (`chrome://settings`)، والسبب في جسم الحالة.
+  restricted: (l) => l.origin,
   offline: () => 'لا يوجد اتصال',
   'first-run': () => 'جاهز في هذه الصفحة',
   permission: () => 'لم يُمنح الإذن',
   capturing: (l) =>
-    l.context.job ? `${l.context.job.kind} — ${l.context.job.done}/${l.context.job.total}` : '',
+    l.context.job
+      ? `تجميع المقطع ${formatHuman(l.context.job.done)} من ${formatHuman(l.context.job.total)}`
+      : '',
   'inspect-active': () => 'مرّر فوق أي عنصر لفحصه',
   colors: () => 'مرّر فوق أي نقطة والتقط لونها',
+}
+
+/** فشل عملية يُعرض شاشةً (`popup / error` أو `popup / cancelled`) لا سطرًا في الترويسة. */
+interface Failure {
+  readonly kind: 'error' | 'cancelled'
+  readonly title: string
+  readonly message: string
+  /** الأداة التي تُعاد بـ«أعد المحاولة» أو «التقط من جديد». */
+  readonly retry: ToolName | null
 }
 
 export function Popup(): JSX.Element | null {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [dismissedOffline, setDismissedOffline] = useState(false)
+  const [firstRunDone, setFirstRunDone] = useState(false)
   const [success, setSuccess] = useState<{ width: number; height: number; id?: string } | null>(
     null,
   )
+  const [successThumb, setSuccessThumb] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [liveProgress, setLiveProgress] = useState<{ done: number; total: number } | null>(null)
-  /** فشل تفعيل مُبلَّغ عنه — يبقي النافذة مفتوحة ويستبدل سطر الحالة. */
-  const [activationError, setActivationError] = useState<string | null>(null)
+  /** فشل تفعيل أو التقاط مُبلَّغ عنه — يبقي النافذة مفتوحة ويعرض شاشته. */
+  const [failure, setFailure] = useState<Failure | null>(null)
   const [online, setOnline] = useState(navigator.onLine)
 
   useEffect(() => {
@@ -63,11 +91,9 @@ export function Popup(): JSX.Element | null {
     }
   }, [])
 
-  // اشتراك حيّ في قناة المهمّة — لا يُنتج شيئًا قبل محرّك الالتقاط الكامل
-  // (المرحلة 10)، لكنّ السلك حقيقي: تقدّم فعلي يحرّك شريط `Capturing`،
-  // و`done` بأبعاد صالحة هو المسار الوحيد نحو `success` (انظر التعليق أعلى
-  // `PopupContext` في `popup-state.ts` — الحالة عمدًا ليست ناتج الاختيار
-  // الساكن، بل حدثًا لحظيًّا تعرضه هذه الشاشة فوقه).
+  // اشتراك حيّ في قناة المهمّة: تقدّم فعلي يحرّك شريط `Capturing`، و`done` بأبعاد صالحة
+  // هو المسار الوحيد نحو `success`، و`failed` يعرض `popup / error` أو `popup / cancelled`
+  // بحسب رمزه — الإلغاء تُرسله الخلفية `failed` برمز `cancelled` (`lifecycle.ts`).
   useEffect(() => {
     const channel = openChannel(CHANNELS.job, {
       autoReconnect: false,
@@ -88,6 +114,21 @@ export function Popup(): JSX.Element | null {
           }
         } else if (message.kind === 'failed') {
           setLiveProgress(null)
+          setFailure(
+            message.code === 'cancelled'
+              ? {
+                  kind: 'cancelled',
+                  title: 'لم تُحفظ لقطة',
+                  message: message.message,
+                  retry: 'full-page',
+                }
+              : {
+                  kind: 'error',
+                  title: 'لم تُحفظ اللقطة',
+                  message: 'توقّفت الصفحة عن الاستجابة قبل اكتمال الالتقاط. أعد المحاولة.',
+                  retry: 'full-page',
+                },
+          )
         }
       },
     })
@@ -116,6 +157,19 @@ export function Popup(): JSX.Element | null {
     }
   }, [])
 
+  // مصغَّرة اللقطة التي حُفظت للتوّ: أحدث سجلّ في المكتبة هو هي.
+  useEffect(() => {
+    if (!success?.id) return
+    let cancelled = false
+    void loadRecent().then((recent) => {
+      const entry = recent.find((r) => r.record.id === success.id)
+      if (!cancelled && entry?.thumbUrl) setSuccessThumb(entry.thumbUrl)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [success?.id])
+
   const context = useMemo<PopupContext | null>(
     () => (loaded ? { ...loaded.context, online } : null),
     [loaded, online],
@@ -132,33 +186,40 @@ export function Popup(): JSX.Element | null {
 
   if (!loaded || !context) return <div class={styles.shell} />
 
-  const stateName: PopupStateName = success ? 'default' : selectPopupState(context)
-  const status =
-    activationError ??
-    (success ? 'حُفظت اللقطة' : STATUS_BY_STATE[stateName]({ ...loaded, context }))
+  const selected = selectPopupState(context)
+  const stateName: PopupStateName =
+    success || failure ? 'default' : selected === 'first-run' && firstRunDone ? 'default' : selected
+
+  const status = failure
+    ? failure.kind === 'cancelled'
+      ? 'أُلغي الالتقاط'
+      : 'تعذّر الالتقاط'
+    : success
+      ? `محفوظة محليًا · ${formatDimensions(success.width, success.height)}`
+      : STATUS_BY_STATE[stateName]({ ...loaded, context })
 
   /**
    * **لا تُغلق النافذة إلا على نجاح مؤكَّد.**
    *
-   * كانت تُغلق على أي ردٍّ أيًّا كان — والتفعيل كان يردّ `started: true`
-   * دائمًا، فأي فشل يختفي بلا أثر: تُغلق النافذة ولا يقع شيء. الردّ صار
-   * صادقًا (`boot-failed`/`no-receiver`)، وهذا هو الطرف الذي يُظهره.
-   *
-   * الرسالة تُعرض في سطر الحالة القائم لا في شاشة جديدة: `13 — Extension
-   * Popup` لا يحوي شاشة «تعذّر التفعيل»، واختراع واحدة هنا وعدٌ بتصميم لا
-   * وجود له.
+   * التفعيل يردّ صادقًا (`boot-failed`/`no-receiver`)، والفشل يُعرض شاشة
+   * `popup / error` بإعادة محاولة — لا سطرًا يسهل تفويته في الترويسة.
    */
   const runTool = (tool: ToolName) => {
+    setFailure(null)
     void send('tool/activate', { tool, tabId: loaded.tabId }).then((reply) => {
       if (reply.ok && reply.value.started) {
         window.close()
         return
       }
-      setActivationError(
-        reply.ok && !reply.value.started && reply.value.reason === 'no-receiver'
-          ? 'تعذّر بدء الأداة — أعد تحميل الصفحة ثم حاول.'
-          : 'تعذّر تشغيل رصد في هذه الصفحة.',
-      )
+      setFailure({
+        kind: 'error',
+        title: 'لم تبدأ الأداة',
+        message:
+          reply.ok && !reply.value.started && reply.value.reason === 'no-receiver'
+            ? 'تعذّر بدء الأداة — أعد تحميل الصفحة ثم حاول.'
+            : 'تعذّر تشغيل رصد في هذه الصفحة.',
+        retry: tool,
+      })
     })
   }
 
@@ -169,10 +230,9 @@ export function Popup(): JSX.Element | null {
   /**
    * إلغاء مهمّة الالتقاط الكامل — **لا `mode/set idle`**.
    *
-   * كان زرّ إلغاء «جارٍ الالتقاط» يستدعي `exitLiveMode`، وذاك يبدّل وضع
-   * الطبقة لا غير: الحلقة تعيش في الـservice worker ويملكها `AbortController`
-   * هناك، فلا يوقفها تبديلُ وضعٍ في الصفحة. `fullpage/cancel` هي التي تصل
-   * إليه — وهي رسالة إلى الخلفية (`send`) لا إلى التبويب (`sendToTab`).
+   * الحلقة تعيش في الـservice worker ويملكها `AbortController` هناك، فلا يوقفها
+   * تبديلُ وضعٍ في الصفحة. `fullpage/cancel` هي التي تصل إليه — وهي رسالة إلى
+   * الخلفية (`send`) لا إلى التبويب (`sendToTab`).
    */
   const cancelJob = () => {
     void send('fullpage/cancel', undefined).then(() => window.close())
@@ -182,38 +242,61 @@ export function Popup(): JSX.Element | null {
     void send('page/open', { page }).then(() => window.close())
   }
 
-  /**
-   * يفتح المحرر **على لقطة بعينها**.
-   *
-   * المعرّف كان يُسقَط: `Default` يمرّره في `onOpenRecent(record.id)` منذ
-   * المرحلة 7، والمستقبِل يتجاهله. فالمحرر — حين وُجد — كان سيُفتح فارغًا
-   * دائمًا. والمعامل يمرّ استعلامًا يبنيه الخلفية.
-   */
+  /** يفتح المحرر **على لقطة بعينها** — المعرّف يمرّ استعلامًا تبنيه الخلفية. */
   const openEditor = (captureId: string) => {
     void send('page/open', { page: 'editor', params: { capture: captureId } }).then(() =>
       window.close(),
     )
   }
 
+  const copySuccess = () => {
+    if (!success?.id) return
+    void copyCaptureImage(success.id).then((outcome) =>
+      setNotice(
+        outcome === 'copied'
+          ? 'نُسخت اللقطة إلى الحافظة.'
+          : outcome === 'unsupported'
+            ? 'الحافظة تقبل PNG وحدها — افتح اللقطة في المحرّر لنسخها.'
+            : 'تعذّر النسخ إلى الحافظة. اللقطة محفوظة في المكتبة.',
+      ),
+    )
+  }
+
+  // بترتيب القراءة في الإطار: تعليق، مقارنة، نسخ، مشاركة. والمشاركة المحلّية محرّكها في
+  // `STAGES/10`، فتُعرض معطَّلة بسببها لا زرًّا صامتًا.
   const successActions: SuccessAction[] = [
-    { icon: 'split-view', label: 'مقارنة', onClick: () => runTool('compare') },
     {
       icon: 'pen',
       label: 'تعليق',
       onClick: () => (success?.id ? openEditor(success.id) : openPage('editor')),
     },
-    { icon: 'share', label: 'رابط مشاركة', onClick: () => undefined },
-    { icon: 'copy', label: 'نسخ', onClick: () => undefined },
+    { icon: 'split-view', label: 'مقارنة', onClick: () => runTool('compare') },
+    { icon: 'copy', label: 'نسخ', onClick: copySuccess, soon: !success?.id },
+    { icon: 'share', label: 'مشاركة', onClick: () => undefined, soon: true },
   ]
 
   let body: JSX.Element
 
-  if (success) {
+  if (failure) {
+    body =
+      failure.kind === 'cancelled' ? (
+        <Cancelled
+          onRestart={() => (failure.retry ? runTool(failure.retry) : setFailure(null))}
+          onClose={() => window.close()}
+        />
+      ) : (
+        <CaptureError
+          title={failure.title}
+          message={failure.message}
+          onRetry={() => (failure.retry ? runTool(failure.retry) : setFailure(null))}
+        />
+      )
+  } else if (success) {
     body = (
       <Success
-        width={success.width}
-        height={success.height}
+        thumbUrl={successThumb}
         actions={successActions}
+        notice={notice}
         onOpenLibrary={() => openPage('library')}
       />
     )
@@ -226,8 +309,6 @@ export function Popup(): JSX.Element | null {
           <Restricted
             reason={context.restriction.reason}
             onManageSites={() => openPage('settings')}
-            // لا صفحة شرح مخصَّصة بعد — لا يُدَّعى تنقّل لا وجهة له.
-            onWhy={() => undefined}
           />
         )
         break
@@ -255,16 +336,10 @@ export function Popup(): JSX.Element | null {
       case 'first-run':
         body = (
           <FirstRun
-            onTour={() => {
+            onStart={() => {
               void send('settings/patch', {
                 patch: { onboarding: { completed: true, completedAt: Date.now() } },
-              })
-              openPage('onboarding')
-            }}
-            onSkip={() => {
-              void send('settings/patch', {
-                patch: { onboarding: { completed: true, completedAt: Date.now() } },
-              }).then(() => window.close())
+              }).then(() => setFirstRunDone(true))
             }}
           />
         )
@@ -287,7 +362,6 @@ export function Popup(): JSX.Element | null {
       case 'capturing':
         body = context.job ? (
           <Capturing
-            kind={context.job.kind}
             done={liveProgress?.done ?? context.job.done}
             total={liveProgress?.total ?? context.job.total}
             onCancel={cancelJob}
@@ -298,11 +372,27 @@ export function Popup(): JSX.Element | null {
         break
 
       case 'inspect-active':
-        body = <InspectActive onExit={exitLiveMode} />
+        body = (
+          <LiveMode
+            tone="inspect"
+            title="وضع الفحص مُفعّل"
+            hint="مرّر فوق أي عنصر في الصفحة لفحصه. تفاصيله في لوح الفحص داخل الصفحة."
+            exitLabel="إنهاء الفحص"
+            onExit={exitLiveMode}
+          />
+        )
         break
 
       case 'colors':
-        body = <Colors onExit={exitLiveMode} />
+        body = (
+          <LiveMode
+            tone="colors"
+            title="وضع اختيار اللون مُفعّل"
+            hint="مرّر فوق أي نقطة في الصفحة والتقط لونها. قيمه وصيغه في لوح الألوان داخل الصفحة."
+            exitLabel="إنهاء الاختيار"
+            onExit={exitLiveMode}
+          />
+        )
         break
 
       default:
@@ -317,8 +407,10 @@ export function Popup(): JSX.Element | null {
     }
   }
 
+  const dataState = failure ? failure.kind : success ? 'success' : stateName
+
   return (
-    <div class={styles.shell} data-popup-state={success ? 'success' : stateName}>
+    <div class={styles.shell} data-popup-state={dataState}>
       <Header status={status} onSettings={() => openPage('settings')} />
       <div class={styles.body}>{body}</div>
       <Footer

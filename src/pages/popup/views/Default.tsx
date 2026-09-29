@@ -18,11 +18,11 @@ export interface DefaultProps {
 
 /**
  * الحالة الافتراضية — ثلاث مجموعات، بترتيب `13 — Extension Popup` نفسه:
- * الالتقاط (شبكة 2×2)، الفحص (صفّ 4)، الأخيرة (بطاقتان).
+ * الالتقاط (شبكة 2×2)، الفحص (صفّ 4)، الأخيرة (بطاقتان أو سطر فراغ `popup / no-recent`).
  *
- * ترتيب البطاقات في DOM هو **ترتيب القراءة في RTL نفسه** يمينًا فيسارًا —
- * تمامًا كما التقطته صفحة Figma: `عنصر · منطقة` أعلى، `صفحة كاملة · الظاهر`
- * أسفل. Tab يتبع هذا الترتيب بلا حاجة لأي `tabIndex` مُدار يدويًا.
+ * **ترتيب DOM هو ترتيب القراءة من اليمين**، أي عكس ترتيب أبناء الإطار: Figma يرتّب
+ * أبناء الصفّ الأفقي من اليسار. فالشبكة `منطقة · عنصر` ثم `الظاهر · صفحة كاملة`، والصفّ
+ * `فحص · قياس · ألوان · مقارنة`. وTab يتبع هذا الترتيب بلا `tabIndex` مُدار.
  */
 export function Default({
   onTool,
@@ -34,30 +34,18 @@ export function Default({
     <>
       <section class={styles.group} aria-label="الالتقاط">
         <div class={styles.groupHead}>
+          <span class={styles.groupLabel}>الالتقاط</span>
           {/*
-           * ⇧⌘ لا ⌥⌘: ⌥⌘F المصمَّمة في Figma رفضها مدقّق Chrome («Invalid
-           * value for commands[..].mac») واستُبدلت في المرحلة 3 — انظر
-           * التعليق أعلى `commands` في `manifest.config.ts`. البادجة هنا
-           * تعرض الاختصار الحقيقي المسجَّل، لا رسم Figma الأصلي المرفوض.
+           * ⇧⌘ لا ⌥⌘: ⌥⌘F المصمَّمة قديمًا رفضها مدقّق Chrome («Invalid value for
+           * commands[..].mac») — انظر التعليق أعلى `commands` في `manifest.config.ts`.
            */}
           <span class={styles.groupShortcut}>⇧⌘</span>
-          <span class={styles.groupLabel}>الالتقاط</span>
         </div>
         <div class={styles.captureGrid}>
-          <CaptureCard
-            shortcutKey="E"
-            icon="capture-element"
-            title="عنصر"
-            hint="اختر عنصر DOM"
-            onClick={() => onTool('element')}
-          />
           {/*
-           * ⇧⌘T لا ⇧⌘F على ماك: Chrome يحجز F صامتًا لهذه التركيبة — اكتُشف
-           * تجريبيًا عبر `scripts/verify-popup.mjs`. وعلى لينكس/ويندوز `T`
-           * محجوزة هي الأخرى («إعادة فتح التبويب المغلق») — قِيس على عدّاء
-           * Linux حقيقي في الوحدة 20.2 (`Docs/Engineering.md §6` صفّ 99)، فالحرف هنا
-           * يتبع المنصّة الفعلية لا حرفًا واحدًا مفترَضًا للجميع. انظر تعليق
-           * `commands` في `manifest.config.ts` لقائمة الحروف المحجوزة كاملةً.
+           * ⇧⌘T لا ⇧⌘F على ماك: Chrome يحجز F صامتًا لهذه التركيبة — اكتُشف عبر
+           * `scripts/verify-popup.mjs`. وعلى لينكس/ويندوز `T` محجوزة هي الأخرى («إعادة
+           * فتح التبويب المغلق»، `Docs/Engineering.md §6` صفّ 99)، فالحرف يتبع المنصّة.
            */}
           <CaptureCard
             shortcutKey={isMacPlatform() ? 'T' : 'Q'}
@@ -67,11 +55,11 @@ export function Default({
             onClick={() => onTool('area')}
           />
           <CaptureCard
-            shortcutKey="S"
-            icon="capture-full"
-            title="صفحة كاملة"
-            hint="تمرير تلقائي"
-            onClick={() => onTool('full-page')}
+            shortcutKey="E"
+            icon="capture-element"
+            title="عنصر"
+            hint="اختر عنصر DOM"
+            onClick={() => onTool('element')}
           />
           <CaptureCard
             shortcutKey="V"
@@ -80,32 +68,27 @@ export function Default({
             hint="العرض الحالي"
             onClick={() => onTool('viewport')}
           />
+          <CaptureCard
+            shortcutKey="S"
+            icon="capture-full"
+            title="صفحة كاملة"
+            hint="تمرير تلقائي"
+            onClick={() => onTool('full-page')}
+          />
         </div>
       </section>
 
       <section class={styles.group} aria-label="الفحص">
         <div class={styles.groupHead}>
-          <span class={styles.groupShortcut}>⌥⇧</span>
           <span class={styles.groupLabel}>الفحص</span>
+          <span class={styles.groupShortcut}>⌥⇧</span>
         </div>
-        {/*
-         * الترتيب هنا هو ترتيب DOM **الفعلي** في `13 — Extension Popup`:
-         * مقارنة أوّلًا (أقصى اليمين في RTL) ثم ألوان فقياس ففحص. نصّ الخطة
-         * يصف الترتيب معكوسًا («فحص، قياس، ألوان، مقارنة») — الملفّ يحسم؛
-         * انظر التناقض المُسجَّل في `Docs/Engineering.md §6`.
-         */}
         <div class={styles.inspectRow}>
           <InspectTool
-            icon="split-view"
-            label="مقارنة"
-            tone="compare"
-            onClick={() => onTool('compare')}
-          />
-          <InspectTool
-            icon="eyedropper"
-            label="ألوان"
-            tone="colors"
-            onClick={() => onTool('colour')}
+            icon="inspect"
+            label="فحص"
+            tone="inspect"
+            onClick={() => onTool('inspect')}
           />
           <InspectTool
             icon="dimension-h"
@@ -114,22 +97,28 @@ export function Default({
             onClick={() => onTool('measure')}
           />
           <InspectTool
-            icon="inspect"
-            label="فحص"
-            tone="inspect"
-            onClick={() => onTool('inspect')}
+            icon="eyedropper"
+            label="ألوان"
+            tone="colors"
+            onClick={() => onTool('colour')}
+          />
+          <InspectTool
+            icon="split-view"
+            label="مقارنة"
+            tone="compare"
+            onClick={() => onTool('compare')}
           />
         </div>
       </section>
 
-      {recent.length > 0 ? (
-        <section class={styles.group} aria-label="الأخيرة">
-          <div class={styles.groupHead}>
-            <button type="button" class={styles.groupLink} onClick={onOpenLibrary}>
-              عرض الكل
-            </button>
-            <span class={styles.groupLabel}>الأخيرة</span>
-          </div>
+      <section class={styles.group} aria-label="الأخيرة">
+        <div class={styles.groupHead}>
+          <span class={styles.groupLabel}>الأخيرة</span>
+          <button type="button" class={styles.groupLink} onClick={onOpenLibrary}>
+            عرض الكل
+          </button>
+        </div>
+        {recent.length > 0 ? (
           <div class={styles.recentRow}>
             {recent.map(({ record, thumbUrl, withheld }) => (
               <RecentThumb
@@ -142,8 +131,10 @@ export function Default({
               />
             ))}
           </div>
-        </section>
-      ) : null}
+        ) : (
+          <p class={styles.groupEmpty}>لا لقطات بعد. التقط أوّل لقطة لتظهر هنا.</p>
+        )}
+      </section>
     </>
   )
 }

@@ -15,7 +15,8 @@ export interface HeaderProps {
 }
 
 /**
- * ترويسة ثابتة في كل الحالات العشر — زرّ الإعدادات، والعلامة، وسطر حالة سياقي.
+ * ترويسة ثابتة في كل الحالات — العلامة وسطر الحالة في بداية السطر (يمينًا)، وزرّ
+ * الإعدادات في نهايته، كما في `13 — Extension Popup`.
  *
  * `onSettings` يُهيَّأ بدالّة فارغة لا يُترَك `undefined`: `IconButton.onClick`
  * يشترط دالّة حقيقية تحت `exactOptionalPropertyTypes` — تمرير `undefined`
@@ -24,16 +25,14 @@ export interface HeaderProps {
 export function Header({ status, onSettings = () => undefined }: HeaderProps): JSX.Element {
   return (
     <header class={styles.header}>
-      <IconButton icon="settings" aria-label="الإعدادات" size="m" onClick={onSettings} />
       <div class={styles.brand}>
         <RasdMark size="md" class={styles.brandMark} title="رصد" />
         <div class={styles.brandNames}>
-          <div class={styles.brandRow}>
-            <span class={styles.brandName}>رصد</span>
-          </div>
-          <span class={styles.brandStatus}>{status}</span>
+          <span class={styles.brandName}>رصد</span>
+          <bdi class={styles.brandStatus}>{status}</bdi>
         </div>
       </div>
+      <IconButton icon="settings" aria-label="الإعدادات" size="m" onClick={onSettings} />
     </header>
   )
 }

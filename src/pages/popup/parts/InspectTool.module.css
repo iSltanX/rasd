@@ -1,11 +1,11 @@
 .tool {
-  /* Figma: حشوة 9/8 وفجوة 5 — أقرب توكنين من السلّم، لا قيمة حرفية. */
+  /* Figma: حشوة 9/8 وفجوة 5 — أقرب توكنين من السلّم (الحشوة 6 كي تسع النافذة 520 بلا تمرير). */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--rasd-space-4);
-  padding-block: var(--rasd-space-8);
+  padding-block: var(--rasd-space-6);
   border-radius: var(--rasd-radius-lg);
   border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
   background: var(--rasd-surface-raised);
@@ -31,6 +31,7 @@
   font-family: var(--rasd-font-family-text);
   font-size: var(--rasd-font-size-sm);
   font-weight: 600;
+  line-height: var(--rasd-leading-ui);
   color: var(--rasd-text-secondary);
 }
 

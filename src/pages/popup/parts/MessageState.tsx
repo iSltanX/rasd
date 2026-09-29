@@ -7,48 +7,45 @@ import type { ComponentChildren, JSX } from 'preact'
 
 export interface MessageStateAction {
   label: string
-  onClick?: () => void
+  onClick: () => void
   icon?: IconName
 }
 
 export interface MessageStateProps {
-  icon: IconName
-  /** لون دائرة الأيقونة الدلالي — كل حالة من الأربع لها معنى مختلف. */
-  tone: 'danger' | 'warning' | 'brand' | 'neutral'
+  /** أيقونة الحامل — أو شعار الجولة الأولى يمرَّر في `badge`. */
+  icon?: IconName
+  /** درجة الحامل الدلالية: السطح والحدّ ولون الأيقونة. */
+  tone: 'danger' | 'warning' | 'info' | 'brand'
+  /** محتوى الحامل بدل الأيقونة — للجولة الأولى وحدها (الشعار). */
+  badge?: ComponentChildren
   title: string
-  /** فقرة الوصف — قد تكون أكثر من سطر. */
+  /** فقرة الوصف، أو فقرتان. */
   children: ComponentChildren
   primary: MessageStateAction
-  /**
-   * ثلاث حالات (`first-run`·`permission`·`offline`) تستعمل زرًّا مصمتًا
-   * بلون العلامة (`text/on-brand` في Figma)؛ `restricted` وحدها تستعمل
-   * لونًا ثانويًا محايدًا (`text/primary`) لأن إجراءها إداري لا دافع نحو
-   * قيمة المنتج. الفرق مصدره الملفّ نفسه، لا اختيار هنا.
-   */
+  /** `primary` لما يدفع نحو قيمة المنتج، و`secondary` لإجراء إداري أو تعافٍ. */
   primaryVariant?: 'primary' | 'secondary'
-  secondary?: MessageStateAction
-  /** صفّ تلميح إضافي أسفل الإجراءات — يُستعمل في «الجولة الأولى» للاختصار. */
+  secondary?: MessageStateAction | undefined
+  /** صفّ تلميح أسفل الإجراءين. */
   hint?: ComponentChildren
 }
 
 const TONE_CLASS: Record<MessageStateProps['tone'], string> = {
   danger: styles.toneDanger!,
   warning: styles.toneWarning!,
+  info: styles.toneInfo!,
   brand: styles.toneBrand!,
-  neutral: styles.toneNeutral!,
 }
 
 /**
- * القالب المشترك بين `first-run` و`permission` و`offline` و`restricted`.
- *
- * الأربعة في `13 — Extension Popup` تشترك بنية واحدة حرفيًا: دائرة أيقونة،
- * عنوان 19px، فقرة وصف، زرّ رئيسي بلون العلامة، ورابط ثانوي — فبناء قالب
- * واحد بدل أربع بطاقات شبه متطابقة يمنع أن ينحرف زرّ إغلاق واحد عن باقيها
- * لاحقًا بلا قصد.
+ * قالب حالات الرسالة في `13 — Extension Popup`: الجولة الأولى والإذن وانقطاع الاتصال
+ * والمنع والخطأ والإلغاء. بنية واحدة حرفيًّا — حامل أيقونة مربّع بحدّ درجته، وعنوان
+ * `Arabic/Heading/S`، ووصف، وزرّ كبير بعرض السطر، وزرّ شبحيّ تحته — فلا ينحرف زرّ
+ * واحد عن أخواته لاحقًا بلا قصد.
  */
 export function MessageState({
   icon,
   tone,
+  badge,
   title,
   children,
   primary,
@@ -58,30 +55,28 @@ export function MessageState({
 }: MessageStateProps): JSX.Element {
   return (
     <div class={styles.state}>
-      <span class={`${styles.badge} ${TONE_CLASS[tone]}`}>
-        <Icon name={icon} size="lg" />
+      <span class={`${styles.holder} ${TONE_CLASS[tone]}`} aria-hidden="true">
+        {badge ?? (icon ? <Icon name={icon} size="lg" /> : null)}
       </span>
-      <h2 class={styles.title}>{title}</h2>
-      <p class={styles.desc}>{children}</p>
+      <div class={styles.text}>
+        <h2 class={`${styles.title} t-arabic-heading-s`}>{title}</h2>
+        <div class={`${styles.desc} t-arabic-ui-s`}>{children}</div>
+      </div>
       <Button
         variant={primaryVariant}
-        size="m"
-        class={styles.primary}
-        onClick={primary.onClick ?? (() => undefined)}
+        size="l"
+        class={styles.action}
+        onClick={primary.onClick}
         {...(primary.icon === undefined ? {} : { icon: primary.icon })}
       >
         {primary.label}
       </Button>
       {secondary ? (
-        <button
-          type="button"
-          class={styles.secondary}
-          onClick={secondary.onClick ?? (() => undefined)}
-        >
+        <Button variant="ghost" size="l" class={styles.action} onClick={secondary.onClick}>
           {secondary.label}
-        </button>
+        </Button>
       ) : null}
-      {hint ? <p class={styles.hintRow}>{hint}</p> : null}
+      {hint ? <p class={`${styles.hint} t-arabic-ui-xs`}>{hint}</p> : null}
     </div>
   )
 }
