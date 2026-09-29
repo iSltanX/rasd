@@ -110,4 +110,5 @@
 
 .cancel {
   inline-size: 100%;
+  gap: var(--rasd-space-8);
 }

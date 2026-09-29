@@ -28,6 +28,11 @@ export interface ButtonProps {
   'aria-label'?: string
   /** لزرّ يفتح لوحة ويغلقها. */
   'aria-expanded'?: boolean | undefined
+  /**
+   * تلميحٌ بعد النصّ خارج كتلته — مفتاح اختصار مثلًا (`<KeyCap>`). خارج كتلة النصّ كي يبقى
+   * نصّ الزرّ نصَّه وحده لمن يقرؤه.
+   */
+  trailing?: ComponentChildren
 }
 
 /** `Button` — 72 variant: 4 نمط × 3 مقاس × 6 حالة. */
@@ -41,6 +46,7 @@ export function Button({
   type = 'button',
   onClick,
   class: className,
+  trailing,
   ...aria
 }: ButtonProps): JSX.Element {
   const disabled = state === 'disabled'
@@ -82,6 +88,7 @@ export function Button({
         <span class={styles.label}>{children}</span>
         {icon && iconPosition === 'end' ? <Icon name={icon} size={iconSize} /> : null}
       </span>
+      {trailing ?? null}
     </button>
   )
 }

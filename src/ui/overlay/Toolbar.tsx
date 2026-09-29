@@ -15,6 +15,8 @@ export interface ToolbarItem {
 
 export interface ToolbarProps {
   origin: Point
+  /** `bottom-center`: `origin` منتصف الحافّة السفلى — موضع الشريط العائم في إطارات الأدوات. */
+  anchor?: 'bottom-center' | undefined
   items: readonly ToolbarItem[]
   active: Mode
   onPick?: (mode: Mode) => void
@@ -29,9 +31,16 @@ export interface ToolbarProps {
  * هي التي تقرّر أي أوضاع تُعرض ومتى. هذا يبقيها صالحة بلا تعديل مع نموّ
  * قائمة الأوضاع.
  */
-export function Toolbar({ origin, items, active, onPick, onClose }: ToolbarProps): JSX.Element {
+export function Toolbar({
+  origin,
+  anchor,
+  items,
+  active,
+  onPick,
+  onClose,
+}: ToolbarProps): JSX.Element {
   return (
-    <div class="rasd-ov-place" style={at(origin)} data-rasd-ov="toolbar">
+    <div class="rasd-ov-place" style={at(origin)} data-rasd-ov="toolbar" data-anchor={anchor}>
       <div class="rasd-ov-toolbar" role="toolbar" aria-label="أدوات رصد">
         {items.map((item) => {
           const meta = MODE_META[item.mode]

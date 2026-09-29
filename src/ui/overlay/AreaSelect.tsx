@@ -2,7 +2,7 @@ import { formatUnit } from '@/shared/bidi'
 
 import { Dimension } from './Dimension'
 import { DimensionVertical } from './DimensionVertical'
-import { box, type Rect } from './geometry'
+import { box, type Rect, HINT_OFFSET_PX } from './geometry'
 import { Marquee } from './Marquee'
 
 import type { JSX } from 'preact'
@@ -156,7 +156,7 @@ export function AreaSelect({
           class="rasd-ov-place"
           style={box({
             x: bounds.x + bounds.width / 2,
-            y: bounds.y + bounds.height - 76,
+            y: bounds.y + bounds.height - HINT_OFFSET_PX,
             width: 0,
             height: 0,
           })}
@@ -165,9 +165,10 @@ export function AreaSelect({
           {/* الترجمة تُوسِّط الشريط أفقيًا حول نقطة وضعه. */}
           <span class="rasd-ov-hint" style={{ translate: '-50% 0' }}>
             {hints.map((h) => (
+              // المفتاح في بداية العنصر ونصّه بعده — كما في `59:2`.
               <span key={h.key} class="rasd-ov-hint-item">
-                <span class="rasd-ov-hint-label">{h.label}</span>
                 <kbd class="rasd-ov-key">{h.key}</kbd>
+                <span class="rasd-ov-hint-label">{h.label}</span>
               </span>
             ))}
           </span>

@@ -75,6 +75,41 @@
  * إلى الطبقة، وما يحتاج التقاطًا فعليًا (المقابض، الأزرار) يعلن `auto`
  * لنفسه: ابنٌ `auto` داخل أبٍ `none` قابل للإصابة بالمواصفة.
  */
+/*
+ * سلّم مقاسات الأيقونة داخل الجذر المظلَّل — نسخة `src/ui/icons/icon.css` لأن ورقة الصفحات لا تصل
+ * الظلّ. بلا هذا تأخذ كل أيقونة مقاسها الطبيعي: كانت أيقونتا لوحة المقارنة الفارغة تملآن
+ * النافذة وتدفعان زرّ معرض المقاسات إلى أسفلها (كشفه تركيب شريط الأدوات فوقه).
+ */
+.rasd-icon {
+  flex: none;
+  color: inherit;
+  stroke: currentColor;
+}
+.rasd-icon-xs {
+  inline-size: var(--rasd-icon-xs);
+  block-size: var(--rasd-icon-xs);
+}
+.rasd-icon-sm {
+  inline-size: var(--rasd-icon-sm);
+  block-size: var(--rasd-icon-sm);
+}
+.rasd-icon-md {
+  inline-size: var(--rasd-icon-md);
+  block-size: var(--rasd-icon-md);
+}
+.rasd-icon-lg {
+  inline-size: var(--rasd-icon-lg);
+  block-size: var(--rasd-icon-lg);
+}
+.rasd-icon-xl {
+  inline-size: var(--rasd-icon-xl);
+  block-size: var(--rasd-icon-xl);
+}
+.rasd-icon-2xl {
+  inline-size: var(--rasd-icon-2xl);
+  block-size: var(--rasd-icon-2xl);
+}
+
 .rasd-ov-place {
   position: absolute;
   inset-block-start: 0;
@@ -99,6 +134,9 @@
 }
 .rasd-ov-place[data-anchor='bottom-left'] {
   translate: var(--rasd-ov-x, 0) calc(var(--rasd-ov-y, 0) - 100%);
+}
+.rasd-ov-place[data-anchor='bottom-center'] {
+  translate: calc(var(--rasd-ov-x, 0) - 50%) calc(var(--rasd-ov-y, 0) - 100%);
 }
 
 /* شارة القيمة — الشكل المشترك بين Marquee وDimension وBox Model وCrosshair. */
@@ -421,6 +459,62 @@
 .rasd-ov-tool-close {
   color: var(--rasd-icon-tertiary);
 }
+
+/*
+ * إشعار داخل الطبقة — بمواصفة `Toast` في الصفحات (`colors / error`، `303:22356`): زجاج بحدّ
+ * ونصف قطر 12، ودائرة الدرجة، وسطران، وإغلاق. ورقة الصفحات لا تصل الظلّ فيُكتب هنا.
+ */
+.rasd-ov-toast {
+  direction: rtl;
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-12);
+  box-sizing: border-box;
+  inline-size: 25rem;
+  max-inline-size: calc(100vw - 2 * var(--rasd-space-16));
+  padding: calc(var(--rasd-space-12) - var(--rasd-stroke-thin));
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-overlay-glass);
+  backdrop-filter: blur(
+    18px
+  ); /* rasd-allow-literal: نصف قطر الطمس أثر بصري لا قيمة من سلّم المسافات */
+  box-shadow: var(--rasd-elevation-3);
+  font-family: var(--rasd-font-family-text);
+  pointer-events: auto;
+}
+.rasd-ov-toast-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  inline-size: calc(var(--rasd-space-24) + var(--rasd-space-2));
+  block-size: calc(var(--rasd-space-24) + var(--rasd-space-2));
+  border-radius: var(--rasd-radius-full);
+  border: var(--rasd-stroke-thin) solid var(--rasd-status-danger-border);
+  background: var(--rasd-status-danger-surface);
+  color: var(--rasd-status-danger-fg);
+}
+.rasd-ov-toast-text {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-2);
+}
+.rasd-ov-toast-title {
+  font-size: var(--rasd-font-size-base);
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--rasd-text-primary);
+}
+.rasd-ov-toast-detail {
+  font-size: var(--rasd-font-size-sm);
+  line-height: 1.6;
+  color: var(--rasd-text-tertiary);
+}
+
 .rasd-ov-toolbar-divider {
   inline-size: var(--rasd-stroke-thin);
   block-size: var(--rasd-space-20);
@@ -716,6 +810,10 @@
  * السماكة 2px هنا مقابل 1.5px في المنطقة — كذلك من الملفّ: الإبراز يتحرّك
  * مع كل حركة مؤشِّر، فيحتاج حضورًا أوضح من مستطيل ساكن.
  */
+.rasd-ov-elhl.rasd-ov-elhl-pinned {
+  background: var(--rasd-overlay-inspect-wash);
+  border-color: var(--rasd-tool-inspect-border);
+}
 .rasd-ov-elhl {
   inline-size: var(--rasd-ov-w);
   block-size: var(--rasd-ov-h);

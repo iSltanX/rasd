@@ -1,5 +1,6 @@
 import { formatHuman, formatPercent } from '@/shared/bidi'
 import { Button } from '@/ui/components/Button/Button'
+import { KeyCap } from '@/ui/TechnicalValue'
 
 import styles from './Capturing.module.css'
 
@@ -60,7 +61,18 @@ export function Capturing({ done, total, onCancel }: CapturingProps): JSX.Elemen
         </div>
       </div>
 
-      <Button variant="secondary" size="l" icon="close" class={styles.cancel} onClick={onCancel}>
+      {/*
+       * «Esc» بعد النصّ: المفتاح يُلغي المهمّة من الصفحة (`content/index.ts`) — تلميحٌ صادق لا
+       * يرسمه الإطار. و`verify:capturing` الحاجب يقرأ الزرّ بنصّه ومفتاحه هذين.
+       */}
+      <Button
+        variant="secondary"
+        size="l"
+        icon="close"
+        class={styles.cancel}
+        onClick={onCancel}
+        trailing={<KeyCap>Esc</KeyCap>}
+      >
         إلغاء الالتقاط
       </Button>
     </div>

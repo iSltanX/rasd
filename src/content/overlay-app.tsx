@@ -21,6 +21,7 @@ import { pxToRem } from '@/modules/measure/units'
 import { formatDimensions, formatUnit } from '@/shared/bidi'
 import { viewportRect, viewportRectToDevice, type CoordSpace } from '@/shared/geometry'
 import { send } from '@/shared/messaging'
+import { Icon } from '@/ui/icons/Icon'
 import {
   AlignGuide,
   BoxModel,
@@ -47,6 +48,7 @@ import { ScalePanel } from '@/ui/overlay/colour/ScalePanel'
 import { Crosshair } from '@/ui/overlay/Crosshair'
 import { at, box } from '@/ui/overlay/geometry'
 import { Loupe } from '@/ui/overlay/Loupe'
+import { Toolbar } from '@/ui/overlay/Toolbar'
 
 import { contrastView, formatRows, variableView } from './colour-view'
 import { buildGroups } from './inspect-view'
@@ -82,19 +84,23 @@ export interface CompareDiffView {
   readonly error: string | null
 }
 
-/** تلميحات `capture / area-select` — نصوصها ومفاتيحها من الملفّ حرفيًا. */
+/**
+ * تلميحات `capture / area-select` (`59:2`) — نصوصها ومفاتيحها من الملفّ حرفيًا، **بترتيب
+ * القراءة**: الشريط `rtl` فأوّل عنصر أقصى اليمين. كانت منسوخة بترتيب أبناء Figma من اليسار،
+ * فخرج الشريط مرآة إطاره — العلّة نفسها التي أُصلحت في النافذة.
+ */
 const AREA_HINTS = [
-  { label: 'إلغاء', key: 'esc' },
-  { label: 'التقط', key: '↵' },
-  { label: 'من المركز', key: '⌥' },
   { label: 'ثبّت النسبة', key: '⇧' },
+  { label: 'من المركز', key: '⌥' },
+  { label: 'التقط', key: '↵' },
+  { label: 'إلغاء', key: 'esc' },
 ] as const
 
 /** إجراءات المرحلة 9 — ما تسنده محرّكات موجودة فعلًا لا أكثر. */
 const ELEMENT_HINTS: readonly { label: string; key: string }[] = [
-  { label: 'خروج', key: 'esc' },
-  { label: 'التقط', key: 'انقر' },
   { label: 'تنقّل في DOM', key: '↑↓' },
+  { label: 'التقط', key: 'انقر' },
+  { label: 'خروج', key: 'esc' },
 ]
 
 export interface FullPageState {
@@ -767,13 +773,39 @@ function ColourLayer({
         )}
       </div>
 
+      {/*
+       * `colors / error` (`303:22356`): إشعار خطر فوق الشريط العائم — عنوانه ثمّ السبب ثمّ
+       * الإغلاق. و«أبلغ» المرسومة لا تُعرض قبل محرّكها في `STAGES/13`.
+       */}
       {error ? (
         <div
           class="rasd-ov-place"
-          style={at({ x: PANEL_INSET, y: COLOUR_PANEL_TOP })}
+          style={at({
+            x: s.layoutWidth / 2,
+            y: s.layoutHeight - DOCK_BOTTOM_PX - DOCK_HEIGHT_PX - DOCK_GAP_PX,
+          })}
+          data-anchor="bottom-center"
           data-rasd-ov="colour-error"
         >
-          <span class="rasd-ov-badge">{error}</span>
+          <div class="rasd-ov-toast" role="alert">
+            <span class="rasd-ov-toast-badge" aria-hidden="true">
+              <Icon name="close" size="xs" />
+            </span>
+            <span class="rasd-ov-toast-text">
+              <span class="rasd-ov-toast-title">تعذّرت قراءة اللون</span>
+              <span class="rasd-ov-toast-detail">{error}</span>
+            </span>
+            <button
+              type="button"
+              class="rasd-ov-tool rasd-ov-tool-close"
+              aria-label="إغلاق"
+              onClick={() => {
+                colour.state.error.value = null
+              }}
+            >
+              <Icon name="close" size="xs" />
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -997,6 +1029,25 @@ function InspectLayer({
         />
       ) : null}
 
+      {/*
+       * العنصر المثبَّت يبقى معلَّمًا بلون أداة الفحص كما في `inspect / element-selected`
+       * (`62:2`) — من موضعه في الصفحة لحظة التثبيت، فيتبع التمرير ويبقى على عنصره.
+       */}
+      {detail ? (
+        <div
+          class="rasd-ov-place rasd-ov-elhl rasd-ov-elhl-pinned"
+          style={box(
+            viewportRect(
+              detail.snapshot.rect.pageX - s.scrollX,
+              detail.snapshot.rect.pageY - s.scrollY,
+              detail.snapshot.rect.width,
+              detail.snapshot.rect.height,
+            ),
+          )}
+          data-rasd-ov="inspect-selected"
+        />
+      ) : null}
+
       <div
         class="rasd-ov-place"
         style={at({ x: PANEL_INSET, y: PANEL_TOP })}
@@ -1031,6 +1082,55 @@ const PANEL_TOP = 64
 /** لوحة اللون أعلى قليلًا — `65:55` يضعها عند (40, 44). */
 const COLOUR_PANEL_TOP = 44
 
+/**
+ * أدوات الشريط العائم بترتيب القراءة — `Overlay / Toolbar` في إطارات الأدوات (`62:2`
+ * وأخواته): التقاط منطقة، والتقاط عنصر، وفحص، وقياس، ولون، ومقارنة. الإطار يرسم «قلمًا» ويُسقط
+ * التقاط العنصر؛ وقائمة الأوضاع تحكم (`Docs/Engineering.md §6` الصفّ 13) — لا وضع تعليق في
+ * الصفحة، فالتعليق في المحرّر.
+ */
+export const DOCK_MODES: readonly Exclude<Mode, 'idle'>[] = [
+  'area',
+  'element',
+  'inspect',
+  'measure',
+  'colour',
+  'compare',
+]
+
+/** بُعد الشريط عن أسفل النافذة — `--rasd-space-40`، موضعه في `59:2`. */
+export const DOCK_BOTTOM_PX = 40
+/** ارتفاع الشريط (`--rasd-control-xl`) والفجوة فوقه لما يُكدَّس عليه من إشعار. */
+const DOCK_HEIGHT_PX = 48
+const DOCK_GAP_PX = 12
+
+/**
+ * الشريط العائم أسفل منتصف النافذة ما دامت أداةٌ مفتوحة، لا في الخمول: التبديل بين الأدوات
+ * والخروج بالمؤشِّر لا بالمفاتيح وحدها. في الطبقة نفسها، فيُخفى مع المضيف قبل كل التقاط
+ * (`capture/hide-overlay`) ولا يظهر في صورة. وأزراره أسطح التقاط صريحة، فلا يبدأ منها سحبُ
+ * منطقة ولا قياس.
+ */
+export function ToolDock({
+  mode,
+  space,
+  onSwitchMode,
+}: {
+  mode: Mode
+  space: CoordSpace
+  onSwitchMode?: ((mode: Mode) => void) | undefined
+}): JSX.Element | null {
+  if (mode === 'idle') return null
+  return (
+    <Toolbar
+      origin={{ x: space.layoutWidth / 2, y: space.layoutHeight - DOCK_BOTTOM_PX }}
+      anchor="bottom-center"
+      items={DOCK_MODES.map((m) => ({ mode: m }))}
+      active={mode}
+      onPick={(m) => onSwitchMode?.(m)}
+      onClose={() => onSwitchMode?.('idle')}
+    />
+  )
+}
+
 function OverlayApp(props: OverlayAppProps): JSX.Element | null {
   /*
    * لوحة الالتقاط الكامل تُرسَم **فوق** ما تعرضه الأوضاع لا بدلًا منه:
@@ -1047,6 +1147,7 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
 
   // القراءة داخل المكوّن هي ما يشترك في الإشارة — لا `subscribe` يدوي.
   const mode = props.mode.value
+  const dock = <ToolDock mode={mode} space={props.space.value} onSwitchMode={props.onSwitchMode} />
   if (mode === 'inspect')
     return (
       <>
@@ -1055,6 +1156,7 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           space={props.space}
           {...(props.onCopyInspect ? { onCopy: props.onCopyInspect } : {})}
         />
+        {dock}
         {job}
       </>
     )
@@ -1066,6 +1168,7 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           space={props.space}
           {...(props.onSwitchMode ? { onSwitchMode: props.onSwitchMode } : {})}
         />
+        {dock}
         {job}
       </>
     )
@@ -1077,6 +1180,7 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           space={props.space}
           unit={props.measure.state.unit.value}
         />
+        {dock}
         {job}
       </>
     )
@@ -1097,6 +1201,7 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           {...(props.onExportPalette ? { onExportPalette: props.onExportPalette } : {})}
           {...(props.onExportScale ? { onExportScale: props.onExportScale } : {})}
         />
+        {dock}
         {job}
       </>
     )
@@ -1123,6 +1228,7 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           {...(props.compareDiff ? { diff: props.compareDiff.value } : {})}
           {...(props.onCaptureCompareDiff ? { onCaptureDiff: props.onCaptureCompareDiff } : {})}
         />
+        {dock}
         {job}
       </>
     )
@@ -1137,6 +1243,7 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         pendingViewport={props.pendingViewport}
         onCapture={props.onCapture}
       />
+      {dock}
     </>
   )
 }

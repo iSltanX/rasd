@@ -1,7 +1,7 @@
 import { Icon, type IconName } from '@/ui/icons/Icon'
 
 import { BoxModel, type Edges } from './BoxModel'
-import { at, box, type Rect } from './geometry'
+import { at, box, type Rect, HINT_OFFSET_PX } from './geometry'
 import { NodeLabel } from './NodeLabel'
 
 import type { JSX } from 'preact'
@@ -123,16 +123,17 @@ export function ElementHover({
           class="rasd-ov-place"
           style={at({
             x: bounds.x + bounds.width / 2,
-            y: bounds.y + bounds.height - 76,
+            y: bounds.y + bounds.height - HINT_OFFSET_PX,
           })}
           data-rasd-ov="hint"
         >
           {/* الترجمة تُوسِّط الشريط أفقيًا حول نقطة وضعه. */}
           <span class="rasd-ov-hint" style={{ translate: '-50% 0' }}>
             {hints.map((h) => (
+              // المفتاح في بداية العنصر ونصّه بعده — كما في `59:123`.
               <span key={h.key} class="rasd-ov-hint-item">
-                <span class="rasd-ov-hint-label">{h.label}</span>
                 <kbd class="rasd-ov-key">{h.key}</kbd>
+                <span class="rasd-ov-hint-label">{h.label}</span>
               </span>
             ))}
           </span>

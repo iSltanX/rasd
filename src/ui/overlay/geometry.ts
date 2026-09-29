@@ -40,3 +40,9 @@ export function box({ x, y, width, height }: Rect): Record<string, string> {
     '--rasd-ov-h': `${height}px`,
   }
 }
+
+/**
+ * أعلى شريط التلميحات عن أسفل النافذة: فوق شريط الأدوات العائم بثمانية كما في `59:2` و`59:123`
+ * — الشريط 48 على بُعد 40 من الأسفل، والتلميح نحو 36.
+ */
+export const HINT_OFFSET_PX = 40 + 48 + 8 + 36
