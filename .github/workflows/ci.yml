@@ -256,19 +256,19 @@ jobs:
           - { guard: capturing, blocking: true }
           - { guard: colour, blocking: true }
           - { guard: compare, blocking: false }
-          - { guard: compare-diff, blocking: false }
-          - { guard: editor, blocking: false }
+          - { guard: compare-diff, blocking: true }
+          - { guard: editor, blocking: true }
           - { guard: export, blocking: false }
           - { guard: fullpage, blocking: true }
-          - { guard: gate, blocking: false }
+          - { guard: gate, blocking: true }
           - { guard: inspect, blocking: true }
-          - { guard: library, blocking: true }
+          - { guard: library, blocking: false }
           - { guard: lifecycle, blocking: true }
           - { guard: load, blocking: true }
           - { guard: measure, blocking: true }
           - { guard: overlay, blocking: true }
           - { guard: palette, blocking: true }
-          - { guard: picker, blocking: false }
+          - { guard: picker, blocking: true }
           - { guard: popup, blocking: false }
 
     # الوظيفة غير الحاجبة تظهر ✗ في صفحة الفحوص ولا تُسقِط الجولة.
