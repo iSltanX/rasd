@@ -42,17 +42,24 @@ export function pageKeyOf(url: string): { origin: string; path: string } | null 
   }
 }
 
+/** حدّا المخطّط (`IssueSchema`) — ما جاوزهما يُقصّ هنا، وإلا كُتب سجلٌّ لا تقرؤه لوحته (المراجعة المستقلّة). */
+const MAX_URL = 4096
+const MAX_TITLE = 1024
+
 export function pageOf(
   tab: { url: string; title: string },
   draft: Pick<IssueDraft, 'viewport' | 'shot'>,
 ): IssuePage | null {
   const key = pageKeyOf(tab.url)
   if (!key) return null
+  const url = stripHash(tab.url)
+  // رابطٌ باستعلامٍ فوق الحدّ يُكتب أصلًا ومسارًا: هما مفتاح الصفحة، والاستعلام لا يغيّرها.
+  const fallback = `${key.origin}${key.path}`
   return {
-    url: stripHash(tab.url),
-    origin: key.origin,
-    path: key.path,
-    title: tab.title,
+    url: url.length <= MAX_URL ? url : fallback.slice(0, MAX_URL),
+    origin: key.origin.slice(0, 1024),
+    path: key.path.slice(0, MAX_URL),
+    title: tab.title.slice(0, MAX_TITLE),
     viewport: { width: draft.viewport.width, height: draft.viewport.height, dpr: draft.shot.dpr },
   }
 }

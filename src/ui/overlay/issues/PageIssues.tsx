@@ -57,12 +57,7 @@ export function PageIssues(props: PageIssuesProps): JSX.Element {
       : props.checkedLabel
 
   return (
-    <section
-      class="rasd-ov-insp"
-      aria-label="مشكلات هذه الصفحة"
-      data-rasd-ov="issues-panel"
-      onPointerDown={(e) => e.stopPropagation()}
-    >
+    <section class="rasd-ov-insp" data-rasd-ov="issues-panel">
       <div class="rasd-ov-insp-head">
         <div class="rasd-ov-insp-id">
           <Icon name="alert" size="sm" />

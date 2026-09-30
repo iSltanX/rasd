@@ -39,7 +39,8 @@ const { registerIssues, setIssueIds } = await import('@/background/issues')
 const PAGE_URL = 'https://northwind.example/pricing#plans'
 type Sender = Partial<chrome.runtime.MessageSender>
 const SITE = { tab: { id: 4 }, origin: 'https://northwind.example' } as unknown as Sender
-const POPUP: Sender = { origin: 'chrome-extension://rasd' }
+/** أصل الإضافة كما يملؤه المتصفّح لصفحاتها — من `getURL` لا ثابتًا مكتوبًا. */
+const POPUP = (): Sender => ({ origin: new URL(chrome.runtime.getURL('')).origin })
 
 function captureRecord(): CaptureRecord {
   return {
@@ -130,6 +131,23 @@ describe('issue/create', () => {
     expect(parsed?.ok).toBe(true)
     const notes = parsed?.ok ? parsed.value.nodes.filter((n) => n.kind === 'note') : []
     expect(notes.map((n) => n.id)).toEqual([issue?.note?.noteId])
+  })
+
+  it('رابطٌ أو عنوانٌ فوق حدّ المخطّط يُقصّ فتبقى المشكلة مقروءةً في لوحتها (المراجعة المستقلّة)', async () => {
+    vi.spyOn(chrome.tabs, 'get').mockResolvedValue({
+      id: 4,
+      url: `https://northwind.example/pricing?q=${'x'.repeat(5000)}#top`,
+      title: 'ع'.repeat(1500),
+    } as never)
+    expect((await call('issue/create', draftFixture())).ok).toBe(true)
+    const page = await call('issue/page', undefined)
+    const listed = (page.value as { issues: { page: { url: string; title: string } }[] }).issues
+    expect(listed).toHaveLength(1)
+    expect(listed[0]?.page.url).toBe('https://northwind.example/pricing')
+    expect(listed[0]?.page.title).toHaveLength(1024)
+    // ولقطة الدليل كذلك بلا جزء `#`.
+    const capture = await captures.get('cap-1')
+    expect(capture.ok && capture.value.url.includes('#')).toBe(false)
   })
 
   it('بلا مربّع الملاحظة لا مشهد، والمشروع المحذوف لا يُكتب معرّفًا يتيمًا', async () => {
@@ -274,10 +292,20 @@ describe('issue/recheck-tab — بإيماءة النافذة وحدها', () =>
     expect(sendToTab).not.toHaveBeenCalled()
   })
 
+  it('من صفحة إضافةٍ أخرى (أصلٌ غير أصلنا) يُرفض', async () => {
+    const reply = await call(
+      'issue/recheck-tab',
+      { tabId: 9 },
+      { origin: 'chrome-extension://other' },
+    )
+    expect(reply).toMatchObject({ ok: false, error: { code: 'permission-denied' } })
+    expect(activateTool).not.toHaveBeenCalled()
+  })
+
   it('من النافذة يفعّل وضع المشكلات ثمّ يطلب الجولة', async () => {
     activateTool.mockResolvedValue({ started: true, mode: 'issues' })
     sendToTab.mockResolvedValue({ ok: true, value: { checked: 2 } })
-    const reply = await call('issue/recheck-tab', { tabId: 9 }, POPUP)
+    const reply = await call('issue/recheck-tab', { tabId: 9 }, POPUP())
     expect(reply).toMatchObject({ ok: true, value: { started: true } })
     expect(activateTool).toHaveBeenCalledWith(9, 'issues')
     expect(sendToTab).toHaveBeenCalledWith(
@@ -290,7 +318,7 @@ describe('issue/recheck-tab — بإيماءة النافذة وحدها', () =>
 
   it('صفحةٌ مقيّدة تُبلَّغ بسببها ولا يُطلب فحص', async () => {
     activateTool.mockResolvedValue({ started: false, reason: 'restricted' })
-    const reply = await call('issue/recheck-tab', { tabId: 9 }, POPUP)
+    const reply = await call('issue/recheck-tab', { tabId: 9 }, POPUP())
     expect(reply).toMatchObject({ ok: true, value: { started: false, reason: 'restricted' } })
     expect(sendToTab).not.toHaveBeenCalled()
   })

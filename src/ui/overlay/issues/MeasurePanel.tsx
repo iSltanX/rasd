@@ -28,11 +28,7 @@ export function MeasurePanel({
   readonly onLogIssue?: () => void
 }): JSX.Element {
   return (
-    <section
-      class="rasd-ov-insp rasd-ov-iss-measure"
-      aria-label="قياس"
-      data-rasd-ov="measure-panel"
-    >
+    <section class="rasd-ov-insp rasd-ov-iss-measure" data-rasd-ov="measure-panel">
       <div class="rasd-ov-insp-head">
         <span class="rasd-ov-iss-h">
           <Icon name="dimension-h" size="sm" /> قياس
@@ -45,9 +41,7 @@ export function MeasurePanel({
         </div>
         {pinned ? null : <p class="rasd-ov-iss-muted">{PIN_HINT}</p>}
       </div>
-      {onLogIssue ? (
-        <LogIssueButton onClick={onLogIssue} disabledReason={pinned ? null : PIN_HINT} />
-      ) : null}
+      {onLogIssue ? <LogIssueButton onClick={onLogIssue} disabled={!pinned} /> : null}
     </section>
   )
 }

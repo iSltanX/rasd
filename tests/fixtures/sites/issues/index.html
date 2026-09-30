@@ -64,6 +64,8 @@
       // اختصارات الصفحة: مستمعٌ في طور الفقاعة يسجّل كل مفتاح يبلغه.
       window.__pageKeys = []
       document.addEventListener('keydown', (e) => window.__pageKeys.push(e.key))
+      // و`beforeinput` يحمل الحرف نفسه في `data` — يُسجَّل كذلك (المراجعة المستقلّة، ADR 0032).
+      document.addEventListener('beforeinput', (e) => window.__pageKeys.push(e.data))
     </script>
   </body>
 </html>

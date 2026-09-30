@@ -104,7 +104,7 @@ const STYLE_PROPS = [
   'border-radius',
 ]
 
-const COLOUR_PROPS = ['background-color', 'color', 'border-top-color', 'outline-color']
+const COLOUR_PROPS = ['background-color', 'color', 'border-top-color']
 
 /** جوانب الفجوة الأربعة ووصفها — «الفجوة» في لوحة القياس أحدها. */
 const GAP_SIDES = ['gap-top', 'gap-right', 'gap-bottom', 'gap-left']
@@ -283,12 +283,16 @@ export function createIssues(options: IssuesOptions): IssuesController {
     state.formBusy.value = true
     state.formError.value = null
     const reply = await send('issue/create', draft, { timeoutMs: 20_000 })
-    state.formBusy.value = false
+    // أُغلق النموذج أثناء الحفظ (وربّما فُتح غيره): لا يُكتب خطأٌ ولا يُغلق ما لم يرسل هذا الطلب.
+    const same = pending === target
     if (!reply.ok) {
-      state.formError.value = `تعذّر الحفظ: ${reply.error.message} ما كتبته باقٍ.`
+      if (same) {
+        state.formBusy.value = false
+        state.formError.value = `تعذّر الحفظ: ${reply.error.message} ما كتبته باقٍ.`
+      }
       return false
     }
-    closeForm()
+    if (same) closeForm()
     options.notify({
       tone: 'success',
       title: 'سُجّلت المشكلة',

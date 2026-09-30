@@ -11,6 +11,7 @@ import {
   buildIssue,
   completeDraft,
   noteScene,
+  stripHash,
   pageKeyOf,
   pageOf,
   type NoteStyle,
@@ -73,9 +74,12 @@ async function noteStyle(): Promise<NoteStyle> {
   }
 }
 
-/** مصدر الرسالة صفحةٌ من الإضافة نفسها — النافذة، لا سكربت محتوى. */
+/**
+ * مصدر الرسالة صفحةٌ من **هذه** الإضافة — النافذة أو صفحةٌ منها في تبويب — لا سكربت محتوى (أصله أصل الصفحة)
+ * ولا إضافةٌ أخرى. الأصل يملؤه المتصفّح من إطار المُرسِل، لا الحمولة.
+ */
 const fromExtensionPage = (context: MessageContext): boolean =>
-  context.origin?.startsWith('chrome-extension://') ?? false
+  context.origin === new URL(chrome.runtime.getURL('')).origin
 
 export function registerIssues(): void {
   onMessage('issue/page', async (_payload, context) => {
@@ -141,8 +145,12 @@ export function registerIssues(): void {
       }
     }
 
+    // ما لا يُقرأ لا يُكتب: سجلٌّ يرفضه `parseIssue` يختفي من لوحته بعد «سُجّلت» — فيُرفض هنا بصوتٍ عالٍ.
+    const valid = parseIssue(issue)
+    if (!valid.ok) throw new RasdThrow(valid.error)
+
     const saved = await putIssueWithEvidence(
-      { ...shot.value.record, projectId },
+      { ...shot.value.record, url: stripHash(shot.value.record.url), projectId },
       shot.value.blob,
       annotation,
       issue,

@@ -93,6 +93,26 @@ describe('نموذج «سجّل مشكلة» فوق الصفحة (ADR 0032)', ()
       await settle()
       expect(session.modes.mode.value).toBe('inspect')
       expect(page).not.toHaveBeenCalled()
+
+      // `beforeinput` يحمل الحرف نفسه في `data`، وأحداث التركيب (IME) تحمل الكلمة: لا يبلغ شيءٌ منها
+      // الصفحة (المراجعة المستقلّة).
+      const leaked: string[] = []
+      const events = ['beforeinput', 'compositionstart', 'compositionupdate', 'compositionend']
+      const record = (e: Event) => leaked.push(e.type)
+      for (const type of events) document.addEventListener(type, record)
+      try {
+        title?.dispatchEvent(
+          new InputEvent('beforeinput', { data: 'س', bubbles: true, composed: true }),
+        )
+        for (const type of events.slice(1)) {
+          title?.dispatchEvent(
+            new CompositionEvent(type, { data: 'سر', bubbles: true, composed: true }),
+          )
+        }
+        expect(leaked).toEqual([])
+      } finally {
+        for (const type of events) document.removeEventListener(type, record)
+      }
     } finally {
       document.removeEventListener('keydown', page)
     }

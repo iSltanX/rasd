@@ -23,6 +23,20 @@ const TOLERANCES = [0, 1, 2, 4]
 
 const stop = (e: Event): void => e.stopPropagation()
 
+/**
+ * ما يقف عند حدّ النموذج (ADR 0032): المفاتيح، و`beforeinput` الذي يحمل الحرف في `data`، وأحداث التركيب
+ * (IME) التي تحمل الكلمة، والمؤشِّر — فلا يقرأ مستمعُ فقاعةٍ في الصفحة ما يُكتب، ولا تثبّت نقرةٌ مرجعَ القياس.
+ */
+const ISOLATED =
+  'keydown keyup keypress input beforeinput compositionstart compositionupdate compositionend pointerdown'.split(
+    ' ',
+  )
+
+/** مرجعٌ ثابت الهوية فيُستدعى مرّة عند التركيب — يسجّل المستمعات على جذر النموذج نفسه. */
+const isolate = (form: HTMLFormElement | null): void => {
+  for (const type of ISOLATED) form?.addEventListener(type, stop)
+}
+
 export interface IssueFormProps {
   readonly model: IssueFormModel
   readonly busy: boolean
@@ -60,14 +74,9 @@ export function IssueForm({
   return (
     <form
       class="rasd-ov-insp rasd-ov-iss-form"
-      aria-label="سجّل مشكلة"
       data-rasd-ov="issue-form"
       onSubmit={submit}
-      onKeyDown={stop}
-      onKeyUp={stop}
-      onKeyPress={stop}
-      onInput={stop}
-      onPointerDown={stop}
+      ref={isolate}
       onFocusIn={() => onTyping(true)}
       onFocusOut={() => onTyping(false)}
     >
@@ -172,11 +181,11 @@ export function IssueForm({
 /** زرّ «سجّل مشكلة» في تذييل لوحات الفحص والقياس واللون. */
 export function LogIssueButton({
   onClick,
-  disabledReason,
+  disabled = false,
 }: {
   readonly onClick: () => void
-  /** سببٌ مفهوم حين لا يُسجَّل بعد — الزرّ يُعرض معطَّلًا به لا صامتًا. */
-  readonly disabledReason?: string | null
+  /** معطَّلٌ حين لا يُسجَّل بعد — وسببه مكتوبٌ بجواره في اللوحة لا صامت. */
+  readonly disabled?: boolean
 }): JSX.Element {
   return (
     <div class="rasd-ov-insp-foot">
@@ -184,8 +193,7 @@ export function LogIssueButton({
         type="button"
         class="rasd-ov-insp-btn rasd-ov-iss-log"
         data-rasd-ov="log-issue"
-        disabled={!!disabledReason}
-        onPointerDown={stop}
+        disabled={disabled}
         onClick={onClick}
       >
         <Icon name="alert" size="sm" />

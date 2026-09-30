@@ -209,7 +209,8 @@ export function installShortcuts(options: ShortcutOptions): () => void {
      * حالة تركيز يريد تصويرها)، فلو ابتلع الحارسُ `Esc` لصار الإلغاء غير
      * قابل للوصول أصلًا.
      */
-    if (e.code === 'Escape') {
+    // `Esc` أثناء تركيب IME يُلغي التركيب لا الأداة ولا النموذج.
+    if (e.code === 'Escape' && !e.isComposing) {
       const swallow = options.shouldSwallowEscape?.() ?? false
       if (swallow) {
         e.preventDefault()
