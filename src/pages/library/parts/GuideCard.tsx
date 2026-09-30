@@ -40,44 +40,38 @@ export function GuideCard({
 }: GuideCardProps): JSX.Element {
   const activate = () => (selectionMode ? onToggleSelect(record.id) : onOpen(record.id))
 
-  const onKeyDown = (e: JSX.TargetedKeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      activate()
-    }
-  }
-
   const captureCount = record.captureIds.length
 
   return (
-    <button
-      type="button"
+    // الحاوية تلتقط النقر في أيّ موضع منها، والزرّ داخلها للوحة المفاتيح وقارئ الشاشة، والمربّع
+    // شقيقه لا ابنه — `SimpleCard.module.css`.
+    <div
       class={cx(chrome.card, selected && chrome.selected)}
       onClick={activate}
-      onKeyDown={onKeyDown}
-      aria-pressed={selectionMode ? selected : undefined}
       data-guide-id={record.id}
     >
-      <span class={cx(chrome.media, styles.media)}>
-        <Icon name="list-view" size="2xl" class={chrome.fallback} />
-        <span
-          class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Checkbox
-            checked={selected ? 'on' : 'off'}
-            onChange={() => onToggleSelect(record.id)}
-            aria-label={selected ? 'إلغاء تحديد الدليل' : 'تحديد الدليل'}
-          />
-        </span>
+      <span
+        class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Checkbox
+          checked={selected ? 'on' : 'off'}
+          onChange={() => onToggleSelect(record.id)}
+          aria-label={selected ? 'إلغاء تحديد الدليل' : 'تحديد الدليل'}
+        />
       </span>
-      <span class={chrome.body}>
-        <span class={cx(chrome.title, 't-arabic-ui-s-strong')}>{record.title}</span>
-        <span class={cx(chrome.row, 't-arabic-ui-xs')}>
-          <span class={chrome.sub}>{plural(captureCount, 'لقطة', 'لقطتين', 'لقطات')}</span>
-          <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
+      <button type="button" class={chrome.hit} aria-pressed={selectionMode ? selected : undefined}>
+        <span class={cx(chrome.media, styles.media)}>
+          <Icon name="list-view" size="2xl" class={chrome.fallback} />
         </span>
-      </span>
-    </button>
+        <span class={chrome.body}>
+          <span class={cx(chrome.title, 't-arabic-ui-s-strong')}>{record.title}</span>
+          <span class={cx(chrome.row, 't-arabic-ui-xs')}>
+            <span class={chrome.sub}>{plural(captureCount, 'لقطة', 'لقطتين', 'لقطات')}</span>
+            <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
+          </span>
+        </span>
+      </button>
+    </div>
   )
 }

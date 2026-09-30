@@ -9,6 +9,12 @@
  *   pnpm design:shots                  # كل المشاهد، الوضعان → artifacts/design/shots/
  *   pnpm design:shots --only=popup     # مجموعة واحدة أو أكثر مفصولة بفواصل
  *   pnpm design:shots --baselines      # ويكتب خطوط الأساس المسمّاة في tests/visual-baselines/
+ *   pnpm design:shots --axe            # ويشغّل axe-core على كل مشهد بحالته → artifacts/design/axe.json
+ *   pnpm design:shots --keys           # ويمرّ بـTab على صفحات الإضافة: كل محطّة تركيز لها أثر مرئي؟
+ *
+ * **و`--axe` يرى ما داخل الطبقة فوق الصفحة.** جذر ظلّها مغلق (`content/host.ts`) فلا يبلغه axe من
+ * الصفحة؛ وCDP يرى الجذور المغلقة، فيُسلَّم جذرها إلى axe عبر `shadowRoot` على عنصر المضيف في
+ * عالم الصفحة وحده — للفحص، بلا مسّ الإضافة — ويُقصَر الفحص على المضيف لا على صفحة العيّنة.
  *
  * **بناء تطوير في مجلّده لا `dist`.** صفحات المعاينة (`popup-preview`) مستبعَدة من بناء الإنتاج،
  * وحالات النافذة الاثنتا عشرة لا تُبلغ حيّةً بلا مهمّة التقاط حقيقية. والصفحات نفسها في البناءين
@@ -18,7 +24,15 @@
  * عبر CDP هي المسار الذي يسلكه المستخدم فعلًا، بلا كتابة إعدادات قد تتسرّب إلى مشهد تالٍ.
  */
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
@@ -38,6 +52,21 @@ const args = process.argv.slice(2)
 const only = (args.find((a) => a.startsWith('--only='))?.slice(7) ?? '').split(',').filter(Boolean)
 const writeBaselines = args.includes('--baselines')
 const skipBuild = args.includes('--no-build')
+const runAxe = args.includes('--axe')
+const runKeys = args.includes('--keys')
+/** محطّات تركيز بلا أثر مرئي — `--keys`. */
+const keyFindings = []
+let keyScenes = 0
+let keyStops = 0
+/** الحالة السالبة: يُمحى كل أثر تركيز قبل المرور فيجب أن تسقط المحطّات كلّها. */
+const stripFocus = process.env.RASD_KEYS_STRIP === '1'
+const MAX_TAB_STOPS = 40
+const AXE_SOURCE = runAxe
+  ? readFileSync(join(root, 'node_modules', 'axe-core', 'axe.min.js'), 'utf8')
+  : ''
+/** نتائج axe: الخطيرة والحرجة وحدها — معيار القبول (`STAGES/04`). */
+const axeFindings = []
+let axeScenes = 0
 
 const CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -228,6 +257,90 @@ const shotName = (frame, mode) => join(SHOTS, `${frame.replace(/[ /·]+/g, '_')}
  *   ctx.shot(page, frame, mode, clip?)        يكتب اللقطة باسم الإطار كما في `Docs/Design.md §5`
  *   ctx.ORIGIN · ctx.BASE · ctx.send          أصل الإضافة، وخادم العيّنات، وCDP الخام
  */
+/**
+ * axe على المشهد كما هو. فوق صفحة: جذر الطبقة المغلق يُكشف لـaxe من CDP، والفحص على المضيف وحده.
+ * وفي صفحة إضافة: المستند كلّه.
+ */
+async function audit(page, frame, mode) {
+  const { root: doc } = await send('DOM.getDocument', { depth: -1, pierce: true }, page.sessionId)
+  const html = doc.children?.find((n) => n.nodeName === 'HTML')
+  const host = html?.children?.find((n) => n.shadowRoots?.[0]?.shadowRootType === 'closed')
+  if (host) {
+    const hostObj = await send('DOM.resolveNode', { nodeId: host.nodeId }, page.sessionId)
+    const rootObj = await send(
+      'DOM.resolveNode',
+      { nodeId: host.shadowRoots[0].nodeId },
+      page.sessionId,
+    )
+    await send(
+      'Runtime.callFunctionOn',
+      {
+        objectId: hostObj.object.objectId,
+        functionDeclaration: `function (root) {
+          Object.defineProperty(this, 'shadowRoot', { get: () => root, configurable: true })
+          this.setAttribute('data-rasd-axe-host', '')
+        }`,
+        arguments: [{ objectId: rootObj.object.objectId }],
+      },
+      page.sessionId,
+    )
+  }
+  if (!(await page.evaluate('typeof axe !== "undefined"'))) await page.evaluate(AXE_SOURCE)
+  const context = host ? `{ include: [['[data-rasd-axe-host]']] }` : 'document'
+  const violations = await page.evaluate(
+    `axe.run(${context}, { resultTypes: ['violations'] }).then((r) => r.violations
+      .filter((v) => v.impact === 'critical' || v.impact === 'serious')
+      .map((v) => ({ id: v.id, impact: v.impact, help: v.help,
+        nodes: v.nodes.slice(0, 4).map((n) => ({ target: n.target, summary: n.failureSummary })) })))`,
+  )
+  axeScenes++
+  for (const v of violations) axeFindings.push({ frame, mode, ...v })
+}
+
+/**
+ * لوحة المفاتيح على صفحة إضافة: Tab حتى يعود التركيز إلى أوّل محطّة أو تبلغ الحدّ، وكل محطّة يُسأل
+ * عنها: هل يرى المستخدم أين التركيز؟ الأثر حدٌّ أو ظلّ على العنصر أو على أقرب ثلاثة آباء (بطاقة
+ * المكتبة ترسم حلقتها على الحاوية بـ`:has()`). والمشهد يُعاد بعدها إلى حاله بإعادة التحميل؟ لا —
+ * اللقطة أُخذت قبله، والمشهد التالي يفتح صفحته.
+ */
+async function walkKeys(page, frame, mode) {
+  if (!(await page.evaluate('location.protocol === "chrome-extension:"'))) return
+  keyScenes++
+  if (stripFocus) {
+    await page.evaluate(`document.head.appendChild(Object.assign(document.createElement('style'), {
+      textContent: '*, *:focus, *:focus-visible, *:focus-within, *:has(:focus-visible) { outline: none !important; box-shadow: none !important }',
+    }))`)
+  }
+  const seen = []
+  for (let i = 0; i < MAX_TAB_STOPS; i++) {
+    for (const type of ['keyDown', 'keyUp']) {
+      await send(
+        'Input.dispatchKeyEvent',
+        { type, key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 },
+        page.sessionId,
+      )
+    }
+    const stop = await page.evaluate(`(() => {
+      let a = document.activeElement
+      while (a && a.shadowRoot && a.shadowRoot.activeElement) a = a.shadowRoot.activeElement
+      if (!a || a === document.body) return null
+      const marked = (el) => {
+        const cs = getComputedStyle(el)
+        return (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) || cs.boxShadow !== 'none'
+      }
+      let el = a, visible = false
+      for (let d = 0; d < 4 && el && !visible; d++, el = el.parentElement) visible = marked(el)
+      const name = (a.getAttribute('aria-label') || a.textContent || a.getAttribute('placeholder') || '').trim().slice(0, 40)
+      return { key: a.tagName + '|' + name + '|' + Math.round(a.getBoundingClientRect().x) + ',' + Math.round(a.getBoundingClientRect().y), tag: a.tagName.toLowerCase(), name, visible }
+    })()`)
+    if (!stop) continue
+    if (seen.includes(stop.key)) break
+    seen.push(stop.key)
+    keyStops++
+    if (!stop.visible) keyFindings.push({ frame, mode, tag: stop.tag, name: stop.name })
+  }
+}
+
 const ctx = {
   ORIGIN,
   BASE,
@@ -235,6 +348,8 @@ const ctx = {
   openPage,
   async shot(page, frame, mode, clip) {
     await page.shot(shotName(frame, mode), clip)
+    if (runAxe) await audit(page, frame, mode)
+    if (runKeys) await walkKeys(page, frame, mode)
   },
 }
 
@@ -260,5 +375,24 @@ for (const [name, run] of Object.entries(groups)) {
   }
 }
 console.log(`\n${total} لقطة في ${SHOTS}`)
+if (runKeys) {
+  writeFileSync(join(OUT, 'keys.json'), JSON.stringify(keyFindings, null, 2))
+  console.log(
+    `لوحة المفاتيح: ${keyScenes} مشهدًا، ${keyStops} محطّة تركيز، ${keyFindings.length} بلا أثر مرئي`,
+  )
+  const byName = {}
+  for (const f of keyFindings)
+    byName[`${f.tag} «${f.name}»`] = (byName[`${f.tag} «${f.name}»`] ?? 0) + 1
+  for (const [k, n] of Object.entries(byName)) console.log(`  ${k}: ${n}`)
+}
+if (runAxe) {
+  writeFileSync(join(OUT, 'axe.json'), JSON.stringify(axeFindings, null, 2))
+  console.log(
+    `axe: ${axeScenes} مشهدًا، ${axeFindings.length} مخالفة خطيرة أو حرجة → artifacts/design/axe.json`,
+  )
+  const byRule = {}
+  for (const f of axeFindings) byRule[f.id] = (byRule[f.id] ?? 0) + 1
+  for (const [id, n] of Object.entries(byRule)) console.log(`  ${id}: ${n}`)
+}
 if (writeBaselines) console.log('خطوط الأساس: لم تُحدَّد بعد في هذا الإصدار')
 finish(0)

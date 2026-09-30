@@ -106,6 +106,18 @@ describe('Library — الحالات المصمَّمة', () => {
     await flush()
   })
 
+  // `aria-label` على `div` بلا دور لا يُقرأ (axe `aria-prohibited-attr`، `STAGES/04`): الهيكل حالةٌ تُعلَن.
+  it('هيكل التحميل حالةٌ تُعلَن باسمها', async () => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    render(<Library />, container)
+    const busy = container.querySelector('[aria-busy="true"]')
+    expect(busy).not.toBeNull()
+    expect(busy?.getAttribute('role')).toBe('status')
+    expect(busy?.getAttribute('aria-label')).toBe('جارٍ تحميل المكتبة')
+    await flush()
+  })
+
   it('حالة empty: لا لقطات ⇒ EmptyState بلا شبكة', async () => {
     const root = await mount()
     expect(root.querySelector('[data-testid="library-grid-scroller"]')).toBeFalsy()
@@ -686,8 +698,10 @@ describe('Library — عروض الشريط الجانبي', () => {
     ).click()
     await flush()
     ;(root.querySelector('[aria-label="نقل المحدَّد إلى المهملات"]') as HTMLButtonElement).click()
-    await waitFor(() => root.querySelector('[role="status"]') !== null)
-    const status = root.querySelector('[role="status"]')?.textContent ?? ''
+    // الإعلان لا هيكل التحميل — كلاهما `status`، والهيكل يظهر لحظة إعادة القراءة بعد النقل.
+    const announced = () => root.querySelector('[role="status"]:not([aria-busy="true"])')
+    await waitFor(() => announced() !== null)
+    const status = announced()?.textContent ?? ''
     expect(status).toContain('نُقل إلى المهملات: لقطة واحدة')
     expect(status).toContain('٣٠ يومًا')
   })

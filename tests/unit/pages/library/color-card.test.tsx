@@ -76,7 +76,7 @@ describe('ColorCard', () => {
 
   it('يستعمل قيمة hex السجلّ خلفيةً لمربّع اللون', () => {
     const { root } = mount({ record: color({ hex: '#abcdef' }) })
-    const swatch = root.querySelector(`[data-color-id="col1"] > span`) as HTMLSpanElement
+    const swatch = root.querySelector(`[data-color-id="col1"] button > span`) as HTMLSpanElement
     expect(swatch.style.backgroundColor).toBe('#abcdef')
   })
 

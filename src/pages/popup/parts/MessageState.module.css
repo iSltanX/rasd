@@ -77,5 +77,6 @@
   align-items: center;
   gap: var(--rasd-space-6);
   margin: 0;
-  color: var(--rasd-text-disabled);
+  /* يُقرأ لا ضابط معطَّل: `text/disabled` 2.97 : 1 داكنًا و2.29 فاتحًا (axe، `STAGES/04`). */
+  color: var(--rasd-text-tertiary);
 }

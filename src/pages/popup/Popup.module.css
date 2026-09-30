@@ -87,7 +87,8 @@
 .version {
   font-family: var(--rasd-font-family-mono);
   font-size: var(--rasd-font-size-2xs);
-  color: var(--rasd-text-disabled);
+  /* معلومة تُقرأ لا ضابط معطَّل: `text/disabled` 3.16 : 1 داكنًا و1.95 فاتحًا (axe، `STAGES/04`). */
+  color: var(--rasd-text-tertiary);
   direction: ltr;
   unicode-bidi: isolate;
 }

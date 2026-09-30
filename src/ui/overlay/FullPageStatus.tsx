@@ -86,6 +86,7 @@ export function FullPageStatus({
         <div
           class="rasd-ov-fp-bar"
           role="progressbar"
+          aria-label="تقدّم التقاط الصفحة"
           aria-valuemin={0}
           aria-valuemax={total}
           aria-valuenow={done}

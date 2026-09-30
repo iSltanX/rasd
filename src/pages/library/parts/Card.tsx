@@ -68,55 +68,51 @@ export function Card({
 }: CardProps): JSX.Element {
   const activate = () => (selectionMode ? onToggleSelect(record.id) : onOpen(record.id))
 
-  const onKeyDown = (e: JSX.TargetedKeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      activate()
-    }
-  }
-
+  // الحاوية تلتقط النقر في أيّ موضع منها، والزرّ داخلها للوحة المفاتيح وقارئ الشاشة — نقره
+  // يصعد إليها، و`Enter`/`Space` عليه نقرٌ أصليّ. والمربّع شقيقه لا ابنه (`Card.module.css`).
   return (
-    <button
-      type="button"
+    <div
       class={cx(styles.card, selected && styles.selected)}
       onClick={activate}
-      onKeyDown={onKeyDown}
-      aria-pressed={selectionMode ? selected : undefined}
       data-capture-id={record.id}
     >
-      <span class={styles.thumb}>
-        {thumbnailUrl ? (
-          <img src={thumbnailUrl} alt="" class={styles.thumbImg} />
-        ) : (
-          <Icon name={KIND_ICON[record.kind]} size="xl" class={styles.thumbFallback} />
-        )}
-        <span class={cx(styles.kind, 't-arabic-ui-xs')}>{KIND_LABEL[record.kind]}</span>
-        <span
-          class={cx(styles.checkboxWrap, selectionMode && styles.checkboxVisible)}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Checkbox
-            checked={selected ? 'on' : 'off'}
-            onChange={() => onToggleSelect(record.id)}
-            aria-label={selected ? 'إلغاء تحديد اللقطة' : 'تحديد اللقطة'}
-          />
-        </span>
+      <span
+        class={cx(styles.checkboxWrap, selectionMode && styles.checkboxVisible)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Checkbox
+          checked={selected ? 'on' : 'off'}
+          onChange={() => onToggleSelect(record.id)}
+          aria-label={selected ? 'إلغاء تحديد اللقطة' : 'تحديد اللقطة'}
+        />
       </span>
-      <span class={styles.meta}>
-        <span class={styles.titleRow}>
-          <span class={cx(styles.title, 't-arabic-ui-s-strong')}>{record.title || record.url}</span>
-          {record.favorite ? (
-            <Icon name="star" size="xs" title="مفضَّلة" class={styles.favorite} />
-          ) : null}
+      <button type="button" class={styles.hit} aria-pressed={selectionMode ? selected : undefined}>
+        <span class={styles.thumb}>
+          {thumbnailUrl ? (
+            <img src={thumbnailUrl} alt="" class={styles.thumbImg} />
+          ) : (
+            <Icon name={KIND_ICON[record.kind]} size="xl" class={styles.thumbFallback} />
+          )}
+          <span class={cx(styles.kind, 't-arabic-ui-xs')}>{KIND_LABEL[record.kind]}</span>
         </span>
-        <span class={cx(styles.row, 't-arabic-ui-xs')}>
-          <span class={styles.origin}>
-            <bdi dir="ltr">{hostOf(record.origin)}</bdi>
-            {projectName ? ` · ${projectName}` : ''}
+        <span class={styles.meta}>
+          <span class={styles.titleRow}>
+            <span class={cx(styles.title, 't-arabic-ui-s-strong')}>
+              {record.title || record.url}
+            </span>
+            {record.favorite ? (
+              <Icon name="star" size="xs" title="مفضَّلة" class={styles.favorite} />
+            ) : null}
           </span>
-          <span class={styles.time}>{formatRelativeTime(record.createdAt, now)}</span>
+          <span class={cx(styles.row, 't-arabic-ui-xs')}>
+            <span class={styles.origin}>
+              <bdi dir="ltr">{hostOf(record.origin)}</bdi>
+              {projectName ? ` · ${projectName}` : ''}
+            </span>
+            <span class={styles.time}>{formatRelativeTime(record.createdAt, now)}</span>
+          </span>
         </span>
-      </span>
-    </button>
+      </button>
+    </div>
   )
 }

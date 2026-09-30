@@ -68,6 +68,7 @@ export function ExportProgress(props: ExportProgressProps): JSX.Element {
         <div
           class={styles.track}
           role="progressbar"
+          aria-label="تقدّم التصدير"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(pct * 100)}

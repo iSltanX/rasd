@@ -814,6 +814,7 @@ export function Library(): JSX.Element {
                 overview === null ? (
                   <div
                     class={styles.skeletonGrid}
+                    role="status"
                     aria-busy="true"
                     aria-label="جارٍ تحميل المشاريع"
                   >
@@ -862,7 +863,12 @@ export function Library(): JSX.Element {
                   />
                 )
               ) : loadState === 'loading' ? (
-                <div class={styles.skeletonGrid} aria-busy="true" aria-label="جارٍ تحميل المكتبة">
+                <div
+                  class={styles.skeletonGrid}
+                  role="status"
+                  aria-busy="true"
+                  aria-label="جارٍ تحميل المكتبة"
+                >
                   {Array.from({ length: SKELETON_CARD_COUNT }, (_, i) => (
                     <Skeleton key={i} kind="card" />
                   ))}

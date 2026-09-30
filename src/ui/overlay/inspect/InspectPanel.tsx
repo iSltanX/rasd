@@ -178,6 +178,8 @@ export function InspectPanel({
         role="tabpanel"
         id={`rasd-panel-${tab}`}
         aria-labelledby={`rasd-tab-${tab}`}
+        // جسمٌ يُمرَّر بلا عنصر يقبل التركيز لا يبلغه من لا يستعمل الفأرة — نمط التبويبات في WAI.
+        tabIndex={0}
       >
         {visible.length === 0 ? (
           <p class="rasd-ov-insp-empty">لا شيء يُعرَض لهذا العنصر في هذا القسم.</p>

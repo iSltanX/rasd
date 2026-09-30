@@ -6,6 +6,7 @@
  */
 /* `<button>` لا يتمدّد إلى خليّته كما يفعل `<div>` — بلا عرض صريح يأخذ عرض مصغَّرته. */
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -24,9 +25,30 @@
 .card:hover {
   border-color: var(--rasd-border-default);
 }
-.card:focus-visible {
+.card:has(> .hit:focus-visible) {
   outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
   outline-offset: var(--rasd-stroke-thin);
+}
+
+/*
+ * البطاقة حاوية، وزرّ الفتح (`.hit`) يملؤها، ومربّع التحديد شقيقه فوقه لا ابنه: تفاعليّ داخل زرّ لا
+ * يبلغه قارئ الشاشة ولا يُعرف دوره (axe `nested-interactive`، `STAGES/04`).
+ */
+.hit {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.hit:focus-visible {
+  outline: none;
 }
 /* 1.5 دون أن تتحرّك البطاقة: الحدّ 1 وحلقة نصف بكسل خارجه. */
 .card.selected {

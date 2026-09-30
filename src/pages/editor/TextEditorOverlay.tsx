@@ -126,6 +126,7 @@ export function TextEditorOverlay(props: TextEditorOverlayProps): JSX.Element {
     <textarea
       ref={ref}
       data-text-editor={node.id}
+      aria-label="نصّ التعليق"
       dir={direction}
       value={node.text}
       rows={1}

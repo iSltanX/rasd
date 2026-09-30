@@ -43,55 +43,49 @@ export function PaletteCard({
 }: PaletteCardProps): JSX.Element {
   const activate = () => (selectionMode ? onToggleSelect(record.id) : onOpen(record.id))
 
-  const onKeyDown = (e: JSX.TargetedKeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      activate()
-    }
-  }
-
   const shown = record.colors.slice(0, MAX_SWATCHES)
   const extra = record.colors.length - shown.length
   const colorCountText = plural(record.colors.length, 'لون', 'لونين', 'ألوان')
 
   return (
-    <button
-      type="button"
+    // الحاوية تلتقط النقر في أيّ موضع منها، والزرّ داخلها للوحة المفاتيح وقارئ الشاشة، والمربّع
+    // شقيقه لا ابنه — `SimpleCard.module.css`.
+    <div
       class={cx(chrome.card, selected && chrome.selected)}
       onClick={activate}
-      onKeyDown={onKeyDown}
-      aria-pressed={selectionMode ? selected : undefined}
       data-palette-id={record.id}
     >
-      <span class={cx(chrome.media, styles.media)}>
-        {shown.length > 0 ? (
-          <span class={styles.strip} aria-hidden="true">
-            {shown.map((hex, i) => (
-              <span key={i} class={styles.swatch} style={{ backgroundColor: hex }} />
-            ))}
-            {extra > 0 ? <span class={styles.more}>+{formatHuman(extra)}</span> : null}
+      <span
+        class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Checkbox
+          checked={selected ? 'on' : 'off'}
+          onChange={() => onToggleSelect(record.id)}
+          aria-label={selected ? 'إلغاء تحديد اللوحة' : 'تحديد اللوحة'}
+        />
+      </span>
+      <button type="button" class={chrome.hit} aria-pressed={selectionMode ? selected : undefined}>
+        <span class={cx(chrome.media, styles.media)}>
+          {shown.length > 0 ? (
+            <span class={styles.strip} aria-hidden="true">
+              {shown.map((hex, i) => (
+                <span key={i} class={styles.swatch} style={{ backgroundColor: hex }} />
+              ))}
+              {extra > 0 ? <span class={styles.more}>+{formatHuman(extra)}</span> : null}
+            </span>
+          ) : (
+            <Icon name="palette" size="xl" class={chrome.fallback} />
+          )}
+        </span>
+        <span class={cx(chrome.body, styles.body)}>
+          <span class={cx(chrome.title, 't-arabic-ui-m-strong')}>{record.name}</span>
+          <span class={cx(chrome.row, 't-arabic-ui-xs')}>
+            <span class={chrome.sub}>{colorCountText}</span>
+            <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
           </span>
-        ) : (
-          <Icon name="palette" size="xl" class={chrome.fallback} />
-        )}
-        <span
-          class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Checkbox
-            checked={selected ? 'on' : 'off'}
-            onChange={() => onToggleSelect(record.id)}
-            aria-label={selected ? 'إلغاء تحديد اللوحة' : 'تحديد اللوحة'}
-          />
         </span>
-      </span>
-      <span class={cx(chrome.body, styles.body)}>
-        <span class={cx(chrome.title, 't-arabic-ui-m-strong')}>{record.name}</span>
-        <span class={cx(chrome.row, 't-arabic-ui-xs')}>
-          <span class={chrome.sub}>{colorCountText}</span>
-          <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
-        </span>
-      </span>
-    </button>
+      </button>
+    </div>
   )
 }

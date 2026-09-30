@@ -42,43 +42,36 @@ export function ColorCard({
 }: ColorCardProps): JSX.Element {
   const activate = () => (selectionMode ? onToggleSelect(record.id) : onOpen(record.id))
 
-  const onKeyDown = (e: JSX.TargetedKeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      activate()
-    }
-  }
-
   return (
-    <button
-      type="button"
+    // الحاوية تلتقط النقر في أيّ موضع منها، والزرّ داخلها للوحة المفاتيح وقارئ الشاشة، والمربّع
+    // شقيقه لا ابنه — `SimpleCard.module.css`.
+    <div
       class={cx(chrome.card, selected && chrome.selected)}
       onClick={activate}
-      onKeyDown={onKeyDown}
-      aria-pressed={selectionMode ? selected : undefined}
       data-color-id={record.id}
     >
-      <span class={cx(chrome.media, styles.media)} style={{ backgroundColor: record.hex }}>
-        <span
-          class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Checkbox
-            checked={selected ? 'on' : 'off'}
-            onChange={() => onToggleSelect(record.id)}
-            aria-label={selected ? 'إلغاء تحديد اللون' : 'تحديد اللون'}
-          />
-        </span>
+      <span
+        class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Checkbox
+          checked={selected ? 'on' : 'off'}
+          onChange={() => onToggleSelect(record.id)}
+          aria-label={selected ? 'إلغاء تحديد اللون' : 'تحديد اللون'}
+        />
       </span>
-      <span class={chrome.body}>
-        <span class={cx(chrome.title, 't-arabic-ui-s-strong')}>
-          {record.name || <bdi dir="ltr">{record.hex}</bdi>}
+      <button type="button" class={chrome.hit} aria-pressed={selectionMode ? selected : undefined}>
+        <span class={cx(chrome.media, styles.media)} style={{ backgroundColor: record.hex }}></span>
+        <span class={chrome.body}>
+          <span class={cx(chrome.title, 't-arabic-ui-s-strong')}>
+            {record.name || <bdi dir="ltr">{record.hex}</bdi>}
+          </span>
+          <span class={cx(chrome.row, 't-arabic-ui-xs')}>
+            <Chip tone="neutral">{SOURCE_LABEL[record.source]}</Chip>
+            <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
+          </span>
         </span>
-        <span class={cx(chrome.row, 't-arabic-ui-xs')}>
-          <Chip tone="neutral">{SOURCE_LABEL[record.source]}</Chip>
-          <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
-        </span>
-      </span>
-    </button>
+      </button>
+    </div>
   )
 }

@@ -41,47 +41,41 @@ export function ReferenceCard({
 }: ReferenceCardProps): JSX.Element {
   const activate = () => (selectionMode ? onToggleSelect(record.id) : onOpen(record.id))
 
-  const onKeyDown = (e: JSX.TargetedKeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      activate()
-    }
-  }
-
   return (
-    <button
-      type="button"
+    // الحاوية تلتقط النقر في أيّ موضع منها، والزرّ داخلها للوحة المفاتيح وقارئ الشاشة، والمربّع
+    // شقيقه لا ابنه — `SimpleCard.module.css`.
+    <div
       class={cx(chrome.card, selected && chrome.selected)}
       onClick={activate}
-      onKeyDown={onKeyDown}
-      aria-pressed={selectionMode ? selected : undefined}
       data-reference-id={record.id}
     >
-      <span class={cx(chrome.media, styles.media)}>
-        <Icon name="overlay" size="xl" class={chrome.fallback} />
-        <span
-          class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Checkbox
-            checked={selected ? 'on' : 'off'}
-            onChange={() => onToggleSelect(record.id)}
-            aria-label={selected ? 'إلغاء تحديد المرجع' : 'تحديد المرجع'}
-          />
-        </span>
+      <span
+        class={cx(chrome.checkboxWrap, selectionMode && chrome.checkboxVisible)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Checkbox
+          checked={selected ? 'on' : 'off'}
+          onChange={() => onToggleSelect(record.id)}
+          aria-label={selected ? 'إلغاء تحديد المرجع' : 'تحديد المرجع'}
+        />
       </span>
-      <span class={cx(chrome.body, styles.body)}>
-        <span class={cx(chrome.title, 't-arabic-ui-s-strong')}>
-          <bdi dir="ltr">{record.origin}</bdi>
+      <button type="button" class={chrome.hit} aria-pressed={selectionMode ? selected : undefined}>
+        <span class={cx(chrome.media, styles.media)}>
+          <Icon name="overlay" size="xl" class={chrome.fallback} />
         </span>
-        <span class={cx(chrome.sub, 't-arabic-ui-xs')}>
-          <bdi dir="ltr">{record.path}</bdi>
+        <span class={cx(chrome.body, styles.body)}>
+          <span class={cx(chrome.title, 't-arabic-ui-s-strong')}>
+            <bdi dir="ltr">{record.origin}</bdi>
+          </span>
+          <span class={cx(chrome.sub, 't-arabic-ui-xs')}>
+            <bdi dir="ltr">{record.path}</bdi>
+          </span>
+          <span class={cx(chrome.row, 't-arabic-ui-xs')}>
+            <Chip>{VIEWPORT_LABEL[record.viewport]}</Chip>
+            <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
+          </span>
         </span>
-        <span class={cx(chrome.row, 't-arabic-ui-xs')}>
-          <Chip>{VIEWPORT_LABEL[record.viewport]}</Chip>
-          <span class={chrome.time}>{formatRelativeTime(record.createdAt, now)}</span>
-        </span>
-      </span>
-    </button>
+      </button>
+    </div>
   )
 }
