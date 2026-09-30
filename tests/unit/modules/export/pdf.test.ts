@@ -182,6 +182,58 @@ describe('المولِّد: ملفّ PDF يُفتح فعلًا', () => {
     if (!built.ok) expect(built.error.detail).toContain('شفافية')
   })
 
+  it('**طبقةٌ فوق الصفحة** (ADR 0041): صورتان على صفحةٍ واحدة بترتيبهما، كلٌّ بقصّه، وكلٌّ مضمَّنة مرّة', async () => {
+    const box = pageBox('a4', 'portrait')
+    const head = makePng(119, 168, pattern)
+    const shot = makePng(W, H, pattern)
+    const built = await buildPdf({
+      images: [baked(head), baked(shot)],
+      pages: [
+        {
+          image: 0,
+          box,
+          window: fullPageWindow(box, 119, 168),
+          overlays: [{ image: 1, window: { top: 0, rows: H, scale: 0.75, x: 24, y: 200 } }],
+        },
+      ],
+      metadata: null,
+    })
+    if (!built.ok) throw new Error(built.error.message)
+    const doc = await PDFDocument.load(built.value)
+    expect(doc.getPageCount()).toBe(1)
+    const xobjects = doc.getPage(0).node.Resources()!.lookup(PDFName.of('XObject'), PDFDict)
+    const names = xobjects.keys().map(String)
+    expect(names).toHaveLength(2)
+    const contents = doc.getPage(0).node.Contents()
+    const stream = (
+      contents instanceof PDFArray ? doc.context.lookup(contents.get(0)) : contents
+    ) as PDFRawStream
+    const flate = stream.dict.lookup(PDFName.of('Filter')) === PDFName.of('FlateDecode')
+    const text = latin1(flate ? inflateSync(stream.contents) : stream.contents)
+    // الخلفية أوّلًا ثمّ الطبقة — ترتيب الرسم ترتيب الطبقات، ولكلٍّ قصّها.
+    const drawn = [...text.matchAll(/(\/\S+)\s+Do/gu)].map((m) => m[1])
+    expect(drawn).toEqual(names)
+    expect(text.match(/re\s+W\s+n/gu)).toHaveLength(2)
+  })
+
+  it('وطبقةٌ تشير إلى صورة غير موجودة تُرفض كالصفحة', async () => {
+    const box = pageBox('a4', 'portrait')
+    const built = await buildPdf({
+      images: [baked(makePng(119, 168, pattern))],
+      pages: [
+        {
+          image: 0,
+          box,
+          window: fullPageWindow(box, 119, 168),
+          overlays: [{ image: 3, window: { top: 0, rows: H, scale: 1, x: 0, y: 0 } }],
+        },
+      ],
+      metadata: null,
+    })
+    expect(built.ok).toBe(false)
+    if (!built.ok) expect(built.error.detail).toContain('صورة 3')
+  })
+
   it('ويرفض صفحةً تشير إلى صورة غير موجودة', async () => {
     const [window] = await planImagePages(W, H, A4, 'single')
     const built = await buildPdf({

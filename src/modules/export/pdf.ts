@@ -31,6 +31,7 @@ import {
   pushGraphicsState,
   ReadingDirection,
   rectangle,
+  type PDFPage,
   type PDFRef,
 } from 'pdf-lib'
 
@@ -46,6 +47,11 @@ export interface PdfPage {
   readonly image: number
   readonly box: PageBox
   readonly window: ImageWindow
+  /**
+   * صورٌ تُرسم فوق الأولى على الصفحة نفسها بترتيبها — صفحة الدليل: رأس الخطوة نصًّا مخبوزًا يملأ الصفحة، ولقطتها
+   * تحته (ADR 0041). كل طبقةٍ كائنٌ مضمَّن مرّةً كغيرها، ونافذتها بمستطيل قصّها.
+   */
+  readonly overlays?: readonly { readonly image: number; readonly window: ImageWindow }[]
 }
 
 export interface PdfMetadata {
@@ -93,13 +99,12 @@ function embed(doc: PDFDocument, image: PdfImage): PDFRef {
  * `y` من أعلى الصفحة، ومستطيل القصّ يحدّ الصفوف الظاهرة بـ`rows` — بلاه يظهر ذيل الصفحة التالية أسفل هذه.
  */
 function place(
-  doc: PDFDocument,
+  page: PDFPage,
   ref: PDFRef,
   image: PdfImage,
   box: PageBox,
   window: ImageWindow,
 ): void {
-  const page = doc.addPage([box.width, box.height])
   const name = page.node.newXObject('Image', ref)
   const drawnWidth = image.width * window.scale
   const drawnHeight = image.height * window.scale
@@ -141,12 +146,15 @@ export async function buildPdf(input: PdfInput): Promise<Result<Uint8Array<Array
     const refs = images.map((image) => embed(doc, image))
 
     for (const page of input.pages) {
-      const image = images[page.image]
-      const ref = refs[page.image]
-      if (!image || !ref) {
-        return errText('invalid-data', 'تعذّر بناء ملفّ PDF.', `صورة ${page.image} غير موجودة`)
+      const layers = [{ image: page.image, window: page.window }, ...(page.overlays ?? [])]
+      const missing = layers.find((l) => !images[l.image] || !refs[l.image])
+      if (missing) {
+        return errText('invalid-data', 'تعذّر بناء ملفّ PDF.', `صورة ${missing.image} غير موجودة`)
       }
-      place(doc, ref, image, page.box, page.window)
+      const target = doc.addPage([page.box.width, page.box.height])
+      for (const layer of layers) {
+        place(target, refs[layer.image]!, images[layer.image]!, page.box, layer.window)
+      }
     }
 
     // اللغة والاتجاه خاصّيتا إتاحةٍ وعرض لا بيانات عن الصفحة أو صاحبها — تبقيان مع الحذف.
