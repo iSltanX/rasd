@@ -34,213 +34,98 @@
  * إلى المرساة فلا يوجد مُعرِّف تنزيل. فهو حارسٌ ثانٍ **قائم لا مُطلَق** —
  * يعمل حين تُمنَح الصلاحية. وقول «بندان يحمرّان» كان سيكون ادّعاءً أوسع
  * ممّا قِيس.
+ *
+ * الإقلاع والاتصال والتحميل والارتباط والتنظيف في النواة المشتركة (`scripts/lib/cdp.mjs`، `STAGES/17`)،
+ * وأحكام هذا الملفّ هنا كما كانت.
  */
 
-import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath, URL } from 'node:url'
 
-import { attachLiveServiceWorker } from './live-sw.mjs'
+import { attachTarget, startGuard } from './lib/cdp.mjs'
 
-const root = fileURLToPath(new URL('..', import.meta.url))
-const dist = join(root, 'dist')
 const PORT = 9351
 const BREAK = process.env.RASD_BREAK_DEGRADE === '1'
 const BREAK_STRIP = process.env.RASD_BREAK_STRIP === '1'
 
-const CANDIDATES = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-]
-const chrome = process.env.CHROME_PATH ?? CANDIDATES.find((p) => existsSync(p))
-
-if (!existsSync(join(dist, 'content.js'))) {
-  console.error('dist/content.js غير موجود — شغّل `pnpm build` أولًا.')
-  process.exit(1)
-}
-if (!chrome) {
-  console.error('لم يُعثر على Chrome. مرّر المسار عبر CHROME_PATH.')
-  process.exit(1)
-}
-
-const stage = mkdtempSync(join(tmpdir(), 'rasd-export-ext-'))
-cpSync(dist, stage, { recursive: true })
-
 /**
- * ترقيع اختبار العكس.
+ * ترقيع اختبار العكس — تُمرَّر إلى النواة فتشغّله على نسخة الفحص **قبل تحميلها**.
  *
  * **ويرمي بصوتٍ عالٍ إن لم يجد نمطه** — ترقيعٌ صامت يُنتج فحصًا أخضر لأنه
  * لم يكسر شيئًا، وهو أسوأ من فشل صريح. نفس حكم `RASD_BREAK_CANCEL`.
  */
-if (BREAK) {
-  const assets = join(stage, 'assets')
-  const files = existsSync(assets)
-    ? (await import('node:fs')).readdirSync(assets).filter((f) => f.endsWith('.js'))
-    : []
-  let patched = 0
-  /*
-   * **علامة الاقتباس ليست مفترَضة.** الحزمة المبنيّة تستعمل الشرطة المائلة
-   * الخلفية لا `"`، والنمط الأوّل كان يفترض `"` فلم يجد شيئًا — وأنقذه أن
-   * الترقيع الصامت ممنوع هنا. فصار المُطابِق يقبل الثلاثة.
-   */
-  const Q = String.raw`["'\u0060]`
-  const pattern = new RegExp(
-    String.raw`case\s*${Q}denied${Q}\s*:\s*return\s*\{\s*route\s*:\s*${Q}anchor${Q}\s*,\s*ask\s*:\s*!1\s*,\s*note\s*:\s*[A-Za-z_$][\w$]*`,
-    'g',
-  )
-  for (const f of files) {
-    const p = join(assets, f)
-    const src = readFileSync(p, 'utf8')
-    if (!pattern.test(src)) continue
-    pattern.lastIndex = 0
-    writeFileSync(
-      p,
-      src.replace(
-        pattern,
-        'case\u0060denied\u0060:return{route:\u0060managed\u0060,ask:!1,note:null',
-      ),
+function breakPatch(stage) {
+  if (BREAK) {
+    const assets = join(stage, 'assets')
+    const files = existsSync(assets) ? readdirSync(assets).filter((f) => f.endsWith('.js')) : []
+    let patched = 0
+    /*
+     * **علامة الاقتباس ليست مفترَضة.** الحزمة المبنيّة تستعمل الشرطة المائلة
+     * الخلفية لا `"`، والنمط الأوّل كان يفترض `"` فلم يجد شيئًا — وأنقذه أن
+     * الترقيع الصامت ممنوع هنا. فصار المُطابِق يقبل الثلاثة.
+     */
+    const Q = String.raw`["'\u0060]`
+    const pattern = new RegExp(
+      String.raw`case\s*${Q}denied${Q}\s*:\s*return\s*\{\s*route\s*:\s*${Q}anchor${Q}\s*,\s*ask\s*:\s*!1\s*,\s*note\s*:\s*[A-Za-z_$][\w$]*`,
+      'g',
     )
-    patched++
+    for (const f of files) {
+      const p = join(assets, f)
+      const src = readFileSync(p, 'utf8')
+      if (!pattern.test(src)) continue
+      pattern.lastIndex = 0
+      writeFileSync(
+        p,
+        src.replace(
+          pattern,
+          'case\u0060denied\u0060:return{route:\u0060managed\u0060,ask:!1,note:null',
+        ),
+      )
+      patched++
+    }
+    if (patched === 0) {
+      throw new Error(
+        'RASD_BREAK_DEGRADE: لم يُعثر على فرع «denied» في الحزمة المبنيّة — عدِّل النمط.\n' +
+          'الترقيع الصامت يُنتج فحصًا أخضر لأنه لم يكسر شيئًا.',
+      )
+    }
   }
-  if (patched === 0) {
-    console.error(
-      'RASD_BREAK_DEGRADE: لم يُعثر على فرع «denied» في الحزمة المبنيّة — عدِّل النمط.\n' +
-        'الترقيع الصامت يُنتج فحصًا أخضر لأنه لم يكسر شيئًا.',
-    )
-    rmSync(stage, { recursive: true, force: true })
-    process.exit(1)
-  }
-}
 
-if (BREAK_STRIP) {
-  const assets = join(stage, 'assets')
-  const files = existsSync(assets)
-    ? (await import('node:fs')).readdirSync(assets).filter((f) => f.endsWith('.js'))
-    : []
-  // `strip ? null : { title: …` بعد التصغير: معرِّفٌ ثمّ `?null:{title:` — يصير شرطًا لا يتحقّق أبدًا.
-  const pattern = /\b[A-Za-z_$][\w$]*\?null:\{title:/g
-  let patched = 0
-  for (const f of files) {
-    const p = join(assets, f)
-    const src = readFileSync(p, 'utf8')
-    if (!pattern.test(src)) continue
-    pattern.lastIndex = 0
-    writeFileSync(p, src.replace(pattern, '!1?null:{title:'))
-    patched++
-  }
-  if (patched === 0) {
-    console.error('RASD_BREAK_STRIP: لم يُعثر على شرط الحذف في الحزمة المبنيّة — عدِّل النمط.')
-    rmSync(stage, { recursive: true, force: true })
-    process.exit(1)
-  }
-}
-
-const profile = mkdtempSync(join(tmpdir(), 'rasd-export-'))
-const proc = spawn(
-  chrome,
-  [
-    '--headless=new',
-    `--remote-debugging-port=${PORT}`,
-    `--user-data-dir=${profile}`,
-    '--enable-unsafe-extension-debugging',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-gpu',
-    '--window-size=1440,900',
-    'about:blank',
-  ],
-  { stdio: ['ignore', 'pipe', 'pipe'] },
-)
-
-let stderr = ''
-proc.stderr.on('data', (d) => (stderr += d.toString()))
-
-async function cleanup() {
-  proc.kill('SIGKILL')
-  rmSync(stage, { recursive: true, force: true })
-  for (let i = 0; i < 10; i++) {
-    try {
-      rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
-      return
-    } catch {
-      await new Promise((r) => setTimeout(r, 200))
+  if (BREAK_STRIP) {
+    const assets = join(stage, 'assets')
+    const files = existsSync(assets) ? readdirSync(assets).filter((f) => f.endsWith('.js')) : []
+    // `strip ? null : { title: …` بعد التصغير: معرِّفٌ ثمّ `?null:{title:` — يصير شرطًا لا يتحقّق أبدًا.
+    const pattern = /\b[A-Za-z_$][\w$]*\?null:\{title:/g
+    let patched = 0
+    for (const f of files) {
+      const p = join(assets, f)
+      const src = readFileSync(p, 'utf8')
+      if (!pattern.test(src)) continue
+      pattern.lastIndex = 0
+      writeFileSync(p, src.replace(pattern, '!1?null:{title:'))
+      patched++
+    }
+    if (patched === 0) {
+      throw new Error('RASD_BREAK_STRIP: لم يُعثر على شرط الحذف في الحزمة المبنيّة — عدِّل النمط.')
     }
   }
 }
 
-async function connect() {
-  let wsUrl = null
-  // ستّون ثانية لا عشر — نفس تعليل `verify-gate.mjs`.
-  for (let i = 0; i < 240 && !wsUrl; i++) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${PORT}/json/version`)
-      if (res.ok) wsUrl = (await res.json()).webSocketDebuggerUrl
-    } catch {
-      /* لم يجهز */
-    }
-    if (!wsUrl) await new Promise((r) => setTimeout(r, 250))
-  }
-  if (!wsUrl) return null
-  const ws = new WebSocket(wsUrl)
-  await new Promise((resolve, reject) => {
-    ws.addEventListener('open', resolve, { once: true })
-    ws.addEventListener('error', reject, { once: true })
-  })
-  let nextId = 1
-  const send = (method, params = {}, sessionId) =>
-    new Promise((resolve, reject) => {
-      const id = nextId++
-      const onMsg = (ev) => {
-        const msg = JSON.parse(ev.data)
-        if (msg.id !== id) return
-        ws.removeEventListener('message', onMsg)
-        msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result)
-      }
-      ws.addEventListener('message', onMsg)
-      ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }))
-    })
-  return { ws, send }
-}
+const g = await startGuard({
+  prefix: 'export',
+  port: PORT,
+  title: '── فحص قناة الخروج (فكُّ ترميزٍ فعلي، وتدهورٌ مقيس) ──\n',
+  requires: 'content.js',
+  stage: { patch: breakPatch },
+  serviceWorker: true,
+  args: ['--window-size=1440,900'],
+})
+const { send, ok, fail, note } = g
+const extId = g.extId
+const sw = g.sw
 
-const session = await connect()
-if (!session) {
-  await cleanup()
-  console.error('تعذّر الاتصال بـDevTools.\n' + stderr.split('\n').slice(-8).join('\n'))
-  process.exit(1)
-}
-const { ws, send } = session
-
-const errors = []
-const lines = []
-const ok = (m) => lines.push(`  ✓ ${m}`)
-const fail = (m) => {
-  errors.push(m)
-  lines.push(`  ✗ ${m}`)
-}
-const note = (m) => lines.push(`  · ${m}`)
-
-let extId = null
-try {
-  extId = (await send('Extensions.loadUnpacked', { path: stage })).id
-} catch (e) {
-  fail(`Chrome رفض الحزمة: ${e.message}`)
-}
-
-const { sw, swSession } = await attachLiveServiceWorker(send, extId)
-
-async function inSW(expression) {
-  const res = await send(
-    'Runtime.evaluate',
-    { expression, awaitPromise: true, returnByValue: true },
-    swSession,
-  )
-  if (res.exceptionDetails) throw new Error(res.exceptionDetails.text)
-  return res.result.value
-}
+/** يقيّم في العامل الحيّ. */
+const inSW = (expression) => sw.evaluate(expression)
 
 async function evalIn(sessionId, expression, gesture = false) {
   const r = await send(
@@ -270,12 +155,7 @@ async function seedAndOpen() {
     await new Promise((r) => setTimeout(r, 200))
   }
   if (!target) return null
-  const { sessionId } = await send('Target.attachToTarget', {
-    targetId: target.targetId,
-    flatten: true,
-  })
-  await send('Runtime.enable', {}, sessionId)
-  await send('Page.enable', {}, sessionId)
+  const sessionId = await attachTarget(send, target.targetId, { enable: ['Page'] })
 
   const seeded = await evalIn(
     sessionId,
@@ -865,11 +745,7 @@ if (!extId || !sw) {
             null
           if (!compare) await new Promise((r) => setTimeout(r, 200))
         }
-        const C = compare
-          ? (await send('Target.attachToTarget', { targetId: compare.targetId, flatten: true }))
-              .sessionId
-          : null
-        if (C) await send('Runtime.enable', {}, C)
+        const C = compare ? await attachTarget(send, compare.targetId) : null
         const ready =
           C &&
           (await waitFor(C, '[data-compare-report]:not([disabled])', 200)) &&
@@ -986,16 +862,8 @@ if (!extId || !sw) {
   }
 }
 
-// ── التقرير ─────────────────────────────────────────────────────
-console.log('\n── فحص قناة الخروج (فكُّ ترميزٍ فعلي، وتدهورٌ مقيس) ──\n')
-for (const l of lines) console.log(l)
-console.log('')
-await cleanup()
-ws.close()
-if (errors.length > 0) {
-  console.error(`✗ ${errors.length} إخفاق.\n`)
-  process.exit(1)
-}
-console.log(
-  '✓ الصيغ الثلاث تُنتج ملفًّا يُفكّ فعلًا، والتقرير وصورة الفرق كذلك، والرفض يتدهور ويُعلن ما فُقد.\n',
-)
+await g.finish({
+  success:
+    '✓ الصيغ الثلاث تُنتج ملفًّا يُفكّ فعلًا، والتقرير وصورة الفرق كذلك، والرفض يتدهور ويُعلن ما فُقد.',
+  failure: (n) => `✗ ${n} إخفاق.\n`,
+})

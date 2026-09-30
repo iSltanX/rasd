@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة التكبير</title>
+    <!--
+      المصفوفة #20 (`zoom/`): مسطرة وشبكة بأبعاد ثابتة بالبكسل — مربّعات 100px وخطوط شعرية 1px ومربّع
+      50px ومربّع 200px — وعلى كل منها وسمٌ بحجمه بـCSS. تستعملها الحزم التي تطبّق تكبير المتصفح
+      (80 و125 و150%) من الخارج: يُتوقَّع أن يبقى `getBoundingClientRect()` بوحدات CSS ثابتًا وأن يتغيّر
+      `devicePixelRatio` وحده. لا شبكة ولا مؤقّتات.
+      المسارات البرمجية: `window.__boxes()` يرجع `{ id, x, y, width, height }` لكل صندوق موسوم
+      `[data-box]` · `window.__zoomInfo()` يرجع `{ dpr, innerWidth, innerHeight }`.
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 20px;
+        font:
+          12px/1.2 system-ui,
+          sans-serif;
+        background: #fff;
+        color: #0f172a;
+      }
+      .row {
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+        margin-block-end: 20px;
+      }
+      [data-box] {
+        display: grid;
+        place-items: center;
+        background: #dbeafe;
+        border: 1px solid #1d4ed8;
+      }
+      #sq-50 {
+        inline-size: 50px;
+        block-size: 50px;
+      }
+      #sq-100-a,
+      #sq-100-b {
+        inline-size: 100px;
+        block-size: 100px;
+      }
+      #sq-200 {
+        inline-size: 200px;
+        block-size: 200px;
+      }
+      #hair-h {
+        inline-size: 300px;
+        block-size: 1px;
+        border: 0;
+        background: #000;
+      }
+      #hair-v {
+        inline-size: 1px;
+        block-size: 100px;
+        border: 0;
+        background: #000;
+      }
+      .ruler {
+        inline-size: 400px;
+        block-size: 24px;
+        background: repeating-linear-gradient(to left, #000 0 1px, transparent 1px 10px);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <div id="sq-50" data-box>50px</div>
+      <div id="sq-100-a" data-box>100px</div>
+      <div id="sq-100-b" data-box>100px</div>
+      <div id="sq-200" data-box>200px</div>
+    </div>
+    <div class="row">
+      <div id="hair-h" data-box></div>
+      <span>خط أفقي 300×1px</span>
+    </div>
+    <div class="row">
+      <div id="hair-v" data-box></div>
+      <span>خط رأسي 1×100px</span>
+    </div>
+    <div class="ruler" id="ruler"></div>
+    <script>
+      window.__boxes = () =>
+        [...document.querySelectorAll('[data-box]')].map((el) => {
+          const r = el.getBoundingClientRect()
+          return { id: el.id, x: r.x, y: r.y, width: r.width, height: r.height }
+        })
+      window.__zoomInfo = () => ({
+        dpr: window.devicePixelRatio,
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+      })
+    </script>
+  </body>
+</html>

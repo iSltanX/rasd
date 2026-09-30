@@ -17,47 +17,14 @@
  * والقياس على **البكسل** لا على السمة: سمةٌ مكتوبة لا تعني لونًا مرسومًا،
  * وهو الفرق نفسه الذي بُني له `verify-colour.mjs`.
  *
+ * الحارس فوق النواة المشتركة `scripts/lib/cdp.mjs` (`STAGES/17`): الإقلاع والتحميل والارتباط والتنظيف هناك.
+ *
  *   pnpm build && pnpm verify:palette
  */
-import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { fileURLToPath, URL } from 'node:url'
+import { attachTarget, startGuard } from './lib/cdp.mjs'
 
-import { ensureFixturesServer } from './live-fixtures.mjs'
-import { attachLiveServiceWorker } from './live-sw.mjs'
-
-const root = fileURLToPath(new URL('..', import.meta.url))
-const dist = join(root, 'dist')
 const PORT = 9347
-const FIXTURES = Number(process.env.RASD_FIXTURES_PORT ?? 5399)
-const BASE = `http://127.0.0.1:${FIXTURES}`
 
-const CANDIDATES = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-]
-const chrome = process.env.CHROME_PATH ?? CANDIDATES.find((p) => existsSync(p))
-
-if (!existsSync(join(dist, 'content.js'))) {
-  console.error('dist/content.js غير موجود — شغّل `pnpm build` أولًا.')
-  process.exit(1)
-}
-if (!chrome) {
-  console.error('لم يُعثر على Chrome. مرّر المسار عبر CHROME_PATH.')
-  process.exit(1)
-}
-
-// ── خادم العيّنات ────────────────────────────────────────────────
-const fixtures = await ensureFixturesServer({ port: FIXTURES })
-
-const stage = mkdtempSync(join(tmpdir(), 'rasd-palette-ext-'))
-cpSync(dist, stage, { recursive: true })
-const stagedManifest = join(stage, 'manifest.json')
-const manifest = JSON.parse(readFileSync(stagedManifest, 'utf8'))
 /*
  * **`<all_urls>` لا نمطًا ضيّقًا — وهذا مقيس لا احتياط.**
  *
@@ -71,123 +38,23 @@ const manifest = JSON.parse(readFileSync(stagedManifest, 'utf8'))
  * سبيل إليها في جلسة آلية. فنسخة الفحص وحدها تُرقَّع، والحزمة المشحونة
  * تبقى بلا صلاحية مضيف كما يتحقّق `verify-capture.mjs`.
  */
-manifest.host_permissions = ['<all_urls>']
-writeFileSync(stagedManifest, JSON.stringify(manifest, null, 2))
+const g = await startGuard({
+  prefix: 'palette',
+  port: PORT,
+  title: '── فحص سلك المرحلة 14 حيًّا — المسح والاستبدال والإبراز ──',
+  requires: 'content.js',
+  fixtures: true,
+  stage: { hostPermissions: ['<all_urls>'] },
+  serviceWorker: true,
+  args: ['--window-size=1280,800'],
+})
+const { send, ok, fail, note, extId, sw } = g
+const BASE = g.base
 
-const profile = mkdtempSync(join(tmpdir(), 'rasd-palette-'))
-const proc = spawn(
-  chrome,
-  [
-    '--headless=new',
-    `--remote-debugging-port=${PORT}`,
-    `--user-data-dir=${profile}`,
-    '--enable-unsafe-extension-debugging',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-gpu',
-    '--window-size=1280,800',
-    'about:blank',
-  ],
-  { stdio: ['ignore', 'pipe', 'pipe'] },
-)
-
-let stderr = ''
-proc.stderr.on('data', (d) => (stderr += d.toString()))
-
-async function cleanup() {
-  fixtures.stop()
-  proc.kill('SIGKILL')
-  rmSync(stage, { recursive: true, force: true })
-  for (let i = 0; i < 10; i++) {
-    try {
-      rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
-      return
-    } catch {
-      await new Promise((r) => setTimeout(r, 200))
-    }
-  }
-}
-
-async function connect() {
-  let wsUrl = null
-  // **ميزانية انتظار DevTools — ستّون ثانية لا عشر.** قِيس: كروم يُقلع على
-  // عدّاء بنواتين تحت ضغط فلا يفتح منفذ التنقيح خلال 10s، فيخرج الحارس
-  // «تعذّر الاتصال بـDevTools» — وهو إخفاق بيئة لا حكمٌ على المنتَج. والسقف
-  // الحقيقي مهلةُ الخطوة (6 دقائق)، فانتظارٌ أطول يميّز «بطيء» من «ميّت».
-  for (let i = 0; i < 240 && !wsUrl; i++) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${PORT}/json/version`)
-      if (res.ok) wsUrl = (await res.json()).webSocketDebuggerUrl
-    } catch {
-      /* لم يجهز */
-    }
-    if (!wsUrl) await new Promise((r) => setTimeout(r, 250))
-  }
-  if (!wsUrl) return null
-  const ws = new WebSocket(wsUrl)
-  await new Promise((resolve, reject) => {
-    ws.addEventListener('open', resolve, { once: true })
-    ws.addEventListener('error', reject, { once: true })
-  })
-  let nextId = 1
-  const send = (method, params = {}, sessionId) =>
-    new Promise((resolve, reject) => {
-      const id = nextId++
-      const onMsg = (ev) => {
-        const msg = JSON.parse(ev.data)
-        if (msg.id !== id) return
-        ws.removeEventListener('message', onMsg)
-        msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result)
-      }
-      ws.addEventListener('message', onMsg)
-      ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }))
-    })
-  return { ws, send }
-}
-
-const session = await connect()
-if (!session) {
-  await cleanup()
-  console.error('تعذّر الاتصال بـDevTools.\n' + stderr.split('\n').slice(-8).join('\n'))
-  process.exit(1)
-}
-const { ws, send } = session
-
-const errors = []
-const lines = []
-const ok = (m) => lines.push(`  ✓ ${m}`)
-const note = (m) => lines.push(`  · ${m}`)
-const fail = (m) => {
-  errors.push(m)
-  lines.push(`  ✗ ${m}`)
-}
-
-// ── تحميل الإضافة ────────────────────────────────────────────────
-let extId = null
-try {
-  extId = (await send('Extensions.loadUnpacked', { path: stage })).id
-} catch (e) {
-  fail(`Chrome رفض الحزمة: ${e.message}`)
-}
-
-/*
- * الارتباط بسياقٍ **حيّ** لا بهدفٍ موجود — انظر ترويسة `live-sw.mjs`:
- * الهدف يظهر قبل اكتمال إقلاع العامل، فيقع التقييم بلا ربط `chrome`.
- */
-const { sw, swSession } = await attachLiveServiceWorker(send, extId)
-
-async function inSW(expression) {
-  const res = await send(
-    'Runtime.evaluate',
-    { expression, awaitPromise: true, returnByValue: true },
-    swSession,
-  )
-  if (res.exceptionDetails) throw new Error(res.exceptionDetails.text)
-  return res.result.value
-}
+const inSW = (expression) => g.sw.evaluate(expression)
 
 let granted = false
-if (swSession) {
+if (sw) {
   try {
     granted = await inSW(
       `chrome.permissions.contains({ origins: ['${BASE}/*'] }).then(g => g).catch(() => false)`,
@@ -300,9 +167,7 @@ async function attachToPage(urlPart) {
   const { targetInfos } = await send('Target.getTargets')
   const t = targetInfos.find((x) => x.type === 'page' && String(x.url).includes(urlPart))
   if (!t) return null
-  const { sessionId } = await send('Target.attachToTarget', { targetId: t.targetId, flatten: true })
-  await send('Runtime.enable', {}, sessionId)
-  return sessionId
+  return attachTarget(send, t.targetId)
 }
 
 async function settle(pageSession) {
@@ -735,13 +600,7 @@ if (extId && sw && granted) {
 }
 
 // ── التقرير ─────────────────────────────────────────────────────
-console.log('\n── فحص سلك المرحلة 14 حيًّا — المسح والاستبدال والإبراز ──\n')
-for (const l of lines) console.log(l)
-console.log('')
-await cleanup()
-ws.close()
-if (errors.length > 0) {
-  console.error(`✗ ${errors.length} إخفاق.\n`)
-  process.exit(1)
-}
-console.log('✓ سلك المسح والاستبدال يعمل حيًّا، ولا يترك أثرًا.\n')
+await g.finish({
+  success: '✓ سلك المسح والاستبدال يعمل حيًّا، ولا يترك أثرًا.',
+  failure: (n) => `✗ ${n} إخفاق.\n`,
+})

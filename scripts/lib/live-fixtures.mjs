@@ -35,7 +35,7 @@ const DEFAULT_TIMEOUT_MS = 20_000
 /** بصمة جذر خادم العيّنات: يكتبها `fixtures-serve.mjs` في صفحة `/` وحدها. */
 const ROOT_MARKER = 'rasd fixtures'
 
-const serverScript = fileURLToPath(new URL('./fixtures-serve.mjs', import.meta.url))
+const serverScript = fileURLToPath(new URL('../fixtures-serve.mjs', import.meta.url))
 
 /**
  * هل يجيب **خادم العيّنات** على هذا المنفذ الآن؟
@@ -54,10 +54,20 @@ export async function probeFixtures(port = FIXTURES_PORT) {
 }
 
 /**
+ * الأصل الثاني (`STAGES/17`): الخادم نفسه على المنفذ التالي. حارسٌ يحتاجه يقرأ `alt` من الناتج —
+ * خادمٌ قديم يعمل بلا أصل ثانٍ يُعاد استعماله لغيره، ولا يُدّعى عنه ما لم يُقَس.
+ */
+const withAlt = async (base) => ({
+  ...base,
+  altUrl: `http://127.0.0.1:${base.port + 1}/`,
+  alt: (await probeFixtures(base.port + 1)) === 'ours',
+})
+
+/**
  * يضمن خادم عيّنات حيًّا: يُعيد استعمال العامل، أو يُطلق واحدًا وينتظر جوابه.
  *
  * @param {{ port?: number, timeoutMs?: number }} [options]
- * @returns {Promise<{ url: string, port: number, spawned: boolean, stop: () => void }>}
+ * @returns {Promise<{ url: string, port: number, altUrl: string, alt: boolean, spawned: boolean, stop: () => void }>}
  *   `stop` تقتل **ما أطلقناه نحن وحده** — فخادمٌ كان يعمل قبلنا (نافذة مطوّر
  *   مفتوحة) لا يُقتَل بانتهاء فحصٍ لم يُطلقه.
  * @throws إن احتلّ المنفذَ شيء آخر، أو لم يجب المولود قبل المهلة — ومعه
@@ -69,7 +79,7 @@ export async function ensureFixturesServer(options = {}) {
   const url = `http://127.0.0.1:${port}/`
 
   const before = await probeFixtures(port)
-  if (before === 'ours') return { url, port, spawned: false, stop: () => {} }
+  if (before === 'ours') return withAlt({ url, port, spawned: false, stop: () => {} })
   if (before === 'foreign') {
     throw new Error(
       `المنفذ ${port} يجيب لكنّه ليس خادم العيّنات — أوقف ما يحتلّه قبل الفحص. ` +
@@ -99,7 +109,7 @@ export async function ensureFixturesServer(options = {}) {
         `خادم العيّنات خرج بالرمز ${exited} قبل أن يجيب — خَرْجه:\n${output.trim() || '(صامت)'}`,
       )
     }
-    if ((await probeFixtures(port)) === 'ours') return { url, port, spawned: true, stop }
+    if ((await probeFixtures(port)) === 'ours') return withAlt({ url, port, spawned: true, stop })
     await new Promise((r) => setTimeout(r, 100))
   }
 

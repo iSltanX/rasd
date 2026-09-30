@@ -31,8 +31,9 @@ describe('مخروط الأثر', () => {
   it('ما تتشاركه الحرّاس يطلب الطقم كاملًا', () => {
     for (const file of [
       'scripts/lib/cdp.mjs',
-      'scripts/live-sw.mjs',
-      'scripts/live-fixtures.mjs',
+      'scripts/lib/live-sw.mjs',
+      'scripts/lib/live-fixtures.mjs',
+      'scripts/runtime-budgets.mjs',
       'scripts/fixtures-serve.mjs',
       'tests/fixtures/sites/picker/index.html',
     ]) {

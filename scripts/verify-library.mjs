@@ -18,176 +18,39 @@
  *
  *   pnpm build && pnpm verify:library
  */
-import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath, URL } from 'node:url'
 
+import { collectPageErrors, openTarget, ROOT as root, startGuard } from './lib/cdp.mjs'
 import { judge, median } from './runtime-budgets.mjs'
 
-const root = fileURLToPath(new URL('..', import.meta.url))
-const dist = join(root, 'dist')
 const PORT = 9372
 
-const CANDIDATES = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-]
-const chrome = process.env.CHROME_PATH ?? CANDIDATES.find((p) => existsSync(p))
-
-if (!existsSync(join(dist, 'manifest.json'))) {
-  console.error('dist/manifest.json غير موجود — شغّل `pnpm build` أولًا.')
-  process.exit(1)
-}
-if (!chrome) {
-  console.error('لم يُعثر على Chrome. مرّر المسار عبر CHROME_PATH.')
-  process.exit(1)
-}
-
-const stage = mkdtempSync(join(tmpdir(), 'rasd-library-ext-'))
-cpSync(dist, stage, { recursive: true })
-
-const profile = mkdtempSync(join(tmpdir(), 'rasd-library-'))
-const proc = spawn(
-  chrome,
-  [
-    '--headless=new',
-    `--remote-debugging-port=${PORT}`,
-    `--user-data-dir=${profile}`,
-    '--enable-unsafe-extension-debugging',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-gpu',
-    '--window-size=1280,900',
-    'about:blank',
-  ],
-  { stdio: ['ignore', 'pipe', 'pipe'] },
-)
-
-let stderr = ''
-proc.stderr.on('data', (d) => (stderr += d.toString()))
-
-async function cleanup() {
-  proc.kill('SIGKILL')
-  rmSync(stage, { recursive: true, force: true })
-  for (let i = 0; i < 10; i++) {
-    try {
-      rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
-      return
-    } catch {
-      await new Promise((r) => setTimeout(r, 200))
-    }
-  }
-}
-
-async function connect() {
-  let wsUrl = null
-  // **ميزانية انتظار DevTools — ستّون ثانية لا عشر.** قِيس: كروم يُقلع على
-  // عدّاء بنواتين تحت ضغط فلا يفتح منفذ التنقيح خلال 10s، فيخرج الحارس
-  // «تعذّر الاتصال بـDevTools» — وهو إخفاق بيئة لا حكمٌ على المنتَج. والسقف
-  // الحقيقي مهلةُ الخطوة (6 دقائق)، فانتظارٌ أطول يميّز «بطيء» من «ميّت».
-  for (let i = 0; i < 240 && !wsUrl; i++) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${PORT}/json/version`)
-      if (res.ok) wsUrl = (await res.json()).webSocketDebuggerUrl
-    } catch {
-      /* لم يجهز */
-    }
-    if (!wsUrl) await new Promise((r) => setTimeout(r, 250))
-  }
-  if (!wsUrl) return null
-  const ws = new WebSocket(wsUrl)
-  await new Promise((resolve, reject) => {
-    ws.addEventListener('open', resolve, { once: true })
-    ws.addEventListener('error', reject, { once: true })
-  })
-  let nextId = 1
-  const send = (method, params = {}, sessionId) =>
-    new Promise((resolve, reject) => {
-      const id = nextId++
-      const onMsg = (ev) => {
-        const msg = JSON.parse(ev.data)
-        if (msg.id !== id) return
-        ws.removeEventListener('message', onMsg)
-        msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result)
-      }
-      ws.addEventListener('message', onMsg)
-      ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }))
-    })
-  return { ws, send }
-}
-
-const session = await connect()
-if (!session) {
-  await cleanup()
-  console.error('تعذّر الاتصال بـDevTools.\n' + stderr.split('\n').slice(-8).join('\n'))
-  process.exit(1)
-}
-const { ws, send } = session
-
-const pageErrors = []
-ws.addEventListener('message', (event) => {
-  let msg
-  try {
-    msg = JSON.parse(event.data)
-  } catch {
-    return
-  }
-  if (msg.method === 'Runtime.exceptionThrown') {
-    const d = msg.params?.exceptionDetails
-    pageErrors.push(d?.exception?.description ?? d?.text ?? 'استثناء بلا وصف')
-  }
-  if (msg.method === 'Runtime.consoleAPICalled' && msg.params?.type === 'error') {
-    pageErrors.push((msg.params.args ?? []).map((a) => a.value ?? a.description ?? '?').join(' '))
-  }
+// نسخة فحص بلا صلاحيات مضيف ولا خادم عيّنات — والحزمة المشتركة في `scripts/lib/cdp.mjs`.
+const g = await startGuard({
+  prefix: 'library',
+  port: PORT,
+  title: '── فحص صفحة المكتبة في Chrome حقيقي ──',
+  stage: {},
+  args: ['--window-size=1280,900'],
 })
-
-const errors = []
-const lines = []
-const ok = (m) => lines.push(`  ✓ ${m}`)
-const fail = (m) => {
-  errors.push(m)
-  lines.push(`  ✗ ${m}`)
-}
-const note = (m) => lines.push(`  · ${m}`)
+const { send, ok, fail, note } = g
+const pageErrors = collectPageErrors(g.conn)
 
 // ── تحميل الإضافة ────────────────────────────────────────────────
-let extId = null
-try {
-  extId = (await send('Extensions.loadUnpacked', { path: stage })).id
-} catch (e) {
-  fail(`Chrome رفض الحزمة: ${e.message}`)
-}
+const extId = g.extId
 
 if (extId) ok('نسخة الفحص محمَّلة')
 else fail('تعذّر تحميل الإضافة')
 
-const evalIn = async (sessionId, expression) => {
-  const r = await send(
-    'Runtime.evaluate',
-    { expression, returnByValue: true, awaitPromise: true },
-    sessionId,
-  )
-  if (r.exceptionDetails) {
-    const d = r.exceptionDetails
-    const detail = d.exception?.description ?? d.exception?.value ?? d.text ?? 'بلا وصف'
-    throw new Error(`${detail}\nفي: ${expression.slice(0, 200)}`)
-  }
-  return r.result.value
-}
+const evalIn = (sessionId, expression) =>
+  g.evaluate(sessionId, { withExpression: true })(expression)
 
 let librarySession = null
 if (extId) {
-  const { targetId } = await send('Target.createTarget', {
-    url: `chrome-extension://${extId}/src/pages/library/index.html`,
-  })
-  const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })
-  await send('Runtime.enable', {}, sessionId)
-  await send('Page.enable', {}, sessionId)
-  librarySession = sessionId
+  librarySession = (
+    await openTarget(send, `chrome-extension://${extId}/src/pages/library/index.html`)
+  ).sessionId
 }
 
 if (!librarySession) {
@@ -639,14 +502,4 @@ if (!librarySession) {
 // خطأ من Icon-*.js في منتصف اسم الملفّ نفسه.
 for (const e of pageErrors.slice(0, 6)) fail(`استثناء في الصفحة: ${String(e).slice(0, 800)}`)
 
-// ── التقرير ─────────────────────────────────────────────────────
-console.log('\n── فحص صفحة المكتبة في Chrome حقيقي ──\n')
-for (const l of lines) console.log(l)
-console.log('')
-await cleanup()
-ws.close()
-if (errors.length > 0) {
-  console.error(`✗ ${errors.length} إخفاق.\n`)
-  process.exit(1)
-}
-console.log('✓ صفحة المكتبة تحمِّل وتصفّي وترسم فوق Chrome حقيقي.\n')
+await g.finish({ success: '✓ صفحة المكتبة تحمِّل وتصفّي وترسم فوق Chrome حقيقي.' })

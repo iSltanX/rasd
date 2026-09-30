@@ -10,6 +10,11 @@
  * عيّنة `spa/` تنقّل بـ`pushState` إلى مسارات لا ملفّ لها (`/spa/tasks`)؛ لذلك
  * أي مسار داخل مجلّد عيّنة لا يطابق ملفًّا يعود إلى `index.html` الخاص بها.
  *
+ * **أصلٌ ثانٍ على المنفذ التالي** (`STAGES/17`): العملية نفسها تخدم الجذر نفسه على `PORT + 1`،
+ * فيصير `http://127.0.0.1:5400` أصلًا آخر لا نطاقًا آخر — ما تحتاجه `cross-origin-css/` و
+ * `iframes/` لورقة أنماط وإطار من أصل غريب بلا شبكة. والإزاحة ثابتة لا متغيّر بيئة: العيّنة
+ * تحسب الأصل الثاني من `location.port` وحدها، فلا تعرف إلا ما يعرفه الخادم.
+ *
  *   pnpm fixtures:serve            # يبقى يعمل
  *   pnpm fixtures:serve --once     # يطبع العنوان ويخرج (فحص صحّة)
  */
@@ -20,6 +25,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 const root = fileURLToPath(new URL('../tests/fixtures/sites', import.meta.url))
 const PORT = Number(process.env.RASD_FIXTURES_PORT ?? 5399)
+/** الأصل الثاني — `PORT + 1` دائمًا، والعيّنات تحسبه كذلك. */
+const ALT_PORT = PORT + 1
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -55,7 +62,7 @@ async function tryFile(path) {
   return null
 }
 
-const server = createServer(async (req, res) => {
+async function handle(req, res) {
   const urlPath = (req.url ?? '/').split('?')[0]
 
   if (urlPath === '/') {
@@ -90,9 +97,19 @@ const server = createServer(async (req, res) => {
     'cache-control': 'no-store',
   })
   res.end(body)
-})
+}
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`\nعيّنات المواقع: http://127.0.0.1:${PORT}/\n`)
-  if (process.argv.includes('--once')) server.close()
+const server = createServer(handle)
+const alt = createServer(handle)
+
+// الأصل الثاني أوّلًا: جذر الأوّل هو ما يستطلعه `live-fixtures.mjs`، فلا يُعلَن الخادم حيًّا قبل أن
+// يجيب الاثنان.
+alt.listen(ALT_PORT, '127.0.0.1', () => {
+  server.listen(PORT, '127.0.0.1', () => {
+    console.log(`\nعيّنات المواقع: http://127.0.0.1:${PORT}/ · الأصل الثاني: ${ALT_PORT}\n`)
+    if (process.argv.includes('--once')) {
+      server.close()
+      alt.close()
+    }
+  })
 })

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة الإطارات</title>
+    <!--
+      المصفوفة #18 (`iframes/`): ثلاثة إطارات — من الأصل نفسه (#frame-same ← frame.html) ومن أصل آخر
+      (#frame-cross، يُضبط src من JS إلى الأصل الثاني = المنفذ + 1) و`srcdoc` (#frame-srcdoc).
+      الطلب الوحيد خارج الأصل هو إلى الأصل المحلّي الثاني. يختبر أن الطبقة والالتقاط يتعاملان مع
+      الإطارات المتداخلة دون قراءة ما لا يُقرأ.
+      المسارات البرمجية: `window.__frames()` يرجع لكل إطار `{ id, accessible, text }` حيث
+      `accessible` = هل `contentDocument` مقروء (true للنفسي وsrcdoc، false للآخر) ·
+      `window.__framesLoaded` وعدٌ يُحلّ حين تُحمَّل الإطارات الثلاثة.
+    -->
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+        background: #fff;
+        color: #0f172a;
+      }
+      iframe {
+        display: block;
+        inline-size: 360px;
+        block-size: 140px;
+        margin-block-end: 16px;
+        border: 2px solid #64748b;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>إطارات</h1>
+    <iframe id="frame-same" title="نفس الأصل" src="frame.html"></iframe>
+    <iframe id="frame-cross" title="أصل آخر"></iframe>
+    <iframe
+      id="frame-srcdoc"
+      title="srcdoc"
+      srcdoc="<!doctype html><html lang='ar' dir='rtl'><body style='background:#dbeafe;font:16px system-ui'><p id='frame-text'>محتوى srcdoc</p></body></html>"
+    ></iframe>
+    <script>
+      const ALT = `http://127.0.0.1:${Number(location.port) + 1}`
+      const ids = ['frame-same', 'frame-cross', 'frame-srcdoc']
+      const el = (id) => document.getElementById(id)
+      window.__framesLoaded = Promise.all(
+        ids.map(
+          (id) =>
+            new Promise((resolve) => el(id).addEventListener('load', resolve, { once: true })),
+        ),
+      )
+      el('frame-cross').src = `${ALT}/iframes/frame.html`
+      window.__frames = () =>
+        ids.map((id) => {
+          let doc = null
+          try {
+            doc = el(id).contentDocument
+          } catch {
+            doc = null
+          }
+          return {
+            id,
+            accessible: doc !== null,
+            text: doc?.getElementById('frame-text')?.textContent ?? null,
+          }
+        })
+    </script>
+  </body>
+</html>
