@@ -589,12 +589,12 @@ export default async function library(ctx, mode) {
     after: () => new Promise((r) => setTimeout(r, 600)),
   })
 
-  // لا حالة خطأ للمشاريع في الصفحة: فشل القراءة يُرسَم فراغًا. اللقطة توثّق الفعلي لا إطار Figma.
-  await scene('projects / error-actual', {
+  // فشل القراءة حالةُ خطأ بعد `STAGES/04` — كان يُرسَم فراغًا «لا مشاريع بعد».
+  await scene('projects / error', {
     data: full(),
     query: '?view=projects',
     beforeLoad: FAIL_OPEN,
-    ready: text('لا مشاريع بعد'),
+    ready: text('تعذّرت قراءة المشاريع'),
   })
 
   const openPanel = async (page) => {

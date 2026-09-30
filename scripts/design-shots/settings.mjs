@@ -13,8 +13,8 @@ const SECTIONS = [
 ]
 
 const SITES = [
+  // لا `*.bank.com` بجوار `bank.com`: النمطان واحد بعد التطبيع (`site-match.ts`)، والقائمة تمنع التكرار.
   'bank.com',
-  '*.bank.com',
   'mail.google.com',
   'accounts.google.com',
   '*.gov.sa',
@@ -94,7 +94,9 @@ export default async function settings(ctx, mode) {
       `document.querySelectorAll('[aria-label$="من المواقع المستثناة"]').length === ${i + 1}`,
     )
   }
-  await sites.waitFor(`document.querySelector('[role="status"]')`)
+  await sites.waitFor(
+    `(document.querySelector('[role="status"]')?.textContent ?? '').includes('أُضيف الموقع')`,
+  )
   await sites.settle()
   await ctx.shot(sites, 'privacy / excluded-sites · saved', mode)
   n++

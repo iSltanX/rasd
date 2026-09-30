@@ -99,7 +99,9 @@ function readLocation(): { section: SectionId; view: PrivacyView } {
 }
 
 type Notice =
-  { tone: 'success' } | { tone: 'danger'; retry: () => Promise<Result<SettingsValue>> } | null
+  | { tone: 'success'; text?: string }
+  | { tone: 'danger'; retry: () => Promise<Result<SettingsValue>> }
+  | null
 
 export function Settings() {
   const [settings, setSettings] = useState<SettingsValue | null>(null)
@@ -115,6 +117,13 @@ export function Settings() {
     if (next === 'privacy' && nextView !== 'controls') params.set('view', nextView)
     history.replaceState(null, '', `?${params.toString()}`)
   }
+
+  /** نجاحٌ بنصّ يخصّه — إضافة موقع مستثنى وحذفه — بمهلة الإشعار العامّ نفسها. */
+  const announce = useCallback((text: string) => {
+    if (hideTimer.current) clearTimeout(hideTimer.current)
+    setNotice({ tone: 'success', text })
+    hideTimer.current = setTimeout(() => setNotice(null), 4000)
+  }, [])
 
   const persist = useCallback<Persist>((op) => {
     void op().then((result) => {
@@ -161,6 +170,7 @@ export function Settings() {
           onRemoveSite={removeExcludedSite}
           onImportSites={importExcludedSites}
           persist={persist}
+          onAnnounce={announce}
         />
       )
       break
@@ -199,7 +209,7 @@ export function Settings() {
         <div class={styles.toastRegion}>
           {notice.tone === 'success' ? (
             <Toast tone="success" onDismiss={() => setNotice(null)}>
-              حُفظ الإعداد — يسري على كل صفحات رصد المفتوحة
+              {notice.text ?? 'حُفظ الإعداد — يسري على كل صفحات رصد المفتوحة'}
             </Toast>
           ) : (
             <Toast

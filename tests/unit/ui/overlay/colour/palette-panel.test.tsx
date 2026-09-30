@@ -375,6 +375,46 @@ describe('PalettePanel — إعلان الحياديات المُسقَطة', ()
   })
 })
 
+/**
+ * `colors / palette-empty` (`303:22513`) — لوحة بلا لون كانت شبكة فارغة تحت «٠ لون»: لا سبب ولا
+ * مخرج. والسبب الغالب أن ألوان الصفحة حيادية كلّها وأُخفيت، فالمخرج إظهارها بنقرة.
+ */
+describe('PalettePanel — لوحة فارغة تقول لماذا', () => {
+  it('كلّها حيادية مُخفاة: رسالة تسمّي المفتاح، وزرّ يُظهرها', () => {
+    const onHideNeutralsChange = vi.fn()
+    const el = mount(
+      <PalettePanel
+        {...panelProps({
+          swatches: [],
+          droppedNeutrals: 4,
+          hideNeutrals: true,
+          onHideNeutralsChange,
+        })}
+      />,
+    )
+    expect(el.querySelector('.rasd-ov-pal-grid')).toBeNull()
+    const empty = el.querySelector('[data-rasd-ov="palette-empty"]')
+    expect(empty?.textContent).toContain('لم يبقَ لون في اللوحة')
+    expect(empty?.textContent).toContain('«إخفاء الألوان الحيادية»')
+    const show = empty?.querySelector('button') as HTMLButtonElement
+    expect(show.textContent).toBe('أظهر الحيادية')
+    show.click()
+    expect(onHideNeutralsChange).toHaveBeenCalledWith(false)
+  })
+
+  it('لا حياديات أُسقطت: رسالة بلا زرّ لا يُغيّر شيئًا', () => {
+    const el = mount(<PalettePanel {...panelProps({ swatches: [], hideNeutrals: false })} />)
+    const empty = el.querySelector('[data-rasd-ov="palette-empty"]')
+    expect(empty?.textContent).toContain('لم يُعثر على لون في المصدر')
+    expect(empty?.querySelector('button')).toBeNull()
+  })
+
+  it('لوحة فيها ألوان لا تحمل الرسالة', () => {
+    const el = mount(<PalettePanel {...panelProps()} />)
+    expect(el.querySelector('[data-rasd-ov="palette-empty"]')).toBeNull()
+  })
+})
+
 /** على نمط `ColourUsageView.scanning`/`ComparePanelProps.diffBusy` — حالة ثالثة صريحة. */
 describe('PalettePanel — الاستخراج الجاري', () => {
   it('يُخفي الشبكة والعدّاد، ويعرض نصّ التقدّم بدلًا منهما', () => {

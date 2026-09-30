@@ -403,6 +403,30 @@ export function PalettePanel({
           <p class="rasd-ov-pal-status">{unavailable}</p>
         ) : extracting ? (
           <p class="rasd-ov-pal-status">جارٍ الاستخراج…</p>
+        ) : swatches.length === 0 ? (
+          /*
+           * `colors / palette-empty` (`303:22513`): كانت شبكة فارغة تحت «٠ لون» بلا سبب ولا
+           * مخرج. والسبب الغالب أن ألوان المصدر حيادية كلّها وأُخفيت — فالمخرج بنقرة هنا.
+           */
+          <div class="rasd-ov-pal-status" data-rasd-ov="palette-empty">
+            {hideNeutrals && droppedNeutrals > 0 ? (
+              <>
+                <p>
+                  لم يبقَ لون في اللوحة — ألوان المصدر حيادية كلّها؛ أوقف «إخفاء الألوان الحيادية»
+                  لإظهارها.
+                </p>
+                <button
+                  type="button"
+                  class="rasd-ov-pal-btn rasd-ov-pal-empty-btn"
+                  onClick={() => onHideNeutralsChange(false)}
+                >
+                  أظهر الحيادية
+                </button>
+              </>
+            ) : (
+              <p>لم يُعثر على لون في المصدر.</p>
+            )}
+          </div>
         ) : (
           <div class="rasd-ov-pal-grid">
             {swatches.map((s, i) => (
@@ -429,7 +453,7 @@ export function PalettePanel({
           </div>
         )}
 
-        {!extracting && droppedNeutrals > 0 ? (
+        {!extracting && droppedNeutrals > 0 && swatches.length > 0 ? (
           <p class="rasd-ov-pal-note">
             {`أُسقطت أيضًا ${plural(droppedNeutrals, 'لون حيادي واحد', 'لونان حياديان', 'ألوان حيادية')}`}
           </p>

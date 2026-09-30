@@ -13,7 +13,8 @@ import type { InspectGroupView, InspectRow, InspectTabId } from '@/ui/overlay'
 
 /** التسميات العربية لكل خاصّية — ما يراه المستخدم بدل اسم CSS الخام. */
 const LABELS: Record<string, string> = {
-  display: 'العرض',
+  // «طريقة العرض» لا «العرض»: الثانية لـ`width` — كانا صفّين بالتسمية نفسها (`STAGES/04`).
+  display: 'طريقة العرض',
   position: 'الموضع',
   width: 'العرض',
   height: 'الارتفاع',
@@ -38,6 +39,17 @@ const LABELS: Record<string, string> = {
 
 const label = (prop: string): string => LABELS[prop] ?? prop
 
+/**
+ * بكسلات بمرتبتين عشريّتين على الأكثر — «254.67px» لا «254.672px». القياس الكسري حقيقي فلا
+ * يُقرَّب إلى عدد صحيح، لكن ما بعد المرتبتين ضجيجُ طرح لا قيمة يقرؤها أحد (`inspect / element-selected`).
+ */
+export function tidyPx(value: string): string {
+  return value.replace(
+    /(-?\d+\.\d{3,})px/gu,
+    (_m, n: string) => `${Number(Number(n).toFixed(2))}px`,
+  )
+}
+
 /** هل القيمة تستحقّ العرض؟ الابتدائية عديمة المعنى تُطوى. */
 function meaningful(value: string): boolean {
   const v = value.trim()
@@ -58,7 +70,7 @@ function rowsOf(detail: InspectDetail, group: InspectGroup): InspectRow[] {
     const entry = detail.snapshot.styles[prop]
     if (!entry || !meaningful(entry.value)) continue
 
-    const row: InspectRow = { label: label(prop), value: entry.value }
+    const row: InspectRow = { label: label(prop), value: tidyPx(entry.value) }
     const trace = detail.vars.get(prop)
     const link = trace?.chain[0]
 

@@ -2424,6 +2424,8 @@
   justify-content: center;
   gap: var(--rasd-space-8);
   inline-size: 100%;
+  /* الطبقة `all: initial` فالصندوق `content-box`: 100% وحشوة وحدّ كانت تُخرجه عن اللوحة (`STAGES/04`). */
+  box-sizing: border-box;
   padding: var(--rasd-space-20);
   border-radius: var(--rasd-radius-md);
   border: var(--rasd-stroke-medium) dashed var(--rasd-border-default);
@@ -2896,6 +2898,15 @@
   color: var(--rasd-text-secondary);
   text-align: center;
   line-height: 1.6;
+  /*
+   * خلفية اللوحة الزجاجية نفسها: الإطار يرسم الجملة على خلفيته الداكنة لأنه بلا صفحة تحته،
+   * وفوق صفحة حقيقية فاتحة كانت تُقرأ بالكاد (`STAGES/04`، لقطة `colors / scale`).
+   */
+  padding-block: var(--rasd-space-6);
+  padding-inline: var(--rasd-space-12);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-overlay-glass);
+  backdrop-filter: blur(calc(var(--rasd-space-16) + var(--rasd-space-2)));
 }
 
 /*
@@ -3166,6 +3177,20 @@
   color: var(--rasd-text-secondary);
   text-align: center;
   padding-block: var(--rasd-space-16);
+}
+
+.rasd-ov-pal-status[data-rasd-ov='palette-empty'] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rasd-space-10);
+  padding-inline: var(--rasd-space-12);
+}
+
+/* زرّ المخرج وحده لا صفّ أفعال — عرضه عرض نصّه. */
+.rasd-ov-pal-empty-btn {
+  flex: none;
+  padding-inline: var(--rasd-space-12);
 }
 
 .rasd-ov-pal-grid {

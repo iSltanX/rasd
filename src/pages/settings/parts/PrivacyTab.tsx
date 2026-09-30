@@ -65,6 +65,11 @@ export interface PrivacyTabProps {
     entries: readonly unknown[],
   ) => Promise<{ result: Result<Settings>; added: number; rejected: number }>
   persist: Persist
+  /**
+   * إشعار نجاح بنصّه — `privacy / excluded-sites · saved` (`319:52144`): «أُضيف الموقع». كانت
+   * الإضافة والحذف صامتين وكل إعداد غيرهما يُعلَن حفظه.
+   */
+  onAnnounce?: (text: string) => void
 }
 
 export function PrivacyTab({
@@ -76,6 +81,7 @@ export function PrivacyTab({
   onRemoveSite,
   onImportSites,
   persist,
+  onAnnounce,
 }: PrivacyTabProps) {
   const { privacy } = settings
   const save = (patch: Partial<Settings['privacy']>) => persist(() => onSave(patch))
@@ -87,9 +93,14 @@ export function PrivacyTab({
         onAdd={async (raw) => {
           const outcome = await onAddSite(raw)
           if (outcome === 'invalid') return 'invalid'
+          if (outcome.ok) onAnnounce?.('أُضيف الموقع — رصد لا يعمل فيه بعد الآن.')
           return outcome.ok ? 'ok' : 'failed'
         }}
-        onRemove={async (value) => (await onRemoveSite(value)).ok}
+        onRemove={async (value) => {
+          const removed = (await onRemoveSite(value)).ok
+          if (removed) onAnnounce?.('حُذف الموقع — رصد يعمل فيه من جديد حين تطلبه.')
+          return removed
+        }}
         onImport={async (entries) => {
           const { result, added, rejected } = await onImportSites(entries)
           return result.ok ? { added, rejected } : 'failed'
