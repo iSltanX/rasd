@@ -99,9 +99,44 @@ function readLocation(): { section: SectionId; view: PrivacyView } {
 }
 
 type Notice =
-  | { tone: 'success'; text?: string }
+  | { tone: 'success'; title?: string; detail?: string }
   | { tone: 'danger'; retry: () => Promise<Result<SettingsValue>> }
   | null
+
+/**
+ * الإشعار بسطرين كما في `settings / saved` و`save-error` (`319:12812` · `319:12777`): ما حدث، ثمّ
+ * أثره أخفّ تحته. كان سطرًا عريضًا واحدًا يجمعهما بشرطة، و`Toast` يحمل السطر الثاني أصلًا.
+ */
+export function SettingsNotice({
+  notice,
+  onRetry,
+  onDismiss,
+}: {
+  notice: Exclude<Notice, null>
+  onRetry: () => void
+  onDismiss: () => void
+}) {
+  return notice.tone === 'success' ? (
+    <Toast
+      tone="success"
+      detail={notice.detail ?? 'يسري على كل صفحات رصد المفتوحة.'}
+      onDismiss={onDismiss}
+    >
+      {notice.title ?? 'حُفظ الإعداد'}
+    </Toast>
+  ) : (
+    <Toast
+      tone="danger"
+      action="with-action"
+      actionLabel="أعد المحاولة"
+      detail="لم يتغيّر شيء، والقيمة السابقة باقية."
+      onAction={onRetry}
+      onDismiss={onDismiss}
+    >
+      تعذّر حفظ الإعداد
+    </Toast>
+  )
+}
 
 export function Settings() {
   const [settings, setSettings] = useState<SettingsValue | null>(null)
@@ -119,9 +154,9 @@ export function Settings() {
   }
 
   /** نجاحٌ بنصّ يخصّه — إضافة موقع مستثنى وحذفه — بمهلة الإشعار العامّ نفسها. */
-  const announce = useCallback((text: string) => {
+  const announce = useCallback((title: string, detail: string) => {
     if (hideTimer.current) clearTimeout(hideTimer.current)
-    setNotice({ tone: 'success', text })
+    setNotice({ tone: 'success', title, detail })
     hideTimer.current = setTimeout(() => setNotice(null), 4000)
   }, [])
 
@@ -207,21 +242,13 @@ export function Settings() {
       </div>
       {notice ? (
         <div class={styles.toastRegion}>
-          {notice.tone === 'success' ? (
-            <Toast tone="success" onDismiss={() => setNotice(null)}>
-              {notice.text ?? 'حُفظ الإعداد — يسري على كل صفحات رصد المفتوحة'}
-            </Toast>
-          ) : (
-            <Toast
-              tone="danger"
-              action="with-action"
-              actionLabel="أعد المحاولة"
-              onAction={() => persist(notice.retry)}
-              onDismiss={() => setNotice(null)}
-            >
-              تعذّر حفظ الإعداد — لم يتغيّر شيء. القيمة السابقة باقية.
-            </Toast>
-          )}
+          <SettingsNotice
+            notice={notice}
+            onRetry={() => {
+              if (notice.tone === 'danger') persist(notice.retry)
+            }}
+            onDismiss={() => setNotice(null)}
+          />
         </div>
       ) : null}
     </AppShell>

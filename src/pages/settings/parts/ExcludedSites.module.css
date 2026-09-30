@@ -25,6 +25,19 @@
   line-height: var(--rasd-leading-ui);
 }
 
+/* بطاقة القائمة الفارغة (`285:803`): عنوان وسطر في الوسط. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rasd-space-4);
+  padding: var(--rasd-space-24) var(--rasd-space-16);
+  text-align: center;
+}
+.emptyTitle {
+  color: var(--rasd-text-primary);
+}
+
 /* المضيف مقطع لاتيني داخل سياق عربي — يُعزل كي لا تنقلب نقاطه ونجمته. */
 .host {
   font-family: var(--rasd-font-family-mono);

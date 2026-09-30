@@ -17,7 +17,7 @@ afterEach(() => {
 
 const flush = () => new Promise((r) => setTimeout(r, 0))
 
-async function mount(onAnnounce: (text: string) => void) {
+async function mount(onAnnounce: (title: string, detail: string) => void) {
   const settings: Settings = defaultSettings()
   container = document.createElement('div')
   document.body.appendChild(container)
@@ -50,7 +50,8 @@ describe('PrivacyTab — المواقع المستثناة تُعلن حفظها
     await flush()
     input.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
     await vi.waitFor(() => expect(onAnnounce).toHaveBeenCalled())
-    expect(onAnnounce.mock.calls[0]?.[0]).toContain('أُضيف الموقع')
+    // سطران كما في الإطار: ما حدث، ثمّ أثره — لا سطر واحد بشرطة.
+    expect(onAnnounce).toHaveBeenCalledWith('أُضيف الموقع', 'رصد لا يعمل فيه بعد الآن.')
   })
 
   it('حذف ناجح ⟵ «حُذف الموقع»', async () => {
@@ -60,6 +61,6 @@ describe('PrivacyTab — المواقع المستثناة تُعلن حفظها
       .querySelector<HTMLButtonElement>('[aria-label="احذف old.example من المواقع المستثناة"]')!
       .click()
     await vi.waitFor(() => expect(onAnnounce).toHaveBeenCalled())
-    expect(onAnnounce.mock.calls[0]?.[0]).toContain('حُذف الموقع')
+    expect(onAnnounce).toHaveBeenCalledWith('حُذف الموقع', 'رصد يعمل فيه من جديد حين تطلبه.')
   })
 })

@@ -20,11 +20,13 @@ import { Banner } from '@/ui/components/Banner/Banner'
 import { Button } from '@/ui/components/Button/Button'
 import { Input } from '@/ui/components/Input/Input'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
+import { cx } from '@/ui/cx'
 
 import { savedFormOf } from '../context'
 
 import listStyles from './ExcludedSites.module.css'
 import { Group } from './Group'
+import groupStyles from './Group.module.css'
 
 import type { JSX } from 'preact'
 
@@ -187,7 +189,13 @@ export function ExcludedSites({
         <Button variant="secondary" size="m" onClick={() => fileRef.current?.click()}>
           استورد
         </Button>
-        <Button variant="secondary" size="m" onClick={exportList}>
+        {/* قائمة فارغة لا تُصدَّر — كان ملفًّا لا شيء فيه (`285:803` يرسمه معطَّلًا). */}
+        <Button
+          variant="secondary"
+          size="m"
+          onClick={exportList}
+          {...(sites.length === 0 ? { state: 'disabled' as const } : {})}
+        >
           صدّر
         </Button>
         {/*
@@ -232,9 +240,13 @@ export function ExcludedSites({
       ) : null}
 
       {sites.length === 0 ? (
-        <p class={listStyles.empty}>
-          لا مواقع مستثناة بعد — رصد يعمل في كل موقع تفتحه فيه أداةً بنفسك.
-        </p>
+        // بطاقة المجموعة نفسها بعنوان وسطر كما في `285:803` — كانت سطرًا عاريًا بلا حدّ.
+        <div class={cx(groupStyles.card, listStyles.empty)} data-sites-empty="">
+          <strong class={cx(listStyles.emptyTitle, 't-arabic-ui-s-strong')}>
+            لا مواقع مستثناة
+          </strong>
+          <span>رصد يعمل في كل موقع تفتحه فيه أداةً بنفسك — أضف نطاقًا ليتوقّف فيه.</span>
+        </div>
       ) : (
         <Group
           title={plural(sites.length, 'موقع مستثنى', 'موقعان مستثنيان', 'مواقع مستثناة')}

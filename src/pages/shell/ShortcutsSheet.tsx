@@ -141,7 +141,7 @@ export function ShortcutsSheet({ onClose }: ShortcutsSheetProps): JSX.Element {
           <Button
             variant="secondary"
             size="l"
-            class={styles.change}
+            icon="keyboard"
             onClick={() => void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' })}
           >
             غيّر اختصارات الالتقاط
