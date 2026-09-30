@@ -7,6 +7,10 @@
  * **صورتا الدخل والفرق والمناطق في رحلة واحدة** — `diff.worker.ts` يستدعي
  * `computeDiff` ثم `groupDiffRegions` على قناعها مباشرةً قبل الردّ، فلا رحلة
  * ثانية لنقل القناع نفسه عبر `postMessage` لجلب المناطق.
+ *
+ * **والمناطق المستثناة داخل `diffOptions.exclude`** لا حقلًا موازيًا: الطلب يحمل `DiffOptions` كما هي، فما
+ * يصل الخيط هو ما يصل مسار السقوط المتزامن حرفيًّا (ADR 0034). و`DeviceRect` تعبر كما هي — علامتها `space`
+ * خاصّيةٌ عادية وقت التشغيل.
  */
 
 import type { DiffOptions } from './diff'
@@ -56,6 +60,8 @@ export interface DiffReply {
   readonly overlap: WireRect
   readonly diffPixelCount: number
   readonly comparedPixels: number
+  /** بكسلات التقاطع المستثناة — المناطق نفسها تعبر في `diffOptions.exclude` (ADR 0034). */
+  readonly excludedPixels: number
   readonly diffRatio: number
   readonly extraInA: WireExtraStrip
   readonly extraInB: WireExtraStrip
@@ -94,6 +100,7 @@ export function isReply(m: unknown): m is DiffReply {
     typeof r.diffHeight === 'number' &&
     typeof r.diffPixelCount === 'number' &&
     typeof r.comparedPixels === 'number' &&
+    typeof r.excludedPixels === 'number' &&
     typeof r.diffRatio === 'number' &&
     Array.isArray(r.regions) &&
     typeof r.overlap === 'object' &&

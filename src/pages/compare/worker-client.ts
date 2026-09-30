@@ -133,6 +133,7 @@ function outcomeFromReply(reply: DiffReply, started: number, now: () => number):
     overlap: reply.overlap,
     diffPixelCount: reply.diffPixelCount,
     comparedPixels: reply.comparedPixels,
+    excludedPixels: reply.excludedPixels,
     diffRatio: reply.diffRatio,
     extraInA: reply.extraInA,
     extraInB: reply.extraInB,
