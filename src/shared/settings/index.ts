@@ -163,13 +163,40 @@ async function applyPatch(patch: Partial<Settings>, known?: Settings): Promise<R
   return ok(settings)
 }
 
-/** يعيد كل شيء إلى الافتراضي. */
-export async function resetSettings(): Promise<Result<Settings>> {
-  const settings = defaultSettings()
-  const written = await attempt(() => chrome.storage.local.set({ [KEY]: settings }))
-  if (!written.ok) return written
-  refresh(settings)
-  return ok(settings)
+export interface ResetOptions {
+  /** «أبقِ قائمة المواقع المستثناة» في تأكيد إعادة الضبط — محدَّدٌ ابتداءً (`data / reset-confirm`). */
+  readonly keepExcludedSites: boolean
+}
+
+/**
+ * يعيد التفضيلات إلى قيمها الأولى — **بخيارٍ صريح في قائمة المواقع المستثناة، وبلا مسّ حالة التطبيق**.
+ *
+ * كانت تكتب `defaultSettings()` كاملةً: تمحو القائمة بلا سؤال، وقد صارت بياناتٍ أنشأها المستخدم بيده لا
+ * تفضيلَ عرض (`Docs/Engineering.md §6` الصفّ 118)؛ وتمحو علامة جولة التعريف فتعود الترحيبيّة كأنه تثبيتٌ
+ * جديد، و«ما الجديد» المنتظرة. فالقائمة تبقى أو تُمحى بقرار المستخدم في التأكيد، والجولة و«ما الجديد» حالةٌ لا
+ * تفضيل فتبقيان دائمًا.
+ *
+ * **وتقرأ قبل أن تكتب، في الطابور:** إبقاء القائمة يحتاج قراءتها، والقراءة الفاشلة لا تُكتب فوقها
+ * افتراضيات (الثابت الثاني، الصفّ 128) — ولا حتى حين يُطلب محو القائمة: ما لا يُقرأ لا يُعرف ما فيه.
+ */
+export function resetSettings(options: ResetOptions): Promise<Result<Settings>> {
+  return enqueue(async () => {
+    const current = await getSettingsResult()
+    if (!current.ok) return current
+    const fresh = defaultSettings()
+    const settings: Settings = {
+      ...fresh,
+      privacy: options.keepExcludedSites
+        ? { ...fresh.privacy, excludedSites: [...current.value.privacy.excludedSites] }
+        : fresh.privacy,
+      onboarding: current.value.onboarding,
+      whatsNew: current.value.whatsNew,
+    }
+    const written = await attempt(() => chrome.storage.local.set({ [KEY]: settings }))
+    if (!written.ok) return written
+    refresh(settings)
+    return ok(settings)
+  })
 }
 
 /** يشترك في تغيّر الإعدادات — يُستدعى فورًا بالقيمة الحالية. */

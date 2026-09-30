@@ -3,7 +3,7 @@
  */
 
 import { patchSettings, updateSettings, watchSettings, type Settings } from '@/shared/settings'
-import { normalizeSitePattern } from '@/shared/site-match'
+import { savedSitePattern } from '@/shared/site-match'
 
 import type { ToolShortcutMode } from '@/shared/modes'
 import type { Result } from '@/shared/result'
@@ -109,9 +109,8 @@ function editExcludedSites(
  * `bank.com`، فيرى المستخدم في القائمة ما سيُطابَق فعلًا لا ما كتبه.
  */
 export async function addExcludedSite(raw: string): Promise<Result<Settings> | 'invalid'> {
-  const pattern = normalizeSitePattern(raw)
-  if (pattern === null) return 'invalid'
-  const value = patternLabel(pattern)
+  const value = savedSitePattern(raw)
+  if (value === null) return 'invalid'
   return editExcludedSites((current) =>
     current.includes(value) ? [...current] : [...current, value],
   )
@@ -135,12 +134,12 @@ export async function importExcludedSites(
   const normalized: string[] = []
   let rejected = 0
   for (const entry of raw) {
-    const pattern = typeof entry === 'string' ? normalizeSitePattern(entry) : null
-    if (pattern === null) {
+    const value = typeof entry === 'string' ? savedSitePattern(entry) : null
+    if (value === null) {
       rejected += 1
       continue
     }
-    normalized.push(patternLabel(pattern))
+    normalized.push(value)
   }
 
   let added = 0
@@ -164,20 +163,5 @@ export async function importExcludedSites(
  * إضافته، والنقر عليه ثانيةً لا يفعل شيئًا بلا إشعار. رصدته مراجعة Gate B.
  */
 export function savedFormOf(raw: string): string | null {
-  const pattern = normalizeSitePattern(raw)
-  return pattern === null ? null : patternLabel(pattern)
-}
-
-/**
- * النصّ المحفوظ لنمطٍ مُطبَّع — يُعاد بناؤه من أجزائه لا يُحتفظ بالخام.
- *
- * `SitePattern` تحمل المضيف والمنفذ وبادئة المسار مفكَّكة، فالنصّ يُركَّب
- * منها كي يبقى ما يُعرَض هو ما يُطابَق. و`*` وحدها تعني «كل المواقع»
- * وتُحفَظ كما هي — لها معنًى في المُطابِق، وتركيبها من مضيفٍ فارغ يفقده.
- */
-function patternLabel(pattern: ReturnType<typeof normalizeSitePattern>): string {
-  if (pattern === null || pattern.everywhere) return '*'
-  const port = pattern.port === '' ? '' : `:${pattern.port}`
-  const path = pattern.pathPrefix === null ? '' : `${pattern.pathPrefix}*`
-  return `${pattern.host}${port}${path}`
+  return savedSitePattern(raw)
 }

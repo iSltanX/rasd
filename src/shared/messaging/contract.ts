@@ -108,7 +108,6 @@ export interface RequestMap {
   'tab/can-operate': { tabId: number }
   'settings/get': void
   'settings/patch': { patch: Record<string, unknown> }
-  'settings/reset': void
   'session/get': void
   'session/patch': { patch: Record<string, unknown> }
   /**
@@ -410,7 +409,6 @@ export interface ResponseMap {
   'tab/can-operate': { allowed: true } | { allowed: false; reason: GateReason }
   'settings/get': Record<string, unknown>
   'settings/patch': Record<string, unknown>
-  'settings/reset': Record<string, unknown>
   'session/get': Record<string, unknown>
   'session/patch': Record<string, unknown>
   'mode/report': { ok: true }

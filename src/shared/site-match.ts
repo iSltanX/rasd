@@ -206,6 +206,26 @@ export function matchesSitePattern(url: URL, pattern: SitePattern): boolean {
 }
 
 /**
+ * النصّ المحفوظ لنمطٍ مُطبَّع — يُعاد بناؤه من أجزائه لا يُحتفظ بالخام، فيرى المستخدم في القائمة ما سيُطابَق
+ * فعلًا لا ما كتبه. و`*` وحدها «كل المواقع» وتُحفَظ كما هي.
+ *
+ * هنا لا في صفحة الإعدادات: قائمة المواقع تُكتب من بابين — إضافةٌ باليد، واستيراد ملفّ الإعدادات
+ * (`settings/transfer.ts`) — والبابان يحفظان الشكل نفسه.
+ */
+export function sitePatternLabel(pattern: SitePattern): string {
+  if (pattern.everywhere) return '*'
+  const port = pattern.port === '' ? '' : `:${pattern.port}`
+  const path = pattern.pathPrefix === null ? '' : `${pattern.pathPrefix}*`
+  return `${pattern.host}${port}${path}`
+}
+
+/** الشكل المحفوظ لنمطٍ خام، أو `null` إن لم يصلح. */
+export function savedSitePattern(raw: string): string | null {
+  const pattern = normalizeSitePattern(raw)
+  return pattern === null ? null : sitePatternLabel(pattern)
+}
+
+/**
  * هل استثنى المستخدم هذا العنوان؟
  *
  * **نمطٌ لا يصلح يُتخطّى ولا يُسقط البقيّة**: إدخالٌ واحد تالف لا يجوز أن

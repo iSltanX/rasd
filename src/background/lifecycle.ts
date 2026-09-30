@@ -34,7 +34,7 @@ import {
 } from '@/shared/messaging'
 import { PAGE_PATHS } from '@/shared/page-paths'
 import { RasdThrow } from '@/shared/result'
-import { getSettings, patchSettings, resetSettings, watchSettings } from '@/shared/settings'
+import { getSettings, patchSettings, watchSettings } from '@/shared/settings'
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
 import { closeOffscreen, ensureOffscreen } from '@/shared/storage/offscreen'
 import { quotaState } from '@/shared/storage/quota'
@@ -165,12 +165,6 @@ function registerRequestHandlers() {
      * الرسالة يحتاج السياسة مطبَّقة فورًا، لا بعد دورة حدث إضافية.
      */
     setIncognitoWritePolicy(blocksWrites(result.value))
-    return result.value
-  })
-
-  onMessage('settings/reset', async () => {
-    const result = await resetSettings()
-    if (!result.ok) throw new Error(result.error.message)
     return result.value
   })
 
