@@ -31,6 +31,7 @@ import {
   type ToolName,
   type ToolSettings,
 } from './tools'
+import { useUiTheme } from './use-ui-theme'
 import { Annotating } from './views/Annotating'
 import { Exporting } from './views/Exporting'
 import { NotFound } from './views/NotFound'
@@ -148,7 +149,9 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
   const [, bump] = useState(0)
 
   const history = useMemo(() => createHistory(context.scene), [context.scene])
-  const style = useMemo(() => buildRenderStyle('dark'), [])
+  // ألوان الواجهة فوق القماش تتبع السمة الفعّالة، ولوحة التعليق مثبَّتة داخل `buildRenderStyle`.
+  const uiTheme = useUiTheme()
+  const style = useMemo(() => buildRenderStyle(uiTheme), [uiTheme])
   const [source, setSource] = useState<BaseSource | null>(null)
 
   // الصورة تُفكّ مرّة — `createImageBitmap` أسرع من `<img>` ولا يمرّ بطبقة
