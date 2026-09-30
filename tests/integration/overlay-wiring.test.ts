@@ -102,22 +102,41 @@ describe('ربط الطبقة', () => {
     expect(notice()).toContain('⌥⇧J')
   })
 
+  it('القطّارة لا تلتقط الشاشة خارج وضعها، وتلتقطها عند دخوله', async () => {
+    const session = await boot()
+    const frames = () => sent.filter((m) => m.type === 'colour/frame').length
+
+    // كل وضع غير اللون: التمرير يطلب إطارًا، ولا لقطة — اللقطة تُخفي الطبقة.
+    for (const mode of ['idle', 'compare', 'measure'] as const) {
+      session.modes.set(mode)
+      await settle()
+      window.dispatchEvent(new Event('scroll'))
+      await settle(200)
+    }
+    expect(frames()).toBe(0)
+
+    // الدخول وحده يطلب اللقطة، بلا حركة مؤشِّر ولا تمرير.
+    session.modes.set('colour')
+    await settle(200)
+    expect(frames()).toBe(1)
+  })
+
   it('خطأ القطّارة لا يظهر خارج وضع اللون، ويبقى ظاهرًا فيه', async () => {
     frameReply = () =>
       Promise.resolve({ ok: false, error: { code: 'unknown', message: 'تعذّر الالتقاط' } })
     const session = await boot()
     const text = () => session.host.layer.textContent ?? ''
 
-    window.dispatchEvent(new Event('scroll'))
-    await settle(200)
-    expect(sent.some((m) => m.type === 'colour/frame')).toBe(true)
-    expect(text()).not.toContain('تعذّرت قراءة اللون')
-
     session.modes.set('colour')
-    await settle()
-    window.dispatchEvent(new Event('scroll'))
     await settle(200)
     expect(session.host.layer.querySelector('[data-rasd-ov="colour-error"]')).not.toBeNull()
     expect(session.host.layer.querySelector('[data-rasd-ov="notice"]')).toBeNull()
+
+    session.modes.set('idle')
+    await settle()
+    window.dispatchEvent(new Event('scroll'))
+    await settle(200)
+    expect(text()).not.toContain('تعذّرت قراءة اللون')
+    expect(session.host.layer.querySelector('[data-rasd-ov="colour-error"]')).toBeNull()
   })
 })

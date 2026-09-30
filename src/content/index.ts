@@ -182,7 +182,12 @@ async function bootOverlay(
       elementTool?.frame(reasons)
       inspectTool?.frame(reasons)
       measureTool?.frame(reasons)
-      colourTool?.frame(reasons)
+      // **القطّارة في وضعها وحده.** إطارها يطلب لقطة كلّما وجد عيّنته قديمة —
+      // وهي قديمة عند الإقلاع وبعد كل `reset()` وكل تمرير — واللقطة تُخفي
+      // الطبقة. فكانت تُلتقط الشاشة في كل وضع، وتُبتلع أحداث المؤشِّر والعجلة
+      // التي تقع أثناء الإخفاء على المضيف لا الطبقة (`STAGES/04`: سبب تقطّع
+      // `verify:compare`، والصفّ 145 (أ) في `Docs/Engineering.md §6`).
+      if (modes.mode.peek() === 'colour') colourTool?.frame(reasons)
       colourUsageTool?.frame()
       compareTool?.frame(reasons)
       options.onFrame?.(space)
@@ -1085,6 +1090,8 @@ async function bootOverlay(
     if (mode !== 'element') element.reset()
     if (mode !== 'inspect') inspect.reset()
     if (mode !== 'measure') measure.reset()
+    // دخول وضع اللون يطلب إطارًا فتُلتقط عيّنته عند الدخول لا عند أول حركة.
+    if (mode === 'colour') sync.invalidate('manual')
     if (mode !== 'colour') {
       colour.reset()
       // مغادرة وضع اللون تُنهي الاستبدال المؤقّت: أثرٌ يبقى بعد أداته
