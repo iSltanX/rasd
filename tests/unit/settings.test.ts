@@ -126,7 +126,7 @@ describe('القراءة والكتابة', () => {
 
   it('إعادة الضبط تعيد كل شيء', async () => {
     await patchSettings({ capture: { format: 'webp' } } as never)
-    await resetSettings()
+    await resetSettings({ keepExcludedSites: false })
     expect((await getSettings()).capture.format).toBe('png')
   })
 
@@ -165,7 +165,7 @@ describe('القراءة والكتابة', () => {
     await patchSettings({ capture: { format: 'webp' } } as never)
     const set = vi.spyOn(chrome.storage.local, 'set').mockRejectedValueOnce(new Error('disk full'))
 
-    const result = await resetSettings()
+    const result = await resetSettings({ keepExcludedSites: false })
 
     expect(result.ok).toBe(false)
     expect(result.ok === false && result.error.detail).toBe('disk full')

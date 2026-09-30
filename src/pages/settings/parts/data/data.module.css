@@ -1,0 +1,150 @@
+/*
+ * ما تزيده نوافذ البيانات على هيكل `export.module.css`: كتلة الحالة (شارة · عنوان · سطر)، والتقدّم،
+ * وبطاقة «قبل أن تحذف» وصفّ الخيار، وقائمة ما أُسقط. كل قيمة من العقد.
+ */
+
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  padding-block: var(--rasd-space-12);
+  text-align: center;
+}
+
+.badge {
+  inline-size: var(--rasd-control-xl);
+  block-size: var(--rasd-control-xl);
+  display: grid;
+  place-items: center;
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-status-info-surface);
+  color: var(--rasd-status-info-fg);
+}
+
+.badge[data-tone='success'] {
+  background: var(--rasd-status-success-surface);
+  color: var(--rasd-status-success-fg);
+}
+
+.badge[data-tone='warning'] {
+  background: var(--rasd-status-warning-surface);
+  color: var(--rasd-status-warning-fg);
+}
+
+.statusTitle {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+
+.statusText {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+}
+
+/* ── التقدّم ──────────────────────────────────────────────── */
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+}
+
+.progressHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  color: var(--rasd-text-secondary);
+}
+
+/* ── بطاقة الخيار ────────────────────────────────────────── */
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  padding-block: var(--rasd-space-12);
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-sunken);
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-2);
+  min-inline-size: 0;
+}
+
+.optionTitle {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+
+.optionHint {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+}
+
+.lead {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+  line-height: var(--rasd-font-leading-relaxed);
+}
+
+/* ── ما أُسقط ─────────────────────────────────────────────── */
+
+.dropped {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  padding-block: calc(var(--rasd-space-10) * var(--rasd-density, 1));
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
+}
+
+.dropped + .dropped {
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+
+/* ── الخطأ ────────────────────────────────────────────────── */
+
+.failure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+  padding-block: var(--rasd-space-12);
+  padding-inline: var(--rasd-space-16);
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-status-danger-border);
+  background: var(--rasd-status-danger-surface);
+  color: var(--rasd-status-danger-fg);
+}
+
+.failureTitle {
+  margin: 0;
+  color: var(--rasd-status-danger-fg);
+}
+
+.failureText {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+
+.failureActions {
+  display: flex;
+  gap: var(--rasd-space-8);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+}
+
+.fieldLabel {
+  color: var(--rasd-text-secondary);
+}

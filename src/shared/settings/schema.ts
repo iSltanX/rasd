@@ -287,19 +287,38 @@ function migrateLegacyKeys(input: unknown): unknown {
   }
 }
 
+/** عطبٌ واحد في مدخَل الإعدادات: مساره الكامل، ونوع الفحص الذي سقط (`picklist` · `number` · `regex`…). */
+export interface SettingsIssue {
+  /** بالنقاط، وفهارس المصفوفات أرقام: `privacy.excludedSites.2`. فارغٌ للجذر نفسه. */
+  readonly path: string
+  readonly type: string
+  readonly message: string
+}
+
+export interface DetailedParse {
+  readonly settings: Settings
+  readonly issues: readonly SettingsIssue[]
+  /**
+   * المدخَل بعد الترحيل وإسقاط المعطوب وحده — ما قُبل منه فعلًا، بمفاتيحه كما كُتبت. استيراد ملفّ الإعدادات
+   * يدمجه فوق الحالية (`transfer.ts`) كي يبقى المعطوب على قيمته الحالية لا الافتراضية.
+   * `{}` حين يتعذّر الإنقاذ كلّه.
+   */
+  readonly salvaged: unknown
+}
+
 /**
- * يقرأ قيمة غير موثوقة ويُرجع إعدادات صالحة دائمًا.
- *
- * لا يرمي: القيمة التالفة تُستبدل بالافتراضي، والأسباب تُعاد للسجلّ.
+ * `parseSettings` بتفاصيلها — المسار ونوع الفحص لكل عطب، والمدخَل المُنقَذ. الإنقاذ نفسه لا غيره.
  */
-export function parseSettings(input: unknown): { settings: Settings; issues: string[] } {
+export function parseSettingsDetailed(input: unknown): DetailedParse {
   const migrated = migrateLegacyKeys(input ?? {})
   const result = v.safeParse(SettingsSchema, migrated)
-  if (result.success) return { settings: result.output, issues: [] }
+  if (result.success) return { settings: result.output, issues: [], salvaged: migrated }
 
-  const issues = result.issues.map(
-    (issue) => `${v.getDotPath(issue) ?? '(الجذر)'}: ${issue.message}`,
-  )
+  const issues = result.issues.map((issue) => ({
+    path: v.getDotPath(issue) ?? '',
+    type: issue.type,
+    message: issue.message,
+  }))
 
   // محاولة إنقاذ جزئية: نُسقط المفاتيح المعطوبة وحدها ونعيد التحقّق.
   if (migrated && typeof migrated === 'object') {
@@ -308,8 +327,21 @@ export function parseSettings(input: unknown): { settings: Settings; issues: str
       salvaged = dropAtPath(salvaged, path)
     }
     const retry = v.safeParse(SettingsSchema, salvaged)
-    if (retry.success) return { settings: retry.output, issues }
+    if (retry.success) return { settings: retry.output, issues, salvaged }
   }
 
-  return { settings: defaultSettings(), issues }
+  return { settings: defaultSettings(), issues, salvaged: {} }
+}
+
+/**
+ * يقرأ قيمة غير موثوقة ويُرجع إعدادات صالحة دائمًا.
+ *
+ * لا يرمي: القيمة التالفة تُستبدل بالافتراضي، والأسباب تُعاد للسجلّ.
+ */
+export function parseSettings(input: unknown): { settings: Settings; issues: string[] } {
+  const { settings, issues } = parseSettingsDetailed(input)
+  return {
+    settings,
+    issues: issues.map((issue) => `${issue.path || '(الجذر)'}: ${issue.message}`),
+  }
 }

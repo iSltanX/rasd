@@ -41,11 +41,11 @@ describe('send / onMessage', () => {
   })
 
   it('رمي المستقبِل يعود خطأً لا استثناءً', async () => {
-    onMessage('settings/reset', () => {
+    onMessage('session/get', () => {
       throw new Error('فشل داخلي')
     })
 
-    const result = await send('settings/reset', undefined)
+    const result = await send('session/get', undefined)
     expect(result.ok).toBe(false)
     expect(result.ok === false && result.error.code).toBe('handler-failed')
     expect(result.ok === false && result.error.detail).toBe('فشل داخلي')
@@ -358,12 +358,12 @@ describe('المستقبِل — السياق والردّ', () => {
 
   it('رمي `RasdThrow` يعبر الحدّ برمزه ورسالته المحدَّدتين لا العامّتين', async () => {
     const listener = capture()
-    onMessage('settings/reset', () => {
+    onMessage('session/get', () => {
       throw new RasdThrow(rasdError('permission-denied'))
     })
 
     const sendResponse = vi.fn()
-    listener()(envelope('settings/reset'), {}, sendResponse)
+    listener()(envelope('session/get'), {}, sendResponse)
     await settle()
 
     // بلا مفتاح `detail` أصلًا حين لا تفصيل — لا `detail: undefined`.
@@ -375,12 +375,12 @@ describe('المستقبِل — السياق والردّ', () => {
 
   it('رمي خطأ عاديّ يحمل نصّه في detail برمز handler-failed', async () => {
     const listener = capture()
-    onMessage('settings/reset', () => {
+    onMessage('session/get', () => {
       throw new Error('فشل داخلي')
     })
 
     const sendResponse = vi.fn()
-    listener()(envelope('settings/reset'), {}, sendResponse)
+    listener()(envelope('session/get'), {}, sendResponse)
     await settle()
 
     expect(sendResponse.mock.calls[0]![0]).toStrictEqual({
