@@ -33,7 +33,13 @@
  */
 
 import { errText, ok, type Result } from '@/shared/result'
-import { blobs, captures, putReferenceWithBlob, references } from '@/shared/storage/repository'
+import {
+  blobs,
+  captures,
+  putReferenceWithBlob,
+  references,
+  updateReferenceFor,
+} from '@/shared/storage/repository'
 
 import { suggestElementZones } from './exclusions'
 
@@ -126,13 +132,14 @@ export async function setReferenceExclusions(
   key: PageKey,
   exclusions: readonly ExclusionZone[],
 ): Promise<Result<ReferenceRecord>> {
-  const found = await findReferenceForPage(key)
-  if (!found.ok) return found
-  if (!found.value) return errText('not-found', 'لا مرجع محفوظًا لهذا المقاس.')
-  const record: ReferenceRecord = { ...found.value, exclusions: [...exclusions] }
-  const written = await references.put(record)
+  // القراءة والكتابة في معاملة واحدة — حذفٌ أو تعيينٌ يتداخل معهما لا يُكتب فوقه بقديمه (`updateReferenceFor`).
+  const written = await updateReferenceFor(key, (record) => ({
+    ...record,
+    exclusions: [...exclusions],
+  }))
   if (!written.ok) return written
-  return ok(record)
+  if (!written.value) return errText('not-found', 'لا مرجع محفوظًا لهذا المقاس.')
+  return ok(written.value)
 }
 
 /**

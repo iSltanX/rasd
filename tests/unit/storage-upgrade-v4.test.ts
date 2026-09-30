@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto'
 import { Blob as NodeBlob } from 'node:buffer'
 
 import { openDB } from 'idb'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { closeDatabase, database, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { MIGRATIONS } from '@/shared/storage/migrations'
@@ -164,5 +164,42 @@ describe('الترقية من النسخة 3 إلى 4', () => {
     const db = await database()
     expect(db.version).toBe(DB_VERSION)
     expect(await db.count('references')).toBe(0)
+  })
+})
+
+/**
+ * المراجعة المستقلّة (`STAGES/34`): رميٌ **متزامن** من `cursor.update` لا يُجهض المعاملة بنفسه — يخرج قبل أن
+ * يُرسَل طلب، فكانت الخطوة تبتلعه وتُثبَّت الترقية على النسخة 4 بمراجع نصف مُرحَّلة. والآن يُجهض صراحةً فتبقى
+ * القاعدة على 3 كاملةً، وتُعاد المحاولة في النداء التالي لا يُرجَع الرفض المخزَّن نفسه.
+ */
+describe('الترقية إلى 4 — كلّها أو لا شيء', () => {
+  it('رميٌ متزامن في منتصف الخطوة يُبقي القاعدة على النسخة 3 بلا نصف ترحيل، والنداء التالي يعيد المحاولة', async () => {
+    await seedVersion3()
+    const update = Reflect.get(IDBCursor.prototype, 'update')
+    let calls = 0
+    const spy = vi.spyOn(IDBCursor.prototype, 'update').mockImplementation(function (
+      this: IDBCursor,
+      value: unknown,
+    ) {
+      if (++calls === 2) throw new DOMException('لا يُستنسخ', 'DataCloneError')
+      return update.call(this, value)
+    })
+
+    await expect(database()).rejects.toBeTruthy()
+    spy.mockRestore()
+
+    const raw = await openDB(DB_NAME)
+    expect(raw.version).toBe(3)
+    const untouched = await raw.getAll('references')
+    expect(untouched.map((r) => (r as { exclusions?: unknown }).exclusions)).toEqual(
+      legacyReferences.map(() => undefined),
+    )
+    raw.close()
+
+    const retried = await database()
+    expect(retried.version).toBe(4)
+    expect((await retried.getAll('references')).every((r) => Array.isArray(r.exclusions))).toBe(
+      true,
+    )
   })
 })

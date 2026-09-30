@@ -79,7 +79,14 @@ export interface SidebarProps {
  * سطر الحكم فوق النسبة — `compare / identical` (`291:12984`) و`size-mismatch` (`291:13076`).
  * كانت المقارنة المتطابقة تعرض «٠٪» كأيّ مقارنة، والمقاسان المختلفان علامةً في الدليل وحدها.
  */
-function Verdict(props: Pick<SidebarProps, 'sizeA' | 'sizeB' | 'computed' | 'diffPixelCount'>) {
+function Verdict(
+  props: Pick<
+    SidebarProps,
+    'sizeA' | 'sizeB' | 'computed' | 'diffPixelCount' | 'comparedPixels'
+  > & {
+    readonly zoneCount: number
+  },
+) {
   const { sizeA, sizeB } = props
   if (sizeA.width !== sizeB.width || sizeA.height !== sizeB.height) {
     return (
@@ -89,6 +96,24 @@ function Verdict(props: Pick<SidebarProps, 'sizeA' | 'sizeB' | 'computed' | 'dif
           <bdi dir="ltr">{formatDimensions(sizeA.width, sizeA.height)}</bdi> · ب{' '}
           <bdi dir="ltr">{formatDimensions(sizeB.width, sizeB.height)}</bdi>
         </Banner>
+      </div>
+    )
+  }
+  /*
+   * **مع مناطق الجلسة الحكمُ على جزءٍ يُسمّى بجزئه** (ADR 0034 §2): ما أُخفي قد يختلف، فلا يُقال «متطابقتان».
+   * وإن غطّت المناطق التقاطع كلّه فلا حكم أصلًا — لم يُقارَن بكسلٌ واحد (المراجعة المستقلّة، `STAGES/34`).
+   */
+  if (props.computed && props.zoneCount > 0 && props.comparedPixels === 0) {
+    return (
+      <div data-compare-verdict="all-excluded">
+        <Banner tone="warning">المناطق تغطّي ما يُقارَن كلّه — لا بكسل بقي للمقارنة.</Banner>
+      </div>
+    )
+  }
+  if (props.computed && props.zoneCount > 0 && props.diffPixelCount === 0) {
+    return (
+      <div data-compare-verdict="unchanged-important">
+        <Banner tone="success">لا فرق على المناطق المهمّة — ما استُثني لا يُقارَن.</Banner>
       </div>
     )
   }
@@ -142,7 +167,14 @@ export function Sidebar({
         />
       </section>
 
-      <Verdict sizeA={sizeA} sizeB={sizeB} computed={computed} diffPixelCount={diffPixelCount} />
+      <Verdict
+        sizeA={sizeA}
+        sizeB={sizeB}
+        computed={computed}
+        diffPixelCount={diffPixelCount}
+        comparedPixels={comparedPixels}
+        zoneCount={zones.length}
+      />
 
       <section class={cx(styles.section, styles.ratioCard)}>
         <p class={styles.ratioLabel}>

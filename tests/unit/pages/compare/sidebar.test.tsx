@@ -222,3 +222,35 @@ describe('Sidebar — بطاقة النسبة مع مناطق الجلسة', () 
     expect(ratio(el).detail).toContain('استُثني 0')
   })
 })
+
+/**
+ * المراجعة المستقلّة (`STAGES/34`): «اللقطتان متطابقتان — لا بكسل مختلف بينهما» كان يُقال ومنطقةٌ تخفي جزءًا
+ * منهما — وما أُخفي قد يختلف. الحكم على جزءٍ يُسمّى بجزئه (ADR 0034 §2).
+ */
+describe('Sidebar — الحكم مع مناطق الجلسة', () => {
+  const zone = { id: 1, rect: { space: 'device' as const, x: 0, y: 0, width: 100, height: 90 } }
+
+  it('بلا فرقٍ خارج المناطق: «لا فرق على المناطق المهمّة»، لا «متطابقتان»', () => {
+    const el = mount(
+      <Sidebar
+        {...props({ zones: [zone], excludedPixels: 9000, comparedPixels: 1000, diffPixelCount: 0 })}
+      />,
+    )
+    expect(el.querySelector('[data-compare-verdict="identical"]')).toBeNull()
+    expect(el.querySelector('[data-compare-verdict="unchanged-important"]')?.textContent).toContain(
+      'لا فرق على المناطق المهمّة',
+    )
+  })
+
+  it('المناطق تغطّي التقاطع كلّه: لا حكمَ بتطابق — لا بكسل بقي للمقارنة', () => {
+    const el = mount(
+      <Sidebar
+        {...props({ zones: [zone], excludedPixels: 10000, comparedPixels: 0, diffPixelCount: 0 })}
+      />,
+    )
+    expect(el.querySelector('[data-compare-verdict="identical"]')).toBeNull()
+    expect(el.querySelector('[data-compare-verdict="all-excluded"]')?.textContent).toContain(
+      'لا بكسل بقي للمقارنة',
+    )
+  })
+})

@@ -359,6 +359,25 @@ describe('ComparePanel — المناطق المستثناة', () => {
     expect(onAddSuggested).toHaveBeenCalledOnce()
   })
 
+  it('عند حدّ القائمة: الزرّان معطَّلان والسبب مكتوب قبل الفعل', () => {
+    const full = Array.from({ length: 32 }, (_, i) => ({ ...zones[0]!, id: `z${i}` }))
+    const el = mount(
+      <ComparePanel
+        {...panelProps({
+          zones: full,
+          onDrawZone: vi.fn(),
+          onPickZone: vi.fn(),
+          suggestedZones: 3,
+          onAddSuggested: vi.fn(),
+        })}
+      />,
+    )
+    const buttons = el.querySelectorAll<HTMLButtonElement>('.rasd-ov-cmp-zones-actions button')
+    expect([...buttons].every((b) => b.disabled)).toBe(true)
+    expect(el.textContent).toContain('بلغت القائمة حدّها — ٣٢ منطقة')
+    expect(el.querySelector('.rasd-ov-cmp-link')).toBeNull()
+  })
+
   it('النسبة على المناطق المهمّة تُسمّى كذلك، ومعها ما استُثني', () => {
     const el = mount(
       <ComparePanel

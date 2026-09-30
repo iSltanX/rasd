@@ -14,7 +14,7 @@ import {
 import { deviceRect } from '@/shared/geometry'
 import { errWith } from '@/shared/result'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
-import { blobs, captures, references } from '@/shared/storage/repository'
+import { blobs, captures, deleteReferenceWithBlob, references } from '@/shared/storage/repository'
 
 import type { ElementAnchor } from '@/shared/exclusion-schema'
 import type { CaptureRecord } from '@/shared/storage/schema'
@@ -239,6 +239,32 @@ describe('المناطق المستثناة مع مرجعها (ADR 0034)', () =>
     expect(written.ok).toBe(false)
     const found = await findReferenceForPage(KEY)
     expect(found.ok && found.value?.exclusions).toEqual([clock])
+  })
+
+  /**
+   * المراجعة المستقلّة (`STAGES/34`): القراءة والكتابة كانتا على معاملتين، فحذفٌ يقع بينهما يترك سجلًّا يتيمًا
+   * بلا بايتاته، وحفظان متلاحقان قد يُثبَّت أقدمهما. `guardWrite` ينتظر `estimate()` قبل المعاملة، فيُبطَّأ هنا
+   * في النداء الأوّل كي يقع الحذف بين قراءة الحفظ وكتابته.
+   */
+  it('حفظٌ يتداخل مع حذف المرجع لا يُحيي سجلًّا يتيمًا — القراءة والكتابة في معاملة واحدة', async () => {
+    const assigned = await assignImageAsReference(new Blob(['a']), KEY, null, NOW)
+    const record = assigned.ok ? assigned.value : null
+    const quota = { usage: 0, quota: 1e9 }
+    const estimate = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise((resolve) => setTimeout(() => resolve(quota), 20)))
+      .mockResolvedValue(quota)
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: { estimate } })
+    const [written] = await Promise.all([
+      setReferenceExclusions(KEY, [clock]),
+      new Promise((r) => setTimeout(r, 5)).then(() =>
+        deleteReferenceWithBlob(record!.id, record!.blobId),
+      ),
+    ])
+    Reflect.deleteProperty(navigator, 'storage')
+    const all = await references.getAll()
+    expect(all.ok && all.value).toEqual([])
+    expect(!written.ok && written.error.code).toBe('not-found')
   })
 
   it('مناطق العنصر من مقاسٍ آخر للصفحة نفسها تُقترح، لا من صفحةٍ أخرى ولا من المقاس نفسه', async () => {

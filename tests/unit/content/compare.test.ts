@@ -278,10 +278,33 @@ describe('المناطق المستثناة', () => {
       kind: 'rect',
       rect: { space: 'device', x: 20, y: 40, width: 100, height: 40 },
     })
-    expect(onZonesChange).toHaveBeenCalledWith(tool.state.zones.value, [])
+    expect(onZonesChange).toHaveBeenCalledWith(tool.state.zones.value)
     // والإعداد ينتهي بمنطقته، والسحب لم يحرّك المرجع.
     expect(tool.state.zoneTool.value).toBeNull()
     expect(tool.state.transform.value.tx).toBe(0)
+  })
+
+  /**
+   * المراجعة المستقلّة (`STAGES/34`): `crypto.randomUUID` غائبة عن سكربت المحتوى في صفحة `http` غير محلّية —
+   * قِيس في كروم: `isSecureContext:false` و`typeof crypto.randomUUID === 'undefined'`. فلم تكن تُنشأ منطقة هناك.
+   */
+  it('سياقٌ غير آمن بلا `randomUUID`: المنطقة تُنشأ بمعرّفٍ فريد', () => {
+    vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
+    try {
+      const tool = makeTool({ space })
+      tool.setReference(REF)
+      for (const x of [10, 100]) {
+        tool.setZoneTool('draw')
+        tool.onPointerDown(pointer(x, 10))
+        tool.onPointerUp(pointer(x + 40, 40))
+      }
+      const ids = tool.state.zones.value.map((z) => z.id)
+      expect(ids).toHaveLength(2)
+      expect(new Set(ids).size).toBe(2)
+      expect(ids.every((id) => /^[0-9a-f]{32}$/.test(id))).toBe(true)
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('سحبٌ أصغر من بكسلين لا يُنشئ منطقة', () => {
@@ -368,7 +391,7 @@ describe('المناطق المستثناة', () => {
     tool.setZones([zone], [])
     tool.removeZone('z1')
     expect(tool.state.zones.value).toEqual([])
-    expect(onZonesChange).toHaveBeenCalledWith([], [zone])
+    expect(onZonesChange).toHaveBeenCalledWith([])
   })
 
   it('المقترح يُعرض إن وُجد عنصره الآن وحده، ويُضاف بمستطيله في هذه الصفحة بمعرّفٍ جديد', () => {

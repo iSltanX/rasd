@@ -198,6 +198,36 @@ export async function updateIssues(
 }
 
 /**
+ * يقرأ مرجع صفحةٍ ويكتب ما يُرجعه `apply` له، **في معاملة واحدة** — علّة `updateIssues` نفسها (ADR 0034).
+ *
+ * كتابة المناطق المستثناة كانت قراءةً ثمّ كتابةً على معاملتين، و`guardWrite` ينتظر `estimate()` بينهما: فحذفٌ
+ * يقع في الفجوة يترك سجلًّا يتيمًا بلا بايتاته، وتعيينٌ يقع فيها يُكتب فوقه بقديمه (المراجعة المستقلّة،
+ * `STAGES/34`). و`null` حين لا مرجع لهذا المفتاح — لا شيء يُكتب.
+ */
+export async function updateReferenceFor(
+  key: { readonly origin: string; readonly path: string; readonly viewport: string },
+  apply: (record: RasdDB['references']['value']) => RasdDB['references']['value'],
+): Promise<Result<RasdDB['references']['value'] | null>> {
+  const guard = await guardWrite(0)
+  if (!guard.ok) return guard
+
+  return withDb(async (db) => {
+    const tx = db.transaction('references', 'readwrite')
+    try {
+      const sameOrigin = await tx.store.index('origin').getAll(key.origin)
+      const current = sameOrigin.find((r) => r.path === key.path && r.viewport === key.viewport)
+      const next = current ? apply(current) : null
+      if (next) await tx.store.put(next)
+      await tx.done
+      return next
+    } catch (thrown) {
+      abortQuietly(tx)
+      throw thrown
+    }
+  })
+}
+
+/**
  * رميٌ متزامن داخل المعاملة (مفتاحٌ لا يقبله IndexedDB، أو `apply` ترمي) يخرج قبل `tx.done` فلا يُجهضها —
  * فتُثبَّت الكتابات التي سبقته وحدها. الإجهاض الصريح يعيد «كلّها أو لا شيء» (المراجعة المستقلّة). والمعاملة
  * المنتهية أصلًا لا تُجهَض، فيُبتلع ذلك الرمي وحده.

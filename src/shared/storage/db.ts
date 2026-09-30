@@ -27,10 +27,18 @@ export function incognitoWritesBlocked(): boolean {
   return blockIncognitoWrites && isIncognitoContext()
 }
 
-/** يفتح القاعدة (مرة واحدة) ويشغّل الترحيل عند الحاجة. */
+/**
+ * يفتح القاعدة (مرة واحدة) ويشغّل الترحيل عند الحاجة.
+ *
+ * **الفتح الفاشل لا يُخزَّن:** ترقيةٌ أُجهضت (قرصٌ ممتلئ في خطوةٍ تكتب بيانات، أوّلها النسخة 4) كانت تُرجع
+ * الرفضَ نفسه لكل نداءٍ بعدها حتى يُعاد تشغيل العامل. فيُنسى الوعد الفاشل، والنداء التالي يحاول ثانيةً
+ * (المراجعة المستقلّة، `STAGES/34`).
+ */
 export function database(): Promise<IDBPDatabase<RasdDB>> {
   dbPromise ??= openDB<RasdDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion, newVersion, transaction) {
+      // `openDB` نفسه يرفض بإجهاض الترقية؛ ووعد `done` هذا لا ينتظره أحد، فلا يُترك رفضًا يتيمًا.
+      transaction.done.catch(() => undefined)
       runMigrations(db, transaction, oldVersion, newVersion ?? DB_VERSION)
     },
     blocked() {
@@ -40,6 +48,9 @@ export function database(): Promise<IDBPDatabase<RasdDB>> {
     terminated() {
       dbPromise = null
     },
+  }).catch((error: unknown) => {
+    dbPromise = null
+    throw error
   })
   return dbPromise
 }
@@ -77,7 +88,7 @@ export async function withDb<T>(fn: (db: IDBPDatabase<RasdDB>) => Promise<T>): P
 /** للاختبارات: يغلق القاعدة ويُنسي النسخة المفتوحة. */
 export async function closeDatabase() {
   if (!dbPromise) return
-  const db = await dbPromise
-  db.close()
+  const db = await dbPromise.catch(() => null)
+  db?.close()
   dbPromise = null
 }

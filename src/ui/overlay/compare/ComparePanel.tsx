@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks'
 
 import { formatDimensions, formatHuman, formatPercent, plural } from '@/shared/bidi'
+import { EXCLUSION_LIMITS } from '@/shared/exclusion-schema'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
@@ -313,7 +314,14 @@ export function ComparePanel({
                 </span>
               </p>
             ))}
-          {suggestedZones > 0 && onAddSuggested ? (
+          {/* الحدّ يُعلَن قبل الفعل لا بعد رفض الحفظ — نفس الحدّ الذي تتحقّق به الخلفية. */}
+          {zones.length >= EXCLUSION_LIMITS.zones ? (
+            <p class="rasd-ov-cmp-zones-note">
+              بلغت القائمة حدّها — {formatHuman(EXCLUSION_LIMITS.zones)} منطقة. احذف منطقةً لتضيف
+              غيرها.
+            </p>
+          ) : null}
+          {suggestedZones > 0 && onAddSuggested && zones.length < EXCLUSION_LIMITS.zones ? (
             <p class="rasd-ov-cmp-zones-note">
               {plural(suggestedZones, 'منطقة عنصر', 'منطقتا عنصر', 'مناطق عنصر')} من مقاسات أخرى
               لهذه الصفحة.{' '}
@@ -327,6 +335,7 @@ export function ComparePanel({
               type="button"
               class="rasd-ov-cmp-btn"
               aria-pressed={zoneTool === 'draw'}
+              disabled={zones.length >= EXCLUSION_LIMITS.zones}
               onClick={onDrawZone}
             >
               <Icon name="capture-area" size="sm" />
@@ -337,6 +346,7 @@ export function ComparePanel({
                 type="button"
                 class="rasd-ov-cmp-btn"
                 aria-pressed={zoneTool === 'pick'}
+                disabled={zones.length >= EXCLUSION_LIMITS.zones}
                 onClick={onPickZone}
               >
                 <Icon name="capture-element" size="sm" />

@@ -42,6 +42,7 @@ import {
 } from '@/modules/compare/overlay'
 import { pickAt } from '@/modules/dom-picker/hit-test'
 import { identify, refind } from '@/modules/dom-picker/identity'
+import { EXCLUSION_LIMITS, type ElementAnchor, type ExclusionZone } from '@/shared/exclusion-schema'
 import {
   fromDomRect,
   normalizeRect,
@@ -55,7 +56,6 @@ import {
 } from '@/shared/geometry'
 
 import type { SyncReason } from '../sync'
-import type { ElementAnchor, ExclusionZone } from '@/shared/exclusion-schema'
 
 // `ui/` يحتاج الأنواع الثلاثة أيضًا (خصائص `ReferenceOverlay.tsx`) — تعيش في
 // modules/compare/overlay.ts لا هنا، انظر تعليق تعريفها هناك. تُعاد هنا بلا
@@ -102,8 +102,8 @@ export interface CompareOptions {
   skip?: Element | null
   /** فضاء الإحداثيات الحيّ — نسبة البكسل لمستطيل العنصر. */
   space?: () => CoordSpace
-  /** قائمةٌ جديدة يجب أن تُحفظ مع المرجع — الحفظ خارج هذا الملفّ، و`previous` لإعادتها إن فشل. */
-  onZonesChange?: (zones: readonly ExclusionZone[], previous: readonly ExclusionZone[]) => void
+  /** قائمةٌ جديدة يجب أن تُحفظ مع المرجع — الحفظ خارج هذا الملفّ (`zone-saver.ts`). */
+  onZonesChange?: (zones: readonly ExclusionZone[]) => void
 }
 
 export interface CompareTool {
@@ -148,6 +148,16 @@ const MIN_SCALE = 0.02
 const MAX_SCALE = 50
 const clampScale = (s: number): number => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s))
 const clampPercent = (n: number): number => Math.min(100, Math.max(0, n))
+
+/**
+ * معرِّف منطقة — `getRandomValues` لا `randomUUID`: الأخيرة غائبة عن سكربت المحتوى في صفحة `http` غير محلّية
+ * (سياقٌ غير آمن، قِيس في كروم)، فلم تكن تُنشأ منطقة هناك (المراجعة المستقلّة، `STAGES/34`). و`host.ts` يولّد
+ * معرّفه بالطريقة نفسها.
+ */
+const zoneId = (): string =>
+  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+    b.toString(16).padStart(2, '0'),
+  ).join('')
 
 export function createCompare(options: CompareOptions = {}): CompareTool {
   const win = options.win ?? window
@@ -196,10 +206,9 @@ export function createCompare(options: CompareOptions = {}): CompareTool {
   }
 
   const commitZones = (zones: readonly ExclusionZone[]): void => {
-    const previous = state.zones.peek()
     state.zones.value = zones
     resolveZones()
-    options.onZonesChange?.(zones, previous)
+    options.onZonesChange?.(zones)
   }
 
   /** العنصر المختار: إطارٌ متداخل يُستثنى كلّه — المحدِّد لا يعبر حدّ الإطار. */
@@ -287,19 +296,14 @@ export function createCompare(options: CompareOptions = {}): CompareTool {
         viewportPoint(event.clientX, event.clientY),
         state.transform.peek(),
       )
-      if (rect.width >= 2 && rect.height >= 2)
-        zone = newZone({ kind: 'rect', rect }, crypto.randomUUID(), now)
+      if (rect.width >= 2 && rect.height >= 2) zone = newZone({ kind: 'rect', rect }, zoneId(), now)
     }
     if (tool === 'pick') {
       const el = pickedAt(event)
       const rect = el ? deviceOf(el) : null
       if (el && rect) {
         const { selector, hosts, fingerprint } = identify(el, win)
-        zone = newZone(
-          { kind: 'element', selector, hosts, fingerprint, rect },
-          crypto.randomUUID(),
-          now,
-        )
+        zone = newZone({ kind: 'element', selector, hosts, fingerprint, rect }, zoneId(), now)
       }
     }
     setZoneTool(null)
@@ -326,12 +330,17 @@ export function createCompare(options: CompareOptions = {}): CompareTool {
 
   const addSuggested = (): void => {
     const now = Date.now()
-    const added = state.suggested.peek().flatMap((s) => {
-      if (s.anchor.kind !== 'element') return []
-      const found = locate(s.anchor)
-      if (found.fallback) return []
-      return [newZone({ ...s.anchor, rect: found.rect }, crypto.randomUUID(), now)]
-    })
+    // لا فوق حدّ القائمة الذي تتحقّق به الخلفية — ما زاد يُرفض عند الحفظ فتُعاد القائمة كلّها.
+    const room = Math.max(0, EXCLUSION_LIMITS.zones - state.zones.peek().length)
+    const added = state.suggested
+      .peek()
+      .slice(0, room)
+      .flatMap((s) => {
+        if (s.anchor.kind !== 'element') return []
+        const found = locate(s.anchor)
+        if (found.fallback) return []
+        return [newZone({ ...s.anchor, rect: found.rect }, zoneId(), now)]
+      })
     state.suggested.value = []
     if (added.length > 0) commitZones([...state.zones.peek(), ...added])
   }
