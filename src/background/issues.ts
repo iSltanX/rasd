@@ -169,7 +169,11 @@ export function registerIssues(): void {
 
     const byId = new Map<string, IssueObservation>(parsed.value.map((r) => [r.id, r]))
     const at = Date.now()
-    const written = await updateIssues([...byId.keys()], (issue) => {
+    const written = await updateIssues([...byId.keys()], (raw) => {
+      // السجلّ المقروء يُتحقَّق منه قبل الكتابة فوقه — التالف أو الأحدث نسخةً يُترك كما هو (ADR 0030 §4).
+      const parsed = parseIssue(raw)
+      if (!parsed.ok) return null
+      const issue = parsed.value
       const result = byId.get(issue.id)
       // مشكلةٌ لصفحةٍ أخرى لا تكتبها صفحةٌ لا تملكها — ولو عرفت معرّفها.
       if (!result || issue.page.origin !== page.origin || issue.page.path !== page.path) {

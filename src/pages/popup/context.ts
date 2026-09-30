@@ -17,6 +17,7 @@
 
 import { findReferenceForPage } from '@/modules/compare/reference'
 import { VIEWPORT_ORDER } from '@/modules/compare/viewport'
+import { parseIssue } from '@/modules/issues/schema'
 import { countByStatus } from '@/modules/issues/status'
 import { evaluateGate, type GateDecision } from '@/shared/injection-gate'
 import { hasHostPermission, originPatternFor } from '@/shared/permissions'
@@ -100,7 +101,11 @@ export async function loadPageIssues(url: string | undefined): Promise<PageIssue
   try {
     const found = await issues.byIndex('origin', page.origin)
     if (!found.ok) return null
-    const here = found.value.filter((issue) => issue.page.path === page.path)
+    // ما لا تقرؤه اللوحة ولا المكتبة لا يُعدّ هنا — نسخةٌ أحدث أو سجلٌّ تالف (`parseIssue`، ADR 0030 §4).
+    const here = found.value.flatMap((raw) => {
+      const parsed = parseIssue(raw)
+      return parsed.ok && parsed.value.page.path === page.path ? [parsed.value] : []
+    })
     return here.length > 0 ? countByStatus(here) : null
   } catch {
     return null

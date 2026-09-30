@@ -15,9 +15,11 @@ import {
   captures,
   colors,
   guides,
+  issues,
   palettes,
   projects,
   references,
+  updateIssues,
 } from '@/shared/storage/repository'
 
 import type { ProjectRecord } from '@/shared/storage/schema'
@@ -152,7 +154,7 @@ export async function moveGuidesToProject(
   return ok(moved)
 }
 
-/** ينقل كل ما يشير إلى `fromProjectId` في مخزن واحد إلى `toProjectId` — خطوة واحدة من خمس. */
+/** ينقل كل ما يشير إلى `fromProjectId` في مخزن واحد إلى `toProjectId` — خطوة واحدة من ستّ. */
 async function reassignCaptures(
   fromProjectId: string,
   toProjectId: string | null,
@@ -219,6 +221,28 @@ async function reassignGuides(
 }
 
 /**
+ * المشكلات (`STAGES/32`) كأخواتها — ولكن في معاملة واحدة بـ`updateIssues`: الخلفية قد تكتب نتيجة فحصٍ على
+ * المشكلة نفسها في اللحظة ذاتها، وكتابةٌ عمياء فوقها تُضيّع حدثًا من تاريخها. وبلا هذه الخطوة كانت مشكلات
+ * المشروع المحذوف تبقى بمعرّفٍ ميّت: لا يطابقها مرشّح مشروعٍ ولا «بلا مشروع» (المراجعة المستقلّة).
+ */
+async function reassignIssues(
+  fromProjectId: string,
+  toProjectId: string | null,
+): Promise<Result<null>> {
+  const found = await issues.byIndex('projectId', fromProjectId)
+  if (!found.ok) return found
+  const at = Date.now()
+  const written = await updateIssues(
+    found.value.map((issue) => issue.id),
+    (issue) =>
+      issue.projectId === fromProjectId
+        ? { ...issue, projectId: toProjectId, updatedAt: at }
+        : null,
+  )
+  return written.ok ? ok(null) : written
+}
+
+/**
  * يحذف مشروعًا وينقل محتواه أوّلًا — بالترتيب: كل مخزن ثم حذف سجلّ المشروع
  * نفسه أخيرًا. الترتيب مقصود: لو حُذف سجلّ المشروع أوّلًا ثم فشل نقل محتوى
  * لاحقًا، تبقى لقطات تشير إلى معرّف مشروع لم يعد له وجود — سجلّات يتيمة
@@ -241,6 +265,7 @@ export async function deleteProject(
     reassignPalettes,
     reassignReferences,
     reassignGuides,
+    reassignIssues,
   ]
   for (const step of steps) {
     const result = await step(id, moveContentTo)

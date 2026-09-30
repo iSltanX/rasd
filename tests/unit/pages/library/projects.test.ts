@@ -19,10 +19,13 @@ import {
   captures,
   colors,
   guides,
+  issues,
   palettes,
   projects,
   references,
 } from '@/shared/storage/repository'
+
+import { issueFixture } from '../../modules/issues/fixture'
 
 import type { CaptureRecord } from '@/shared/storage/schema'
 
@@ -268,6 +271,30 @@ describe('deleteProject — ينقل المحتوى قبل الحذف', () => {
 
     // لم يُحذف — لأن الرفض وقع قبل أي خطوة تنفيذية.
     expect((await projects.get(sourceId)).ok).toBe(true)
+  })
+
+  it('المشكلات تنتقل مع المشروع المحذوف — أو تصير «بلا مشروع» — ولا تبقى معلَّقةً بمعرّفٍ ميّت', async () => {
+    const source = await createProject('المتجر', '#0090FF', NOW)
+    const target = await createProject('المنصّة', '#30A46C', NOW)
+    const sourceId = source.ok ? source.value.id : ''
+    const targetId = target.ok ? target.value.id : ''
+    await issues.putMany([
+      issueFixture({ id: 'i1', projectId: sourceId }),
+      issueFixture({ id: 'i2', projectId: sourceId }),
+      issueFixture({ id: 'i3', projectId: null }),
+    ])
+
+    expect((await deleteProject(sourceId, targetId)).ok).toBe(true)
+    const moved = await issues.getAll()
+    expect(moved.ok && moved.value.map((i) => [i.id, i.projectId])).toEqual([
+      ['i1', targetId],
+      ['i2', targetId],
+      ['i3', null],
+    ])
+
+    expect((await deleteProject(targetId, null)).ok).toBe(true)
+    const freed = await issues.getAll()
+    expect(freed.ok && freed.value.every((i) => i.projectId === null)).toBe(true)
   })
 
   it('مشروعٌ بلا محتوى يُحذف بلا أي إعادة تعيين', async () => {

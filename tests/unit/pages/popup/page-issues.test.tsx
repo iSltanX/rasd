@@ -124,6 +124,16 @@ describe('loadPopup — مشكلات الصفحة بأصلها ومسارها و
     expect(read).not.toHaveBeenCalled()
   })
 
+  it('لا تعدّ ما لا تقرؤه اللوحة ولا المكتبة: نسخةٌ أحدث أو حالةٌ مجهولة (المراجعة المستقلّة)', async () => {
+    await seed(issueAt('a', 'open'), { ...issueAt('b', 'open'), schemaVersion: 2 })
+    await issues.put({ ...issueAt('c', 'open'), status: 'closed' as never })
+    expect(await loadPageIssues(URL_OF_TAB)).toEqual({
+      open: 1,
+      'needs-verification': 0,
+      resolved: 0,
+    })
+  })
+
   it('قراءةٌ تفشل أو ترمي ⇐ null بصمت، لا رفض يُسقط النافذة', async () => {
     vi.spyOn(issues, 'byIndex').mockResolvedValueOnce(errWith('unknown', 'boom'))
     expect(await loadPageIssues(URL_OF_TAB)).toBeNull()

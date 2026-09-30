@@ -144,13 +144,18 @@ export async function putIssueWithEvidence(
   return withDb(async (db) => {
     const tx = db.transaction(['captures', 'blobs', 'annotations', 'issues'], 'readwrite')
     const blobRecord: BlobRecord = { id: capture.id, blob, mime: blob.type, bytes: blob.size }
-    await Promise.all([
-      tx.objectStore('captures').put(capture),
-      tx.objectStore('blobs').put(blobRecord),
-      ...(annotation ? [tx.objectStore('annotations').put(annotation)] : []),
-      tx.objectStore('issues').put(issue),
-      tx.done,
-    ])
+    try {
+      await Promise.all([
+        tx.objectStore('captures').put(capture),
+        tx.objectStore('blobs').put(blobRecord),
+        ...(annotation ? [tx.objectStore('annotations').put(annotation)] : []),
+        tx.objectStore('issues').put(issue),
+        tx.done,
+      ])
+    } catch (thrown) {
+      abortQuietly(tx)
+      throw thrown
+    }
     return issue.id
   })
 }
@@ -172,17 +177,36 @@ export async function updateIssues(
   return withDb(async (db) => {
     const tx = db.transaction('issues', 'readwrite')
     const written: IssueRecord[] = []
-    for (const id of ids) {
-      const current = await tx.store.get(id)
-      if (!current) continue
-      const next = apply(current)
-      if (!next) continue
-      await tx.store.put(next)
-      written.push(next)
+    try {
+      for (const id of ids) {
+        const current = await tx.store.get(id)
+        if (!current) continue
+        const next = apply(current)
+        if (!next) continue
+        await tx.store.put(next)
+        written.push(next)
+      }
+      await tx.done
+    } catch (thrown) {
+      abortQuietly(tx)
+      throw thrown
     }
-    await tx.done
     return written
   })
+}
+
+/**
+ * رميٌ متزامن داخل المعاملة (مفتاحٌ لا يقبله IndexedDB، أو `apply` ترمي) يخرج قبل `tx.done` فلا يُجهضها —
+ * فتُثبَّت الكتابات التي سبقته وحدها. الإجهاض الصريح يعيد «كلّها أو لا شيء» (المراجعة المستقلّة). والمعاملة
+ * المنتهية أصلًا لا تُجهَض، فيُبتلع ذلك الرمي وحده.
+ */
+function abortQuietly(tx: { abort(): void; done: Promise<void> }): void {
+  try {
+    tx.abort()
+  } catch {
+    /* انتهت المعاملة قبل الإجهاض — لا شيء يُتراجَع عنه */
+  }
+  tx.done.catch(() => undefined)
 }
 
 /**
