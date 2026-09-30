@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'preact/hooks'
 
+import { requestPersistence } from '@/shared/storage/persistence'
 import { AppSidebar, type SidebarGroup } from '@/ui/components/AppSidebar/AppSidebar'
 
 import styles from './AppShell.module.css'
@@ -69,6 +70,8 @@ export function AppShell({
     let cancelled = false
     void loadSidebarData().then((result) => {
       if (!cancelled && result.ok) setData(result.value)
+      // مكتبةٌ غير فارغة حُفظ فيها شيء: يُطلب التخزين الدائم إن لم يُمنح (`persistence.ts`).
+      if (result.ok && result.value.all > 0) void requestPersistence()
     })
     return () => {
       cancelled = true
