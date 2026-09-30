@@ -17,7 +17,7 @@ import {
   type TemplateRecord,
 } from '@/shared/guide-schema'
 import { errText, ok, type Result } from '@/shared/result'
-import { blobs, captures, guides, templates } from '@/shared/storage/repository'
+import { blobs, captures, guides, templates, writeGuide } from '@/shared/storage/repository'
 
 import type { CaptureRecord, GuideRecord } from '@/shared/storage/schema'
 
@@ -94,8 +94,8 @@ export async function loadGuide(id: string): Promise<Result<GuideView>> {
 const clip = (text: string, max: number): string => (text.length > max ? text.slice(0, max) : text)
 
 /**
- * يحفظ العنوان والخطوات بترتيبها. **الحالة المعروضة هي ما يُكتب** — لا قراءةٌ ثمّ دمج: الصفحة وحدها تحرّر هذا
- * الدليل، والحذف الذي ينظّف لقطةً منه (`deleteCaptureWithBlob`) يقع خارجها فيُقرأ بعد العودة.
+ * يحفظ العنوان والخطوات بترتيبها — ترتيب الصفحة ونصّها، **وعضوية القاعدة** (`writeGuide`): لقطةٌ حذفها الحذف
+ * الدوري بعد أن قُرئ الدليل لا تعود بحفظه. والنتيجة ما كُتب فعلًا، فتعرضه الصفحة.
  */
 export async function saveGuide(
   guide: GuideRecord,
@@ -115,9 +115,7 @@ export async function saveGuide(
     stepText: stepTextFrom(clean),
     updatedAt: now,
   }
-  const written = await guides.put(next)
-  if (!written.ok) return written
-  return ok(next)
+  return writeGuide(next)
 }
 
 /** ينقل خطوةً من موضعٍ إلى آخر — دالّةٌ خالصة للسحب والأزرار معًا. */

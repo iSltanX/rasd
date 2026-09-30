@@ -21,7 +21,13 @@ import {
   stepTextOf,
 } from '@/shared/guide-schema'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
-import { blobs, captures, guides, templates } from '@/shared/storage/repository'
+import {
+  blobs,
+  captures,
+  deleteCaptureWithBlob,
+  guides,
+  templates,
+} from '@/shared/storage/repository'
 
 import type { CaptureRecord } from '@/shared/storage/schema'
 
@@ -165,6 +171,56 @@ describe('loadGuide وsaveGuide', () => {
     expect(saved.value.updatedAt).toBe(NOW + 9)
   })
 
+  /*
+   * المراجعة المستقلّة (`STAGES/06`): الحذف الدوري يجري والصفحة مفتوحة، فحفظٌ بخطواتٍ قرأتها الصفحة قبله كان
+   * يعيد اللقطة المحذوفة إلى الدليل بنصّها — ما نظّفه `deleteCaptureWithBlob` (الصفّ 299).
+   */
+  it('**لقطةٌ حُذفت بعد أن قُرئ الدليل لا تعود بحفظه**، ولا نصّها', async () => {
+    await captures.putMany([capture('x'), capture('y')])
+    const guide = {
+      id: 'g',
+      title: 'دليل',
+      projectId: null,
+      captureIds: ['x', 'y'],
+      createdAt: NOW,
+      stepText: { x: { title: 'سرّي', note: 'n' } },
+      updatedAt: NOW,
+    }
+    await guides.put(guide)
+    const view = await loadGuide('g')
+    if (!view.ok) throw new Error(view.error.message)
+
+    await deleteCaptureWithBlob('x')
+    const saved = await saveGuide(
+      guide,
+      'دليل',
+      view.value.steps.map((s) => (s.captureId === 'y' ? { ...s, title: 'افتح' } : s)),
+      NOW + 1,
+    )
+    if (!saved.ok) throw new Error(saved.error.message)
+    const stored = await guides.get('g')
+    expect(stored.ok && [stored.value.captureIds, stored.value.stepText]).toEqual([
+      ['y'],
+      { y: { title: 'افتح', note: '' } },
+    ])
+    expect(saved.value.captureIds).toEqual(['y'])
+  })
+
+  it('ودليلٌ حُذف والصفحة مفتوحة لا يُعاد إنشاؤه بحفظها', async () => {
+    const guide = {
+      id: 'g',
+      title: 'دليل',
+      projectId: null,
+      captureIds: [],
+      createdAt: NOW,
+      stepText: {},
+      updatedAt: NOW,
+    }
+    const saved = await saveGuide(guide, 'دليل', [], NOW)
+    expect(saved.ok).toBe(false)
+    expect((await guides.get('g')).ok).toBe(false)
+  })
+
   it('عنوانٌ فارغ يُحفظ بالعنوان الافتراضي', async () => {
     const guide = {
       id: 'g',
@@ -175,6 +231,7 @@ describe('loadGuide وsaveGuide', () => {
       stepText: {},
       updatedAt: NOW,
     }
+    await guides.put(guide)
     const saved = await saveGuide(guide, '   ', [], NOW)
     expect(saved.ok && saved.value.title).toBe(NEW_GUIDE_TITLE)
   })

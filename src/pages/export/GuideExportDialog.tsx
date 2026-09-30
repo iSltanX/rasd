@@ -89,7 +89,13 @@ export interface GuideExportDialogProps {
 type Phase =
   | { readonly kind: 'options' }
   | { readonly kind: 'template' }
-  | { readonly kind: 'running'; readonly done: number; readonly total: number }
+  | {
+      readonly kind: 'running'
+      readonly done: number
+      readonly total: number
+      /** الملفّ بُني ويُسلَّم — لا إلغاء بعدها: التنزيل في طريقه (المراجعة المستقلّة). */
+      readonly delivering?: boolean
+    }
   | {
       readonly kind: 'done'
       readonly delivered: Delivered
@@ -230,6 +236,12 @@ export function GuideExportDialog(props: GuideExportDialogProps): JSX.Element {
           setPhase({ kind: 'error', message: result.error.message })
           return
         }
+        setPhase({
+          kind: 'running',
+          done: props.steps.length,
+          total: props.steps.length,
+          delivering: true,
+        })
         const url = URL.createObjectURL(result.value.blob)
         if (urlRef.current) URL.revokeObjectURL(urlRef.current)
         urlRef.current = url
@@ -271,6 +283,7 @@ export function GuideExportDialog(props: GuideExportDialogProps): JSX.Element {
   }
 
   const onCancelRun = (): void => {
+    if (phase.kind === 'running' && phase.delivering) return
     run.current?.abort()
     setPhase({ kind: 'cancelled' })
   }
@@ -358,14 +371,20 @@ export function GuideExportDialog(props: GuideExportDialogProps): JSX.Element {
               </div>
             </div>
             <footer class={styles.actions}>
-              <Button
-                variant="secondary"
-                size="l"
-                onClick={onCancelRun}
-                data-guide-export-cancel=""
-              >
-                ألغِ
-              </Button>
+              {phase.delivering ? (
+                <p class={cx(styles.note, local.stretch)} data-guide-export-delivering="">
+                  يُسلَّم الملفّ…
+                </p>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="l"
+                  onClick={onCancelRun}
+                  data-guide-export-cancel=""
+                >
+                  ألغِ
+                </Button>
+              )}
             </footer>
           </>
         ) : phase.kind === 'done' ? (

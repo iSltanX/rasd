@@ -33,9 +33,14 @@ vi.mock('@/pages/handoff/evidence', () => ({
       dispose: () => undefined,
     }),
 }))
+const delivered: string[] = []
+let deliverGate: Promise<void> = Promise.resolve()
 vi.mock('@/pages/export/deliver', () => ({
-  deliver: (input: { filename: string }) =>
-    Promise.resolve({ route: 'anchor', downloadId: null, shown: input.filename }),
+  deliver: async (input: { filename: string }) => {
+    await deliverGate
+    delivered.push(input.filename)
+    return { route: 'anchor', downloadId: null, shown: input.filename }
+  },
   revealDownload: () => undefined,
 }))
 vi.mock('@/shared/permissions', () => ({
@@ -96,6 +101,8 @@ const radio = (format: string) =>
 
 beforeEach(async () => {
   runs.length = 0
+  delivered.length = 0
+  deliverGate = Promise.resolve()
   closed = 0
   outcome = () =>
     Promise.resolve({
@@ -197,6 +204,42 @@ describe('الأطوار', () => {
     q<HTMLButtonElement>('[data-guide-export-again]')?.click()
     await flush()
     expect(phase()).toBe('options')
+  })
+
+  /*
+   * المراجعة المستقلّة (`STAGES/06`): «ألغِ» كان ظاهرًا أثناء التسليم، فيُنزَّل الملفّ بعد «أُلغي» وتستبدل «جاهز»
+   * شاشةَ الإلغاء. والآن: إلغاءٌ قبل التسليم لا يُسلِّم، وأثناء التسليم لا زرّ إلغاء.
+   */
+  it('**إلغاءٌ بعد البناء وقبل التسليم لا يُسلِّم ملفًّا**، والطور يبقى «أُلغي»', async () => {
+    let release: () => void = () => undefined
+    outcome = () =>
+      new Promise((resolve) => {
+        release = () =>
+          resolve({ ok: true, value: { blob: new Blob(['x']), filename: 'دليل.pdf', pages: 2 } })
+      })
+    mount()
+    await flush()
+    q<HTMLButtonElement>('[data-guide-export-run]')?.click()
+    await waitFor(() => phase() === 'running')
+    q<HTMLButtonElement>('[data-guide-export-cancel]')?.click()
+    release()
+    await flush()
+    await flush()
+    expect(phase()).toBe('cancelled')
+    expect(delivered).toEqual([])
+  })
+
+  it('**وأثناء التسليم لا زرّ إلغاء** — الملفّ في طريقه ولا يُوعد بما لا يُنفَّذ', async () => {
+    let open: () => void = () => undefined
+    deliverGate = new Promise((resolve) => (open = resolve))
+    mount()
+    await flush()
+    q<HTMLButtonElement>('[data-guide-export-run]')?.click()
+    await waitFor(() => q('[data-guide-export-delivering]') !== null)
+    expect(q('[data-guide-export-cancel]')).toBeNull()
+    open()
+    await waitFor(() => phase() === 'done')
+    expect(delivered).toEqual(['دليل.pdf'])
   })
 
   it('Escape يغلق النافذة، والتركيز أوّل ما تُفتح على زرّ الإغلاق', async () => {

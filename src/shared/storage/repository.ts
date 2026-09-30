@@ -11,7 +11,14 @@ import { errWith, ok, type Result } from '../result'
 import { database, guardWrite, withDb } from './db'
 
 import type { IssueRecord } from '../issue-schema'
-import type { AnnotationRecord, BlobRecord, CaptureRecord, RasdDB, StoreName } from './schema'
+import type {
+  AnnotationRecord,
+  BlobRecord,
+  CaptureRecord,
+  GuideRecord,
+  RasdDB,
+  StoreName,
+} from './schema'
 
 type RecordOf<S extends StoreName> = RasdDB[S]['value']
 type KeyOf<S extends StoreName> = RasdDB[S]['key']
@@ -372,6 +379,38 @@ export async function deleteCaptureWithBlob(id: string): Promise<Result<null>> {
     ])
     return null
   })
+}
+
+/**
+ * يكتب الدليل من الصفحة **فوق ما في القاعدة لا فوق ما قرأته الصفحة** — في معاملة واحدة.
+ *
+ * الحذف الدوري (`retention.ts`) يجري والصفحة مفتوحة، و`deleteCaptureWithBlob` يُزيل اللقطة ونصّها من الدليل في
+ * معاملته. فحفظٌ بخطواتٍ قُرئت قبله كان يعيد اللقطة المحذوفة بنصّها (المراجعة المستقلّة، `STAGES/06`). فتُقرأ
+ * العضوية الحاضرة هنا وتُكتب خطوات الصفحة الباقية فيها وحدها بترتيب الصفحة، ودليلٌ حُذف لا يُعاد إنشاؤه.
+ */
+export async function writeGuide(next: GuideRecord): Promise<Result<GuideRecord>> {
+  const guard = await guardWrite(0)
+  if (!guard.ok) return guard
+  const written = await withDb(async (db) => {
+    const tx = db.transaction('guides', 'readwrite')
+    const current = await tx.store.get(next.id)
+    if (!current) {
+      await tx.done
+      return null
+    }
+    const alive = new Set(current.captureIds)
+    const kept = guideSteps(next).filter((step) => alive.has(step.captureId))
+    const record: GuideRecord = {
+      ...next,
+      captureIds: kept.map((step) => step.captureId),
+      stepText: stepTextFrom(kept),
+    }
+    await Promise.all([tx.store.put(record), tx.done])
+    return record
+  })
+  if (!written.ok) return written
+  if (written.value === null) return errWith('not-found', `guides/${next.id}`)
+  return ok(written.value)
 }
 
 /**

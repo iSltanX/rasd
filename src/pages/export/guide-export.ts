@@ -24,10 +24,11 @@ import {
   renderGuideMarkdown,
   type GuideHtmlImage,
   type GuideHtmlPalette,
+  STEP_FORMS,
   type GuideModel,
 } from '@/modules/export/guide'
 import { fullPageWindow, pageBox, textPagePixels } from '@/modules/export/pdf-layout'
-import { formatHuman } from '@/shared/bidi/numerals'
+import { countText, formatHuman } from '@/shared/bidi/numerals'
 import { errText, ok, type Result } from '@/shared/result'
 import { resolveColor } from '@/tokens/tokens'
 
@@ -106,6 +107,8 @@ async function bakeSteps(
           : `صورة الخطوة ${formatHuman(step.ordinal)}: ${source.error.message}`
       return errText(source.error.code, what, step.captureId)
     }
+    // إلغاءٌ وقع أثناء قراءة اللقطة: لا يُبدأ خبزٌ لن يُسلَّم (المراجعة المستقلّة).
+    if (input.signal.aborted) return cancelled()
     const run = startExport({
       scene: source.value.scene,
       sourceBlob: source.value.blob,
@@ -198,7 +201,7 @@ async function buildGuidePdf(
     ? null
     : {
         title: model.title,
-        subject: `دليل خطوات — ${model.steps.length}`,
+        subject: `دليل خطوات — ${countText(model.steps.length, STEP_FORMS)}`,
         keywords: [],
         createdAt: new Date(model.generatedAt),
       }

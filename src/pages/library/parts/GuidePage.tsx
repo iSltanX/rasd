@@ -115,6 +115,9 @@ export function GuidePage({ id, onBack, onChanged, now = Date.now }: GuidePagePr
       }
       setSaveError(null)
       setGuide(saved.value)
+      // ما كُتب هو المعروض: خطوةٌ حُذفت لقطتها أثناء التحرير تغيب هنا كما غابت من القاعدة.
+      const alive = new Set(saved.value.captureIds)
+      setSteps((prev) => prev.filter((s) => alive.has(s.captureId)))
       dirty.current = false
       onChanged?.()
       return true
