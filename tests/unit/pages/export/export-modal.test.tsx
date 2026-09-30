@@ -117,6 +117,23 @@ describe('ExportModal — PDF', () => {
     )
   })
 
+  it('**خصائص الملف تُقال قبل التصدير**: ما يُكتب في قاموس Info وكيف يُحذف', () => {
+    const row = mount({ format: 'pdf' }).querySelector<HTMLElement>('[data-export-properties]')!
+    expect(row.dataset.exportProperties).toBe('written')
+    expect(row.textContent).toContain('الرابط')
+  })
+
+  it('ومع الحذف يقول إنها محذوفة', () => {
+    const row = mount({ format: 'pdf', stripMetadata: true }).querySelector<HTMLElement>(
+      '[data-export-properties]',
+    )!
+    expect(row.dataset.exportProperties).toBe('stripped')
+  })
+
+  it('والصور بلا هذا السطر — لا قاموس فيها', () => {
+    expect(mount({ format: 'png' }).querySelector('[data-export-properties]')).toBeNull()
+  })
+
   it('مفتاحا الوثيقة يعملان مع PDF', () => {
     const root = mount({ format: 'pdf' })
     expect(toggle(root, 'notes').hasAttribute('data-export-toggle-disabled')).toBe(false)

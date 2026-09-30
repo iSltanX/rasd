@@ -16,6 +16,7 @@ import { reportFilename } from '@/modules/export/filename'
 import { PAGE_FORMS, PAGE_SIZE_IDS, PAGE_SIZES, type PageSizeId } from '@/modules/export/pdf-layout'
 import { formatDimensions } from '@/shared/bidi'
 import { countText, formatPercent, formatStorage } from '@/shared/bidi/numerals'
+import { getSettingsResult } from '@/shared/settings'
 import { projects } from '@/shared/storage/repository'
 import { Banner, Button } from '@/ui/components'
 import { Checkbox } from '@/ui/components/Checkbox/Checkbox'
@@ -27,7 +28,9 @@ import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import { deliver, revealDownload, type Delivered } from '../../export/deliver'
 import sheet from '../../export/export.module.css'
+import { fileProperties } from '../../export/ExportModal'
 import { resolveRoute, usePermissionProbe } from '../../export/route'
+import { redactedSources } from '../redaction'
 import {
   DEFAULT_INCLUDE,
   REGION_FORMS,
@@ -91,7 +94,7 @@ const OPTIONS: readonly {
 ]
 
 export function ReportDialog(props: ReportDialogProps): JSX.Element {
-  const [include, setInclude] = useState<ReportInclude>(DEFAULT_INCLUDE)
+  const [include_, setInclude] = useState<ReportInclude>(DEFAULT_INCLUDE)
   const [size, setSize] = useState<PageSizeId>('a4')
   const [phase, setPhase] = useState<Phase>({ kind: 'options', error: null })
   const permission = usePermissionProbe()
@@ -120,28 +123,53 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
     [],
   )
 
-  const effective: ReportInclude = { ...include, pageLink: include.pageLink && !props.strip }
+  const effective: ReportInclude = { ...include_, pageLink: include_.pageLink && !props.strip }
 
   const run = async (route: 'managed' | 'anchor', note: string | null): Promise<void> => {
     setPhase({ kind: 'running', fraction: 0 })
+    // الإلغاء يصل قبل الخبز أيضًا: قراءة الإعدادات والمشروع والمشهدين انتظارٌ يستطيع المستخدم إلغاءه.
+    const token = { aborted: false }
+    cancelRef.current = () => {
+      token.aborted = true
+    }
+    const stop = () => setPhase({ kind: 'options', error: null })
+
+    // الحذف يُقرأ لحظة التصدير ويُغلق على الفشل — `props.strip` للعرض وحده (نمط `HandoffDialog`).
+    const settings = await getSettingsResult()
+    const strip = settings.ok ? settings.value.privacy.stripMetadataOnExport : true
     const project = props.b.projectId ? await projects.get(props.b.projectId) : null
+    const include: ReportInclude = { ...include_, pageLink: include_.pageLink && !strip }
+    const sources = include.diffImage
+      ? await redactedSources({
+          aId: props.a.id,
+          bId: props.b.id,
+          baseBlob: props.baseBlob,
+          diff: props.outcome.diff,
+        })
+      : null
+    if (token.aborted) return stop()
+    if (sources && !sources.ok) {
+      setPhase({ kind: 'options', error: sources.error.message })
+      return
+    }
+
     const input = {
       a: props.a,
       b: props.b,
       outcome: props.outcome,
       zones: props.zones,
       threshold: props.threshold,
-      include: effective,
-      strip: props.strip,
+      include,
+      strip,
     }
     const exportRun = startReportExport({
       blocks: reportBlocks(input),
-      composite: effective.diffImage
+      composite: sources?.ok
         ? {
-            base: props.baseBlob,
+            base: sources.value.base,
             width: props.b.width,
             height: props.b.height,
-            diff: props.outcome.diff,
+            diff: sources.value.diff,
             marks: reportMarks(props.outcome, props.zones),
           }
         : null,
@@ -149,8 +177,12 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
       metadata: reportMetadata(input, project?.ok ? project.value.name : null, new Date()),
       onProgress: (fraction) => setPhase({ kind: 'running', fraction }),
     })
-    cancelRef.current = () => exportRun.cancel()
+    cancelRef.current = () => {
+      token.aborted = true
+      exportRun.cancel()
+    }
     const result = await exportRun.done
+    if (token.aborted) return stop()
     if (!result.ok) {
       setPhase({
         kind: 'options',
@@ -346,7 +378,11 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
                         <div class={styles.optionText}>
                           <span class={cx(sheet.rowValue, 't-arabic-ui-s')}>{option.label}</span>
                           <span class={cx(styles.optionHint, 't-arabic-ui-xs')}>
-                            {blocked ? LINK_STRIPPED : option.hint}
+                            {blocked
+                              ? LINK_STRIPPED
+                              : option.key === 'captures' && props.strip
+                                ? 'المقاس وحده — وقت الالتقاط محذوف مع البيانات الوصفية'
+                                : option.hint}
                           </span>
                         </div>
                       </div>
@@ -378,6 +414,15 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
                       }))}
                       onChange={(v) => setSize(v as PageSizeId)}
                     />
+                  </div>
+                  <div
+                    class={sheet.row}
+                    data-report-properties={props.strip ? 'stripped' : 'written'}
+                  >
+                    <span class={sheet.rowLabel}>خصائص الملف</span>
+                    <span class={cx(sheet.rowValue, 't-arabic-ui-xs')}>
+                      {fileProperties(props.strip)}
+                    </span>
                   </div>
                 </div>
               </section>

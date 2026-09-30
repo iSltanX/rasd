@@ -197,23 +197,18 @@ export function reportBlocks(input: ReportInput): DocBlock[] {
   if (input.include.captures) {
     const size = (c: CaptureRecord) =>
       `${formatDimensions(c.width, c.height)} @${c.devicePixelRatio}×`
+    // وقت الالتقاط بيانٌ وصفيّ كالرابط (`pdf-content.ts`): يُحذف معها، والمقاس يبقى.
+    const time = (label: string, c: CaptureRecord) =>
+      input.strip ? [] : [{ label, value: formatCaptureTime(c.createdAt), mono: true }]
     blocks.push(
       { kind: 'heading', text: 'اللقطتان' },
       {
         kind: 'rows',
         rows: [
           { label: 'المرجع — المقاس', value: size(input.a), mono: true },
-          {
-            label: 'المرجع — وقت الالتقاط',
-            value: formatCaptureTime(input.a.createdAt),
-            mono: true,
-          },
+          ...time('المرجع — وقت الالتقاط', input.a),
           { label: 'الحالية — المقاس', value: size(input.b), mono: true },
-          {
-            label: 'الحالية — وقت الالتقاط',
-            value: formatCaptureTime(input.b.createdAt),
-            mono: true,
-          },
+          ...time('الحالية — وقت الالتقاط', input.b),
         ],
       },
     )

@@ -171,6 +171,14 @@ describe('ما يتضمّنه التقرير', () => {
     expect(reportMetadata(strip, 'منصّة', new Date(0))).toBeNull()
   })
 
+  it('**ووقت الالتقاط بيانٌ وصفيّ يُحذف معها** — المقاس يبقى (المراجعة المستقلّة)', () => {
+    const labels = (strip: boolean) => rowsOf(reportBlocks(input({ strip }))).map((r) => r.label)
+    expect(labels(false)).toContain('المرجع — وقت الالتقاط')
+    expect(labels(true)).not.toContain('المرجع — وقت الالتقاط')
+    expect(labels(true)).not.toContain('الحالية — وقت الالتقاط')
+    expect(labels(true)).toContain('الحالية — المقاس')
+  })
+
   it('وقاموس Info بلا حذف: العنوانان والرابط والمشروع', () => {
     expect(reportMetadata(input(), 'منصّة', new Date(0))).toEqual({
       title: 'تقرير المقارنة — الدفع v2 مقابل الدفع v1',

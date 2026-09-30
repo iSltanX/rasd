@@ -180,6 +180,9 @@ async function rgbFromRgba(image: PngImage): Promise<Result<Uint8Array>> {
   const inflater = new DecompressionStream('deflate')
   const deflater = new CompressionStream('deflate')
   const compressed = collect(deflater.readable)
+  // مسار الفشل يُجهض الضاغط فيُرفض هذا الوعد؛ ومعالجٌ من لحظة إنشائه يمنع رفضًا يتيمًا — كان يُسقط
+  // `vitest` بخروجٍ غير صفري والاختبارات كلّها خضراء، ويُطلق `unhandledrejection` في الصفحة (المراجعة المستقلّة).
+  compressed.catch(() => undefined)
   const out = deflater.writable.getWriter()
   const feed = inflater.writable.getWriter()
   void feed
@@ -201,6 +204,7 @@ async function rgbFromRgba(image: PngImage): Promise<Result<Uint8Array>> {
   const fail = async (detail: string): Promise<Result<Uint8Array>> => {
     await reader.cancel().catch(() => undefined)
     await out.abort().catch(() => undefined)
+    await compressed.catch(() => undefined)
     return errText('invalid-data', UNSUPPORTED, detail)
   }
 

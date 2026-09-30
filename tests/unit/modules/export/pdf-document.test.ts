@@ -119,6 +119,26 @@ describe('الصفحات', () => {
     expect(texts(pages).filter((t) => t.startsWith('سطر '))).toHaveLength(80)
   })
 
+  it('**صفٌّ أطول من صفحة يُقسم على أسطره ولا يفيض** — رابطٌ بأربعة آلاف محرف (المراجعة المستقلّة)', () => {
+    const url = `https://a.example/${'x'.repeat(4000)}`
+    const pages = layoutDocument(
+      [{ kind: 'rows', rows: [{ label: 'الرابط', value: url, mono: true }] }],
+      box,
+      measure,
+    )
+    expect(pages.length).toBeGreaterThan(1)
+    const values = pages.flatMap((p) =>
+      p.ops.flatMap((op) => (op.kind === 'text' && op.dir === 'ltr' ? [op.text] : [])),
+    )
+    expect(values.join('')).toBe(url)
+    for (const page of pages) {
+      for (const op of page.ops) {
+        if (op.kind !== 'text') continue
+        expect(op.y).toBeLessThanOrEqual(box.height - DOC_MARGIN)
+      }
+    }
+  })
+
   it('السطر التقني يُكتب يساري الاتجاه، والعربي يميني', () => {
     const [page] = layoutDocument(
       [

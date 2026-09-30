@@ -56,6 +56,17 @@ export const STRIPPED_REASON =
 
 export const NO_NOTES_REASON = 'لا ملاحظات ظاهرة في هذه اللقطة.'
 
+/**
+ * ما يُكتب في خصائص ملفّ PDF — **يُقال قبل التصدير لا بعده.** مفتاح «بيانات الصفحة» يحكم الصفحة المطبوعة،
+ * وقاموس `Info` يحكمه إعداد الخصوصية؛ فمن أطفأ المفتاح يرى هنا أن الرابط ما زال في الخصائص وسببه
+ * (المراجعة المستقلّة).
+ */
+export function fileProperties(strip: boolean): string {
+  return strip
+    ? 'بلا بيانات وصفية — محذوفة في الخصوصية'
+    : 'العنوان والرابط والمشروع — يحذفها «احذف البيانات الوصفية» في الخصوصية'
+}
+
 const SPLIT_HINT: Readonly<Record<PageSplit, string>> = {
   multi: 'اللقطة الطويلة تُقسم على صفحات بلا قطع سطر',
   single: 'تُصغَّر اللقطة لتسع صفحةً واحدة',
@@ -380,6 +391,17 @@ export function ExportModal(props: ExportModalProps): JSX.Element {
               <span class={cx(styles.rowLabel, 't-arabic-ui-xs')}>التعليقات</span>
               <span class={cx(styles.rowValue, 't-arabic-ui-xs-strong')}>مدموجة في الصورة</span>
             </div>
+            {document ? (
+              <div
+                class={styles.kv}
+                data-export-properties={props.stripMetadata ? 'stripped' : 'written'}
+              >
+                <span class={cx(styles.rowLabel, 't-arabic-ui-xs')}>خصائص الملف</span>
+                <span class={cx(styles.rowValue, 't-arabic-ui-xs-strong')}>
+                  {fileProperties(props.stripMetadata)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           {props.blocked ? (

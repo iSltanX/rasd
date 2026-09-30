@@ -14,6 +14,7 @@ import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
 import sheet from '../../export/export.module.css'
+import { redactedSources } from '../redaction'
 import { reportMarks, type ReportOutcome } from '../report'
 import { saveDiffCapture } from '../report-export'
 
@@ -44,20 +45,30 @@ export function DiffSavedDialog(props: DiffSavedDialogProps): JSX.Element {
 
   useEffect(() => {
     let live = true
-    void saveDiffCapture(props.a, props.b, {
-      base: props.baseBlob,
-      width: props.b.width,
-      height: props.b.height,
-      diff: props.outcome.diff,
-      marks: reportMarks(props.outcome, props.zones),
-    }).then((saved) => {
+    void (async () => {
+      // ما حُجب في مشهد اللقطتين لا يُحفظ في لقطة الفرق — اللقطة الجديدة بلا مشهد يحجبه لاحقًا.
+      const sources = await redactedSources({
+        aId: props.a.id,
+        bId: props.b.id,
+        baseBlob: props.baseBlob,
+        diff: props.outcome.diff,
+      })
+      const saved = sources.ok
+        ? await saveDiffCapture(props.a, props.b, {
+            base: sources.value.base,
+            width: props.b.width,
+            height: props.b.height,
+            diff: sources.value.diff,
+            marks: reportMarks(props.outcome, props.zones),
+          })
+        : sources
       if (!live) return
       setPhase(
         saved.ok
           ? { kind: 'saved', id: saved.value }
           : { kind: 'failed', message: saved.error.message },
       )
-    })
+    })()
     return () => {
       live = false
     }

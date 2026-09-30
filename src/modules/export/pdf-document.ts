@@ -180,7 +180,8 @@ interface Cursor {
  * يخطّط الكتل على صفحات بحجم `box`.
  *
  * **لا يُسقط سطرًا ولا يقصّه:** كتلةٌ لا تسعها بقيّة الصفحة تبدأ صفحةً جديدة، وبندٌ أطول من صفحةٍ كاملة
- * يُقسم على أسطره (عنوانه مع أوّلها). والصفّ الواحد لا يُقسم — مفتاحه وقيمته معًا أو لا شيء.
+ * يُقسم على أسطره (عنوانه مع أوّلها). والصفّ لا يُقسم ما وسعته صفحة — مفتاحه وقيمته معًا — والأطول منها
+ * تتدفّق قيمته ومفتاحه مع أوّل أسطرها.
  */
 export function layoutDocument(
   blocks: readonly DocBlock[],
@@ -271,6 +272,26 @@ export function layoutDocument(
           const height =
             Math.max(labels.length * DOC_FONTS.label.line, values.length * DOC_FONTS[font].line) +
             10
+          if (height > bottom - top) {
+            // صفٌّ أطول من صفحةٍ كاملة (رابطٌ بلا حدّ): مفتاحه مع أوّل سطر، وقيمته تتدفّق على الصفحات —
+            // كان يُرسم كتلةً واحدة فيفيض ما بعد الهامش ويضيع خارج الورقة.
+            ensure(DOC_FONTS[font].line + 10)
+            cursor.y += 5
+            const first = cursor.y
+            for (const label of labels) {
+              text(label, 'label', 'secondary', right, 'start', 'rtl')
+              cursor.y += DOC_FONTS.label.line
+            }
+            cursor.y = first
+            for (const value of values) {
+              if (!fits(DOC_FONTS[font].line)) newPage()
+              text(value, font, 'primary', left, 'end', row.mono ? 'ltr' : 'rtl')
+              cursor.y += DOC_FONTS[font].line
+            }
+            cursor.y += 5
+            page().push({ kind: 'rule', y: cursor.y, x0: left, x1: right })
+            continue
+          }
           ensure(height)
           const start = cursor.y + 5
           cursor.y = start

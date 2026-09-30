@@ -10,7 +10,7 @@ import {
   type PdfLayoutOptions,
 } from '@/modules/export/pdf-layout'
 import { collectSignals, type ExportSignal } from '@/modules/export/signals'
-import { watchSettings } from '@/shared/settings'
+import { getSettingsResult, watchSettings } from '@/shared/settings'
 import { projects } from '@/shared/storage/repository'
 
 import { copyBaked, startExport } from '../editor/export'
@@ -207,9 +207,20 @@ export function ExportFlow(props: ExportFlowProps): JSX.Element {
     setRunning(true)
     setCancelled(false)
 
-    const strip = stripMetadata.current
+    // الإلغاء يصل قبل أن يبدأ الخبز: قراءتا الإعدادات والمشروع انتظارٌ يستطيع المستخدم إلغاءه.
+    const token = { aborted: false }
+    cancelRef.current = () => {
+      token.aborted = true
+    }
+    /*
+     * **الحذف يُقرأ لحظة التصدير، ويُغلق على الفشل.** المرجع الحيّ من `watchSettings` يعطي الافتراضيات إن
+     * تعذّرت القراءة — أي «لا حذف» لمن طلب الحذف. فتعذّر القراءة هنا حذفٌ (نمط `HandoffDialog`).
+     */
+    const settings = await getSettingsResult()
+    const strip = settings.ok ? settings.value.privacy.stripMetadataOnExport : true
     const project = props.capture.projectId ? await projects.get(props.capture.projectId) : null
     const projectName = project?.ok ? project.value.name : null
+    if (token.aborted) return
     const details = captureDetails({
       capture: props.capture,
       projectName,
@@ -230,8 +241,12 @@ export function ExportFlow(props: ExportFlowProps): JSX.Element {
       metadata: captureMetadata(props.capture, projectName, strip, new Date()),
       onProgress: setFraction,
     })
-    cancelRef.current = () => run.cancel()
+    cancelRef.current = () => {
+      token.aborted = true
+      run.cancel()
+    }
     const result = await run.done
+    if (token.aborted) return
     setRunning(false)
     if (!result.ok) {
       if (result.error.code !== 'cancelled') setError(result.error.message)

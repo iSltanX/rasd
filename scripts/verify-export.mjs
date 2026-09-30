@@ -817,7 +817,8 @@ if (!extId || !sw) {
             c.fillStyle = '#1f2937'
             // أسطر «نصّ» تفصلها فراغات — ما يبحث فيه القاطع عن مكانٍ لا يقطع سطرًا.
             for (let y = 20; y < ${CH}; y += 36) for (let x = 20; x < ${CW} - 20; x += 14) c.fillRect(x, y, 9, 14)
-            if (changed) { c.fillStyle = '#dc2626'; c.fillRect(100, 1200, 160, 90) }
+            // في الحالية سرٌّ مخطّط داخل منطقةٍ محجوبة في مشهدها — لا يخرج في التقرير ولا في «التقط الفرق».
+            if (changed) for (let x = 100; x < 260; x += 8) { c.fillStyle = (x / 8) % 2 ? '#dc2626' : '#16a34a'; c.fillRect(x, 1200, 8, 90) }
             return cv.convertToBlob({ type: 'image/png' })
           }
           const [blobA, blobB] = await Promise.all([paint(false), paint(true)])
@@ -833,7 +834,19 @@ if (!extId || !sw) {
           }
           rec('cmp-a', 'الدفع v1', blobA, Date.now() - 60000)
           rec('cmp-b', 'الدفع v2', blobB, Date.now())
+          const redact = {
+            kind: 'redact', id: 'r1', locked: false, rotation: 0,
+            stroke: { colorToken: 'status/danger/solid', widthPx: 2, dash: [], opacity: 1 },
+            rect: { space: 'device', x: 100, y: 1200, width: 160, height: 90 },
+            mode: 'cover', strength: 0, coverToken: 'status/danger/solid',
+          }
           await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error) })
+          const atx = db.transaction(['annotations'], 'readwrite')
+          atx.objectStore('annotations').put({ captureId: 'cmp-b', updatedAt: Date.now(), scene: {
+            schemaVersion: 1, captureId: 'cmp-b', source: { width: ${CW}, height: ${CH}, dpr: 1 },
+            meta: { crop: null, pinStart: 1, pinShape: 'circle' }, revision: 1, nodes: [redact],
+          } })
+          await new Promise((res, rej) => { atx.oncomplete = res; atx.onerror = () => rej(atx.error) })
           db.close()
           return 'ok'
         })().catch(e => String(e))`,
@@ -928,8 +941,21 @@ if (!extId || !sw) {
                   const blob = await get('blobs')
                   db.close()
                   let decoded = null
-                  if (blob) { const bmp = await createImageBitmap(blob.blob); decoded = { w: bmp.width, h: bmp.height }; bmp.close() }
-                  return JSON.stringify({ title: rec?.title ?? null, url: rec?.url ?? null, decoded })
+                  let secret = null
+                  if (blob) {
+                    const bmp = await createImageBitmap(blob.blob)
+                    decoded = { w: bmp.width, h: bmp.height }
+                    // داخل المحجوب بعيدًا عن إطار المنطقة ورقمها: لونٌ واحد — لا خطوط السرّ ولا شكل الفرق.
+                    const cv = new OffscreenCanvas(bmp.width, bmp.height)
+                    const cx = cv.getContext('2d')
+                    cx.drawImage(bmp, 0, 0)
+                    bmp.close()
+                    const px = cx.getImageData(124, 1224, 112, 42).data
+                    const colours = new Set()
+                    for (let i = 0; i < px.length; i += 4) colours.add((px[i] << 16) | (px[i + 1] << 8) | px[i + 2])
+                    secret = colours.size
+                  }
+                  return JSON.stringify({ title: rec?.title ?? null, url: rec?.url ?? null, decoded, secret })
                 })().catch(e => JSON.stringify({ error: String(e) }))`,
               ),
             )
@@ -944,6 +970,14 @@ if (!extId || !sw) {
               )
             } else {
               fail(`لقطة الفرق غير متوقَّعة: ${JSON.stringify(stored)}`)
+            }
+            // ADR 0015 §6: ما حُجب في المحرّر لا يخرج — لا من اللقطة الأصلية ولا من شكل الفرق فوقها.
+            if (stored.secret === 1) {
+              ok(
+                'وما حُجب في مشهد الحالية مسطّحٌ بلونٍ واحد في صورة الفرق — لا السرّ ولا شكل الفرق فوقه',
+              )
+            } else {
+              fail(`المنطقة المحجوبة في صورة الفرق تحمل ${stored.secret} لونًا — تسرّب ما حُجب`)
             }
           }
         }

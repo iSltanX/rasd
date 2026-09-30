@@ -148,6 +148,8 @@ export function startPdfExport(options: PdfExportOptions): PdfRun {
     const { buildPdf } = await import('@/modules/export/pdf')
     const built = await buildPdf({ images, pages, metadata: options.metadata })
     if (!built.ok) return built
+    // إلغاءٌ أثناء البناء — أطول خطوة حين تُحوَّل RGBA — لا يُسلَّم بعده ملفٌّ قيل عنه «أُلغي».
+    if (signal.aborted) return cancelled()
     progress(1)
 
     return ok({
