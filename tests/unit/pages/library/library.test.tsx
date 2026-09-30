@@ -5,7 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Library } from '@/pages/library/Library'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
-import { captures, colors, guides, palettes, references, tags } from '@/shared/storage/repository'
+import {
+  captures,
+  colors,
+  guides,
+  palettes,
+  projects,
+  references,
+  tags,
+} from '@/shared/storage/repository'
 
 import type { CaptureRecord } from '@/shared/storage/schema'
 
@@ -737,5 +745,33 @@ describe('Library — نظرة المشاريع', () => {
     card.click()
     await waitFor(() => root.querySelector('[data-capture-id="in"]') !== null)
     expect(location.search).toBe(`?project=${projectId}`)
+  })
+})
+
+describe('Library — فشل عمليات المشاريع يُقال', () => {
+  /**
+   * `projects / new-error`: كانت نتيجة الإنشاء تُهمَل، فالإنشاء الفاشل يبدو كأنه تمّ واللوحة لم
+   * تتغيّر. `projects.put` تُعلَّق حيًّا — كائن مستودع لا دالّة مجمَّدة (انظر اختبار السباق أعلاه).
+   */
+  it('إنشاءٌ تعذّر ⟵ إشعار خطر بسببه', async () => {
+    const put = vi
+      .spyOn(projects, 'put')
+      .mockResolvedValue({ ok: false, error: { code: 'quota-exceeded', message: 'التخزين ممتلئ' } })
+    const root = await mount()
+    root.querySelector<HTMLButtonElement>('button[aria-label="فتح لوحة المشاريع"]')!.click()
+    await waitFor(() => root.querySelector('input[aria-label="اسم المشروع الجديد"]') !== null)
+    const input = root.querySelector<HTMLInputElement>('input[aria-label="اسم المشروع الجديد"]')!
+    input.value = 'مشروع يتعذّر'
+    input.dispatchEvent(new Event('input'))
+    // الاسم حالةٌ في اللوحة — يُرسم قبل الإرسال وإلا قرأ الإرسال الاسم الفارغ السابق.
+    await flush()
+    input.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }))
+
+    await waitFor(() => root.querySelector('[role="alert"]') !== null)
+    const alert = root.querySelector('[role="alert"]')!
+    expect(alert.textContent).toContain('تعذّر إنشاء المشروع')
+    expect(alert.textContent).toContain('التخزين ممتلئ')
+    expect(put).toHaveBeenCalledOnce()
+    put.mockRestore()
   })
 })

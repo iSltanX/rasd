@@ -243,6 +243,8 @@ const NOTICE_MS = 4000
 interface Notice {
   readonly title: string
   readonly detail?: string
+  /** النجاح افتراضيّ؛ والخطر لفشل عملية يُقال ولا يُبتلع. */
+  readonly tone?: 'success' | 'danger'
 }
 
 export function Library(): JSX.Element {
@@ -636,34 +638,56 @@ export function Library(): JSX.Element {
     void reloadProjects()
     bump()
   }, [reloadProjects, bump])
+  /**
+   * فشل عملية مشروع يُقال بسببه (`projects / new-error`) — كانت النتيجة تُهمَل، فيبدو الإنشاء
+   * أو الحذف كأنه تمّ واللوحة لم تتغيّر.
+   */
+  const reportProjectFailure = useCallback(
+    (what: string, result: Result<unknown>) => {
+      if (!result.ok) {
+        announce({ tone: 'danger', title: `تعذّر ${what}`, detail: result.error.message })
+      }
+    },
+    [announce],
+  )
   const onCreateProject = useCallback(
     (name: string, color: string) => {
-      void createProject(name, color).then(afterProjectsChange)
+      void createProject(name, color).then((result) => {
+        reportProjectFailure('إنشاء المشروع', result)
+        afterProjectsChange()
+      })
     },
-    [afterProjectsChange],
+    [afterProjectsChange, reportProjectFailure],
   )
   const onRenameProject = useCallback(
     (id: string, name: string) => {
-      void renameProject(id, name).then(afterProjectsChange)
+      void renameProject(id, name).then((result) => {
+        reportProjectFailure('تغيير اسم المشروع', result)
+        afterProjectsChange()
+      })
     },
-    [afterProjectsChange],
+    [afterProjectsChange, reportProjectFailure],
   )
   const onSetProjectColor = useCallback(
     (id: string, color: string) => {
-      void setProjectColor(id, color).then(afterProjectsChange)
+      void setProjectColor(id, color).then((result) => {
+        reportProjectFailure('تغيير لون المشروع', result)
+        afterProjectsChange()
+      })
     },
-    [afterProjectsChange],
+    [afterProjectsChange, reportProjectFailure],
   )
   const onDeleteProject = useCallback(
     (id: string, moveContentTo: string | null) => {
-      void deleteProject(id, moveContentTo).then(() => {
+      void deleteProject(id, moveContentTo).then((result) => {
+        reportProjectFailure('حذف المشروع', result)
         afterProjectsChange()
-        // عرض المشروع المحذوف لا وجهة له بعده — يعود إلى كل اللقطات.
-        if (view.kind === 'project' && view.id === id) switchView({ kind: 'all' })
+        // عرض المشروع المحذوف لا وجهة له بعده — يعود إلى كل اللقطات. والحذف الفاشل يُبقيه.
+        if (result.ok && view.kind === 'project' && view.id === id) switchView({ kind: 'all' })
         else void reload()
       })
     },
-    [afterProjectsChange, reload, view, switchView],
+    [afterProjectsChange, reload, reportProjectFailure, view, switchView],
   )
 
   const viewModeIndex = useMemo(
@@ -944,7 +968,11 @@ export function Library(): JSX.Element {
           {notice || showQuotaNotice ? (
             <div class={styles.toastDock}>
               {notice ? (
-                <Toast tone="success" detail={notice.detail} onDismiss={() => setNotice(null)}>
+                <Toast
+                  tone={notice.tone ?? 'success'}
+                  detail={notice.detail}
+                  onDismiss={() => setNotice(null)}
+                >
                   {notice.title}
                 </Toast>
               ) : (
