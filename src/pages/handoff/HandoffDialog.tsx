@@ -18,6 +18,7 @@ import {
   buildHandoff,
   DEFAULT_OPTIONS,
   imagesOf,
+  type EvidenceFrame,
   type HandoffMeta,
   type HandoffOptions,
 } from '@/modules/handoff/model'
@@ -113,6 +114,7 @@ export function HandoffDialog(props: HandoffDialogProps): JSX.Element {
   const [format, setFormat] = useState<Format>('markdown')
   const [phase, setPhase] = useState<Phase>({ kind: 'building', done: 0, total: 0 })
   const [baked, setBaked] = useState<ReadonlyMap<string, Uint8Array>>(new Map())
+  const [frames, setFrames] = useState<ReadonlyMap<string, EvidenceFrame>>(new Map())
   const [failures, setFailures] = useState<readonly EvidenceFailure[]>([])
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<Format | null>(null)
@@ -128,7 +130,10 @@ export function HandoffDialog(props: HandoffDialogProps): JSX.Element {
   const closeRef = useRef<HTMLButtonElement>(null)
   const abort = useRef(new AbortController())
 
-  const model = useMemo(() => buildHandoff(list, options, meta), [list, options, meta])
+  const model = useMemo(
+    () => buildHandoff(list, options, meta, frames),
+    [list, options, meta, frames],
+  )
   const built = useMemo(
     () => (phase.kind === 'ready' ? assembleHandoff(model, imagesByName(model, baked)) : null),
     [phase.kind, model, baked],
@@ -143,7 +148,7 @@ export function HandoffDialog(props: HandoffDialogProps): JSX.Element {
   useEffect(() => {
     const controller = abort.current
     let dispose: (() => void) | null = null
-    void (async () => {
+    const build = async (): Promise<void> => {
       const settings = await getSettingsResult()
       // قراءةٌ فاشلة تُحذف بها البيانات الوصفية: الحذف لا يضرّ PNG، والإبقاء قد يضرّ.
       const stripMetadata = settings.ok ? settings.value.privacy.stripMetadataOnExport : true
@@ -173,9 +178,18 @@ export function HandoffDialog(props: HandoffDialogProps): JSX.Element {
         return
       }
       setBaked(result.value.images)
+      setFrames(result.value.frames)
       setFailures(result.value.failed)
       setPhase({ kind: result.value.failed.length > 0 ? 'failed' : 'ready' })
-    })()
+    }
+    // ما يرمي في البناء يُقال ولا يترك النافذة على «جارٍ البناء» إلى الأبد.
+    build().catch((thrown: unknown) => {
+      dispose?.()
+      dispose = null
+      if (controller.signal.aborted) return
+      setError(`تعذّر بناء الحزمة — ${thrown instanceof Error ? thrown.message : String(thrown)}`)
+      setPhase({ kind: 'ready' })
+    })
     return () => {
       controller.abort()
       dispose?.()
@@ -308,14 +322,16 @@ export function HandoffDialog(props: HandoffDialogProps): JSX.Element {
             <div class={sheet.body} data-handoff-failed="">
               <Banner tone="danger">
                 <strong class="t-arabic-ui-s-strong">تعذّر بناء الحزمة</strong>
-                {failures.map((f) => {
-                  const issue = list.find((i) => i.evidence.captureId === f.captureId)
-                  return (
-                    <span key={f.captureId} class={styles.failure}>
-                      {failureText(issue ?? { title: f.name }, f)}
-                    </span>
-                  )
-                })}
+                {/* كل مشكلةٍ دليلها اللقطة الفاشلة باسمها — «أزلها» تُخرجها كلّها، فتُسمّى كلّها. */}
+                {failures.flatMap((f) =>
+                  list
+                    .filter((i) => i.evidence.captureId === f.captureId)
+                    .map((issue) => (
+                      <span key={issue.id} class={styles.failure} data-handoff-failure={issue.id}>
+                        {failureText(issue, f)}
+                      </span>
+                    )),
+                )}
               </Banner>
               {remaining.length > 0 ? (
                 <section class={sheet.group} aria-labelledby="handoff-remaining">

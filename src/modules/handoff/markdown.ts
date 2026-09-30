@@ -32,7 +32,19 @@ import type { IssueCheck } from '@/shared/issue-schema'
 
 // ── الحراسة ─────────────────────────────────────────────────────
 
-const NEWLINES = /\r\n|\r|\n/gu
+/**
+ * ما يكسر السطر: الأسطر الجديدة الثلاثة، وفواصل يونيكود (`U+2028` · `U+2029` · `U+0085`) التي يعرضها محرّرٌ
+ * سطرًا جديدًا ويعدّها `$` في تعبيرٍ بعلَم `m` نهاية سطر (المراجعة المستقلّة).
+ */
+const NEWLINES = /\r\n|\r|\n|\u2028|\u2029|\u0085/gu
+
+/**
+ * محارف التحكّم في الاتجاه — التضمين والتجاوز (`U+202A`–`U+202E`) والعزل (`U+2066`–`U+2069`). تُحذف من كل نصٍّ
+ * يدخل المستند: `PDI` في عنوان صفحةٍ يُغلق عزلنا مبكّرًا، و`RLO` بعده يقلب بقيّة السطر.
+ */
+const BIDI_CONTROLS = /[\u202a-\u202e\u2066-\u2069]/gu
+
+const clean = (text: string): string => text.replace(BIDI_CONTROLS, '')
 
 /** أطول سلسلة `` ` `` متّصلة في النصّ. */
 function longestTicks(text: string): number {
@@ -46,17 +58,23 @@ function longestTicks(text: string): number {
  * بها (CommonMark). والسطر الجديد يُطوى مسافة — القيمة السطرية لا تكسر القائمة.
  */
 export function codeSpan(text: string): string {
-  const flat = text.replace(NEWLINES, ' ')
+  const flat = clean(text).replace(NEWLINES, ' ')
   if (flat === '') return '` `'
   const fence = '`'.repeat(longestTicks(flat) + 1)
   const pad = flat.startsWith('`') || flat.endsWith('`') ? ' ' : ''
   return `${fence}${pad}${flat}${pad}${fence}`
 }
 
-/** كتلةٌ برمجية سياجها أطول من أطول سلسلة داخلها، وثلاث علامات على الأقلّ. */
+/**
+ * كتلةٌ برمجية سياجها أطول من أطول سلسلة داخلها، وثلاث علامات على الأقلّ.
+ *
+ * ومحتواها يحمل ما كتبته الصفحة (المحدِّد رأسًا لكتلة CSS)، فتُحذف منه محارف التحكّم في الاتجاه — شيفرةٌ يقلب
+ * `RLO` عرضها غير ما تُنفَّذ به (Trojan Source) — وتُطوى فواصل يونيكود مسافةً. والسطر الجديد الحقيقي باقٍ.
+ */
 export function codeFence(text: string, lang: string): string {
-  const fence = '`'.repeat(Math.max(3, longestTicks(text) + 1))
-  return `${fence}${lang}\n${text}\n${fence}`
+  const body = clean(text).replace(/[\u2028\u2029\u0085]/gu, ' ')
+  const fence = '`'.repeat(Math.max(3, longestTicks(body) + 1))
+  return `${fence}${lang}\n${body}\n${fence}`
 }
 
 /** ما له معنى في Markdown داخل السطر — يُسبَق بشرطة مائلة فيُقرأ حرفًا. */
@@ -64,7 +82,7 @@ const INLINE_SPECIAL = /[\\`*_[\]<>|~]/gu
 
 /** نصٌّ حرّ في سطر: المحارف الخاصّة مهرَّبة، والسطر الجديد مطويّ. */
 export function escapeInline(text: string): string {
-  return text.replace(NEWLINES, ' ').replace(INLINE_SPECIAL, '\\$&')
+  return clean(text).replace(NEWLINES, ' ').replace(INLINE_SPECIAL, '\\$&')
 }
 
 /**
@@ -80,8 +98,11 @@ export function escapeLine(text: string): string {
 /** قيمةٌ تقنية تُنسخ: مقطعٌ برمجيّ، والعزل خارجه — فما يُنسخ من داخله نظيفٌ بلا محارف خفيّة. */
 const code = (text: string): string => isolate(codeSpan(text))
 
-/** نصٌّ قد يكون عربيًّا أو لاتينيًّا: عزلٌ باتجاه أوّل حرفٍ قويّ فيه. */
-const loose = (text: string): string => `${FSI}${escapeInline(text)}${PDI}`
+/**
+ * نصٌّ كتبته الصفحة وقد يكون عربيًّا أو لاتينيًّا — عنوان التبويب: مقطعٌ برمجيّ معزولٌ باتجاه أوّل حرفٍ قويّ فيه.
+ * **مقطعٌ لا نصٌّ مهرَّب:** الروابط التلقائية في GFM (`https://…` و`www.`) تعمل في النصّ المهرَّب ولا تعمل في المقطع.
+ */
+const loose = (text: string): string => `${FSI}${codeSpan(text)}${PDI}`
 
 /** اللحظة بـUTC صراحةً: `2026-09-30 12:00 UTC`. */
 export function stamp(at: number): string {
@@ -140,7 +161,7 @@ function facts(entry: HandoffEntry): string {
   const { viewport } = page
   const lines = [
     statusLine(entry),
-    `- الصفحة: ${code(page.url)}${page.title ? ` — «${loose(page.title)}»` : ''}`,
+    `- الصفحة: ${code(page.url)}${page.title ? ` — ${loose(page.title)}` : ''}`,
     `- المقاس: ${isolate(`${viewport.width} × ${viewport.height} · DPR ${viewport.dpr}`)} · سُجّلت ${isolate(stamp(entry.createdAt))}`,
     `- المحدِّد: ${code(entry.element.selector)} — ${fragility(entry.element)}`,
   ]
@@ -213,5 +234,9 @@ export function renderMarkdown(model: HandoffModel): string {
  * أوّل قوسٍ فيه.
  */
 export function markdownImages(markdown: string): string[] {
-  return [...markdown.matchAll(/^!\[.*\]\(([^()\s]+)\)$/gmu)].map((m) => m[1] ?? '')
+  // أسطر CommonMark وحدها (`\n` · `\r\n` · `\r`) — لا علَم `m` الذي يعدّ `U+2028` نهاية سطر.
+  return markdown.split(/\r\n|\r|\n/u).flatMap((line) => {
+    const m = /^!\[[^\n]*\]\(([^()\s]+)\)$/u.exec(line)
+    return m?.[1] ? [m[1]] : []
+  })
 }

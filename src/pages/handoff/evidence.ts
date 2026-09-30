@@ -11,9 +11,15 @@
  * وكل لقطة تُخبَز مرّةً ولو أشارت إليها مشكلتان (`imagesOf`)، بمقياس 1: لقطة الدليل ببكسل الجهاز أصلًا.
  */
 
+import { exportWindow, type BakeSurface } from '@/modules/editor/bake'
 import { emptyScene, parseScene } from '@/modules/editor/scene-schema'
 import { createTextLayoutCache } from '@/modules/editor/text-layout'
-import { imagesOf, type HandoffImage, type HandoffModel } from '@/modules/handoff/model'
+import {
+  imagesOf,
+  type EvidenceFrame,
+  type HandoffImage,
+  type HandoffModel,
+} from '@/modules/handoff/model'
 import { errText, ok, type RasdErrorCode, type Result } from '@/shared/result'
 import { annotations, blobs, captures } from '@/shared/storage/repository'
 
@@ -22,7 +28,6 @@ import { startExport } from '../editor/export'
 import { createMeasurer } from '../editor/measure'
 import { createBlurClient, type BlurClient } from '../editor/worker-client'
 
-import type { BakeSurface } from '@/modules/editor/bake'
 import type { RenderStyle } from '@/modules/editor/renderer'
 import type { Scene } from '@/modules/editor/scene'
 import type { TextLayoutCache } from '@/modules/editor/text-layout'
@@ -37,6 +42,9 @@ export async function loadEvidence(captureId: string): Promise<Result<EvidenceSo
   const record = await captures.get(captureId)
   const blob = await blobs.get(captureId)
   if (!record.ok || !blob.ok) {
+    const failure = !record.ok ? record.error : !blob.ok ? blob.error : null
+    // الغياب يُقال بما يُفعل به؛ وعطل التخزين العابر بسببه — لا «حُذفت» عن لقطةٍ لم تُحذف.
+    if (failure && failure.code !== 'not-found') return { ok: false, error: failure }
     return errText('not-found', 'لقطة الدليل لم تعد في المكتبة.', `captures/${captureId}`)
   }
   const stored = await annotations.get(captureId)
@@ -103,6 +111,11 @@ export interface EvidenceFailure {
 
 export interface BakedEvidence {
   /**
+   * نافذة الخبز لكل لقطة بمعرّفها — اقتصاص المحرّر إن وُجد (`exportWindow`): منها يُحسب موضع العنصر في الصورة
+   * المخبوزة لا في اللقطة الكاملة (`cropIn`).
+   */
+  readonly frames: Map<string, EvidenceFrame>
+  /**
    * بايتات PNG **بمعرّف اللقطة لا باسمها في الحزمة**: الاسم يتبع رتبة المشكلة، و«أزلها وتابع» يعيد الترقيم —
    * فبايتاتٌ بالاسم القديم كانت ستُسقط الحزمة بمرجعٍ بلا ملفّ (`imagesByName`).
    */
@@ -140,6 +153,7 @@ export async function bakeEvidence(
   options: BakeOptions = {},
 ): Promise<Result<BakedEvidence>> {
   const images = new Map<string, Uint8Array>()
+  const frames = new Map<string, EvidenceFrame>()
   const failed: EvidenceFailure[] = []
   const cancelled = () => errText('cancelled', 'أُلغي بناء الحزمة.')
 
@@ -187,8 +201,10 @@ export async function bakeEvidence(
       continue
     }
     images.set(image.captureId, new Uint8Array(await baked.value.blob.arrayBuffer()))
+    const { x, y, width, height } = exportWindow(scene)
+    frames.set(image.captureId, { x, y, width, height })
   }
 
   options.onProgress?.(list.length, list.length)
-  return ok({ images, failed })
+  return ok({ images, frames, failed })
 }

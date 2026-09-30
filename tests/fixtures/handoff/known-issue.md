@@ -7,7 +7,7 @@
 ## ١. حشوة الزرّ الرئيسي أكبر من التصميم
 
 - الحالة: مفتوحة · آخر فحص ⟨2026-09-30 09:00 UTC⟩ — لا يطابق
-- الصفحة: ⟨`https://northwind.com/pricing`⟩ — «⟪Pricing — Northwind⟩»
+- الصفحة: ⟨`https://northwind.com/pricing`⟩ — ⟪`Pricing — Northwind`⟩
 - المقاس: ⟨1440 × 900 · DPR 2⟩ · سُجّلت ⟨2026-09-28 10:12 UTC⟩
 - المحدِّد: ⟨`.cta-btn`⟩ — فريد
 - الفحص: نمط · ⟨`padding`⟩ · السماح ⟨±0px⟩

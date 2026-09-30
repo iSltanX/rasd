@@ -340,6 +340,59 @@ describe('حزمة التسليم من المخزن إلى الملفّ', () => 
     expect(stored.ok && [...stored.value].sort((a, b) => a.id.localeCompare(b.id))).toEqual(list)
   })
 
+  it('اقتصاص المحرّر: الصورة بنافذته، وموضع العنصر في JSON نسبةً إليها (المراجعة المستقلّة)', async () => {
+    const scene = emptyScene({ captureId: 'cap-crop', width: 240, height: 140, dpr: 2 })
+    await seedCapture('cap-crop', {
+      ...scene,
+      meta: { ...scene.meta, crop: deviceRect(100, 60, 140, 80) },
+    })
+    const issue = {
+      ...issueOn('crop', 'cap-crop'),
+      evidence: {
+        ...issueOn('crop', 'cap-crop').evidence,
+        crop: { x: 120, y: 80, width: 120, height: 40 },
+      },
+    }
+    const root = mount([issue])
+    await vi.waitFor(() => expect(phaseOf(root)).toBe('ready'), { timeout: 5000 })
+    root.querySelector<HTMLElement>('[data-handoff-format="json"]')!.click()
+    await vi.waitFor(() =>
+      expect(
+        root.querySelector('[data-handoff-preview]')?.getAttribute('data-handoff-preview'),
+      ).toBe('json'),
+    )
+    const json = JSON.parse(root.querySelector('[data-handoff-preview]')!.textContent) as {
+      issues: { evidence: { crop: unknown } }[]
+    }
+    expect(json.issues[0]?.evidence.crop).toEqual({ x: 20, y: 20, width: 120, height: 40 })
+  })
+
+  it('لقطةٌ فُقدت ودليلُ مشكلتين: الشريط يسمّي المشكلتين اللتين تُزالان معًا', async () => {
+    await seedCapture('cap-ok', null)
+    const root = mount([
+      issueOn('one', 'cap-lost'),
+      issueOn('two', 'cap-lost'),
+      issueOn('ok', 'cap-ok'),
+    ])
+    await vi.waitFor(() => expect(phaseOf(root)).toBe('failed'), { timeout: 5000 })
+    const named = [...root.querySelectorAll('[data-handoff-failure]')].map((n) =>
+      n.getAttribute('data-handoff-failure'),
+    )
+    expect(named).toEqual(['one', 'two'])
+  })
+
+  it('عطل تخزين عابر يُقال بسببه — لا «لم تعد في المكتبة» عن لقطةٍ لم تُحذف', async () => {
+    await seedCapture('cap-flaky', null)
+    vi.spyOn(captures, 'get').mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'unknown', message: 'تعذّرت القراءة من التخزين.' },
+    })
+    const root = mount([issueOn('flaky', 'cap-flaky')])
+    await vi.waitFor(() => expect(phaseOf(root)).toBe('failed'), { timeout: 5000 })
+    expect(root.textContent).toContain('تعذّرت القراءة من التخزين.')
+    expect(root.textContent).not.toContain('لم تعد في المكتبة')
+  })
+
   it('لقطة دليلٍ حُذفت: خطأٌ يقول ما يُفعل، ولا مصغَّرة بديلة', async () => {
     const root = mount([issueOn('gone', 'cap-gone')])
     await vi.waitFor(() => expect(phaseOf(root)).toBe('failed'), { timeout: 5000 })

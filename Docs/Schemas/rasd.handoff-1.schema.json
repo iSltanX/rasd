@@ -218,7 +218,17 @@
               "type": "string",
               "pattern": "^images/issue-\\d{2,}\\.png$"
             },
-            "crop": { "$ref": "#/$defs/box" }
+            "crop": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "required": ["x", "y", "width", "height"],
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              }
+            }
           }
         }
       }

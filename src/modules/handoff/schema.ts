@@ -78,7 +78,7 @@ const IssueSchema = v.strictObject({
   evidence: v.nullable(
     v.strictObject({
       image: v.pipe(v.string(), v.regex(/^images\/issue-\d{2,}\.png$/u)),
-      crop: BoxSchema,
+      crop: v.nullable(BoxSchema),
     }),
   ),
 })

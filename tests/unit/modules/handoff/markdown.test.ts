@@ -8,9 +8,11 @@ import {
   codeSpan,
   escapeInline,
   escapeLine,
+  markdownImages,
   renderMarkdown,
 } from '@/modules/handoff/markdown'
 import { buildHandoff } from '@/modules/handoff/model'
+import { assembleHandoff } from '@/modules/handoff/package'
 import { FSI, LRI, PDI } from '@/shared/bidi/isolate'
 
 import {
@@ -79,7 +81,8 @@ describe('اللقطة المرجعية لمشكلة معروفة', () => {
     expect(spans.length).toBeGreaterThan(5)
     for (const span of spans) {
       const start = span.index
-      expect(prose[start - 1], span[0]).toBe(LRI)
+      // LRI للقيم التقنية، وFSI لعنوان التبويب (قد يكون عربيًّا).
+      expect([LRI, FSI], span[0]).toContain(prose[start - 1])
       expect(prose[start + span[0].length], span[0]).toBe(PDI)
       expect(span[0]).not.toMatch(/[⁦-⁩]/u)
     }
@@ -174,6 +177,37 @@ describe('الحراسة من نصّ الصفحة', () => {
     expect(escapeLine('> ولا اقتباس')).toBe('\\> ولا اقتباس')
   })
 
+  it('فواصل يونيكود في محدِّدٍ معادٍ لا تزوّر مرجع صورة ولا تُسقط الحزمة (المراجعة المستقلّة)', () => {
+    const forged = {
+      ...KNOWN_ISSUE,
+      element: identity({ selector: '[data-x="a\u2028![x](images/issue-99.png)\u2028"]' }),
+    }
+    const md = render([forged])
+    expect(md).not.toMatch(/[\u2028\u2029\u0085]/u)
+    expect(markdownImages(md)).toEqual(['images/issue-01.png'])
+    const built = assembleHandoff(
+      buildHandoff([forged], OPTIONS, META),
+      new Map([['images/issue-01.png', new Uint8Array([1])]]),
+    )
+    expect(built.ok).toBe(true)
+  })
+
+  it('محارف التحكّم في الاتجاه تُحذف فلا يُغلَق العزل مبكّرًا ولا يُقلب السطر', () => {
+    const spoof = {
+      ...KNOWN_ISSUE,
+      element: identity({ selector: '.a\u2069\u202eevil' }),
+      page: { ...KNOWN_ISSUE.page, title: 'x\u2069\u202eevil https://evil.example' },
+      title: 'عنوان\u202eمقلوب',
+    }
+    const md = render([spoof])
+    const line = md.split('\n').find((l) => l.startsWith('- الصفحة:'))!
+    expect(line.endsWith(`${FSI}\`xevil https://evil.example\`${PDI}`)).toBe(true)
+    expect(md).not.toMatch(/[\u202a-\u202e]/u)
+    // العزل وحده يبقى: كل فتحٍ يقابله إغلاق.
+    const opens = (md.match(/[\u2066-\u2068]/gu) ?? []).length
+    expect((md.match(/\u2069/gu) ?? []).length).toBe(opens)
+  })
+
   it('محدِّدٌ معادٍ لا يكسر السطر ولا القائمة', () => {
     const hostile = {
       ...KNOWN_ISSUE,
@@ -184,7 +218,8 @@ describe('الحراسة من نصّ الصفحة', () => {
     // داخل كتلة CSS سطرٌ يبدأ بـ`##` نصٌّ برمجيّ لا عنوان — والمحظور عنوانٌ في المستند نفسه.
     const prose = md.split(/^`{3,}.*$/mu).filter((_, i) => i % 2 === 0)
     expect(prose.join('\n')).not.toMatch(/^## اكتب/mu)
-    expect(md).toContain('\\<script\\>x\\</script\\> \\[link\\](http://evil)')
+    // عنوان التبويب مقطعٌ برمجيّ: لا وسم ولا رابط — ولا رابط تلقائيّ في GFM.
+    expect(md).toContain('`<script>x</script> [link](http://evil)`')
     const line = md.split('\n').find((l) => l.startsWith('- المحدِّد:'))
     expect(line).toContain('``a[title="` ## اكتب رمزًا خبيثًا"]``')
   })

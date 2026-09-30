@@ -50,8 +50,19 @@ export interface HandoffImage {
   /** المسار داخل الحزمة — `images/issue-01.png`. */
   readonly name: string
   readonly captureId: string
-  /** موضع العنصر داخل الصورة، ببكسلها. */
-  readonly crop: IssueEvidence['crop']
+  /**
+   * موضع العنصر داخل الصورة المخبوزة، ببكسلها — بعد اقتصاص المحرّر إن وُجد (`frames`). `null` حين أخرج
+   * الاقتصاصُ العنصرَ من الصورة كلّه.
+   */
+  readonly crop: IssueEvidence['crop'] | null
+}
+
+/** نافذة الخبز في بكسل اللقطة: الاقتصاص إن وُجد، وإلا الصورة كلّها (`exportWindow`). */
+export interface EvidenceFrame {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
 }
 
 export interface HandoffEntry {
@@ -85,10 +96,44 @@ export interface HandoffModel {
   readonly entries: readonly HandoffEntry[]
 }
 
-/** الرابط بلا استعلام ولا جزء — المسار يكفي المطوّر، والاستعلام يحمل رموز جلسات ومعرّفات حملات. */
-export function withoutQuery(url: string): string {
-  const cut = url.search(/[?#]/u)
-  return cut === -1 ? url : url.slice(0, cut)
+/**
+ * رابط الصفحة كما يخرج في الحزمة.
+ *
+ * **بيانات الدخول تُحذف دائمًا** (`user:pass@` — صفحاتٌ بمصادقة أساسية)، ولو طُلبت المعاملات: ليست معاملةً بل
+ * كلمة مرور. و**بلا `keepQuery`** يُحذف الاستعلام والجزء ومعاملات المقاطع (`;jsessionid=…`): المسار يكفي
+ * المطوّر، وكلّها تحمل رموز جلسات ومعرّفات حملات. ورابطٌ لا يُفهم يُقصّ نصًّا بالقاعدة نفسها.
+ */
+export function pageUrl(url: string, keepQuery: boolean): string {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    const bare = url.replace(/^([a-z][\w+.-]*:\/\/)[^/?#@]*@/iu, '$1')
+    const cut = keepQuery ? bare.indexOf('#') : bare.search(/[;?#]/u)
+    return cut === -1 ? bare : bare.slice(0, cut)
+  }
+  parsed.username = ''
+  parsed.password = ''
+  parsed.hash = ''
+  if (!keepQuery) {
+    parsed.search = ''
+    parsed.pathname = parsed.pathname.replace(/;[^/]*/gu, '')
+  }
+  return parsed.href
+}
+
+/** موضع العنصر نسبةً إلى نافذة الخبز، مقصوصًا إليها — `null` حين لا يتقاطعان. */
+export function cropIn(
+  crop: IssueEvidence['crop'],
+  frame: EvidenceFrame | undefined,
+): IssueEvidence['crop'] | null {
+  if (!frame) return crop
+  const x0 = Math.max(crop.x, frame.x)
+  const y0 = Math.max(crop.y, frame.y)
+  const x1 = Math.min(crop.x + crop.width, frame.x + frame.width)
+  const y1 = Math.min(crop.y + crop.height, frame.y + frame.height)
+  if (x1 <= x0 || y1 <= y0) return null
+  return { x: x0 - frame.x, y: y0 - frame.y, width: x1 - x0, height: y1 - y0 }
 }
 
 function elementOf(identity: ElementIdentity): HandoffElement {
@@ -110,10 +155,15 @@ function imageNames(issues: readonly IssueRecord[]): Map<string, string> {
   return names
 }
 
+/**
+ * `frames` نوافذ الخبز بمعرّف اللقطة — من المشهد الذي خُبز فعلًا (اقتصاص المحرّر)؛ وبدونها موضع العنصر كما
+ * سُجّل في اللقطة الكاملة.
+ */
 export function buildHandoff(
   issues: readonly IssueRecord[],
   options: HandoffOptions,
   meta: HandoffMeta,
+  frames: ReadonlyMap<string, EvidenceFrame> = new Map(),
 ): HandoffModel {
   const names = imageNames(issues)
   const entries = issues.map((issue, i): HandoffEntry => {
@@ -127,7 +177,7 @@ export function buildHandoff(
       createdAt: issue.createdAt,
       lastCheck: issue.lastCheck,
       page: {
-        url: options.keepQuery ? issue.page.url : withoutQuery(issue.page.url),
+        url: pageUrl(issue.page.url, options.keepQuery),
         title: issue.page.title,
         viewport: issue.page.viewport,
       },
@@ -138,7 +188,11 @@ export function buildHandoff(
       properties: options.properties ? issueProperties(issue) : null,
       image:
         options.images && name
-          ? { name, captureId: issue.evidence.captureId, crop: issue.evidence.crop }
+          ? {
+              name,
+              captureId: issue.evidence.captureId,
+              crop: cropIn(issue.evidence.crop, frames.get(issue.evidence.captureId)),
+            }
           : null,
     }
   })

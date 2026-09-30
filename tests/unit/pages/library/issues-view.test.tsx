@@ -296,15 +296,19 @@ describe('library / issues', () => {
       expect(q(root, '[data-issues-handoff]')?.textContent).toBe('حزمة التسليم · ١'),
     )
     q<HTMLButtonElement>(root, '[data-issues-handoff]')!.click()
-    const dialog = await vi.waitFor(() => {
-      const found = q(root, '[data-handoff-dialog][data-phase="failed"]')
-      expect(found).not.toBeNull()
-      return found!
-    })
+    const dialog = await vi.waitFor(
+      () => {
+        const found = q(root, '[data-handoff-dialog][data-phase="failed"]')
+        expect(found).not.toBeNull()
+        return found!
+        // المهلة تشمل تحويل القطعة الكسولة أوّل مرّة — كاختبار التكامل (المراجعة المستقلّة: سقط مرّة بمهلة 1s).
+      },
+      { timeout: 5000 },
+    )
     expect(dialog.textContent).toContain('مشكلة واحدة · تحديد في المكتبة')
     expect(dialog.textContent).toContain(`لقطة الدليل للمشكلة «${OPEN.title}» لم تعد في المكتبة`)
     q<HTMLButtonElement>(dialog, '[data-handoff-close]')!.click()
-    await vi.waitFor(() => expect(q(root, '[data-handoff-dialog]')).toBeNull())
+    await vi.waitFor(() => expect(q(root, '[data-handoff-dialog]')).toBeNull(), { timeout: 5000 })
   })
 })
 

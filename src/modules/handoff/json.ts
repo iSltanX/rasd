@@ -49,7 +49,7 @@ export interface HandoffJsonIssue {
   }
   readonly steps: readonly string[]
   readonly properties: HandoffProperties | null
-  readonly evidence: { readonly image: string; readonly crop: PageBox } | null
+  readonly evidence: { readonly image: string; readonly crop: PageBox | null } | null
 }
 
 export interface HandoffJson {
@@ -112,7 +112,9 @@ function issueJson(entry: HandoffEntry): HandoffJsonIssue {
           inspect: properties.inspect,
         }
       : null,
-    evidence: entry.image ? { image: entry.image.name, crop: { ...entry.image.crop } } : null,
+    evidence: entry.image
+      ? { image: entry.image.name, crop: entry.image.crop ? { ...entry.image.crop } : null }
+      : null,
   }
 }
 
