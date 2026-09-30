@@ -1,13 +1,20 @@
 /**
  * قسم التصوير (`settings / capture`، `68:2`): مجموعتا «الالتقاط» و«بعد الالتقاط».
  *
- * **«احفظ نسخة في مجلّد التنزيلات» يُعرض «قريبًا» لا مفتاحًا.** المفتاح `saveLocation`
- * محفوظ ومقروء، لكن خطّ الالتقاط يحفظ في المكتبة وحدها ولا يقرؤه (`Docs/Engineering.md
- * §6` الصفّ 115)، ووصله بتدفّق التنزيلات في `STAGES/05`. مفتاح يُقلَب ولا يفعل شيئًا
- * ضابط صامت. والقيمة المحفوظة لا تُمسّ، فلا تنكسر إعدادات قائمة.
+ * **«احفظ نسخة في مجلّد التنزيلات» مفتاحٌ حقيقي** يُغيّر `saveLocation`، وخدمة الالتقاط
+ * تقرؤه وتنسخ كل لقطة محفوظة إلى مجلّد «رصد» داخل التنزيلات (`background/capture-mirror.ts`).
+ * وصلاحية `downloads` **اختيارية**: تُطلَب من القلب إلى التشغيل نفسه، **متزامنًا من معالج
+ * الحدث** — `await` واحدة قبل `chrome.permissions.request` تكسر سلسلة إيماءة المستخدم
+ * فترمي (نمط `ExportFlow`). وإن رُفضت لا تُحفَظ القيمة: مفتاحٌ مفعَّل بلا صلاحية يعِد بنسخة
+ * لن تصل. والإطفاء لا يسحب الصلاحية — التصدير يستعملها.
+ *
+ * وإن كانت القيمة المحفوظة «مع التنزيلات» والصلاحية سُحبت لاحقًا (من `chrome://extensions`
+ * مثلًا) يُقال ذلك تحت المفتاح: الالتقاط لا يفشل، لكن النسخة لا تصل. والقيمة لا تُمسّ.
  */
+import { useEffect, useState } from 'preact/hooks'
+
 import { formatHuman, formatPercent } from '@/shared/bidi'
-import { Chip } from '@/ui/components/Chip/Chip'
+import { hasPermission, requestPermission } from '@/shared/permissions'
 import { Select } from '@/ui/components/Select/Select'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { Toggle } from '@/ui/components/Toggle/Toggle'
@@ -44,9 +51,65 @@ export interface CaptureTabProps {
   persist: Persist
 }
 
+/** تلميح المفتاح بحسب الحالة — الرفض والفقدان يسمّيان ما يحدث لا «تعذّر». */
+const DOWNLOADS_HINT = {
+  normal: 'نسخة من كل لقطة في مجلّد التنزيلات، داخل مجلّد «رصد».',
+  refused: 'رُفضت صلاحية التنزيلات — تبقى اللقطات في المكتبة وحدها.',
+  missing: 'صلاحية التنزيلات غير ممنوحة — لا تُحفظ نسخة حتى تمنحها. أطفئ المفتاح ثم أعد تشغيله.',
+} as const
+
 export function CaptureTab({ settings, onSave, persist }: CaptureTabProps) {
   const { capture } = settings
   const save = (patch: Partial<Settings['capture']>) => persist(() => onSave(patch))
+
+  const mirrorOn = capture.saveLocation === 'library-and-downloads'
+  /** `null` = لم يُعرف بعد. يُستطلَع عند التركيب، ويُحدَّث بعد منحٍ ناجح. */
+  const [downloadsGranted, setDownloadsGranted] = useState<boolean | null>(null)
+  /**
+   * عدّاد الرفض لا منطقي: المفتاح الأصلي (`input`) يقلب نفسه عند النقرة، ولا يعود مطفأً
+   * إلا بإعادة رسم. وقيمةٌ منطقية تبقى `true` بعد رفضٍ أوّل فلا تُعيد الرسم عند الرفض الثاني.
+   */
+  const [refusals, setRefusals] = useState(0)
+
+  useEffect(() => {
+    let alive = true
+    void hasPermission(['downloads']).then((granted) => {
+      if (alive) setDownloadsGranted(granted)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  /**
+   * **التشغيل يطلب الصلاحية أوّلًا وبلا `await` قبله.** الحفظ بعد المنح فقط.
+   * والإطفاء حفظٌ مباشر: لا سؤال ولا سحب.
+   */
+  const onMirrorChange = (on: boolean) => {
+    if (!on) {
+      setRefusals(0)
+      save({ saveLocation: 'library' })
+      return
+    }
+    void requestPermission(['downloads']).then((outcome) => {
+      if (outcome === 'granted') {
+        setRefusals(0)
+        setDownloadsGranted(true)
+        save({ saveLocation: 'library-and-downloads' })
+      } else {
+        // `denied` و`error` سواء هنا: لا قيمة تُحفَظ. والعطل التقني ليس قرار المستخدم،
+        // لكنّ النتيجة له واحدة — اللقطات في المكتبة وحدها.
+        setRefusals((n) => n + 1)
+      }
+    })
+  }
+
+  const downloadsHint =
+    refusals > 0
+      ? DOWNLOADS_HINT.refused
+      : mirrorOn && downloadsGranted === false
+        ? DOWNLOADS_HINT.missing
+        : DOWNLOADS_HINT.normal
 
   const qualityOptions = QUALITY_PRESETS.some((p) => p.value === capture.quality)
     ? QUALITY_PRESETS
@@ -136,8 +199,15 @@ export function CaptureTab({ settings, onSave, persist }: CaptureTabProps) {
         <SettingRow
           id="capture-downloads"
           label="احفظ نسخة في مجلّد التنزيلات"
-          hint="تصل مع تدفّق التنزيلات قريبًا. اللقطة تُحفظ في المكتبة وحدها اليوم."
-          control={<Chip tone="neutral">قريبًا</Chip>}
+          // `role="status"`: الرفض يظهر بعد جواب المتصفّح لا لحظة النقرة، فيُعلَن لقارئ الشاشة.
+          hint={<span role="status">{downloadsHint}</span>}
+          control={
+            <Toggle
+              on={mirrorOn}
+              onChange={onMirrorChange}
+              aria-label="احفظ نسخة في مجلّد التنزيلات"
+            />
+          }
         />
       </Group>
     </>

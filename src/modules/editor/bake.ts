@@ -50,6 +50,8 @@ import { normaliseBox } from './hit-test'
 import { clampToBuffer, distinctColours, regionVariance, type PixelRect } from './pixel-ops'
 import { opForNode, sampleRect } from './redact'
 import { isHideable, isIrreversible, type ObscureMode, type NodeId, type Scene } from './scene'
+import { emptyScene } from './scene-schema'
+import { createTextLayoutCache } from './text-layout'
 import { stripWebpIccp } from './webp-strip'
 
 import type { ObscureOp } from './blur-protocol'
@@ -507,3 +509,58 @@ export async function bake(
 }
 
 const OUTSIDE_WARNING = 'منطقة حجب خارج نافذة التصدير — لم تُطبَّق.'
+
+/**
+ * مصدرٌ نقطيٌّ بلا مشهد — صفحة نصّ مرسومة لملفّ PDF، أو صورة فرق المقارنة.
+ *
+ * **بكسلاتٌ تغادر الإضافة فتمرّ من هنا** لا من `convertToBlob` ثانٍ في الصفحة: الحدّ في ADR 0015 §2 يعدّ
+ * مواضع الترميز لا أنواع المصادر، ومصدرٌ بلا حجب ما زال مسار خروج. فيُخبز بمشهدٍ بلا عُقد، وموضع النداء
+ * يبقى السطر نفسه في `bake()`.
+ */
+export interface RasterBakeRequest {
+  readonly width: number
+  readonly height: number
+  readonly sliceSource: (rect: DeviceRect) => Promise<BakeSlice>
+  readonly format: ExportFormat
+  readonly surface: BakeSurface
+  readonly onProgress?: (fraction: number) => void
+  readonly signal?: { readonly aborted: boolean }
+  readonly yieldToLoop?: () => Promise<void>
+}
+
+/*
+ * أدوات الرسم لمشهدٍ بلا عُقد: **لا تُقرأ أبدًا** — حلقة العُقد في `bake()` لا تدور مرّةً واحدة. تُمرَّر لأن
+ * النوع يطلبها، ومحرّك البكسل يرمي إن نودي على خلاف ذلك، فلا يمرّ خطأٌ في هذا الافتراض صامتًا.
+ */
+const NO_STYLE: RenderStyle = {
+  palette: {} as RenderStyle['palette'],
+  selectionHex: '',
+  handleHex: '',
+  redactOutlineHex: '',
+  textFamily: '',
+  monoFamily: '',
+}
+const NO_LAYOUT = createTextLayoutCache(() => 0)
+const NO_PIXELS: PixelRunner = () => Promise.reject(new Error('مصدرٌ نقطي بلا عمليات بكسل'))
+
+/** يُخبز مصدرًا نقطيًّا بمقياس 1 وبلا جودة (بلا فقد) — انظر `RasterBakeRequest`. */
+export function bakeRaster(
+  req: RasterBakeRequest,
+): Promise<Result<{ blob: ExportBytes; report: BakeReport }>> {
+  return bake({
+    scene: emptyScene({ captureId: 'raster', width: req.width, height: req.height, dpr: 1 }),
+    sliceSource: req.sliceSource,
+    scale: 1,
+    format: req.format,
+    quality: null,
+    stripMetadata: false,
+    surface: req.surface,
+    style: NO_STYLE,
+    paletteMode: 'dark',
+    layout: NO_LAYOUT,
+    runPixels: NO_PIXELS,
+    ...(req.onProgress ? { onProgress: req.onProgress } : {}),
+    ...(req.signal ? { signal: req.signal } : {}),
+    ...(req.yieldToLoop ? { yieldToLoop: req.yieldToLoop } : {}),
+  })
+}

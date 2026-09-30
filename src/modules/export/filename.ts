@@ -78,3 +78,19 @@ export function exportFilename(title: string, scale: 1 | 2, format: ExportFormat
   const suffix = scale === 2 ? '@2x' : ''
   return `${filenameStem(title)}${suffix}.${extensionFor(format)}`
 }
+
+/**
+ * اسم ملفّ PDF: الجذع والامتداد وحدهما — لا لاحقة دقّة، فالوثيقة تُخبز بمقياس اللقطة نفسه.
+ */
+export function pdfFilename(title: string): string {
+  return `${filenameStem(title)}.pdf`
+}
+
+/**
+ * اسم ملفّ تقرير المقارنة: «تقرير-المقارنة» ثمّ جذع اللقطة الحالية — فتقريران لصفحتين لا يتطابقان اسمًا.
+ * وعنوانٌ لا يبقى منه شيء صالح يعطي الاسم وحده، لا «تقرير-المقارنة-لقطة».
+ */
+export function reportFilename(currentTitle: string): string {
+  const stem = filenameStem(currentTitle)
+  return stem === FALLBACK ? 'تقرير-المقارنة.pdf' : `تقرير-المقارنة-${stem}.pdf`
+}

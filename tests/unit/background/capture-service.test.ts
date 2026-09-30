@@ -11,12 +11,23 @@
  * قبل الالتقاط (ضمانة إطارَي `rAF` في `host.hide()`)، وأن Chrome يرفض فعلًا
  * عند 500ms. الأوّل في `scripts/verify-capture.mjs` والثاني قيس هناك.
  */
-import { fakeBrowser } from '@webext-core/fake-browser'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import 'fake-indexeddb/auto'
 
-import { CAPTURE_INTERVAL_MS, runCapture, setCaptureLimiter } from '@/background/capture-service'
+import { fakeBrowser } from '@webext-core/fake-browser'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import {
+  CAPTURE_INTERVAL_MS,
+  runCapture,
+  saveFullPage,
+  setCaptureLimiter,
+  shootCapture,
+} from '@/background/capture-service'
 import { createRateLimiter, type RateLimiterClock } from '@/modules/capture/rate-limit'
 import { resetHandlers } from '@/shared/messaging'
+import { defaultSettings, patchSettings, resetSettingsCache } from '@/shared/settings'
+import { closeDatabase } from '@/shared/storage/db'
+import { blobs, captures } from '@/shared/storage/repository'
 
 /**
  * ساعة مقودة — الإيقاع يُختبَر بالمنطق لا بالانتظار الحقيقي.
@@ -41,8 +52,11 @@ let captureVisibleTab: ReturnType<typeof vi.fn<() => Promise<string>>>
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo='
 
-beforeEach(() => {
+beforeEach(async () => {
+  await closeDatabase()
+  indexedDB.deleteDatabase('rasd')
   fakeBrowser.reset()
+  resetSettingsCache()
   resetHandlers()
   trace = []
 
@@ -177,5 +191,166 @@ describe('الفاصل — بذرة الجلسة تُكتب لحظة البدء 
 
   it('الفاصل المعلَن أطول من حدّ Chrome — 500 قيس أنه يُرفَض', () => {
     expect(CAPTURE_INTERVAL_MS).toBeGreaterThan(500)
+  })
+})
+
+describe('نسخة التنزيلات — saveLocation يغيّر وجهة الحفظ فعلًا', () => {
+  let download: ReturnType<typeof vi.fn>
+  let contains: ReturnType<typeof vi.fn>
+
+  /**
+   * الترميز الفعلي (`createImageBitmap`) غير موجود في happy-dom، والاختبارات أعلاه تمرّ على
+   * مسار فشل القصّ عمدًا. هنا نحتاج المسار الناجح إلى الحفظ، فيُزيَّف فكّ الترميز وحده؛ والقصّ
+   * بلا مستطيل يُعيد بايتات المتصفّح كما هي (`cropCapture`)، فالمحفوظ حقيقي.
+   */
+  beforeEach(() => {
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(() => Promise.resolve({ width: 4, height: 3, close: vi.fn() })),
+    )
+    download = vi.fn().mockResolvedValue(1)
+    contains = vi.fn().mockResolvedValue(true)
+    Object.assign(globalThis.chrome, {
+      downloads: { download },
+      permissions: { contains },
+    })
+    setCaptureLimiter(createRateLimiter(drivenClock(), 0))
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  async function setLocation(saveLocation: 'library' | 'library-and-downloads') {
+    const settings = defaultSettings()
+    const written = await patchSettings({ capture: { ...settings.capture, saveLocation } })
+    expect(written.ok).toBe(true)
+  }
+
+  /** النسخة تُطلَق بلا انتظار — سلسلة وعود قصيرة تُستنزف بدورات مؤقّتات متتالية. */
+  async function settle() {
+    for (let i = 0; i < 3; i += 1) await new Promise((r) => setTimeout(r, 0))
+  }
+
+  /** المحفوظ فعلًا في المكتبة: سجلّ اللقطة وبايتاتها معًا. */
+  async function inLibrary(id: string) {
+    const record = await captures.get(id)
+    const blob = await blobs.get(id)
+    return { record: record.ok ? record.value : null, blob: blob.ok ? blob.value : null }
+  }
+
+  it('library-and-downloads مع الصلاحية ⟵ تُحفظ في المكتبة وتُنزَّل نسخةٌ واحدة', async () => {
+    await setLocation('library-and-downloads')
+
+    const r = await runCapture({ tabId: 7, kind: 'viewport', rect: null, dpr: 1 })
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const saved = await inLibrary(r.value.id)
+    expect(saved.record?.id).toBe(r.value.id)
+    expect(saved.blob?.bytes).toBeGreaterThan(0)
+
+    await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1))
+    const call = download.mock.calls[0]?.[0] as { url: string; filename: string; saveAs: boolean }
+    expect(call.filename.startsWith('رصد/مثال-')).toBe(true)
+    expect(call.filename.endsWith('.png')).toBe(true)
+    expect(call.saveAs).toBe(false)
+    expect(call.url.startsWith('data:image/png;base64,')).toBe(true)
+  })
+
+  it('**رفض الصلاحية لا يُفشل الالتقاط**: ok والمكتبة محفوظة ولا تنزيل', async () => {
+    await setLocation('library-and-downloads')
+    contains.mockResolvedValue(false)
+
+    const r = await runCapture({ tabId: 7, kind: 'viewport', rect: null, dpr: 1 })
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const saved = await inLibrary(r.value.id)
+    expect(saved.record?.id).toBe(r.value.id)
+    expect(saved.blob).not.toBeNull()
+    await vi.waitFor(() => expect(contains).toHaveBeenCalled())
+    await settle()
+    expect(download).not.toHaveBeenCalled()
+  })
+
+  it('فشل التنزيل نفسه لا يُفشل الالتقاط ولا يمسّ المكتبة', async () => {
+    await setLocation('library-and-downloads')
+    download.mockRejectedValue(new Error('Download canceled by the user'))
+
+    const r = await runCapture({ tabId: 7, kind: 'viewport', rect: null, dpr: 1 })
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1))
+    await settle()
+    expect((await inLibrary(r.value.id)).record?.id).toBe(r.value.id)
+  })
+
+  it('library (الافتراضي) ⟵ المكتبة وحدها ولا تنزيل', async () => {
+    await setLocation('library')
+
+    const r = await runCapture({ tabId: 7, kind: 'viewport', rect: null, dpr: 1 })
+
+    expect(r.ok).toBe(true)
+    await settle()
+    expect(download).not.toHaveBeenCalled()
+  })
+
+  it('فشل الحفظ في المكتبة ⟵ لا نسخة في التنزيلات: ما لم يُحفظ لا يُنسَخ', async () => {
+    await setLocation('library-and-downloads')
+    Object.assign(globalThis.chrome, { extension: { inIncognitoContext: true } })
+
+    try {
+      const r = await runCapture({ tabId: 7, kind: 'viewport', rect: null, dpr: 1 })
+
+      // الفشل من الحفظ نفسه لا من حراسة سابقة — وإلا ما أثبت الاختبار شيئًا عن الترتيب.
+      expect(r.ok ? null : r.error.code).toBe('incognito-blocked')
+      await settle()
+      expect(download).not.toHaveBeenCalled()
+    } finally {
+      Object.assign(globalThis.chrome, { extension: { inIncognitoContext: false } })
+    }
+  })
+
+  it('صفحة كاملة (saveFullPage) ⟵ المكتبة ونسخة تنزيل واحدة', async () => {
+    await setLocation('library-and-downloads')
+    const blob = new Blob([new Uint8Array([137, 80, 78, 71, 1, 2, 3])], { type: 'image/png' })
+
+    const r = await saveFullPage(7, { blob, width: 1280, height: 4000 }, 2)
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect((await inLibrary(r.value.id)).record?.kind).toBe('full-page')
+    await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1))
+  })
+
+  it('صفحة كاملة مع رفض الصلاحية ⟵ تُحفظ في المكتبة ولا تنزيل', async () => {
+    await setLocation('library-and-downloads')
+    contains.mockResolvedValue(false)
+    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' })
+
+    const r = await saveFullPage(7, { blob, width: 10, height: 10 }, 1)
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect((await inLibrary(r.value.id)).record?.id).toBe(r.value.id)
+    await vi.waitFor(() => expect(contains).toHaveBeenCalled())
+    await settle()
+    expect(download).not.toHaveBeenCalled()
+  })
+
+  /**
+   * لقطة دليل المشكلة تُكتب مع مشكلتها في معاملة واحدة (`putIssueWithEvidence`) — خارج
+   * نطاق النسخة: `shootCapture` لا تحفظ شيئًا ولا تنسخ شيئًا.
+   */
+  it('shootCapture (دليل المشكلة) لا تنسخ إلى التنزيلات', async () => {
+    await setLocation('library-and-downloads')
+
+    const shot = await shootCapture({ tabId: 7, kind: 'viewport', rect: null, dpr: 1 })
+
+    expect(shot.ok).toBe(true)
+    await settle()
+    expect(download).not.toHaveBeenCalled()
   })
 })

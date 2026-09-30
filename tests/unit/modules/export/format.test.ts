@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest'
 import {
   CLIPBOARD_FORMAT,
   clipboardAccepts,
-  DEFERRED_FORMATS,
   EXPORT_FORMATS,
   extensionFor,
   FORMAT_HINT,
   formatFromMime,
+  isDocumentFormat,
   mimeFor,
+  OUTPUT_FORMATS,
+  OUTPUT_HINT,
 } from '@/modules/export/format'
 
 describe('صيغ الخروج', () => {
@@ -70,20 +72,19 @@ describe('صيغ الخروج', () => {
     expect(FORMAT_HINT.webp).toContain('الجودة')
   })
 
-  it('المؤجَّلة PDF وحدها — الصيغة المتّجهة حُذفت بقرار النطاق ولا تُعرض', () => {
-    expect(Object.keys(DEFERRED_FORMATS)).toEqual(['pdf'])
-    const shown = [...EXPORT_FORMATS, ...Object.keys(DEFERRED_FORMATS)].map((f) => f.toLowerCase())
-    expect(shown).not.toContain('svg')
+  it('ثلاث صيغ في النافذة: الصيغتان المرمَّزتان ثمّ PDF — والمتّجهة محذوفة بقرار النطاق', () => {
+    expect(OUTPUT_FORMATS).toEqual(['png', 'webp', 'pdf'])
+    expect(OUTPUT_FORMATS.map((f) => f.toLowerCase())).not.toContain('svg')
+    expect(OUTPUT_HINT.pdf).toBe('صفحة أو أكثر')
   })
 
-  it('الصيغة المؤجَّلة تحمل سببًا معروضًا لا تعطيلًا صامتًا', () => {
-    for (const info of Object.values(DEFERRED_FORMATS)) {
-      expect(info.reason.length).toBeGreaterThan(0)
-      expect(info.label.length).toBeGreaterThan(0)
-    }
-    // السبب يراه المستخدم: يشرح بلغته، ولا يحمل رقم مرحلة ولا رقم صفّ داخلي.
-    for (const info of Object.values(DEFERRED_FORMATS)) {
-      expect(info.reason).not.toMatch(/الوحدة|المرحلة|§|\d+\.\d+/u)
-    }
+  /**
+   * **PDF ليست صيغة ترميز:** لو دخلت `EXPORT_FORMATS` لدار عليها الاختبار التفاضلي في `bake-format.test.ts`
+   * بطلب `application/pdf` من المُرمِّج — فيتدهور صامتًا إلى PNG وتمسكه البوّابة عطلًا. الحاوية تُبنى حول PNG.
+   */
+  it('**وPDF وثيقةٌ لا صيغة ترميز** — خارج `EXPORT_FORMATS`', () => {
+    expect(EXPORT_FORMATS).not.toContain('pdf')
+    expect(isDocumentFormat('pdf')).toBe(true)
+    expect(isDocumentFormat('png')).toBe(false)
   })
 })

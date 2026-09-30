@@ -447,7 +447,8 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
             style={style}
             layout={layout}
             client={client}
-            title={context.capture.title}
+            capture={context.capture}
+            noteIssues={context.noteIssues}
             onClose={() => setExportOpen(false)}
           />
         ) : handoffOpen ? (

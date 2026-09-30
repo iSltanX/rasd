@@ -72,6 +72,7 @@
     "@preact/signals": "2.11.1",
     "culori": "4.0.2",
     "idb": "8.0.3",
+    "pdf-lib": "1.17.1",
     "pixelmatch": "6.0.0",
     "preact": "10.29.8",
     "valibot": "1.4.2"

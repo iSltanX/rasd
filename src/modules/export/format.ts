@@ -101,30 +101,25 @@ export function clipboardAccepts(format: ExportFormat): boolean {
  */
 export const CLIPBOARD_NOTE = 'الحافظة تقبل PNG وحدها — النسخ يُنتج PNG مهما كانت صيغة التنزيل.'
 
-/** صيغة في التصميم بلا محرّك بعد — تُعرض معطَّلة بسببها. */
-export type DeferredFormat = 'pdf'
+/**
+ * **PDF صيغة وثيقة لا صيغة ترميز.** لا يُطلب من المُرمِّج `application/pdf`؛ تُخبز الصورة PNG من البوّابة
+ * نفسها ثمّ تُلفّ في حاوية (`pdf.ts`). ولذلك لا تدخل `EXPORT_FORMATS`: تلك صيغ `bake()`، والاختبار التفاضلي
+ * يدور عليها وحدها — وPDF تحمل بايتاته كما هي ([ADR 0040](../../../Docs/ADR/0040-pdf-container-over-the-gate.md)).
+ */
+export type DocumentFormat = 'pdf'
 
-export interface DeferredFormatInfo {
-  readonly label: string
-  readonly hint: string
-  /** لماذا لا تعمل الآن — يُعرض، فالتعطيل بلا سبب صمتٌ لا صدق. */
-  readonly reason: string
+/** ما يختاره المستخدم في النافذة: صيغ الترميز ثمّ الوثيقة. */
+export type OutputFormat = ExportFormat | DocumentFormat
+
+/** بترتيب العرض في `export / modal` و`export / pdf` — من الأيمن: PNG ثمّ WebP ثمّ PDF. */
+export const OUTPUT_FORMATS: readonly OutputFormat[] = ['png', 'webp', 'pdf']
+
+export function isDocumentFormat(format: OutputFormat): format is DocumentFormat {
+  return format === 'pdf'
 }
 
-/**
- * **معروضة معطَّلة لا مخفيّة ولا موعودة كذبًا.**
- *
- * PDF تملكها `STAGES/05`. والصيغة المتّجهة **مستبعدة** من النطاق بقرار (الصفّ 107 في
- * `Docs/Engineering.md §6`) فحُذفت من إطار `73:2` في `STAGES/02` ومن هذه الواجهة في
- * `STAGES/03`، ولا تُعاد إلا بقرار مالك مكتوب في `Docs/Scope.md`.
- *
- * **النصّ هنا يراه المستخدم** — فلا رقم مرحلة ولا رقم صفّ فيه
- * (يحرسه `tests/unit/no-plan-leak.test.ts`).
- */
-export const DEFERRED_FORMATS: Readonly<Record<DeferredFormat, DeferredFormatInfo>> = {
-  pdf: {
-    label: 'PDF',
-    hint: 'صفحة أو أكثر · قريبًا',
-    reason: 'قيد التطوير — يصل مع تقرير المقارنة في تحديث قادم.',
-  },
+/** وصف كل صيغة تحت اسمها — نصّ PDF من إطار `290:480` حرفًا. */
+export const OUTPUT_HINT: Readonly<Record<OutputFormat, string>> = {
+  ...FORMAT_HINT,
+  pdf: 'صفحة أو أكثر',
 }
