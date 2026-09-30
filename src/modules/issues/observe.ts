@@ -10,9 +10,8 @@
  * `modules/` منطق خالص: يقرأ DOM ولا يلمس `chrome.*`.
  */
 
-import { resolveBackground } from '@/modules/colour/background'
-import { contrastRatio } from '@/modules/colour/contrast'
-import { readColour } from '@/modules/colour/formats'
+import { floorRatio } from '@/modules/colour/audit'
+import { measureTextContrast } from '@/modules/colour/text-contrast'
 import { readInspectStyles } from '@/modules/computed-style/read'
 import { refind, type RefindVerdict } from '@/modules/dom-picker/identity'
 import { elementBounds } from '@/modules/dom-picker/inspect'
@@ -41,9 +40,14 @@ export function formatPx(n: number): string {
   return `${Number(n.toFixed(2))}px`
 }
 
-/** `3.68` — المقارنة على الرقم، والعرض يضيف `: 1`. */
+/**
+ * `3.67` — المقارنة على الرقم، والعرض يضيف `: 1`.
+ *
+ * **يُقصّ ولا يُقرَّب** (ADR 0035): `4.496` كانت تُكتب `4.50` فتطابق حدّ 4.5 وهي تسقطه، فتُعلَن المشكلة
+ * «محلولة» والنصّ دون الحدّ.
+ */
 export function formatRatioValue(n: number): string {
-  return n.toFixed(2)
+  return floorRatio(n)
 }
 
 const isLaidOut = (el: Element): boolean => el.getClientRects().length > 0
@@ -78,12 +82,15 @@ function readSpacing(a: Element, b: Element | null, property: string): Reading {
     : { value: formatPx(n), reason: null }
 }
 
+/**
+ * القارئ نفسه الذي يدقّق الصفحة (`measureTextContrast`، ADR 0035): لون النصّ بألفاه فوق الطبقات وشفافية
+ * مجموعاتها. وما يعلنه «تعذّر الحساب» — صورة أو تدرّج أو عنصرٌ مرسوم تحته — سببه هنا `background-image`.
+ */
 function readContrast(el: Element, win: Window): Reading {
-  const text = readColour(win.getComputedStyle(el).color)
-  if (!text) return { value: null, reason: 'unreadable' }
-  const background = resolveBackground(el, win)
-  const value = formatRatioValue(contrastRatio(text.rgb, background.colour.rgb))
-  if (background.sawImage) return { value, reason: 'background-image' }
+  const read = measureTextContrast(el, win)
+  if (!read || read.unknown === 'unreadable') return { value: null, reason: 'unreadable' }
+  const value = formatRatioValue(read.ratio)
+  if (read.unknown) return { value, reason: 'background-image' }
   if (!isLaidOut(el)) return { value, reason: 'unlaid' }
   return { value, reason: null }
 }
