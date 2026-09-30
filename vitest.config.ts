@@ -36,6 +36,17 @@ export default defineConfig({
       reportsDirectory: 'coverage',
       include: ['src/**/*.ts', 'src/**/*.tsx'],
       exclude: ['src/tokens/**', 'src/**/*.d.ts'],
+      /*
+       * أرضية «لا انخفاض» — تقرأها `pnpm test:coverage` فيخرج بغير صفر إن هبطت
+       * أي نسبة دونها. القيم هي القياس بلا تقريب صاعد: رفع الأرضية يلي رفع
+       * التغطية بالاختبار، ولا تُخفَّض لتظهر نتيجةٌ ناجحة (`AGENTS.md` §4).
+       */
+      thresholds: {
+        statements: 66.3,
+        branches: 60.5,
+        functions: 63.8,
+        lines: 68.5,
+      },
     },
   },
 })
