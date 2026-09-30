@@ -17,6 +17,12 @@
  *   · `active` و`done` تشترطان أن تكون كل الاعتماديات `done`.
  *   · `done` تشترط `delivery: merged` و`commit` مكتوبًا — لا «مكتملة» بلا التزام مدموج.
  *   · `resume` مكتوب لكل مرحلة ليست `done`.
+ *   · `after` اختياري **للترتيب وحده** (ADR 0025): يضع المرحلة في ترتيب التنفيذ والعرض بعد المرحلة
+ *     المسمّاة مباشرةً، ولا يُقرأ في شرط `active` ولا `done` — الاعتماد في `depends` وحده. لا يشير
+ *     إلى غائب ولا إلى نفسه ولا يدور، والترتيب الناتج يحترم `depends`: لا اعتمادية بعد معتمِدها.
+ *
+ * الجدولان و«المرحلة التالية» بترتيب التنفيذ: ترتيب الرقم، إلا ما وضعه `after` بعد غيره. والتالية
+ * أوّل مرحلة لم تبدأ في ذلك الترتيب اكتملت **اعتمادياتها** — الترتيب يختار، والاعتماد يُجيز.
  *
  * المسارات تُستبدَل بمتغيّرَي بيئة للاختبار: RASD_STAGES_DIR و RASD_STAGES_OUT.
  */
@@ -81,6 +87,17 @@ function parseDepends(file, raw) {
   })
 }
 
+/** `after` اختياري — غيابه `null`، وحضوره رقم مرحلة. */
+function parseAfter(file, raw) {
+  if (raw === undefined) return null
+  const id = Number(raw)
+  if (!Number.isInteger(id)) {
+    fail(`${file}: after يجب أن يكون رقم مرحلة لا «${raw}»`)
+    return null
+  }
+  return id
+}
+
 function readStages() {
   if (!existsSync(STAGES_DIR)) {
     fail('مجلّد STAGES غير موجود.')
@@ -115,6 +132,7 @@ function readStages() {
       commit: header.commit ?? '',
       updated: header.updated ?? '',
       resume: header.resume ?? '',
+      after: parseAfter(name, header.after),
     }
     if (String(stage.id).padStart(2, '0') !== name.slice(0, 2)) {
       fail(`${name}: id (${header.id}) لا يطابق اسم الملفّ`)
@@ -128,8 +146,34 @@ function readStages() {
   return stages
 }
 
-function validate(stages) {
+/**
+ * ترتيب التنفيذ (ADR 0025): ترتيب الرقم، إلا مرحلةً تحمل `after: N` فتوضع بعد N مباشرةً — وسلسلةٌ
+ * منه جائزة. ما لا يُوضع (مرساة غائبة، أو دور) يُبلَّغ ولا يُسقَط من الجدول بصمت.
+ */
+function executionOrder(stages) {
+  const anchored = new Map()
+  for (const stage of stages) {
+    if (stage.after === null) continue
+    anchored.set(stage.after, [...(anchored.get(stage.after) ?? []), stage])
+  }
+  const ordered = []
+  const place = (stage) => {
+    ordered.push(stage)
+    for (const next of anchored.get(stage.id) ?? []) place(next)
+  }
+  for (const stage of stages) if (stage.after === null) place(stage)
+  for (const stage of stages) {
+    if (!ordered.includes(stage)) {
+      fail(`${stage.file}: after (${stage.after}) لا يضعها في ترتيب التنفيذ — مرحلة غائبة أو دور`)
+      ordered.push(stage)
+    }
+  }
+  return ordered
+}
+
+function validate(stages, ordered) {
   const byId = new Map(stages.map((stage) => [stage.id, stage]))
+  const position = new Map(ordered.map((stage, index) => [stage.id, index]))
   stages.forEach((stage, index) => {
     if (stage.id !== index + 1) fail(`${stage.file}: الترقيم غير متتابع — المتوقَّع ${index + 1}`)
   })
@@ -140,6 +184,14 @@ function validate(stages) {
     for (const dep of stage.depends) {
       if (!byId.has(dep)) fail(`${stage.file}: تعتمد على مرحلة غير موجودة (${dep})`)
       if (dep === stage.id) fail(`${stage.file}: تعتمد على نفسها`)
+      if (byId.has(dep) && position.get(dep) > position.get(stage.id)) {
+        fail(`${stage.file}: تعتمد على ${pad(dep)} وهي بعدها في ترتيب التنفيذ`)
+      }
+    }
+    if (stage.after !== null) {
+      if (stage.after === stage.id) fail(`${stage.file}: after يشير إلى نفسها`)
+      else if (!byId.has(stage.after))
+        fail(`${stage.file}: after يشير إلى مرحلة غائبة (${stage.after})`)
     }
     const hasCommit = /^[0-9a-f]{7,40}$/u.test(stage.commit)
     if (stage.status === 'done') {
@@ -246,7 +298,8 @@ function renderRoadmap(stages, current) {
 
 const check = process.argv.includes('--check')
 const stages = readStages()
-validate(stages)
+const ordered = executionOrder(stages)
+validate(stages, ordered)
 
 const baselinePath = join(STAGES_DIR, 'baseline.json')
 let baseline = { summary: '', commit: '', date: '', repo: '' }
@@ -257,8 +310,8 @@ const roadmapNow = existsSync(ROADMAP) ? readFileSync(ROADMAP, 'utf8') : ''
 if (roadmapNow === '') fail('ROADMAP.md غير موجود.')
 const statusNow = existsSync(STATUS) ? readFileSync(STATUS, 'utf8') : ''
 
-const status = renderStatus(stages, baseline)
-const roadmap = roadmapNow === '' ? '' : renderRoadmap(stages, roadmapNow)
+const status = renderStatus(ordered, baseline)
+const roadmap = roadmapNow === '' ? '' : renderRoadmap(ordered, roadmapNow)
 
 console.log('\nمزامنة المراحل (STAGES ← STATUS.md · ROADMAP.md):')
 console.log(
