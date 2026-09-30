@@ -258,6 +258,29 @@ export async function captureTile(tabId: number): Promise<Result<string>> {
  * الصفحة تحت طبقة غير مرئية تبتلع المؤشِّر — عطل أسوأ من الفشل الأصلي.
  */
 export async function runCapture(input: CaptureInput): Promise<Result<CaptureOutput>> {
+  const shot = await shootCapture(input)
+  if (!shot.ok) return shot
+
+  const saved = await putCaptureWithBlob(shot.value.record, shot.value.blob)
+  if (!saved.ok) return saved
+
+  return ok({ id: shot.value.record.id, width: shot.value.width, height: shot.value.height })
+}
+
+export interface ShotCapture {
+  readonly record: CaptureRecord
+  readonly blob: Blob
+  readonly width: number
+  readonly height: number
+}
+
+/**
+ * الالتقاط بلا حفظ: حراسة ← إخفاء ← التقاط ← قصّ ← سجلّ.
+ *
+ * لقطة دليل المشكلة تُكتب مع المشكلة وملاحظتها في معاملة واحدة (`putIssueWithEvidence`)، فلا يجوز أن
+ * يحفظها الالتقاط وحده قبلها — لقطةٌ بلا مشكلة إن فشل ما بعدها.
+ */
+export async function shootCapture(input: CaptureInput): Promise<Result<ShotCapture>> {
   const guarded = await assertShootable(input.tabId)
   if (!guarded.ok) return guarded
 
@@ -270,12 +293,12 @@ export async function runCapture(input: CaptureInput): Promise<Result<CaptureOut
     const cropped = await cropCapture(grabbed.value, input.rect)
     if (!cropped.ok) return cropped
 
-    const record = buildRecord(input.kind, cropped.value, guarded.value, input.dpr)
-
-    const saved = await putCaptureWithBlob(record, cropped.value.blob)
-    if (!saved.ok) return saved
-
-    return ok({ id: record.id, width: cropped.value.width, height: cropped.value.height })
+    return ok({
+      record: buildRecord(input.kind, cropped.value, guarded.value, input.dpr),
+      blob: cropped.value.blob,
+      width: cropped.value.width,
+      height: cropped.value.height,
+    })
   } finally {
     if (hidden) await showOverlay(input.tabId)
   }

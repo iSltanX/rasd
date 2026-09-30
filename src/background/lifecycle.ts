@@ -42,6 +42,7 @@ import { measureLiveDiff } from './compare-diff-service'
 import { cancelFullPage } from './full-page-job'
 import { canOperateOnTab } from './gate'
 import { registerInstallFlow } from './install-flow'
+import { registerIssues } from './issues'
 import { extractFromCapture, extractFromViewport } from './palette-service'
 
 import type { PageKey } from '@/modules/compare/reference'
@@ -73,6 +74,7 @@ export function registerLifecycle() {
   registerChannels()
   registerFullPage()
   registerInspect()
+  registerIssues()
   registerWatchdog()
   // متزامنًا في المستوى الأعلى كبقيّة المستمعين: الحدث الذي أيقظ العامل قد يكون `onInstalled` نفسه.
   registerInstallFlow()

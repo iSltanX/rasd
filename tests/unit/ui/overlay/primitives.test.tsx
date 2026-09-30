@@ -378,13 +378,13 @@ describe('FrameBlocked', () => {
 })
 
 describe('مفردات الأوضاع', () => {
-  it('سبعة أوضاع، `idle` بينها', () => {
-    expect(MODES).toHaveLength(7)
+  it('ثمانية أوضاع، `idle` بينها — والثامن `issues` لوحة مشكلات الصفحة (`STAGES/32`)', () => {
+    expect(MODES).toHaveLength(8)
     expect(MODES).toContain('idle')
   })
 
-  it('`TOOL_MODES` هي الستّة بلا `idle`', () => {
-    expect(TOOL_MODES).toHaveLength(6)
+  it('`TOOL_MODES` هي السبعة بلا `idle`', () => {
+    expect(TOOL_MODES).toHaveLength(7)
     expect(TOOL_MODES as readonly string[]).not.toContain('idle')
   })
 

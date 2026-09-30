@@ -11,6 +11,7 @@
 import type { DeviceRect } from '../geometry'
 import type { GateReason } from '../injection-gate'
 import type { InspectSnapshot } from '../inspect-schema'
+import type { IssueDraft, IssueRecord, ProjectOption, RecheckResult } from '../issue-schema'
 import type { PageName } from '../page-paths'
 import type { CaptureKind, ColorSource, Viewport } from '../storage/schema'
 import type { ActiveMode } from '../storage/session'
@@ -327,6 +328,30 @@ export interface RequestMap {
    * أن تُفتح.
    */
   'page/open': { page: PageName; active?: boolean; params?: Record<string, string> }
+  /**
+   * مشكلات هذه الصفحة ومشاريع المستخدم — للوحة «مشكلات هذه الصفحة» ولقائمة المشاريع في النموذج
+   * (ADR 0030). **من الخلفية**: المخزن في قاعدة الإضافة لا قاعدة الموقع، والأصل والمسار من التبويب لا
+   * من الحمولة — نفس قاعدة `reference/load`.
+   */
+  'issue/page': void
+  /**
+   * يسجّل مشكلة: تلتقط الخلفية لقطة الدليل، وتبني الملاحظة إن طُلبت، وتكتب الثلاثة مع المشكلة في
+   * معاملة واحدة. الحمولة من صفحةٍ قد تكون معادية فتُتحقَّق بمخطّطها (`parseDraft`)، والرابط والعنوان من
+   * `sender.tab`. وإخفاء الطبقة قبل اللقطة على الخلفية كما في `capture/run`.
+   */
+  'issue/create': IssueDraft
+  /**
+   * نتائج جولة فحص: النتيجة والقيمة المرصودة لكل مشكلة، **بلا حالة** — الخلفية تشتقّها بـ`statusFor`
+   * (ADR 0030 §2) ولا تكتب إلا مشكلاتٍ لصفحة المُرسِل نفسها.
+   */
+  'issue/recheck-save': { results: readonly RecheckResult[] }
+  /**
+   * «أعد الفحص» من النافذة: تحقن الطبقة بوضع `issues` ثمّ تطلب الجولة. **تُرفض من أي مُرسِلٍ له
+   * تبويب** — سكربت المحتوى لا يطلب فحص تبويبٍ بلا إيماءة (ADR 0031 §4)؛ والنافذة لا تُفتح إلا بها.
+   */
+  'issue/recheck-tab': { tabId: number }
+  /** من الخلفية إلى الطبقة: ابدأ جولة الفحص الآن. يسجّله `content/index.ts` ما دامت الجلسة قائمة. */
+  'issue/run-recheck': void
   'offscreen/ensure': void
   'offscreen/close': void
 }
@@ -388,6 +413,12 @@ export interface ResponseMap {
   'inspect/report': { ok: true }
   'inspect/get': { snapshot: InspectSnapshot | null }
   'page/open': { tabId: number }
+  'issue/page': { issues: readonly IssueRecord[]; projects: readonly ProjectOption[] }
+  'issue/create': { id: string; captureId: string }
+  'issue/recheck-save': { issues: readonly IssueRecord[] }
+  'issue/recheck-tab': { started: true } | { started: false; reason: ActivationFailure }
+  /** عدد ما فُحص فعلًا — قد يقلّ عن مشكلات الصفحة إن بلغت الجولة حدّها. */
+  'issue/run-recheck': { checked: number }
   'offscreen/ensure': { created: boolean }
   'offscreen/close': { closed: boolean }
 }

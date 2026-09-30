@@ -66,13 +66,16 @@ export interface BuildIds {
 /** موضع العنصر داخل لقطة الدليل ببكسل الصورة — ما ترسم المكتبة حوله إطارًا. */
 export function cropOf(draft: Pick<IssueDraft, 'shot'>): IssueRecord['evidence']['crop'] {
   const { rect, element } = draft.shot
-  const x = Math.max(0, element.x - rect.x)
-  const y = Math.max(0, element.y - rect.y)
+  // تقاطع العنصر مع اللقطة لا العنصر كلّه: ما خرج منها لا يُرسم إطارٌ حوله.
+  const x0 = Math.max(element.x, rect.x)
+  const y0 = Math.max(element.y, rect.y)
+  const x1 = Math.min(element.x + element.width, rect.x + rect.width)
+  const y1 = Math.min(element.y + element.height, rect.y + rect.height)
   return {
-    x,
-    y,
-    width: Math.max(0, Math.min(element.width, rect.width - x)),
-    height: Math.max(0, Math.min(element.height, rect.height - y)),
+    x: Math.min(x0, x1) - rect.x,
+    y: Math.min(y0, y1) - rect.y,
+    width: Math.max(0, x1 - x0),
+    height: Math.max(0, y1 - y0),
   }
 }
 
@@ -174,7 +177,10 @@ export function noteScene(
     ...base,
     id: asNodeId(ids.noteId),
     kind: 'note',
-    at: devicePoint(Math.max(0, Math.min(crop.x + radius * 2, image.width - width)), crop.y),
+    at: devicePoint(
+      Math.max(0, Math.min(crop.x + radius * 2, image.width - width)),
+      Math.max(0, Math.min(crop.y, image.height - radius * 2)),
+    ),
     widthPx: width,
     title: draft.title.trim(),
     body: draft.body,
