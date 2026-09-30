@@ -17,8 +17,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
-import { ensureFixturesServer } from './live-fixtures.mjs'
-import { attachLiveServiceWorker } from './live-sw.mjs'
+import { ensureFixturesServer } from './lib/live-fixtures.mjs'
+import { attachLiveServiceWorker } from './lib/live-sw.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')

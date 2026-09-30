@@ -38,7 +38,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
-import { ensureFixturesServer } from './live-fixtures.mjs'
+import { ensureFixturesServer } from './lib/live-fixtures.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const OUT = join(root, 'artifacts', 'design')

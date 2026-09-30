@@ -54,8 +54,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { PAGE_PATHS } from '../src/shared/page-paths.ts'
 
-import { ensureFixturesServer } from './live-fixtures.mjs'
-import { waitForExtensionContext } from './live-sw.mjs'
+import { ensureFixturesServer } from './lib/live-fixtures.mjs'
+import { waitForExtensionContext } from './lib/live-sw.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
