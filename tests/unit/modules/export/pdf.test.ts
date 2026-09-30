@@ -1,13 +1,6 @@
 import { inflateSync } from 'node:zlib'
 
-import {
-  PDFArray,
-  PDFDict,
-  PDFDocument,
-  PDFName,
-  type PDFNumber,
-  type PDFRawStream,
-} from 'pdf-lib'
+import { PDFArray, PDFDict, PDFDocument, PDFName, type PDFNumber, type PDFRawStream } from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
 
 import { buildPdf, type PdfInput, type PdfMetadata } from '@/modules/export/pdf'
@@ -156,8 +149,29 @@ describe('المولِّد: ملفّ PDF يُفتح فعلًا', () => {
     expect(built.ok).toBe(true)
   })
 
-  it('**يرفض صورةً بقناة شفافية باسمها** — لا يسقط إلى فكّ البكسلات', async () => {
-    const png = makePng(W, H, pattern, { colourType: 6 })
+  it('**RGBA معتمة — ما يُرمِّزه القماش المرسوم برمجيًّا — تدخل ثلاث قنوات وتُفكّ إلى بكسلها**', async () => {
+    const png = makePng(W, H, pattern, { colourType: 6, idatChunks: 2 })
+    const [window] = await planImagePages(W, H, A4, 'single')
+    const built = await buildPdf({
+      images: [baked(png)],
+      pages: [{ image: 0, box: A4, window: window! }],
+      metadata: null,
+    })
+    if (!built.ok) throw new Error(built.error.message)
+    const { dict, stream } = firstImage(await PDFDocument.load(built.value))
+    expect(num(dict.lookup(PDFName.of('DecodeParms'), PDFDict), 'Colors')).toBe(3)
+    expect(dict.has(PDFName.of('SMask'))).toBe(false)
+    expect(
+      Buffer.from(decodePredicted(stream.contents, W, H, 3)).equals(
+        Buffer.from(rawPixels(W, H, pattern)),
+      ),
+    ).toBe(true)
+  })
+
+  it('**وشفافيةٌ حقيقية ترفض الملفّ باسمها** — لا تُسطَّح صامتةً', async () => {
+    const png = makePng(W, H, (x, y) => [...pattern(x, y), x === 3 ? 0 : 255] as const, {
+      colourType: 6,
+    })
     const [window] = await planImagePages(W, H, A4, 'single')
     const built = await buildPdf({
       images: [baked(png)],
@@ -165,7 +179,7 @@ describe('المولِّد: ملفّ PDF يُفتح فعلًا', () => {
       metadata: null,
     })
     expect(built.ok).toBe(false)
-    if (!built.ok) expect(built.error.detail).toContain('RGB')
+    if (!built.ok) expect(built.error.detail).toContain('شفافية')
   })
 
   it('ويرفض صفحةً تشير إلى صورة غير موجودة', async () => {

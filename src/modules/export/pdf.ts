@@ -6,7 +6,8 @@
  * النصّ نفسها تُرسم على قماش ثمّ تُخبز كصورة (`bakeRaster`)، فموضع الترميز يبقى واحدًا. والتعليل في
  * [ADR 0040](../../../Docs/ADR/0040-pdf-container-over-the-gate.md).
  *
- * **والصورة تدخل كما خرجت:** `png-image.ts` يجمع `IDAT` بلا فكّ، ويدخل تيّارًا بـ`FlateDecode` ومرشِّح PNG.
+ * **والصورة تدخل كما خرجت:** `png-image.ts` يجمع `IDAT` بلا فكّ، ويدخل تيّارًا بـ`FlateDecode` ومرشِّح PNG —
+ * وRGBA (حين يُرسم القماش برمجيًّا) تُحوَّل صفًّا صفًّا بلا فقد إلى ثلاث قنوات.
  * وتُضمَّن **مرّةً واحدة** مهما قُسمت على صفحات: كل صفحة تقصّ نافذتها من الكائن نفسه بمستطيل قصّ، فلا
  * يتضاعف الحجم بعدد الصفحات ولا يُعاد ترميز شريحة.
  *
@@ -35,7 +36,7 @@ import {
 
 import { errText, ok, type Result } from '@/shared/result'
 
-import { readPngImage, type PngImage } from './png-image'
+import { pdfImageData, readPngImage } from './png-image'
 
 import type { ImageWindow, PageBox } from './pdf-layout'
 import type { ExportBytes } from '@/modules/editor/bake'
@@ -64,21 +65,23 @@ export interface PdfInput {
 /** اسم المنتج كما يظهر في «خصائص المستند» — عربيًّا كالواجهة. */
 const PRODUCER = 'رصد'
 
-function embed(doc: PDFDocument, image: PngImage): PDFRef {
+/** صورةٌ جاهزة للتضمين: أبعادها، وتيّارها بثلاث قنوات (`pdfImageData`). */
+interface PdfImage {
+  readonly width: number
+  readonly height: number
+  readonly data: Uint8Array
+}
+
+function embed(doc: PDFDocument, image: PdfImage): PDFRef {
   const stream = doc.context.stream(image.data, {
     Type: 'XObject',
     Subtype: 'Image',
     Width: image.width,
     Height: image.height,
     ColorSpace: 'DeviceRGB',
-    BitsPerComponent: image.bitsPerComponent,
+    BitsPerComponent: 8,
     Filter: 'FlateDecode',
-    DecodeParms: {
-      Predictor: 15,
-      Colors: image.colors,
-      BitsPerComponent: image.bitsPerComponent,
-      Columns: image.width,
-    },
+    DecodeParms: { Predictor: 15, Colors: 3, BitsPerComponent: 8, Columns: image.width },
   })
   return doc.context.register(stream)
 }
@@ -92,7 +95,7 @@ function embed(doc: PDFDocument, image: PngImage): PDFRef {
 function place(
   doc: PDFDocument,
   ref: PDFRef,
-  image: PngImage,
+  image: PdfImage,
   box: PageBox,
   window: ImageWindow,
 ): void {
@@ -124,11 +127,13 @@ export async function buildPdf(input: PdfInput): Promise<Result<Uint8Array<Array
     return errText('invalid-data', 'لا صفحات في ملفّ PDF.', 'pages = 0')
   }
 
-  const images: PngImage[] = []
+  const images: PdfImage[] = []
   for (const blob of input.images) {
     const read = readPngImage(new Uint8Array(await blob.arrayBuffer()))
     if (!read.ok) return read
-    images.push(read.value)
+    const data = await pdfImageData(read.value)
+    if (!data.ok) return data
+    images.push({ width: read.value.width, height: read.value.height, data: data.value })
   }
 
   try {

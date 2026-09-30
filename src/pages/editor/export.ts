@@ -47,6 +47,11 @@ export interface BakeSurfaceOptions {
    * **مقيس** (Chrome 152.0.7977.130): السياق الافتراضي يُرمِّز PNG بنوع لون 6 (RGBA) ولو كان كلّه معتمًا،
    * و`{ alpha: false }` يُرمِّزه بنوع 2 (RGB). والثاني وحده يدخل PDF بلا فكّ بكسل (`png-image.ts`). واللقطة
    * معتمةٌ أصلًا، فلا يتغيّر بكسلٌ واحد — تتغيّر ترويسة الملفّ وحدها.
+   *
+   * **وبلا `willReadFrequently`** — والقياس نفسه أمسكه `verify:export` لا المراجعة: `{ alpha: false,
+   * willReadFrequently: true }` يعود RGBA، لأن القماش البرمجي الذي يطلبه المفتاح يتجاهل عتامة السياق عند
+   * الترميز. فالسطح المعتم يدفع قراءةً أبطأ في مناطق الحجب وحدها (`getImageData` لكل عقدة حجب) ثمنًا لملفٍّ
+   * يدخل PDF كما هو.
    */
   readonly opaque?: boolean
 }
@@ -62,10 +67,10 @@ export function createBakeSurface(options: BakeSurfaceOptions = {}): BakeSurface
       } catch {
         return null
       }
-      const ctx = canvas.getContext('2d', {
-        willReadFrequently: true,
-        ...(options.opaque ? { alpha: false } : {}),
-      })
+      const ctx = canvas.getContext(
+        '2d',
+        options.opaque ? { alpha: false } : { willReadFrequently: true },
+      )
       if (!ctx) return null
 
       return {
