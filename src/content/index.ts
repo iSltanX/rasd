@@ -1362,6 +1362,8 @@ async function bootOverlay(
     // اللقطة المفكوكة تُحرَّر صراحةً: `ImageBitmap` لا يُجمَع بجمع القمامة
     // وحده، وحجمها بحجم النافذة كاملةً بأربعة بايتات للبكسل.
     colour.dispose()
+    // جولة تدقيقٍ جارية تتوقّف مع الطبقة — لا شريحة تعمل بعد رحيلها.
+    audit.reset()
     colourUsage.dispose()
     colourPalette.dispose()
     colourScale.dispose()

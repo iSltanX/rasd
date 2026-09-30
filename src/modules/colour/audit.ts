@@ -203,7 +203,7 @@ export const UNKNOWN_TEXT: Readonly<Record<UnknownReason, string>> = {
   image: 'الخلفية صورة، فلا لون واحد يُقاس عليه',
   gradient: 'الخلفية تدرّج لوني',
   overlap: 'تحته صورة أو طبقة ليست خلفيته',
-  unreadable: 'لون النصّ لا يُقرأ',
+  unreadable: 'لونٌ بصيغةٍ لا تُقرأ هنا',
 }
 
 /** السطر الثاني تحت النتيجة: السبب، أو الحجم الذي حدّد العتبة. */

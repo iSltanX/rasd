@@ -308,6 +308,23 @@ describe('select — القفز إلى العنصر وإبرازه', () => {
     )
   })
 
+  it('عنصرٌ أزالته الصفحة بعد اختياره ⟵ «سجّلها مشكلة» يُعلم ولا يصمت (المراجعة المستقلّة)', async () => {
+    page()
+    const notify = vi.fn()
+    const audit = createContrastAudit({ doc: document, notify })
+    await audit.start()
+    const first = audit.state.findings.value[0]
+    if (!first) throw new Error('لا نتيجة')
+    audit.select(first.id)
+
+    $('#faint').remove()
+    expect(audit.selection()).toBeNull()
+    expect(audit.state.selected.value).toBeNull()
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({ tone: 'danger', title: 'لم يعد هذا النصّ في الصفحة' }),
+    )
+  })
+
   it('معرّفٌ لا نتيجة له لا يغيّر الاختيار', async () => {
     page()
     const audit = createContrastAudit({ doc: document })

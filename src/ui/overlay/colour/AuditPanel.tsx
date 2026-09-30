@@ -201,6 +201,17 @@ function subtitleOf(props: AuditPanelProps): string {
   return [counted, findingsSummary(findings)].filter(Boolean).join(' · ')
 }
 
+/** ما فُحص قبل الحدّ الزمني: «دون الحدّ» ما سقط وحده، و«بلا رقم» صفٌّ بجواره حين يكون. */
+function partialRows(props: AuditPanelProps): (readonly [string, string])[] {
+  const unknown = props.findings.filter((f) => f.severity === 'unknown').length
+  const rows: (readonly [string, string])[] = [
+    ['فُحص', `${textsCount(props.done)} من ${formatHuman(props.total)}`],
+    ['دون الحدّ', textsCount(props.findings.length - unknown)],
+  ]
+  if (unknown) rows.push(['بلا رقم', textsCount(unknown)])
+  return rows
+}
+
 function body(props: AuditPanelProps): JSX.Element {
   const { phase } = props
   if (phase === 'idle')
@@ -269,12 +280,7 @@ function body(props: AuditPanelProps): JSX.Element {
           <Icon name="alert" size="sm" />
           الصفحة كبيرة، فتوقّف التدقيق بعد ٥ ثوانٍ. النتائج أدناه لما فُحص فقط.
         </p>
-        <KeyValues
-          rows={[
-            ['فُحص', `${textsCount(props.done)} من ${formatHuman(props.total)}`],
-            ['دون الحدّ', textsCount(props.findings.length)],
-          ]}
-        />
+        <KeyValues rows={partialRows(props)} />
       </div>
     )
   if (props.texts === 0)

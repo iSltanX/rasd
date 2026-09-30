@@ -10,14 +10,15 @@
 
       دون 3:1 — `#fill` (ملء ‎#ccc‎ يخالف `color`) · `#in-shadow` (‎#bbb‎ في جذر ظلّ مفتوح) · `#faint` (‎#aaa‎) ·
                 `#big-fail` (‎#aaa‎ كبير: حدّه 3 ويسقطه) · `#contents` (‎#aaa‎ في غلاف `display: contents`) ·
-                `#below-fold` (‎#999‎ تحت الطيّ)
+                `#bare-host` (‎#bbb‎ نصٌّ ابنٌ مباشر لجذر ظلّ، يُنسب إلى مضيفه) · `#below-fold` (‎#999‎ تحت الطيّ)
       دون 4.5:1 — `#veil` (أبيض فوق أسود 50% فوق أبيض) · `#grouped` (أبيض داخل حاوية سوداء بـopacity 0.5) ·
                 `#alpha` (أسود 50%) · `#mid` (‎#777‎)
-      تعذّر الحساب — `#on-image` (صورة خلفية) · `#on-gradient` (تدرّج) · `#over-img` (صورة أختٌ تحته)
+      تعذّر الحساب — `#on-image` (صورة خلفية) · `#on-gradient` (تدرّج) · `#over-img` (صورة أختٌ تحته) ·
+                `#on-p3` (خلفيةٌ بفضاء display-p3 لا تُقرأ)
       سليم — `#big` (‎#898989‎ كبير: 3.49 فوق حدّه 3) · `#solid` · `#slotted` (أبيض على إطارٍ أسود داخل الظلّ)
-      غير ظاهر — `#hidden` · `#invisible` · `#sr-only` · `#offscreen`
+      غير ظاهر — `#hidden` · `#invisible` · `#sr-only` · `#offscreen` (مدفوعٌ يمينًا قبل بداية صفحةٍ من اليمين)
 
-      النصوص الظاهرة ستّة عشر. والمركَّبة الثلاثة (`#veil` · `#grouped` · `#alpha`) تبدأ بـ«█» مصمتة: مركزها
+      النصوص الظاهرة ثمانية عشر. والمركَّبة الثلاثة (`#veil` · `#grouped` · `#alpha`) تبدأ بـ«█» مصمتة: مركزها
       لون النصّ كما رُسم، وطرف الفقرة الأيسر خلفيتها — فيقرأ الحارس البكسلين من لقطة الشاشة. والمحتوى يبدأ عند
       640px: ظلّ لوحة الفحص عند (40، 64) يمتدّ إلى ما بعد 440 فيُعتم طرف الفقرة (قِيس: 113 بدل 127).
     -->
@@ -96,10 +97,14 @@
     <section>
       <div id="contents" style="display: contents; color: #aaa">نصّ في غلافٍ بلا صندوق</div>
     </section>
+    <div style="background: color(display-p3 0.1 0.1 0.1)">
+      <p id="on-p3" style="color: #fff">نصّ فوق خلفيةٍ بفضاء display-p3</p>
+    </div>
+    <div id="bare-host" style="color: #bbb"></div>
     <p id="hidden" style="display: none; color: #eee">مخفيّ بالعرض</p>
     <p id="invisible" style="visibility: hidden; color: #eee">مخفيّ بالرؤية</p>
     <p id="sr-only" class="sr" style="color: #eee">لقارئ الشاشة وحده</p>
-    <p id="offscreen" style="position: absolute; left: -9999px; color: #eee">مدفوع خارج الصفحة</p>
+    <p id="offscreen" style="position: absolute; right: -9999px; color: #eee">مدفوع خارج الصفحة</p>
     <div style="height: 2000px"></div>
     <p id="below-fold" style="color: #999">نصّ تحت الطيّ</p>
     <script>
@@ -107,6 +112,10 @@
       open.innerHTML = '<p id="in-shadow" style="color: #bbb; margin: 0 0 8px">نصّ داخل جذر ظلّ</p>'
       const framed = document.getElementById('slot-host').attachShadow({ mode: 'open' })
       framed.innerHTML = '<div style="background: #000; padding: 4px"><slot></slot></div>'
+      document
+        .getElementById('bare-host')
+        .attachShadow({ mode: 'open' })
+        .append('نصّ ابنٌ مباشر لجذر ظلّ')
     </script>
   </body>
 </html>

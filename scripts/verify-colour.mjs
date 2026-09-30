@@ -801,9 +801,9 @@ if (extId && sw && granted) {
       if (st.phase === 'done') ok(`التدقيق بدأ بنقرتين حقيقيتين وانتهى (${st.texts} نصًّا ظاهرًا)`)
       else fail(`التدقيق لم ينتهِ: ${JSON.stringify(st.phase)}`)
 
-      if (st.texts === 16)
-        ok('النصوص الظاهرة ستّة عشر — المخفيّ والمقصوص والمدفوع خارج الصفحة لا تُعدّ')
-      else fail(`النصوص الظاهرة ${st.texts} لا 16`)
+      if (st.texts === 18)
+        ok('النصوص الظاهرة ثمانية عشر — المخفيّ والمقصوص والمدفوع خارج الصفحة لا تُعدّ')
+      else fail(`النصوص الظاهرة ${st.texts} لا 18`)
 
       // الحَكَم: صيغة WCAG هنا على الألوان المصرَّحة، وللمركَّبة على ما رُسم فعلًا قبل أي إبراز.
       const px = rendered ?? {}
@@ -813,13 +813,19 @@ if (extId && sw && granted) {
         ['#faint', 'below-3', grey(170), WHITE, 'رماديّ فاتح'],
         ['#big-fail', 'below-3', grey(170), WHITE, 'نصٌّ كبير دون حدّه 3'],
         ['#contents', 'below-3', grey(170), WHITE, 'نصٌّ في غلاف display: contents'],
+        ['#bare-host', 'below-3', grey(187), WHITE, 'نصٌّ ابنٌ مباشر لجذر ظلّ'],
         ['#below-fold', 'below-3', grey(153), WHITE, 'نصٌّ تحت الطيّ'],
         ['#veil', 'below-4.5', px.veil?.fg, px.veil?.bg, 'طبقة سوداء 50% فوق الأبيض'],
         ['#grouped', 'below-4.5', px.grouped?.fg, px.grouped?.bg, 'حاوية سوداء بـopacity 0.5'],
         ['#alpha', 'below-4.5', px.alpha?.fg, px.alpha?.bg, 'لون نصّ بألفا 0.5'],
         ['#mid', 'below-4.5', grey(119), WHITE, 'رماديّ متوسّط'],
       ]
-      const unknown = { '#on-image': 'image', '#on-gradient': 'gradient', '#over-img': 'overlap' }
+      const unknown = {
+        '#on-image': 'image',
+        '#on-gradient': 'gradient',
+        '#over-img': 'overlap',
+        '#on-p3': 'unreadable',
+      }
       const byLabel = new Map(st.findings.map((f) => [f.label, f]))
       for (const [label, severity, fg, bg, what] of failing) {
         const f = byLabel.get(label)

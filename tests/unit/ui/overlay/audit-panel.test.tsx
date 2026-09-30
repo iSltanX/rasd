@@ -174,6 +174,11 @@ describe('AuditPanel', () => {
     expect(text('audit-subtitle')).toBe('توقّف التدقيق عند حدّه الزمني')
     expect(text('audit-timeout')).toContain('توقّف التدقيق بعد ٥ ثوانٍ')
     expect(root.textContent).toContain('٢١٢ نصًّا من ٣٢٦')
+    // «دون الحدّ» ما سقط وحده، و«تعذّر الحساب» صفٌّ بجواره لا منه (المراجعة المستقلّة).
+    const kv = [...root.querySelectorAll('.rasd-ov-au-kv div')].map((d) =>
+      d.textContent?.replace(/\s+/g, ' '),
+    )
+    expect(kv).toEqual(['فُحص٢١٢ نصًّا من ٣٢٦', 'دون الحدّ٣ نصوص', 'بلا رقمنصّ واحد'])
     expect(root.querySelector('[data-rasd-ov="audit-results"]')).toBeNull()
     click('audit-show-partial')
     expect(props.onShowPartial).toHaveBeenCalledOnce()

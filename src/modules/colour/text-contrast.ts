@@ -40,12 +40,15 @@ export interface TextContrast {
 
 type ImageKind = 'image' | 'gradient'
 
+/** ما يُرسم تحت المحتوى ولا يُحسب: صورة أو تدرّج، أو خلفيةٌ بفضاء لونٍ لا يقرؤه `readColour` (`display-p3` · `lab()`). */
+type Opaque = ImageKind | 'unreadable'
+
 interface Info {
   readonly bg: Layer | null
   /** صورة خلفية العنصر نفسه. */
-  readonly own: ImageKind | null
+  readonly own: Opaque | null
   /** صورةٌ ظاهرة تحت محتواه — منه أو من آبائه عبر ما لم يحجبها. */
-  readonly seen: ImageKind | null
+  readonly seen: Opaque | null
   readonly chain: Backdrop
 }
 
@@ -102,10 +105,14 @@ export function createContrastProbe(win: Window = globalThis.window): ContrastPr
       const cs = win.getComputedStyle(n)
       // `display: contents` بلا صندوق: لا خلفية تُرسم ولا مجموعة شفافية.
       const boxed = cs.display !== 'contents'
-      const read = boxed ? readColour(cs.backgroundColor) : null
+      const raw = boxed ? cs.backgroundColor : ''
+      const read = raw ? readColour(raw) : null
       const bg = read && read.alpha > 0 ? layerOf(read) : null
       const opacity = boxed ? num(cs.opacity, 1) : 1
-      const own = boxed ? imageKind(cs.backgroundImage) : null
+      // خلفيةٌ مصرَّحة لا تُقرأ ليست «لا خلفية»: لو أُسقطت لقيس النصّ على ما تحتها برقمٍ مختلَق.
+      const own = boxed
+        ? (imageKind(cs.backgroundImage) ?? (raw && !read ? 'unreadable' : null))
+        : null
       const through = !bg || bg.alpha < 1 || opacity < 1
       const info: Info = {
         bg,
@@ -222,7 +229,9 @@ export function collectTextElements(doc: Document, skip: Element | null = null):
     })
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       if (n.nodeType === 3) {
-        const parent = n.parentElement
+        // نصٌّ ابنٌ مباشر لجذر ظلّ يُرسم في صندوق مضيفه وبلونه.
+        const up = n.parentNode
+        const parent = n.parentElement ?? (up instanceof ShadowRoot ? up.host : null)
         if (parent && !seen.has(parent)) {
           seen.add(parent)
           out.push(parent)
@@ -248,13 +257,22 @@ const SEEN: CheckVisibilityOptions = {
   visibilityProperty: true,
 }
 
+/** هل تبدأ الصفحة من اليمين؟ — اتّجاه الجذر يحدّد أين بدايتها وإلى أين يمتدّ تمريرها الأفقي. */
+export const isRtlPage = (doc: Document, win: Window = globalThis.window): boolean =>
+  win.getComputedStyle(doc.documentElement).direction === 'rtl'
+
 /**
  * مستطيل العنصر إن كان نصّه ظاهرًا — `null` للمخفيّ: `display`/`visibility`/`opacity: 0` على العنصر أو
- * آبائه، أو صندوقٌ أصغر من بكسلين، أو مدفوعٌ قبل بداية الصفحة (`left: -9999px`).
+ * آبائه، أو صندوقٌ أصغر من بكسلين، أو مدفوعٌ قبل بداية الصفحة حيث لا يبلغه تمرير: يسارها في صفحةٍ من اليسار
+ * (`left: -9999px`)، ويمينها في صفحةٍ من اليمين (`right: -9999px`) — وما يسار صفحةٍ عربية يُبلغ بالتمرير.
  *
  * و`display: contents` بلا صندوقٍ ونصّه يُرسم: يُقاس بمدى محتواه، وتُسأل الرؤيةُ أباه.
  */
-export function visibleBox(el: Element, win: Window = globalThis.window): DOMRect | null {
+export function visibleBox(
+  el: Element,
+  win: Window = globalThis.window,
+  rtl: boolean = isRtlPage(el.ownerDocument, win),
+): DOMRect | null {
   let r: DOMRect
   if (el.checkVisibility?.(SEEN) === false) {
     const parent = flatParent(el)
@@ -267,6 +285,7 @@ export function visibleBox(el: Element, win: Window = globalThis.window): DOMRec
     r = el.getBoundingClientRect()
   }
   if (r.width < MIN_TEXT_BOX || r.height < MIN_TEXT_BOX) return null
-  if (r.right + win.scrollX <= 0 || r.bottom + win.scrollY <= 0) return null
+  const beforeStart = rtl ? r.left + win.scrollX >= win.innerWidth : r.right + win.scrollX <= 0
+  if (beforeStart || r.bottom + win.scrollY <= 0) return null
   return r
 }

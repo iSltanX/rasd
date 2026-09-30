@@ -201,6 +201,22 @@ describe('measure — «تعذّر الحساب» بلا رقم مختلَق', (
     expect(createContrastProbe().measure($('#t'))).toBeNull()
   })
 
+  it('خلفيةٌ بفضاء لونٍ لا يُقرأ (`display-p3`) ⟵ unreadable لا «بلا خلفية» برقمٍ مختلَق (المراجعة المستقلّة)', () => {
+    page('<div id="p3"><p id="t">نصّ</p></div>')
+    styles.set($('#p3'), { 'background-color': 'color(display-p3 0 0 0)' })
+    styles.set($('#t'), { color: 'rgb(255, 255, 255)' })
+
+    expect(createContrastProbe().measure($('#t'))?.unknown).toBe('unreadable')
+  })
+
+  it('…ويحجبها أبٌ معتم أقرب إلى النصّ فيُحسب', () => {
+    page('<div id="p3"><div id="card"><p id="t">نصّ</p></div></div>')
+    styles.set($('#p3'), { 'background-color': 'color(display-p3 0 0 0)' })
+    styles.set($('#card'), { 'background-color': 'rgb(255, 255, 255)' })
+
+    expect(createContrastProbe().measure($('#t'))?.unknown).toBeNull()
+  })
+
   it('لونٌ لا يُقرأ ⟵ unreadable', () => {
     page('<p id="t">نصّ</p>')
     styles.set($('#t'), { color: 'ليس لونًا' })
@@ -320,6 +336,13 @@ describe('collectTextElements', () => {
     expect(collectTextElements(document, $('#rasd'))).toEqual([$('#ok')])
   })
 
+  it('نصٌّ ابنٌ مباشر لجذر ظلّ يُنسب إلى مضيفه (المراجعة المستقلّة)', () => {
+    page('<div id="host"></div>')
+    $('#host').attachShadow({ mode: 'open' }).append('تسمية باهتة')
+
+    expect(collectTextElements(document)).toEqual([$('#host')])
+  })
+
   it('يعبر جذور الظلّ المفتوحة', () => {
     page('<div id="host"></div><p id="after">بعد</p>')
     const shadow = $('#host').attachShadow({ mode: 'open' })
@@ -368,6 +391,26 @@ describe('visibleBox', () => {
     page('<p id="t">نصّ</p>')
     vi.spyOn($('#t'), 'getBoundingClientRect').mockReturnValue(rect(0, 0, 1, 1))
     expect(visibleBox($('#t'))).toBeNull()
+  })
+
+  it('صفحةٌ من اليمين إلى اليسار مُرِّرت يسارًا: نصٌّ ظاهر يسار الأصل يُعدّ (المراجعة المستقلّة)', () => {
+    page('<p id="t">نصّ</p>')
+    document.documentElement.setAttribute('dir', 'rtl')
+    vi.spyOn(window, 'scrollX', 'get').mockReturnValue(-500)
+    vi.spyOn($('#t'), 'getBoundingClientRect').mockReturnValue(rect(0, 0, 200, 20))
+    try {
+      expect(visibleBox($('#t'), window, true)?.width).toBe(200)
+    } finally {
+      document.documentElement.removeAttribute('dir')
+    }
+  })
+
+  it('صفحةٌ من اليمين إلى اليسار: المدفوع قبل بدايتها يمينًا (`right: -9999px`) ⟵ null', () => {
+    page('<p id="t">نصّ</p>')
+    vi.spyOn($('#t'), 'getBoundingClientRect').mockReturnValue(
+      rect(window.innerWidth + 9000, 0, 80, 20),
+    )
+    expect(visibleBox($('#t'), window, true)).toBeNull()
   })
 
   it('مدفوعٌ قبل بداية الصفحة (`left: -9999px`) ⟵ null', () => {

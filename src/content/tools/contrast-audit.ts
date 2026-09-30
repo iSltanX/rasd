@@ -26,6 +26,7 @@ import {
 import {
   collectTextElements,
   createContrastProbe,
+  isRtlPage,
   visibleBox,
 } from '@/modules/colour/text-contrast'
 import { elementBounds } from '@/modules/dom-picker/inspect'
@@ -158,6 +159,7 @@ export function createContrastAudit(options: ContrastAuditOptions = {}): Contras
       const candidates = collectTextElements(doc, options.skip ?? null)
       state.total.value = candidates.length
       const probe = createContrastProbe(win)
+      const rtl = isRtlPage(doc, win)
       const found: AuditFinding[] = []
       const byId = new Map<number, Element>()
       let texts = 0
@@ -168,7 +170,7 @@ export function createContrastAudit(options: ContrastAuditOptions = {}): Contras
         do {
           const el = candidates[i] as Element
           const order = i++
-          const box = visibleBox(el, win)
+          const box = visibleBox(el, win, rtl)
           const read = box ? probe.measure(el, box) : null
           if (!read) continue
           texts += 1
@@ -223,18 +225,22 @@ export function createContrastAudit(options: ContrastAuditOptions = {}): Contras
     state.box.value = el?.isConnected ? elementBounds(el) : null
   }
 
+  /** أزالت الصفحة العنصر المختار بعد المسح: لا قفز ولا تسجيل على عنصرٍ غائب — يُقال لا يُسكت عنه. */
+  const lost = (): void => {
+    clearSelection()
+    options.notify?.({
+      tone: 'danger',
+      title: 'لم يعد هذا النصّ في الصفحة',
+      detail: 'تغيّرت الصفحة بعد التدقيق — أعد التدقيق.',
+    })
+    invalidate()
+  }
+
   const select = (id: number): void => {
     const el = elements.get(id)
     if (!el) return
-    // أزالته الصفحة بعد المسح: لا قفز ولا تسجيل على عنصرٍ غائب — يُقال لا يُسكت عنه.
     if (!el.isConnected) {
-      clearSelection()
-      options.notify?.({
-        tone: 'danger',
-        title: 'لم يعد هذا النصّ في الصفحة',
-        detail: 'تغيّرت الصفحة بعد التدقيق — أعد التدقيق.',
-      })
-      invalidate()
+      lost()
       return
     }
     state.selected.value = id
@@ -269,7 +275,13 @@ export function createContrastAudit(options: ContrastAuditOptions = {}): Contras
       const id = state.selected.peek()
       const el = id === null ? undefined : elements.get(id)
       const finding = state.findings.peek().find((f) => f.id === id)
-      return el?.isConnected && finding ? { el, finding } : null
+      if (!el || !finding) return null
+      // غاب بعد اختياره: «سجّلها مشكلة» يطلبه الآن — فيُعلَم بغيابه ولا يصمت الزرّ.
+      if (!el.isConnected) {
+        lost()
+        return null
+      }
+      return { el, finding }
     },
     async copyReport() {
       const partial =
