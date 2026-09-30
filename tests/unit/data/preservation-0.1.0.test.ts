@@ -9,9 +9,9 @@ import { DB_NAME, STORE_NAMES } from '@/shared/storage/schema'
 
 import {
   comparable,
-  libraryFixture,
   seedDatabase,
   settingsFixture,
+  v010Fixture,
   V010_DB_VERSION,
 } from './library-fixture'
 
@@ -36,12 +36,23 @@ beforeEach(async () => {
 
 describe('مكتبة 0.1.0 تُفتح كاملة', () => {
   it('كل مخزن يُقرأ كما كُتب، سجلًّا سجلًّا وبايتًا ببايت', async () => {
-    const written = libraryFixture()
+    const written = v010Fixture()
     await seedDatabase(written, V010_DB_VERSION)
+
+    // ترحيل النسخة 5 يمسّ الأدلّة وحدها بحقلين يضيفهما ولا يغيّر غيرهما (`storage-upgrade-v5.test.ts`)،
+    // ومخزن القوالب يولد فارغًا. وكل ما سواهما كما كُتب.
+    const upgraded: Record<string, readonly object[]> = {
+      ...written,
+      guides: (written.guides ?? []).map((g) => {
+        const guide = g as { createdAt: number }
+        return { ...guide, stepText: {}, updatedAt: guide.createdAt }
+      }),
+      templates: [],
+    }
 
     const db = await database()
     for (const store of STORE_NAMES) {
-      const expected = await comparable(written[store])
+      const expected = await comparable(upgraded[store] ?? [])
       const actual = await comparable(await db.getAll(store))
       const byKey = (list: unknown[]) =>
         [...list].sort((a, b) => {
@@ -56,7 +67,7 @@ describe('مكتبة 0.1.0 تُفتح كاملة', () => {
   })
 
   it('والمخازن نفسها لا أقلّ ولا أكثر — `STORE_NAMES` يطابق القاعدة المفتوحة', async () => {
-    await seedDatabase(libraryFixture(), V010_DB_VERSION)
+    await seedDatabase(v010Fixture(), V010_DB_VERSION)
     const db = await database()
     expect([...db.objectStoreNames].sort()).toEqual([...STORE_NAMES].sort())
   })

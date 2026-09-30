@@ -111,7 +111,15 @@ const CARDS: readonly [string, string, (h: Hooks) => ComponentChild][] = [
     (h) => (
       <GuideCard
         {...common(h)}
-        record={{ id: 'x', title: 'دليل', projectId: null, captureIds: [], createdAt: NOW }}
+        record={{
+          id: 'x',
+          title: 'دليل',
+          projectId: null,
+          captureIds: [],
+          createdAt: NOW,
+          stepText: {},
+          updatedAt: NOW,
+        }}
       />
     ),
   ],

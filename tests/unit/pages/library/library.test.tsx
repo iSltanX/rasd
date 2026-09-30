@@ -242,7 +242,15 @@ describe('Library — التبويبات', () => {
   })
 
   it('تبويب المراجع والأدلّة واللوحات: تحديد بشريط SimpleSelectionBar — حذف ونقل، لا تفضيل ولا أرشفة ولا وسم', async () => {
-    await guides.put({ id: 'g1', title: 'دليل', projectId: null, captureIds: [], createdAt: NOW })
+    await guides.put({
+      id: 'g1',
+      title: 'دليل',
+      projectId: null,
+      captureIds: [],
+      createdAt: NOW,
+      stepText: {},
+      updatedAt: NOW,
+    })
     const root = await mount()
     clickTab(root, 'أدلة الخطوات')
     await waitFor(() => root.querySelector('[data-guide-id="g1"]') !== null)
@@ -361,7 +369,15 @@ describe('Library — التبويبات', () => {
         sourceUrl: null,
         createdAt: NOW,
       })
-      await guides.put({ id: 'g1', title: 'دليل', projectId: null, captureIds: [], createdAt: NOW })
+      await guides.put({
+        id: 'g1',
+        title: 'دليل',
+        projectId: null,
+        captureIds: [],
+        createdAt: NOW,
+        stepText: {},
+        updatedAt: NOW,
+      })
 
       /**
        * حذفٌ بطيء متحكَّم فيه — لا حلقة حقيقية على مئات العناصر: هذا يضمن

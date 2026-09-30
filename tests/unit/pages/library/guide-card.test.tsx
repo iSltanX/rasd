@@ -14,6 +14,8 @@ function guide(over: Partial<GuideRecord> = {}): GuideRecord {
     projectId: null,
     captureIds: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'],
     createdAt: NOW - 60_000,
+    stepText: {},
+    updatedAt: NOW - 60_000,
     ...over,
   }
 }

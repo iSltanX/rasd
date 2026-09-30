@@ -119,12 +119,46 @@ describe('retentionSweep — «حذف السجلّ تلقائيًا بعد مد�
       projectId: null,
       captureIds: ['مطموسة', 'باقية'],
       createdAt: NOW,
+      stepText: {},
+      updatedAt: NOW,
     })
 
     await retentionSweep(NOW, 30)
 
     const guide = await guides.get('دليل')
     expect(guide.ok && guide.value.captureIds).toEqual(['باقية'])
+  })
+
+  /** ADR 0041: نصّ الخطوة يُحذف مع لقطتها — وسجلٌّ بشكل ما قبل النسخة 5 (بلا `stepText`) يُنظَّف كذلك. */
+  it('**ونصّ خطوة اللقطة المحذوفة يُحذف معها**، ونصّ الباقية كما هو', async () => {
+    await captures.put(capture('مطموسة', { createdAt: NOW - 40 * DAY }))
+    await captures.put(capture('باقية', { createdAt: NOW - 1 * DAY }))
+    await guides.put({
+      id: 'دليل',
+      title: 'خطوات',
+      projectId: null,
+      captureIds: ['مطموسة', 'باقية'],
+      createdAt: NOW,
+      stepText: {
+        مطموسة: { title: 'سرّ', note: 'رقم الحساب في الصورة' },
+        باقية: { title: 'افتح السلّة', note: '' },
+      },
+      updatedAt: NOW,
+    })
+    await guides.put({
+      id: 'قديم',
+      title: 'بشكل 0.1.0',
+      projectId: null,
+      captureIds: ['مطموسة'],
+      createdAt: NOW,
+    } as never)
+
+    await retentionSweep(NOW, 30)
+
+    const guide = await guides.get('دليل')
+    expect(guide.ok && guide.value.stepText).toEqual({ باقية: { title: 'افتح السلّة', note: '' } })
+    const legacy = await guides.get('قديم')
+    expect(legacy.ok && [legacy.value.captureIds, legacy.value.stepText]).toEqual([[], {}])
   })
 })
 

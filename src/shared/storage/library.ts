@@ -83,13 +83,21 @@ export async function mergeLibrary(
         if (name === 'tags') continue
         const store = tx.objectStore(name)
         const present = new Set((await store.getAllKeys()).map(String))
+        // اسم القالب فريدٌ بفهرسه (ADR 0041): قالبٌ في الملفّ باسمٍ قائم — ولو بمعرّفٍ آخر — يبقى القائمُ مكانه.
+        // كتابته كانت تُسقط قيد الفهرس فتُجهض الاستعادة كلّها بسبب اسم.
+        const names =
+          name === 'templates'
+            ? new Set((await tx.objectStore('templates').getAll()).map((t) => t.name))
+            : null
         for (const record of incoming[name]) {
           const key = keyOf(name, record)
-          if (present.has(key)) {
+          const named = names ? (record as { name: string }).name : null
+          if (present.has(key) || (named !== null && names?.has(named))) {
             kept[name] += 1
             continue
           }
           present.add(key)
+          if (named !== null) names?.add(named)
           const write = store.put(record)
           write.catch(() => undefined)
           writes.push(write)

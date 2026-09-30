@@ -110,7 +110,15 @@ describe('دوال المطابقة المحضة — بلا تخزين', () => {
 
   it('searchGuides يجد بالعنوان', () => {
     const records: GuideRecord[] = [
-      { id: 'a', title: 'دليل الدفع', projectId: null, captureIds: [], createdAt: 0 },
+      {
+        id: 'a',
+        title: 'دليل الدفع',
+        projectId: null,
+        captureIds: [],
+        createdAt: 0,
+        stepText: {},
+        updatedAt: 0,
+      },
     ]
     expect(searchGuides(records, 'الدفع').map((r) => r.id)).toEqual(['a'])
   })

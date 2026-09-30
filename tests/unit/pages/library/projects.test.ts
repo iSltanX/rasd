@@ -190,7 +190,15 @@ describe('moveColorsToProject / movePalettesToProject / moveReferencesToProject 
   })
 
   it('moveGuidesToProject ينقل الأدلة المُحدَّدة، ومعرِّف غير موجود يُتجاهَل بصمت', async () => {
-    await guides.put({ id: 'g1', title: 'دليل', projectId: null, captureIds: [], createdAt: NOW })
+    await guides.put({
+      id: 'g1',
+      title: 'دليل',
+      projectId: null,
+      captureIds: [],
+      createdAt: NOW,
+      stepText: {},
+      updatedAt: NOW,
+    })
     const created = await createProject('هدف', '#0090FF', NOW)
     const projectId = created.ok ? created.value.id : ''
 
@@ -225,7 +233,15 @@ describe('deleteProject — ينقل المحتوى قبل الحذف', () => {
       exclusions: [],
       createdAt: NOW,
     })
-    await guides.put({ id: 'gd1', title: 'دليل', projectId, captureIds: [], createdAt: NOW })
+    await guides.put({
+      id: 'gd1',
+      title: 'دليل',
+      projectId,
+      captureIds: [],
+      createdAt: NOW,
+      stepText: {},
+      updatedAt: NOW,
+    })
   }
 
   it('ينقل محتوى الخمسة مخازن إلى مشروع آخر ثم يحذف المشروع', async () => {

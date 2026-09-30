@@ -95,8 +95,24 @@ describe('deletePalettes', () => {
 describe('deleteGuides', () => {
   it('يحذف الأدلة المُحدَّدة', async () => {
     await guides.putMany([
-      { id: 'g1', title: 'دليل أوّل', projectId: null, captureIds: [], createdAt: NOW },
-      { id: 'g2', title: 'دليل ثانٍ', projectId: null, captureIds: ['cap1'], createdAt: NOW },
+      {
+        id: 'g1',
+        title: 'دليل أوّل',
+        projectId: null,
+        captureIds: [],
+        createdAt: NOW,
+        stepText: {},
+        updatedAt: NOW,
+      },
+      {
+        id: 'g2',
+        title: 'دليل ثانٍ',
+        projectId: null,
+        captureIds: ['cap1'],
+        createdAt: NOW,
+        stepText: {},
+        updatedAt: NOW,
+      },
     ])
 
     const deleted = await deleteGuides(['g1'])

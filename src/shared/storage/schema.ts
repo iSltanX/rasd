@@ -8,15 +8,18 @@
  * درجةً أخرى: شبكة المكتبة لا تحمِّل `blobs` الكاملة لكل بطاقة، بل مصغَّرة
  * مولَّدة كسولًا ومخزَّنة مرّة واحدة — انظر `ThumbnailRecord`. و`issues` (النسخة 3) سجلّ المشكلة
  * المرتبطة بعنصر — [ADR 0030](../../../Docs/ADR/0030-issue-record.md): مستقلّ عن المشهد، يشير إلى
- * لقطته وملاحظته ولا يشيران إليه. والنسخة 4 تضيف حقلًا لا مخزنًا: `ReferenceRecord.exclusions`.
+ * لقطته وملاحظته ولا يشيران إليه. والنسخة 4 تضيف حقلًا لا مخزنًا: `ReferenceRecord.exclusions`. والنسخة 5
+ * تضيف نصّ خطوات الدليل (`GuideRecord.stepText`) ومخزن قوالب التصدير (`templates`) —
+ * [ADR 0041](../../../Docs/ADR/0041-guide-record-and-exports.md).
  */
 
 import type { ExclusionZone } from '../exclusion-schema'
+import type { GuideStepText, TemplateRecord } from '../guide-schema'
 import type { IssueRecord } from '../issue-schema'
 import type { DBSchema } from 'idb'
 
 export const DB_NAME = 'rasd'
-export const DB_VERSION = 4
+export const DB_VERSION = 5
 
 export type CaptureKind = 'area' | 'element' | 'viewport' | 'full-page' | 'window'
 export type CaptureStatus = 'ready' | 'processing' | 'failed'
@@ -123,8 +126,16 @@ export interface GuideRecord {
   id: string
   title: string
   projectId: string | null
+  /** اللقطات بترتيب الخطوات — مصدر الترتيب والعضوية وحده. */
   captureIds: string[]
   createdAt: number
+  /**
+   * نصّ كل خطوة بمعرّف لقطتها (النسخة 5). والخطوة بلا نصّ غائبةٌ منه، فتُقرأ بـ`guideSteps` في
+   * `shared/guide-schema.ts` لا مباشرةً.
+   */
+  stepText: Record<string, GuideStepText>
+  /** آخر تعديل — يرتّب الأدلّة ويؤرّخ ما يُصدَّر (النسخة 5). */
+  updatedAt: number
 }
 
 export interface TagRecord {
@@ -178,6 +189,7 @@ export interface RasdDB extends DBSchema {
   guides: { key: string; value: GuideRecord; indexes: { projectId: string } }
   tags: { key: string; value: TagRecord }
   thumbnails: { key: string; value: ThumbnailRecord }
+  templates: { key: string; value: TemplateRecord; indexes: { name: string } }
   issues: {
     key: string
     value: IssueRecord
@@ -209,6 +221,7 @@ export const STORE_NAMES = [
   'tags',
   'thumbnails',
   'issues',
+  'templates',
 ] as const
 
 export type StoreName = (typeof STORE_NAMES)[number]

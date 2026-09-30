@@ -5,6 +5,7 @@
  * يتجاوز سياسة التصفّح الخاص أو حدّ الحصّة.
  */
 
+import { guideSteps, stepTextFrom } from '../guide-schema'
 import { errWith, ok, type Result } from '../result'
 
 import { database, guardWrite, withDb } from './db'
@@ -342,7 +343,8 @@ export async function deleteReferenceWithBlob(id: string, blobId: string): Promi
  * فأُغلق في الوحدة التي أنشأت المنهجيّة. (‏`Docs/Engineering.md §6` صفّ 120.)
  *
  * والأدلّة تُقرأ وتُكتب داخل المعاملة نفسها: تنظيفٌ بعدها كان سيترك نافذةً
- * تُقرأ فيها حالةٌ نصفُها محذوف.
+ * تُقرأ فيها حالةٌ نصفُها محذوف. **ونصّ الخطوة يُحذف مع لقطتها** (النسخة 5، ADR 0041):
+ * عنوانٌ وملاحظةٌ كتبهما المستخدم عن صورةٍ حذفها لا يبقيان في دليلٍ لا يعرضهما.
  */
 export async function deleteCaptureWithBlob(id: string): Promise<Result<null>> {
   return withDb(async (db) => {
@@ -357,9 +359,14 @@ export async function deleteCaptureWithBlob(id: string): Promise<Result<null>> {
       tx.objectStore('blobs').delete(id),
       tx.objectStore('annotations').delete(id),
       tx.objectStore('thumbnails').delete(id),
-      ...affected.map((guide) =>
-        guideStore.put({ ...guide, captureIds: guide.captureIds.filter((c) => c !== id) }),
-      ),
+      ...affected.map((guide) => {
+        const kept = guideSteps(guide).filter((step) => step.captureId !== id)
+        return guideStore.put({
+          ...guide,
+          captureIds: kept.map((step) => step.captureId),
+          stepText: stepTextFrom(kept),
+        })
+      }),
       tx.done,
     ])
     return null

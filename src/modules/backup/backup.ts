@@ -228,11 +228,27 @@ export type RawRecords = Record<StoreName, unknown[]>
 /**
  * خطوة كل ترحيلٍ بعد `FIRST_DATABASE` على سجلّات النسخ الأقدم — المفتاح نسخة القاعدة المستهدَفة كما في
  * `MIGRATIONS`. **تعمل على السجلّات الخام قبل التحقّق** لا بعده: سجلٌّ من قاعدةٍ أقدم لا يطابق مخطّط اليوم
- * بطبعه، وترقيته هي ما يجعله يطابقه (المراجعة المستقلّة، `STAGES/07`). فارغةٌ اليوم لأن القاعدة 4 أوّل ما
- * تحمله الصيغة؛ و`data-backup.test.ts` يُسقط البناء إن ارتفع `DB_VERSION` بلا خطوةٍ هنا — ولو كانت
+ * بطبعه، وترقيته هي ما يجعله يطابقه (المراجعة المستقلّة، `STAGES/07`). القاعدة 4 أوّل ما تحمله الصيغة، فأولى
+ * الخطوات 5؛ و`data-backup.test.ts` يُسقط البناء إن ارتفع `DB_VERSION` بلا خطوةٍ هنا — ولو كانت
  * «لا تغيير» (مخزنٌ جديد يُقرأ فارغًا من النسخ الأقدم).
  */
-export const RECORD_UPGRADES: Readonly<Record<number, (records: RawRecords) => RawRecords>> = {}
+export const RECORD_UPGRADES: Readonly<Record<number, (records: RawRecords) => RawRecords>> = {
+  // خطوة الترحيل 5 نفسها على الخام (ADR 0041): لكل دليلٍ `stepText: {}` و`updatedAt` زمن إنشائه، وما يحملهما
+  // يبقى. ومخزن `templates` يُقرأ فارغًا من الملفّ الأقدم بلا خطوة.
+  5: (records) => ({
+    ...records,
+    guides: records.guides.map((record) => {
+      if (!record || typeof record !== 'object') return record
+      const guide = record as Record<string, unknown>
+      return {
+        ...guide,
+        stepText:
+          typeof guide.stepText === 'object' && guide.stepText !== null ? guide.stepText : {},
+        updatedAt: typeof guide.updatedAt === 'number' ? guide.updatedAt : guide.createdAt,
+      }
+    }),
+  }),
+}
 
 export interface RestorePlan {
   readonly manifest: Manifest

@@ -206,8 +206,17 @@ describe('الترقية من النسخة 2 إلى 3', () => {
     expect(after.colors).toHaveLength(1)
     expect(after.palettes).toHaveLength(1)
     expect(after.projects).toHaveLength(1)
+    // والنسخة 5 تضيف نصّ الخطوات وزمن التعديل — ما يخصّها في `storage-upgrade-v5.test.ts`.
     expect(after.guides).toEqual([
-      { id: 'g1', title: 'دليل', projectId: 'p1', captureIds: ['c1'], createdAt: at },
+      {
+        id: 'g1',
+        title: 'دليل',
+        projectId: 'p1',
+        captureIds: ['c1'],
+        createdAt: at,
+        stepText: {},
+        updatedAt: at,
+      },
     ])
     expect(after.tags).toEqual([{ name: 'خطأ بصري', count: 2 }])
 

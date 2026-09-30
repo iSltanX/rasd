@@ -399,6 +399,63 @@ describe('ترقية سجلّات النسخ الأقدم', () => {
       expect(RECORD_UPGRADES[version], `ترقية سجلّات القاعدة ${version}`).toBeTypeOf('function')
     }
   })
+
+  /** ملفٌّ صنعته القاعدة 4 بشكله الحرفي: بلا مخزن القوالب، وأدلّةٌ بلا نصّ خطوات ولا زمن تعديل (ADR 0041). */
+  it('نسخةٌ من القاعدة 4 تُستعاد: الأدلّة بـ`stepText: {}` و`updatedAt` زمن إنشائها، والقوالب فارغة', async () => {
+    await seedDatabase(libraryFixture())
+    const backup = await backupOf()
+    const v4 = await rebuilt(backup.blob, (name, bytes) => {
+      if (name === 'stores/templates.json') return null
+      if (name === 'stores/guides.json') {
+        return editJson(name, (list) =>
+          (list as Record<string, unknown>[]).map(
+            ({ stepText: _t, updatedAt: _u, ...rest }) => rest,
+          ),
+        )(name, bytes)
+      }
+      return editJson(MANIFEST_ENTRY, (m) => {
+        const manifest = m as { database: number; stores: Record<string, number> }
+        const { templates: _templates, ...stores } = manifest.stores
+        return { ...manifest, database: 4, stores }
+      })(name, bytes)
+    })
+
+    await clearAllStores()
+    const plan = await planOf(v4)
+    expect(plan.manifest.database).toBe(4)
+    expect(plan.counts.templates).toBe(0)
+    expect((await restoreBackup(plan)).ok).toBe(true)
+
+    const db = await database()
+    const guides = await db.getAll('guides')
+    expect(guides.map((g) => [g.id, g.captureIds, g.stepText, g.updatedAt])).toEqual([
+      ['g1', ['c2', 'c1'], {}, libraryFixture().guides[0]!.createdAt],
+      ['g2', [], {}, libraryFixture().guides[1]!.createdAt],
+    ])
+    expect(await db.count('templates')).toBe(0)
+  })
+
+  it('قالبٌ في الملفّ باسم قالبٍ قائم يُترك ويبقى القائم — لا تُجهض الاستعادة بقيد الاسم', async () => {
+    await seedDatabase(libraryFixture())
+    const backup = await backupOf()
+    await clearAllStores()
+    const local = libraryFixture().templates[0]!
+    await seedDatabase({
+      templates: [{ ...local, id: 't-local', options: { ...local.options, format: 'html' } }],
+    })
+
+    const restored = await restoreBackup(await planOf(backup.blob))
+    expect(restored.ok).toBe(true)
+    if (!restored.ok) return
+    expect(restored.value.kept.templates).toBe(1)
+    expect(restored.value.added.templates).toBe(0)
+    expect(restored.value.added.captures).toBe(3)
+
+    const db = await database()
+    expect((await db.getAll('templates')).map((t) => [t.id, t.options.format])).toEqual([
+      ['t-local', 'html'],
+    ])
+  })
 })
 
 /*

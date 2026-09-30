@@ -133,7 +133,15 @@ describe('CRUD على كل مخزن', () => {
     [
       'guides',
       async () =>
-        guides.put({ id: 'g1', title: 'دليل', projectId: null, captureIds: [], createdAt: 1 }),
+        guides.put({
+          id: 'g1',
+          title: 'دليل',
+          projectId: null,
+          captureIds: [],
+          createdAt: 1,
+          stepText: {},
+          updatedAt: 1,
+        }),
     ],
     ['tags', async () => tags.put({ name: 'خطأ بصري', count: 3 })],
     [
