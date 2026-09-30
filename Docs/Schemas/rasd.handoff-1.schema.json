@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rasd:schema:handoff:1",
+  "title": "rasd.handoff/1",
+  "description": "حزمة التسليم من رصد — مشكلاتٌ على عناصر صفحة بقيمتها الفعلية والمتوقَّعة. الوثيقة: Docs/Handoff.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "generatedAt",
+    "generator",
+    "source",
+    "options",
+    "issues"
+  ],
+  "properties": {
+    "schema": { "const": "rasd.handoff/1" },
+    "generatedAt": { "$ref": "#/$defs/instant" },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "rasd" },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "source": { "type": "string" },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["images", "properties", "keepQuery"],
+      "properties": {
+        "images": { "type": "boolean" },
+        "properties": { "type": "boolean" },
+        "keepQuery": { "type": "boolean" }
+      }
+    },
+    "issues": { "type": "array", "items": { "$ref": "#/$defs/issue" } }
+  },
+  "$defs": {
+    "instant": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    },
+    "box": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number", "minimum": 0 },
+        "height": { "type": "number", "minimum": 0 }
+      }
+    },
+    "element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector",
+        "unique",
+        "positional",
+        "inShadow",
+        "hosts",
+        "rect"
+      ],
+      "properties": {
+        "selector": { "type": "string", "minLength": 1 },
+        "unique": { "type": "boolean" },
+        "positional": { "type": "boolean" },
+        "inShadow": { "type": "boolean" },
+        "hosts": { "type": "array", "items": { "type": "string" } },
+        "rect": { "$ref": "#/$defs/box" }
+      }
+    },
+    "status": { "enum": ["open", "needs-verification", "resolved"] },
+    "outcome": {
+      "enum": ["match", "mismatch", "not-found", "changed", "unreliable"]
+    },
+    "reason": {
+      "enum": [
+        null,
+        "missing",
+        "host-missing",
+        "invalid-selector",
+        "multiple",
+        "fingerprint",
+        "closed-shadow",
+        "unlaid",
+        "animating",
+        "background-image",
+        "frame",
+        "unreadable",
+        "budget"
+      ]
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ordinal",
+        "title",
+        "body",
+        "status",
+        "createdAt",
+        "lastCheck",
+        "page",
+        "element",
+        "pair",
+        "check",
+        "steps",
+        "properties",
+        "evidence"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "ordinal": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "body": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "createdAt": { "$ref": "#/$defs/instant" },
+        "lastCheck": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["at", "outcome", "observed", "reason"],
+          "properties": {
+            "at": { "$ref": "#/$defs/instant" },
+            "outcome": { "$ref": "#/$defs/outcome" },
+            "observed": { "type": ["string", "null"] },
+            "reason": { "$ref": "#/$defs/reason" }
+          }
+        },
+        "page": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "title", "viewport"],
+          "properties": {
+            "url": { "type": "string" },
+            "title": { "type": "string" },
+            "viewport": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["width", "height", "dpr"],
+              "properties": {
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 },
+                "dpr": { "type": "number", "minimum": 0 }
+              }
+            }
+          }
+        },
+        "element": { "$ref": "#/$defs/element" },
+        "pair": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": [
+            "selector",
+            "unique",
+            "positional",
+            "inShadow",
+            "hosts",
+            "rect"
+          ],
+          "properties": {
+            "selector": { "type": "string", "minLength": 1 },
+            "unique": { "type": "boolean" },
+            "positional": { "type": "boolean" },
+            "inShadow": { "type": "boolean" },
+            "hosts": { "type": "array", "items": { "type": "string" } },
+            "rect": { "$ref": "#/$defs/box" }
+          }
+        },
+        "check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "property",
+            "actual",
+            "expected",
+            "tolerance",
+            "current"
+          ],
+          "properties": {
+            "kind": { "enum": ["style", "spacing", "colour", "contrast"] },
+            "property": { "type": "string", "minLength": 1 },
+            "actual": { "type": "string" },
+            "expected": { "type": "string", "minLength": 1 },
+            "tolerance": { "type": "number", "minimum": 0 },
+            "current": { "type": ["string", "null"] }
+          }
+        },
+        "steps": { "type": "array", "items": { "type": "string" } },
+        "properties": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["css", "tailwind", "rootPx", "palette", "inspect"],
+          "properties": {
+            "css": { "type": "string" },
+            "tailwind": { "type": "string" },
+            "rootPx": { "type": "number", "minimum": 0 },
+            "palette": { "type": ["string", "null"] },
+            "inspect": {
+              "type": "object",
+              "required": ["schema"],
+              "properties": { "schema": { "const": "rasd.inspect/1" } }
+            }
+          }
+        },
+        "evidence": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["image", "crop"],
+          "properties": {
+            "image": {
+              "type": "string",
+              "pattern": "^images/issue-\\d{2,}\\.png$"
+            },
+            "crop": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "required": ["x", "y", "width", "height"],
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

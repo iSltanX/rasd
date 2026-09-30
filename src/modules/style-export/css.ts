@@ -73,7 +73,8 @@ export function toCss(snapshot: InspectSnapshot): string {
   return lines.join('\n')
 }
 
-function hasValue(entry: StyleValue | undefined): entry is StyleValue {
+/** هل للقيمة معنى في المخرَج؟ الفارغة والابتدائية الأربع تُسقَط — تعيدها مخرجات المشكلة (`issue.ts`). */
+export function hasValue(entry: StyleValue | undefined): entry is StyleValue {
   if (!entry) return false
   const v = entry.value.trim()
   return v !== '' && v !== 'none' && v !== 'normal' && v !== 'auto'

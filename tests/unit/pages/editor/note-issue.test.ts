@@ -7,7 +7,13 @@ import { createHistory } from '@/modules/editor/history'
 import { asNodeId, type NodeId, type NoteNode, type Scene } from '@/modules/editor/scene'
 import { emptyScene } from '@/modules/editor/scene-schema'
 import { loadEditorContext, type ObjectUrls } from '@/pages/editor/context'
-import { indexNoteIssues, loadNoteIssues, noteIssueSubject } from '@/pages/editor/note-issues'
+import {
+  evidenceIssues,
+  indexNoteIssues,
+  loadCaptureIssues,
+  loadNoteIssues,
+  noteIssueSubject,
+} from '@/pages/editor/note-issues'
 import { NoteList } from '@/pages/editor/parts/NoteList'
 import { devicePoint } from '@/shared/geometry'
 import { clearAllStores, issues, putCaptureWithBlob } from '@/shared/storage/repository'
@@ -181,15 +187,38 @@ describe('البحث عن مشكلات لقطة', () => {
     expect((await loadNoteIssues(CAPTURE)).size).toBe(0)
   })
 
+  it('**مشكلات الدليل** لحزمة التسليم: كل ما دليله هنا — بملاحظة أو بلا ملاحظة — بزمن تسجيله', async () => {
+    await issues.put(issueOf('late', { createdAt: 9_000 }))
+    await issues.put(issueOf('early', { createdAt: 1_000, note: null }))
+    // ملاحظتها هنا ودليلها في لقطة أخرى: ليست من مشكلات هذا الدليل.
+    await issues.put(
+      issueOf('elsewhere', { evidence: { ...issueOf('x').evidence, captureId: 'c2' } }),
+    )
+    await issues.put({ id: 'junk', evidence: { captureId: CAPTURE } } as unknown as IssueRecord)
+
+    const found = await loadCaptureIssues(CAPTURE)
+    expect(found.evidence.map((i) => i.id)).toEqual(['early', 'late'])
+    expect([...found.notes.keys()]).toEqual(['n1'])
+    expect(evidenceIssues(CAPTURE, [issueOf('b'), issueOf('a')]).map((i) => i.id)).toEqual([
+      'a',
+      'b',
+    ])
+
+    vi.spyOn(issues, 'byIndex').mockRejectedValueOnce(new Error('boom'))
+    expect((await loadCaptureIssues(CAPTURE)).evidence).toEqual([])
+  })
+
   it('ويحملها سياق المحرر مع قراءاته، ولقطةٌ بلا مشكلات تفتح كما كانت', async () => {
     await putCaptureWithBlob(captureRecord(), new Blob(['png'], { type: 'image/png' }))
 
     const bare = await loadEditorContext(CAPTURE, urls)
     expect(bare.ok && bare.value.noteIssues.size).toBe(0)
+    expect(bare.ok && bare.value.issues).toEqual([])
 
     await issues.put(issueOf('a'))
     const withIssue = await loadEditorContext(CAPTURE, urls)
     expect(withIssue.ok && withIssue.value.noteIssues.get('n1')?.id).toBe('a')
+    expect(withIssue.ok && withIssue.value.issues.map((i) => i.id)).toEqual(['a'])
   })
 })
 

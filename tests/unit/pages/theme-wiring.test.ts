@@ -35,7 +35,15 @@ describe('ربط السمة في صفحات الإضافة', () => {
   })
 
   it('كل مدخل صفحة في المستودع معروف لـPAGE_PATHS أو من صفحات التطوير', () => {
-    const dev = new Set(['gallery', 'popup-preview', 'capture-preview', 'shell', 'export'])
+    // صفحات التطوير، ومجلّدات مكوّنات مشتركة بلا مدخل: القشرة ونافذتا التصدير وحزمة التسليم.
+    const dev = new Set([
+      'gallery',
+      'popup-preview',
+      'capture-preview',
+      'shell',
+      'export',
+      'handoff',
+    ])
     const shipped = new Set(Object.values(PAGE_PATHS).map((p) => p.split('/')[2]))
     const dirs = readdirSync(join(root, 'src', 'pages'), { withFileTypes: true })
       .filter((d) => d.isDirectory())

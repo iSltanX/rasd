@@ -40,17 +40,46 @@ export function indexNoteIssues(captureId: string, records: readonly unknown[]):
 }
 
 /**
- * يقرأ مشكلات لقطةٍ بفهرس `captureId` ويعيد خريطة ملاحظاتها.
- *
- * **لا يفشل**: فشل القراءة يعطي خريطةً فارغة، فلا يمنع تعليقًا أن يُفتح لأن حالة مشكلةٍ تعذّرت قراءتها.
+ * مشكلاتٌ دليلها هذه اللقطة — بملاحظة أو بلا ملاحظة — مرتَّبةً بزمن تسجيلها: ما تصدّره «حزمة التسليم» من
+ * المحرّر (ADR 0036). كلٌّ يمرّ من `parseIssue` والمعطوب يُتجاهَل.
  */
-export async function loadNoteIssues(captureId: string): Promise<NoteIssues> {
+export function evidenceIssues(captureId: string, records: readonly unknown[]): IssueRecord[] {
+  const out: IssueRecord[] = []
+  for (const raw of records) {
+    const parsed = parseIssue(raw)
+    if (parsed.ok && parsed.value.evidence.captureId === captureId) out.push(parsed.value)
+  }
+  return out.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))
+}
+
+export interface CaptureIssues {
+  readonly notes: NoteIssues
+  readonly evidence: readonly IssueRecord[]
+}
+
+const NO_CAPTURE_ISSUES: CaptureIssues = { notes: NO_NOTE_ISSUES, evidence: [] }
+
+/**
+ * يقرأ مشكلات لقطةٍ بفهرس `captureId` مرّةً: خريطة ملاحظاتها، ومشكلات دليلها.
+ *
+ * **لا يفشل**: فشل القراءة يعطي فراغًا، فلا يمنع تعليقًا أن يُفتح لأن حالة مشكلةٍ تعذّرت قراءتها.
+ */
+export async function loadCaptureIssues(captureId: string): Promise<CaptureIssues> {
   try {
     const found = await issues.byIndex('captureId', captureId)
-    return found.ok ? indexNoteIssues(captureId, found.value) : NO_NOTE_ISSUES
+    if (!found.ok) return NO_CAPTURE_ISSUES
+    return {
+      notes: indexNoteIssues(captureId, found.value),
+      evidence: evidenceIssues(captureId, found.value),
+    }
   } catch {
-    return NO_NOTE_ISSUES
+    return NO_CAPTURE_ISSUES
   }
+}
+
+/** خريطة ملاحظات اللقطة وحدها — `loadCaptureIssues` بلا مشكلات الدليل. */
+export async function loadNoteIssues(captureId: string): Promise<NoteIssues> {
+  return (await loadCaptureIssues(captureId)).notes
 }
 
 /**

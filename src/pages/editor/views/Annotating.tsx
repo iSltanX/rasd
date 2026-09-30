@@ -107,6 +107,10 @@ export interface AnnotatingProps {
   readonly onExport: (scale: 1 | 2) => void
   /** يفتح `export / modal` — المدخل الكامل بالصيغة والجودة والتنزيل. */
   readonly onOpenExport: () => void
+  /**
+   * يفتح «حزمة التسليم» لمشكلات هذه اللقطة (ADR 0036) — `null` حين لا مشكلة دليلها هنا، فلا زرّ بلا ما يصدّره.
+   */
+  readonly onOpenHandoff?: (() => void) | null
   /** عنوان اللقطة — يشتقّ منه اسم الملفّ المقترَح. */
   readonly title: string
   /** في المشهد ما لم يُكتب بعد — فالعودة تسأل قبل أن تغادر. */
@@ -319,6 +323,19 @@ export function Annotating(props: AnnotatingProps): JSX.Element {
                     الملاحظات
                   </h2>
                   <span class={cx(styles.countChip, 't-mono-2xs')}>{formatHuman(noteCount)}</span>
+                  {props.onOpenHandoff ? (
+                    <Button
+                      variant="ghost"
+                      size="s"
+                      icon="file-code"
+                      class={styles.handoff}
+                      data-editor-handoff=""
+                      onClick={props.onOpenHandoff}
+                      {...(exporting ? { state: 'disabled' as const } : {})}
+                    >
+                      حزمة التسليم
+                    </Button>
+                  ) : null}
                 </div>
                 <div class={styles.noteBody}>
                   <NoteList

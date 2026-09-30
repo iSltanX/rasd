@@ -275,11 +275,17 @@ describe('حارس الخاصية الفيزيائية', () => {
     expect(selectors.some((s) => s.selector.includes('formatHuman'))).toBe(true)
   })
 
+  /*
+   * **مهلةٌ صريحة لا الافتراضية (5s):** يلنت الملفّ الحقيقي بإعدادات المستودع كاملةً ومعها الأنواع، فيبني
+   * برنامج TypeScript داخل العامل. قِيس: 0.8s وحده، و2.9–4.8s في الجولة الكاملة تحت حِمل الجلسات المتوازية
+   * (10–33)، وسقط بالمهلة الافتراضية في البوّابة مرّتين (6.9s و9.7s) — `Docs/Engineering.md §6` 250. المهلة
+   * سقفُ عطلٍ لا ميزانية أداء: الاختبار يحكم على اللنت لا على زمنه.
+   */
   it('layout.ts الحقيقي يلنت نظيفًا — لا يستعمل left/right لأنه صحّح إلى صندوق فيزيائي سليم', async () => {
     const eslint = new ESLint({ cwd: fileURLToPath(new URL('../..', import.meta.url)) })
     const [result] = await eslint.lintFiles(['src/pages/compare/layout.ts'])
     expect(result?.messages.filter((m) => m.ruleId === 'no-restricted-syntax')).toHaveLength(0)
-  })
+  }, 30_000)
 })
 
 /**

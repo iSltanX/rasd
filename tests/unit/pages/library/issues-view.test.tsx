@@ -173,7 +173,7 @@ describe('library / issues', () => {
   it('الأعمدة السبعة برؤوسٍ حقيقية', async () => {
     await seed(OPEN)
     const root = await mount()
-    const heads = [...root.querySelectorAll('thead th')]
+    const heads = [...root.querySelectorAll('thead th:not([data-pick])')]
     expect(heads.map((h) => h.textContent)).toEqual([
       'المشكلة',
       'الصفحة',
@@ -184,13 +184,21 @@ describe('library / issues', () => {
       'آخر فحص',
     ])
     expect(heads.every((h) => h.getAttribute('scope') === 'col')).toBe(true)
+    // وقبلها عمود التحديد: رأسه مربّعٌ بتسمية، لا نصّ.
+    const pick = q(root, 'thead th[data-pick]')
+    expect(pick?.getAttribute('scope')).toBe('col')
+    expect(pick?.querySelector('input')?.getAttribute('aria-label')).toBe(
+      'حدّد كل المشكلات المعروضة',
+    )
     expect(q(root, 'table')?.getAttribute('aria-label')).toBe('المشكلات المسجَّلة')
   })
 
   it('صفّ المفتوحة: العنوان والمحدِّد والصفحة والنوع والقيمتان والحالة و«لم تُفحص بعد»', async () => {
     await seed(OPEN)
     const root = await mount()
-    const cells = [...root.querySelectorAll('tbody tr td')].map((td) => td.textContent)
+    const cells = [...root.querySelectorAll('tbody tr td:not([data-pick])')].map(
+      (td) => td.textContent,
+    )
     expect(cells).toEqual([
       'حشوة الزرّ الرئيسي أكبر من التصميم.cta-btn · padding',
       'northwind.example/pricing',
@@ -205,22 +213,26 @@ describe('library / issues', () => {
   it('«الآن» من آخر فحص لا من وقت التسجيل، و«آخر فحص» زمنٌ نسبيّ', async () => {
     await seed(RESOLVED)
     const root = await mount()
-    const cells = [...root.querySelectorAll('tbody tr td')].map((td) => td.textContent)
+    const cells = [...root.querySelectorAll('tbody tr td:not([data-pick])')].map(
+      (td) => td.textContent,
+    )
     expect(cells.slice(2)).toEqual(['لون', '#222222', '#222222', 'محلولة', 'قبل ٣ دقائق'])
   })
 
   it('«تحتاج تحققًا» لا قيمة مرصودة فيها: «—» لا قيمة التسجيل القديمة، والتباين بصيغته', async () => {
     await seed(VERIFY)
     const root = await mount()
-    const cells = [...root.querySelectorAll('tbody tr td')].map((td) => td.textContent)
+    const cells = [...root.querySelectorAll('tbody tr td:not([data-pick])')].map(
+      (td) => td.textContent,
+    )
     expect(cells.slice(2)).toEqual(['تباين', '—', '≥ 4.5 : 1', 'تحتاج تحققًا', 'قبل ٥ دقائق'])
   })
 
   it('لون الحالة واحد: رقاقة الحالة و«الآن» بدرجة الحالة، والمحلولة بلا تلوين', async () => {
     await seed(OPEN, RESOLVED, VERIFY)
     const root = await mount()
-    const chip = (id: string) => q(root, `[data-issue-id="${id}"] td:nth-child(6) span`)!.className
-    const now = (id: string) => q(root, `[data-issue-id="${id}"] td:nth-child(4) bdi`)!.className
+    const chip = (id: string) => q(root, `[data-issue-id="${id}"] td:nth-child(7) span`)!.className
+    const now = (id: string) => q(root, `[data-issue-id="${id}"] td:nth-child(5) bdi`)!.className
     expect(chip('open')).toContain('tone-danger')
     expect(chip('verify')).toContain('tone-warning')
     expect(chip('resolved')).toContain('tone-success')
@@ -241,15 +253,62 @@ describe('library / issues', () => {
     ])
   })
 
-  it('لا مربّعات تحديد ولا «حزمة التسليم» — لا محرّك لها بعد', async () => {
+  it('مربّع تحديدٍ لكل صفّ ومربّعٌ للكل، والنقر عليه يحدّد ولا يفتح التفصيل', async () => {
+    await seed(OPEN, RESOLVED, VERIFY)
+    const root = await mount()
+    const boxes = [...root.querySelectorAll<HTMLInputElement>('tbody td[data-pick] input')]
+    expect(boxes).toHaveLength(3)
+    expect(boxes[0]?.getAttribute('aria-label')).toBe(`حدّد «${OPEN.title}»`)
+    boxes[0]!.click()
+    expect(navigate).not.toHaveBeenCalled()
+    await vi.waitFor(() =>
+      expect(q(root, '[data-issues-handoff]')?.textContent).toBe('حزمة التسليم · ١'),
+    )
+    // «الكل» جزئيٌّ بعد تحديد واحد، ثمّ يحدّد الثلاثة.
+    const all = q<HTMLInputElement>(root, 'thead th[data-pick] input')!
+    expect(all.indeterminate).toBe(true)
+    all.click()
+    await vi.waitFor(() =>
+      expect(q(root, '[data-issues-handoff]')?.textContent).toBe('حزمة التسليم · ٣'),
+    )
+  })
+
+  it('التحديد يتبع المعروض: ما أخرجه المرشّح لا يُعدّ ولا يُصدَّر', async () => {
+    await seed(OPEN, RESOLVED, VERIFY)
+    const root = await mount()
+    q<HTMLInputElement>(root, '[data-issue-id="resolved"] td[data-pick] input')!.click()
+    await vi.waitFor(() =>
+      expect(q(root, '[data-issues-handoff]')?.textContent).toBe('حزمة التسليم · ١'),
+    )
+    const openTab = [...root.querySelectorAll<HTMLElement>('[role="tab"]')].find((t) =>
+      t.textContent.startsWith('مفتوحة'),
+    )!
+    openTab.click()
+    await vi.waitFor(() => expect(rowIds(root)).toEqual(['open']))
+    expect(q(root, '[data-issues-handoff]')?.textContent).toBe('حزمة التسليم')
+  })
+
+  it('«حزمة التسليم» تفتح النافذة على المحدَّد، ولقطة دليلٍ مفقودة خطأٌ باسم مشكلتها', async () => {
     await seed(OPEN, RESOLVED)
     const root = await mount()
-    expect(root.querySelectorAll('input[type="checkbox"]')).toHaveLength(0)
-    expect(root.textContent).not.toContain('حزمة التسليم')
-    // الأزرار الوحيدة رقاقات الحالات — لا زرّ آخر بلا محرّك.
-    const buttons = [...root.querySelectorAll('button')]
-    expect(buttons).toHaveLength(4)
-    expect(buttons.every((b) => b.getAttribute('role') === 'tab')).toBe(true)
+    q<HTMLInputElement>(root, '[data-issue-id="open"] td[data-pick] input')!.click()
+    await vi.waitFor(() =>
+      expect(q(root, '[data-issues-handoff]')?.textContent).toBe('حزمة التسليم · ١'),
+    )
+    q<HTMLButtonElement>(root, '[data-issues-handoff]')!.click()
+    const dialog = await vi.waitFor(
+      () => {
+        const found = q(root, '[data-handoff-dialog][data-phase="failed"]')
+        expect(found).not.toBeNull()
+        return found!
+        // المهلة تشمل تحويل القطعة الكسولة أوّل مرّة — كاختبار التكامل (المراجعة المستقلّة: سقط مرّة بمهلة 1s).
+      },
+      { timeout: 5000 },
+    )
+    expect(dialog.textContent).toContain('مشكلة واحدة · تحديد في المكتبة')
+    expect(dialog.textContent).toContain(`لقطة الدليل للمشكلة «${OPEN.title}» لم تعد في المكتبة`)
+    q<HTMLButtonElement>(dialog, '[data-handoff-close]')!.click()
+    await vi.waitFor(() => expect(q(root, '[data-handoff-dialog]')).toBeNull(), { timeout: 5000 })
   })
 })
 
