@@ -33,6 +33,8 @@ export interface ButtonProps {
    * نصّ الزرّ نصَّه وحده لمن يقرؤه.
    */
   trailing?: ComponentChildren
+  /** سمات `data-*` تُمرَّر إلى الزرّ الأصليّ — خطّافات يقودها الحرّاس (`data-rasd-confirm`). */
+  [data: `data-${string}`]: string | undefined
 }
 
 /** `Button` — 72 variant: 4 نمط × 3 مقاس × 6 حالة. */

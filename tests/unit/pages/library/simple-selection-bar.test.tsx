@@ -6,8 +6,6 @@ import { SimpleSelectionBar } from '@/pages/library/parts/SimpleSelectionBar'
 import type { ProjectRecord } from '@/shared/storage/schema'
 
 let container: HTMLDivElement | null = null
-/** happy-dom لا يعرِّف `window.confirm` أصلًا — لا شيء لـ`vi.spyOn` ليستبدله، فنُسنِده مباشرةً. */
-const originalConfirm: typeof window.confirm = window.confirm?.bind(window)
 
 afterEach(() => {
   if (container) {
@@ -15,7 +13,6 @@ afterEach(() => {
     container.remove()
     container = null
   }
-  window.confirm = originalConfirm
 })
 
 const PROJECT: ProjectRecord = {
@@ -56,19 +53,21 @@ describe('SimpleSelectionBar', () => {
     expect(root.querySelector('input[name="tag"]')).toBeFalsy()
   })
 
-  it('الحذف يطلب تأكيدًا — القبول يستدعي onDelete', () => {
-    const confirmFn = vi.fn(() => true)
-    window.confirm = confirmFn
+  it('الحذف يفتح حوار التأكيد — «احذف» يستدعي onDelete', async () => {
     const { root, onDelete } = mount()
     ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
-    expect(confirmFn).toHaveBeenCalled()
+    await Promise.resolve()
+    expect(root.querySelector('[role="alertdialog"]')).toBeTruthy()
+    expect(onDelete).not.toHaveBeenCalled()
+    ;(root.querySelector('[data-rasd-confirm="delete"]') as HTMLButtonElement).click()
     expect(onDelete).toHaveBeenCalled()
   })
 
-  it('رفض التأكيد لا يستدعي onDelete', () => {
-    window.confirm = vi.fn(() => false)
+  it('«ألغِ» لا يستدعي onDelete', async () => {
     const { root, onDelete } = mount()
     ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
+    await Promise.resolve()
+    ;(root.querySelector('[data-rasd-cancel="delete"]') as HTMLButtonElement).click()
     expect(onDelete).not.toHaveBeenCalled()
   })
 

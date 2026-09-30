@@ -194,6 +194,25 @@ if (!librarySession) {
   const S = librarySession
   try {
     /**
+     * **الجهوز: المستند مستند المكتبة لا المستند الابتدائي.** `Target.createTarget` يفتح
+     * `about:blank` ثمّ يتنقّل، والارتباط والتقييم قد يسبقان التزام التنقّل — فيقع الزرع في
+     * مستند بلا أصل، وIndexedDB فيه ممنوع. قِيس في CI (الجولة `36592130082`): «SecurityError:
+     * Failed to execute 'databases' on 'IDBFactory': Access to the IndexedDB API is denied in
+     * this context» — وهو حرفيًّا ما يعطيه `about:blank` (`STAGES/04`). فيُنتظَر أصل الإضافة
+     * واكتمال التحميل قبل أي قراءة، والتقييم الذي يقع في سياق يُهدَم يُعاد في التالي.
+     */
+    const pageOrigin = `chrome-extension://${extId}`
+    let ready = false
+    for (let i = 0; i < 100 && !ready; i++) {
+      ready = await evalIn(
+        S,
+        `location.origin === ${JSON.stringify(pageOrigin)} && document.readyState === 'complete'`,
+      ).catch(() => false)
+      if (!ready) await new Promise((r) => setTimeout(r, 100))
+    }
+    if (!ready) throw new Error(`صفحة المكتبة لم تجهز: الأصل ليس ${pageOrigin} بعد عشر ثوانٍ`)
+
+    /**
      * يزرع بيانات واقعية عبر IndexedDB **من الصفحة نفسها** — نفس مبدأ
      * `verify-editor.mjs`: أصل الإضافة واحد، فقاعدة البيانات واحدة، ولا حاجة
      * لمسار حقن منفصل يقيس شيئًا غير ما تقرؤه الصفحة فعليًا.
@@ -406,9 +425,8 @@ if (!librarySession) {
       await evalIn(S, `document.querySelector('[aria-label="إلغاء التحديد"]')?.click()`)
 
       // ── حذف ونقل غير اللقطات — سدّ فجوة §4/§8 من Phase_18.md ───────
-      // window.confirm الحقيقي يوقف الأتمتة بحوار نظام لا يُغلَق برمجيًا؛
-      // يُستبدَل هنا فقط، ولا حاجة لاستعادته — لا خطوة لاحقة تعتمد رفضه.
-      await evalIn(S, `window.confirm = () => true`)
+      // الحذف النهائي يمرّ بحوار `library / delete-confirm` (`STAGES/04`) لا بـ`window.confirm`:
+      // زرّ الشريط يفتح الحوار، ولا يُحذف شيء قبل «احذف» فيه.
 
       await evalIn(
         S,
@@ -420,6 +438,13 @@ if (!librarySession) {
         `document.querySelector('[data-color-id="col1"] input[type="checkbox"]').click()`,
       )
       await evalIn(S, `document.querySelector('[aria-label="حذف المحدَّد نهائيًا"]').click()`)
+      const dialogShown = await waitFor(
+        `document.querySelector('[role="alertdialog"] [data-rasd-confirm="delete"]') ? 'y' : null`,
+      )
+      const stillThere = await evalIn(S, `!!document.querySelector('[data-color-id="col1"]')`)
+      if (dialogShown && stillThere) ok('الحذف النهائي يفتح حوار التأكيد، ولا يُحذف شيء قبل «احذف»')
+      else fail(`حوار الحذف لم يظهر أو سبقه الحذف: حوار=${!!dialogShown} باقٍ=${stillThere}`)
+      await evalIn(S, `document.querySelector('[data-rasd-confirm="delete"]')?.click()`)
       const colorDeleted = await waitFor(
         `document.querySelector('[data-color-id="col1"]') ? null : 'y'`,
       )

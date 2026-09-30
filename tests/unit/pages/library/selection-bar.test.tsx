@@ -6,8 +6,6 @@ import { SelectionBar, type LibraryViewMode } from '@/pages/library/parts/Select
 import type { ProjectRecord } from '@/shared/storage/schema'
 
 let container: HTMLDivElement | null = null
-/** happy-dom لا يعرِّف `window.confirm` أصلًا — لا شيء لـ`vi.spyOn` ليستبدله، فنُسنِده مباشرةً. */
-const originalConfirm: typeof window.confirm = window.confirm?.bind(window)
 
 afterEach(() => {
   if (container) {
@@ -15,7 +13,6 @@ afterEach(() => {
     container.remove()
     container = null
   }
-  window.confirm = originalConfirm
 })
 
 function mount(viewMode: LibraryViewMode, projects: readonly ProjectRecord[] = []) {
@@ -99,20 +96,27 @@ describe('SelectionBar — وضع trashed', () => {
     expect(onRestore).toHaveBeenCalled()
   })
 
-  it('الحذف النهائي يطلب تأكيدًا — القبول يستدعي onPurge', () => {
-    const confirmFn = vi.fn(() => true)
-    window.confirm = confirmFn
+  it('الحذف النهائي يفتح حوار التأكيد بعدد اللقطات — «احذف» يستدعي onPurge ويغلقه', async () => {
     const { root, onPurge } = mount('trashed')
     ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
-    expect(confirmFn).toHaveBeenCalled()
+    await Promise.resolve()
+    const dialog = root.querySelector('[role="alertdialog"]')
+    expect(dialog?.textContent).toContain('حذف ٣ لقطات')
+    expect(onPurge).not.toHaveBeenCalled()
+    ;(root.querySelector('[data-rasd-confirm="delete"]') as HTMLButtonElement).click()
+    await Promise.resolve()
     expect(onPurge).toHaveBeenCalled()
+    expect(root.querySelector('[role="alertdialog"]')).toBeNull()
   })
 
-  it('رفض التأكيد لا يستدعي onPurge', () => {
-    window.confirm = vi.fn(() => false)
+  it('«ألغِ» يغلق الحوار ولا يستدعي onPurge', async () => {
     const { root, onPurge } = mount('trashed')
     ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
+    await Promise.resolve()
+    ;(root.querySelector('[data-rasd-cancel="delete"]') as HTMLButtonElement).click()
+    await Promise.resolve()
     expect(onPurge).not.toHaveBeenCalled()
+    expect(root.querySelector('[role="alertdialog"]')).toBeNull()
   })
 })
 

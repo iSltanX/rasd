@@ -15,11 +15,14 @@
  * فمن ينطق ما يراه يصل إليه.
  */
 
+import { useState } from 'preact/hooks'
+
 import { formatHuman } from '@/shared/bidi/numerals'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
+import { CAPTURE_FORMS, DeleteConfirm } from './DeleteConfirm'
 import styles from './SelectionBar.module.css'
 
 import type { ProjectRecord } from '@/shared/storage/schema'
@@ -148,11 +151,8 @@ export function SelectionBar({
   onAddTag,
   onClear,
 }: SelectionBarProps): JSX.Element {
-  const onPurgeClick = () => {
-    // حذف نهائي بلا رجعة — تأكيد المتصفّح نفسه. حوار الإطار (`library / delete-confirm`)
-    // لا يُستبدَل به هنا: الحارس الحاجب `verify:library` يقود الحذف عبر `window.confirm`.
-    if (window.confirm(`حذف ${count} عنصرًا نهائيًا — لا يمكن التراجع. متابعة؟`)) onPurge()
-  }
+  // حذف نهائي بلا رجعة يمرّ بحوار الإطار (`library / delete-confirm`) — كان تأكيد المتصفّح.
+  const [confirming, setConfirming] = useState(false)
 
   const onTagSubmit = (e: JSX.TargetedEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -164,6 +164,18 @@ export function SelectionBar({
 
   return (
     <SelectionDock>
+      {confirming ? (
+        <DeleteConfirm
+          count={count}
+          forms={CAPTURE_FORMS}
+          note="تُحذف نهائيًّا مع تعليقاتها، ولا تُسترجع من المهملات."
+          onConfirm={() => {
+            setConfirming(false)
+            onPurge()
+          }}
+          onCancel={() => setConfirming(false)}
+        />
+      ) : null}
       <SelectionCount count={count} />
       <span class={styles.actions}>
         {viewMode === 'trashed' ? (
@@ -179,7 +191,7 @@ export function SelectionBar({
               label="حذف"
               aria-label="حذف المحدَّد نهائيًا"
               danger
-              onClick={onPurgeClick}
+              onClick={() => setConfirming(true)}
             />
           </>
         ) : (

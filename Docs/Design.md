@@ -426,7 +426,7 @@ return {
 | `guide / export-loading`    | تحميل      | [`304:2130`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=304-2130)   | [`310:35786`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-35786) | [06](../STAGES/06.md)                                                                      |
 | `guide / export-done`       | نجاح       | [`304:2328`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=304-2328)   | [`310:35875`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-35875) | [06](../STAGES/06.md)                                                                      |
 | `guide / export-error`      | خطأ        | [`304:2528`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=304-2528)   | [`310:35964`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-35964) | [06](../STAGES/06.md)                                                                      |
-| `library / delete-confirm`  | أساسية     | [`304:2735`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=304-2735)   | [`310:36046`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-36046) | تأكيد المتصفّح — [04](../STAGES/04.md) — الحارس `verify:library`، §6 الصفّ 139             |
+| `library / delete-confirm`  | أساسية     | [`304:2735`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=304-2735)   | [`310:36046`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-36046) | [`DeleteConfirm.tsx`](../src/pages/library/parts/DeleteConfirm.tsx)                        |
 | `library / locked`          | رفض صلاحية | [`304:3091`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=304-3091)   | [`310:36289`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-36289) | [08](../STAGES/08.md)                                                                      |
 | `library / deleted`         | نجاح       | [`304:3257`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=304-3257)   | [`310:36340`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-36340) | [`Library.tsx`](../src/pages/library/Library.tsx)                                          |
 | `library / storage-warning` | أساسية     | [`304:3499`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=304-3499)   | [`310:36570`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-36570) | [`Library.tsx`](../src/pages/library/Library.tsx)                                          |
@@ -728,8 +728,10 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
 ### المكتبة والمشاريع
 
 - **قيد حارس:** `verify:library` حاجب ومثبَّت ببصمته، ويقود الصفحة بأسماء عناصرها — فبقيت: صفّ الأنواع،
-  و«عرض المكتبة» (نشطة · الأرشيف · المهملات)، وزرّا لوحتَي المشاريع والوسوم، وتأكيد المتصفّح بدل
-  `library / delete-confirm` (§6 الصفّ 139، [04](../STAGES/04.md)).
+  و«عرض المكتبة» (نشطة · الأرشيف · المهملات)، وزرّا لوحتَي المشاريع والوسوم (§6 الصفّ 139). وحوار
+  `library / delete-confirm` بُني في [04](../STAGES/04.md) بدل تأكيد المتصفّح، والحارس يقوده. نصّ ملاحظته
+  يقول ما يحذفه المحرّك: «مع تعليقاتها، ولا تُسترجع من المهملات» للّقطات (الحذف النهائي من المهملات)، و«لا
+  مهملات لهذا النوع» للألوان واللوحات والمراجع والأدلّة — لا «لا سلّة محذوفات» الذي ينقضه وجود المهملات.
 - لا تبديل قائمة وشبكة (لا عرض قائمة)، ولا «تصدير» جماعي، ولا «مشاركة» في شريط التحديد.
 - العدّ بقاعدة العدد العربية («٦ لقطات» · «٢٤٨ لقطة»)، والبحث بنصّ العرض — «…والألوان» كانت تعد
   ببحث عابر للأنواع لا يفعله المحرّك. ومرشّح النوع بالأنواع الأربعة المنتَجة.

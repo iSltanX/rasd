@@ -265,22 +265,19 @@ describe('Library — التبويبات', () => {
     clickTab(root, 'الألوان')
     await waitFor(() => root.querySelector('[data-color-id="col1"]') !== null)
 
-    // happy-dom لا يعرِّف window.confirm أصلًا — الاستدعاء الشرطي يتفادى
-    // استثناء `.bind` على undefined (نفس نمط selection-bar.test.tsx).
-    const originalConfirm: typeof window.confirm = window.confirm?.bind(window)
-    window.confirm = () => true
     ;(
       root.querySelector('[data-color-id="col1"] input[type="checkbox"]') as HTMLInputElement
     ).click()
     await flush()
     ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
+    await flush()
+    ;(root.querySelector('[data-rasd-confirm="delete"]') as HTMLButtonElement).click()
     await waitFor(() => root.querySelector('[data-color-id="col1"]') === null)
-    window.confirm = originalConfirm
 
     expect((await colors.get('col1')).ok).toBe(false)
   })
 
-  it('رفض تأكيد الحذف يُبقي السجلّ كما هو', async () => {
+  it('«ألغِ» في حوار الحذف يُبقي السجلّ كما هو', async () => {
     await colors.put({
       id: 'col1',
       hex: '#3B82F6',
@@ -295,17 +292,14 @@ describe('Library — التبويبات', () => {
     clickTab(root, 'الألوان')
     await waitFor(() => root.querySelector('[data-color-id="col1"]') !== null)
 
-    // happy-dom لا يعرِّف window.confirm أصلًا — الاستدعاء الشرطي يتفادى
-    // استثناء `.bind` على undefined (نفس نمط selection-bar.test.tsx).
-    const originalConfirm: typeof window.confirm = window.confirm?.bind(window)
-    window.confirm = () => false
     ;(
       root.querySelector('[data-color-id="col1"] input[type="checkbox"]') as HTMLInputElement
     ).click()
     await flush()
     ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
     await flush()
-    window.confirm = originalConfirm
+    ;(root.querySelector('[data-rasd-cancel="delete"]') as HTMLButtonElement).click()
+    await flush()
 
     expect(root.querySelector('[data-color-id="col1"]')).toBeTruthy()
     expect((await colors.get('col1')).ok).toBe(true)
@@ -385,13 +379,13 @@ describe('Library — التبويبات', () => {
       clickTab(root, 'الألوان')
       await waitFor(() => root.querySelector('[data-color-id="col1"]') !== null)
 
-      const originalConfirm: typeof window.confirm = window.confirm?.bind(window)
-      window.confirm = () => true
       ;(
         root.querySelector('[data-color-id="col1"] input[type="checkbox"]') as HTMLInputElement
       ).click()
       await flush()
       ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
+      await flush()
+      ;(root.querySelector('[data-rasd-confirm="delete"]') as HTMLButtonElement).click()
       await flush()
       // الحذف بدأ الآن — deleteColors علِقت داخل أوّل await لـcolors.get،
       // ووعدها لم يُحلّ بعد.
@@ -415,7 +409,6 @@ describe('Library — التبويبات', () => {
       expect(root.querySelector('[aria-busy="true"]')).toBeFalsy()
       expect(root.querySelector('[data-guide-id="g1"]')).toBeTruthy()
 
-      window.confirm = originalConfirm
       getSpy.mockRestore()
     },
   )

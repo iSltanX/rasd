@@ -9,8 +9,11 @@
  * العدّاد **هندي** (`formatHuman`) — نفس قاعدة `SelectionBar.tsx` و§3.5.
  */
 
+import { useState } from 'preact/hooks'
+
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 
+import { DeleteConfirm, ITEM_FORMS } from './DeleteConfirm'
 import { BarButton, MoveToProject, SelectionCount, SelectionDock } from './SelectionBar'
 
 import type { ProjectRecord } from '@/shared/storage/schema'
@@ -33,14 +36,23 @@ export function SimpleSelectionBar({
   onDelete,
   onClear,
 }: SimpleSelectionBarProps): JSX.Element {
-  const onDeleteClick = () => {
-    // نفس نمط `SelectionBar.tsx`: تأكيد المتصفّح نفسه لفعل بلا تراجع — والحارس الحاجب
-    // `verify:library` يقود حذف هذه الأنواع عبر `window.confirm`.
-    if (window.confirm(`حذف ${count} عنصرًا نهائيًا — لا يمكن التراجع. متابعة؟`)) onDelete()
-  }
+  // حذف بلا تراجع يمرّ بحوار `library / delete-confirm` — نفس `SelectionBar.tsx`.
+  const [confirming, setConfirming] = useState(false)
 
   return (
     <SelectionDock>
+      {confirming ? (
+        <DeleteConfirm
+          count={count}
+          forms={ITEM_FORMS}
+          note="تُحذف نهائيًّا — لا مهملات لهذا النوع، فلا تُسترجع."
+          onConfirm={() => {
+            setConfirming(false)
+            onDelete()
+          }}
+          onCancel={() => setConfirming(false)}
+        />
+      ) : null}
       <SelectionCount count={count} />
       <MoveToProject projects={projects} onMoveToProject={onMoveToProject} />
       <BarButton
@@ -48,7 +60,7 @@ export function SimpleSelectionBar({
         label="حذف"
         aria-label="حذف المحدَّد نهائيًا"
         danger
-        onClick={onDeleteClick}
+        onClick={() => setConfirming(true)}
       />
       <IconButton icon="close" size="s" aria-label="إلغاء التحديد" onClick={onClear} />
     </SelectionDock>
