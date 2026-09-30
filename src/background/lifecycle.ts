@@ -1,10 +1,11 @@
 /**
  * دورة حياة الـservice worker.
  *
- * ثلاث مسؤوليات:
+ * أربع مسؤوليات:
  *   1. تسجيل مستقبِلات الرسائل ومعالجات القنوات.
  *   2. إبقاء الـSW حيًّا ما دامت قناة مفتوحة (النبضة في `port.ts`).
  *   3. حارس `chrome.alarms` ينهي المهام المعلَّقة.
+ *   4. التثبيت والترقية: جولة التعريف و«ما الجديد» (`install-flow.ts`).
  *
  * **لماذا `alarms` لا `setTimeout`:** المؤقّت يموت مع الـservice worker،
  * فالمهمة التي علقت لأن SW أُنهي تبقى «جارية» للأبد. المنبّه ينجو ويوقظ SW.
@@ -40,6 +41,7 @@ import { applyModeIcon } from './action-icon'
 import { measureLiveDiff } from './compare-diff-service'
 import { cancelFullPage } from './full-page-job'
 import { canOperateOnTab } from './gate'
+import { registerInstallFlow } from './install-flow'
 import { extractFromCapture, extractFromViewport } from './palette-service'
 
 import type { PageKey } from '@/modules/compare/reference'
@@ -72,6 +74,8 @@ export function registerLifecycle() {
   registerFullPage()
   registerInspect()
   registerWatchdog()
+  // متزامنًا في المستوى الأعلى كبقيّة المستمعين: الحدث الذي أيقظ العامل قد يكون `onInstalled` نفسه.
+  registerInstallFlow()
   /*
    * `watchSettings` بدل قراءة مرّة واحدة: هذا ما يُبقي ذاكرة الإعدادات
    * المؤقّتة في هذا السياق (`getSettingsResult` في `shared/settings/index.ts`،

@@ -9,22 +9,24 @@ import type { JSX } from 'preact'
 export interface FirstRunProps {
   /** يُتمّ الجولة الأولى ويعرض الأدوات. */
   onStart: () => void
+  /** يفتح جولة التعريف في تبويب. */
+  onTour: () => void
 }
 
 /**
  * `first-run` — أوّل فتح للنافذة، قبل أن تُحفظ `settings.onboarding.completed`.
  *
- * **زرّ «جولة سريعة» المرسوم لا يُعرض قبل `STAGES/09`:** وجهته صفحة التأهيل، وهي اليوم
- * صفحة نائبة («قيد التطوير») — وزرّ يقود إلى لا شيء زرّ صامت. فالإجراء الأساسي «ابدأ»
- * يُتمّ الجولة ويعرض الأدوات، والتلميح يسمّي الاختصار الحقيقي لبدء الالتقاط.
+ * «ابدأ» يُتمّ الجولة الأولى ويعرض الأدوات، و«جولة سريعة» يفتح صفحة التأهيل — الخطوات الأربع
+ * نفسها التي تُفتح عند التثبيت، لمن أغلقها قبل آخرها. والتلميح يسمّي الاختصار الحقيقي للالتقاط.
  */
-export function FirstRun({ onStart }: FirstRunProps): JSX.Element {
+export function FirstRun({ onStart, onTour }: FirstRunProps): JSX.Element {
   return (
     <MessageState
       tone="brand"
       badge={<RasdMark size="2xl" title="رصد" />}
       title="مرحبًا بك في رصد"
       primary={{ label: 'ابدأ', onClick: onStart }}
+      secondary={{ label: 'جولة سريعة', onClick: onTour }}
       hint={
         <>
           <span>اضغط</span>
