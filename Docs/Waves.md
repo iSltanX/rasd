@@ -154,9 +154,9 @@
    - الجلسة في worktree: `git rev-parse --git-dir` غير `git rev-parse --git-common-dir`. وإلا توقّف
      واطلب جلسة جديدة بخيار worktree.
    - `git fetch origin --tags`، ثمّ الفرع: إن كان `‹BRANCH›` فهو استئناف — تابع من `resume`. وإن كان
-     فرعًا تلقائيًّا بلا التزام فوق `origin/main` (`git rev-list --count origin/main..HEAD` صفر) فأعد
-     تسميته: `git branch -m ‹BRANCH›`، وإن كان خلف `origin/main` فـ`git merge --ff-only origin/main`.
-     وإلا توقّف.
+     فرعًا تلقائيًّا أو رأسًا منفصلًا (`HEAD`)، **بلا تغييرات ولا التزام فوق `origin/main`**
+     (`git status --porcelain` فارغ و`git rev-list --count origin/main..HEAD` صفر)، فأنشئ الفرع من أحدث
+     `main` ولو كان الـworktree على التزامٍ أقدم: `git switch -C ‹BRANCH› origin/main`. وإلا توقّف.
    - الوسم `wave-‹WW›/base` موجود ومن أسلاف الرأس: `git merge-base --is-ancestor wave-‹WW›/base HEAD`.
    - ترويسة `STAGES/‹NN›.md` تحمل `wave: ‹WW›`، وكل ما في `depends` حالته `done`.
 2. **البيئة:** `pnpm install --frozen-lockfile` — النسخة جديدة بلا `node_modules`. **لا `gate:a` في
