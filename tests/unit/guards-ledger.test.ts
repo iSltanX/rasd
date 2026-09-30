@@ -9,7 +9,10 @@ import {
   classify,
   DOCS_JOB,
   isDocsOnlyRun,
+  isUnstartedRun,
+  readGuardEvents,
   readMatrix,
+  runDisposition,
   streakOf,
   // @ts-expect-error — سكربت أدوات بلا تعريفات أنواع؛ يُستورَد لدوالّه الخالصة. التوجيه على
   // سطر المُحدِّد لأن `tsc` يبلّغ عنه هناك حين يلتفّ الاستيراد على أسطر.
@@ -163,5 +166,86 @@ describe('مسار التوثيق في ci.yml وسجلّ الترقية', () => 
         { name: 'كروم حقيقي · verify:${{ matrix.guard }}', conclusion: 'skipped' },
       ]),
     ).toBe(false)
+  })
+})
+
+/*
+ * القراران 5 و6 (ADR 0026): جولةٌ لم تبدأ، وجولةٌ لم تطلب الحرّاس بشرط `ci.yml`، لا تُعدّان.
+ * العيّنات بشكل ردّ `repos/…/actions/runs/<id>/jobs` كما قيس على الجولات المرفوضة
+ * (`36674750359`): كل وظيفة `completed` بلا خطوة واحدة.
+ */
+describe('مصير الجولة في السجلّ', () => {
+  const step = [{ name: 'Set up job', conclusion: 'success' }]
+  const refused = [
+    { name: 'تصنيف التغيير', conclusion: 'failure', steps: [] },
+    { name: 'بناء الحزمة المشتركة', conclusion: 'failure', steps: [] },
+    { name: DOCS_JOB, conclusion: 'skipped', steps: [] },
+    { name: 'كروم حقيقي · verify:${{ matrix.guard }}', conclusion: 'skipped', steps: [] },
+  ]
+  const cheapPush = [
+    { name: 'تصنيف التغيير', conclusion: 'success', steps: step },
+    { name: 'بناء الحزمة المشتركة', conclusion: 'success', steps: step },
+    { name: DOCS_JOB, conclusion: 'skipped', steps: [] },
+    { name: 'كروم حقيقي · verify:${{ matrix.guard }}', conclusion: 'skipped', steps: [] },
+  ]
+  const guardRun = [
+    { name: 'تصنيف التغيير', conclusion: 'success', steps: step },
+    { name: 'كروم حقيقي · verify:load', conclusion: 'success', steps: step },
+  ]
+  const dispatchOnly = ['workflow_dispatch']
+
+  it('الجولة المرفوضة بلا خطوة لا تُعدّ — وكانت تُنزل الحاجبة كلّها ثغراتٍ', () => {
+    expect(isUnstartedRun(refused)).toBe(true)
+    expect(runDisposition('push', refused)).toBe('unstarted')
+    expect(runDisposition('workflow_dispatch', refused, dispatchOnly)).toBe('unstarted')
+  })
+
+  it('وظيفةٌ واحدة بدأت تكفي لتُحاكَم الجولة', () => {
+    expect(isUnstartedRun(cheapPush)).toBe(false)
+    expect(isUnstartedRun(guardRun)).toBe(false)
+  })
+
+  it('بلا شرط على الحرّاس: الدفع الذي تخطّى حرّاسه ثغرةٌ كما كان (القرار 3)', () => {
+    expect(runDisposition('push', cheapPush, null)).toBe('guards')
+  })
+
+  it('مع الشرط: الدفع الذي لم يطلب الحرّاس يُستبعَد', () => {
+    expect(runDisposition('push', cheapPush, dispatchOnly)).toBe('no-guards')
+  })
+
+  it('مع الشرط: الجولة اليدوية التي تخطّت حرّاسها تبقى ثغرة — طُلبت الأدلّة ولم تُجمَع', () => {
+    expect(runDisposition('workflow_dispatch', cheapPush, dispatchOnly)).toBe('guards')
+  })
+
+  it('مع الشرط: دفعٌ قديم جرت فيه الحرّاس يُعدّ كما كان', () => {
+    expect(runDisposition('push', guardRun, dispatchOnly)).toBe('guards')
+  })
+
+  it('جولة التوثيق تبقى توثيقًا قبل أي قرار آخر', () => {
+    const docs = [{ name: DOCS_JOB, conclusion: 'success', steps: step }]
+    expect(runDisposition('push', docs, dispatchOnly)).toBe('docs')
+  })
+})
+
+describe('أحداث الحرّاس مقروءة من شرط وظيفتها في ci.yml', () => {
+  it('ci.yml الحقيقي يُقرأ بلا خطأ، ونتيجته إمّا كل الأحداث وإمّا قائمة', () => {
+    const events = readGuardEvents()
+    expect(events === null || Array.isArray(events)).toBe(true)
+  })
+
+  it('الشرط على الحدث يُقرأ قائمة', () => {
+    expect(readGuardEvents('tests/fixtures/ci-ledger/dispatch-ci.yml')).toEqual([
+      'workflow_dispatch',
+    ])
+  })
+
+  it('غياب الشرط يعني كل الأحداث', () => {
+    expect(readGuardEvents('tests/fixtures/ci-ledger/stale-ci.yml')).toBeNull()
+  })
+
+  it('شرطٌ بشكل غير مفهوم يُرمى ولا يُتخطّى', () => {
+    expect(() => {
+      readGuardEvents('tests/fixtures/ci-ledger/odd-if-ci.yml')
+    }).toThrow(/غير مفهوم/u)
   })
 })

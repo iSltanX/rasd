@@ -13,13 +13,19 @@
  * القواعد المفروضة (كلّها ثنائية بلا حكم):
  *   · اسم الملفّ يطابق `id`، والأرقام متتابعة من 1 بلا فجوة.
  *   · كل اعتمادية تشير إلى مرحلة موجودة، ولا دور في الاعتماديات.
- *   · مرحلة واحدة على الأكثر حالتها `active`.
+ *   · أكثر من مرحلة `active` جائزٌ بشرط واحد: أن تحمل كلّها `wave` واحدة (ADR 0026) — وإلا
+ *     فواحدة على الأكثر، كما كانت.
  *   · `active` و`done` تشترطان أن تكون كل الاعتماديات `done`.
  *   · `done` تشترط `delivery: merged` و`commit` مكتوبًا — لا «مكتملة» بلا التزام مدموج.
  *   · `resume` مكتوب لكل مرحلة ليست `done`.
  *   · `after` اختياري **للترتيب وحده** (ADR 0025): يضع المرحلة في ترتيب التنفيذ والعرض بعد المرحلة
  *     المسمّاة مباشرةً، ولا يُقرأ في شرط `active` ولا `done` — الاعتماد في `depends` وحده. لا يشير
  *     إلى غائب ولا إلى نفسه ولا يدور، والترتيب الناتج يحترم `depends`: لا اعتمادية بعد معتمِدها.
+ *
+ *   · `wave` اختياري **للتجميع التنفيذي وحده** (ADR 0026): رقم موجة التوازي في `Docs/Waves.md`.
+ *     لا يمنع ولا يُجيز — الاعتماد في `depends` وحده. وقواعده: كل مرحلة ليست `done` تحمله؛
+ *     وكل اعتمادية لمرحلةٍ في موجة إمّا `done` وإمّا في موجة أسبق — لا اعتمادية داخل الموجة؛
+ *     وأرقام الموجات متتابعة من 1 بلا فجوة.
  *
  * الجدولان و«المرحلة التالية» بترتيب التنفيذ: ترتيب الرقم، إلا ما وضعه `after` بعد غيره. والتالية
  * أوّل مرحلة لم تبدأ في ذلك الترتيب اكتملت **اعتمادياتها** — الترتيب يختار، والاعتماد يُجيز.
@@ -87,6 +93,17 @@ function parseDepends(file, raw) {
   })
 }
 
+/** `wave` اختياري — غيابه `null`، وحضوره رقم موجة موجب (ADR 0026). */
+function parseWave(file, raw) {
+  if (raw === undefined) return null
+  const wave = Number(raw)
+  if (!Number.isInteger(wave) || wave < 1) {
+    fail(`${file}: wave يجب أن يكون رقم موجة موجبًا لا «${raw}»`)
+    return null
+  }
+  return wave
+}
+
 /** `after` اختياري — غيابه `null`، وحضوره رقم مرحلة. */
 function parseAfter(file, raw) {
   if (raw === undefined) return null
@@ -133,6 +150,7 @@ function readStages() {
       updated: header.updated ?? '',
       resume: header.resume ?? '',
       after: parseAfter(name, header.after),
+      wave: parseWave(name, header.wave),
     }
     if (String(stage.id).padStart(2, '0') !== name.slice(0, 2)) {
       fail(`${name}: id (${header.id}) لا يطابق اسم الملفّ`)
@@ -177,15 +195,38 @@ function validate(stages, ordered) {
   stages.forEach((stage, index) => {
     if (stage.id !== index + 1) fail(`${stage.file}: الترقيم غير متتابع — المتوقَّع ${index + 1}`)
   })
-  if (stages.filter((stage) => stage.status === 'active').length > 1) {
-    fail('أكثر من مرحلة حالتها active — المسموح واحدة.')
+  const active = stages.filter((stage) => stage.status === 'active')
+  const activeWaves = new Set(active.map((stage) => stage.wave))
+  if (active.length > 1 && (activeWaves.size > 1 || activeWaves.has(null))) {
+    fail(
+      `أكثر من مرحلة حالتها active (${active.map((stage) => pad(stage.id)).join(' · ')}) وليست كلّها في موجة واحدة — المسموح واحدة، أو مراحل موجة واحدة.`,
+    )
   }
+  const waves = [...new Set(stages.map((stage) => stage.wave).filter((wave) => wave !== null))]
+  waves.sort((a, b) => a - b)
+  waves.forEach((wave, index) => {
+    if (wave !== index + 1) fail(`أرقام الموجات غير متتابعة — الموجة ${index + 1} غائبة`)
+  })
   for (const stage of stages) {
     for (const dep of stage.depends) {
       if (!byId.has(dep)) fail(`${stage.file}: تعتمد على مرحلة غير موجودة (${dep})`)
       if (dep === stage.id) fail(`${stage.file}: تعتمد على نفسها`)
       if (byId.has(dep) && position.get(dep) > position.get(stage.id)) {
         fail(`${stage.file}: تعتمد على ${pad(dep)} وهي بعدها في ترتيب التنفيذ`)
+      }
+    }
+    if (stage.status !== 'done' && stage.wave === null) {
+      fail(`${stage.file}: ليست done وبلا wave — كل مرحلة متبقّية في موجة (Docs/Waves.md)`)
+    }
+    if (stage.wave !== null) {
+      for (const dep of stage.depends) {
+        const other = byId.get(dep)
+        if (!other || other.status === 'done') continue
+        if (other.wave === null || other.wave >= stage.wave) {
+          fail(
+            `${stage.file}: في الموجة ${stage.wave} وتعتمد على ${pad(dep)} ${other.wave === null ? 'بلا موجة' : `في الموجة ${other.wave}`} — الاعتمادية تسبق في موجة أقدم أو تكون done`,
+          )
+        }
       }
     }
     if (stage.after !== null) {
@@ -241,13 +282,22 @@ function table(stages, base) {
   const rows = stages.map((stage) => {
     const deps = stage.depends.length > 0 ? stage.depends.map(pad).join(' · ') : '—'
     const commit = /^[0-9a-f]{7,40}$/u.test(stage.commit) ? `\`${stage.commit.slice(0, 7)}\`` : '—'
-    return `| ${link(stage, base)} | ${stage.title} | ${deps} | ${STATUSES[stage.status]} | ${DELIVERIES[stage.delivery]} | ${commit} |`
+    const wave = stage.wave === null ? '—' : String(stage.wave)
+    return `| ${link(stage, base)} | ${stage.title} | ${deps} | ${wave} | ${STATUSES[stage.status]} | ${DELIVERIES[stage.delivery]} | ${commit} |`
   })
   return [
-    '| # | المرحلة | تعتمد على | الحالة | التسليم | الالتزام |',
-    '| --- | --- | --- | --- | --- | --- |',
+    '| # | المرحلة | تعتمد على | الموجة | الحالة | التسليم | الالتزام |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
     ...rows,
   ].join('\n')
+}
+
+/** الموجة الحالية: أدنى موجة فيها مرحلة ليست done — ووسم أساسها بالاسم، لا بالبصمة (ADR 0026). */
+function currentWave(stages) {
+  const open = stages.filter((stage) => stage.wave !== null && stage.status !== 'done')
+  if (open.length === 0) return null
+  const wave = Math.min(...open.map((stage) => stage.wave))
+  return { wave, stages: stages.filter((stage) => stage.wave === wave) }
 }
 
 function renderStatus(stages, baseline) {
@@ -257,7 +307,11 @@ function renderStatus(stages, baseline) {
   const lastLine = last
     ? `المرحلة ${pad(last.id)} — ${last.title} · الالتزام \`${last.commit.slice(0, 7)}\` · ${last.updated}`
     : `خطّ الأساس — ${baseline.summary} · الالتزام \`${baseline.commit}\` · ${baseline.date}`
-  const active = stages.find((stage) => stage.status === 'active' || stage.status === 'paused')
+  const active = stages.filter((stage) => stage.status === 'active' || stage.status === 'paused')
+  const current = currentWave(stages)
+  const waveLine = current
+    ? `${current.wave} — ${current.stages.map((stage) => `${link(stage, '')} ${STATUSES[stage.status]}`).join(' · ')} · أساسها \`wave-${pad(current.wave)}/base\` · الخطّة في [\`Docs/Waves.md\`](Docs/Waves.md)`
+    : 'لا موجة مفتوحة — كل مرحلة في موجة مكتملة'
   const lines = [
     '# حالة رصد',
     '',
@@ -265,8 +319,9 @@ function renderStatus(stages, baseline) {
     '> ويحرسه `pnpm stages:check` في البوّابة المحلّية وCI. عند أي تعارض **المصدر هو الصحيح**.',
     '',
     `- **آخر إنجاز مثبت:** ${lastLine}`,
-    `- **المرحلة النشطة:** ${active ? `${link(active, '')} — ${active.title} (${STATUSES[active.status]})` : 'لا مرحلة نشطة — بانتظار أمر «ابدأ مرحلة X»'}`,
-    `- **الفرع المعتمد:** \`main\` على \`origin\` (${baseline.repo}) — لا فروع طويلة العمر`,
+    `- **المرحلة النشطة:** ${active.length > 0 ? active.map((stage) => `${link(stage, '')} — ${stage.title} (${STATUSES[stage.status]})`).join(' · ') : 'لا مرحلة نشطة — بانتظار أمر «ابدأ مرحلة X» أو `/stage NN`'}`,
+    `- **الموجة الحالية:** ${waveLine}`,
+    `- **الفرع المعتمد:** \`main\` على \`origin\` (${baseline.repo}) — وفروع \`stage/NN-slug\` لمراحل الموجة المفتوحة حتى دمجها`,
     `- **المكتمل:** ${done.length} من ${stages.length} مرحلة`,
     `- **المرحلة التالية:** ${next ? `${link(next, '')} — ${next.title}` : 'لا مرحلة مفتوحة الاعتماديات'}`,
     `- **الخطوة التالية:** ${next ? next.resume : '—'}`,
@@ -279,7 +334,7 @@ function renderStatus(stages, baseline) {
     '',
     '1. اقرأ [`AGENTS.md`](AGENTS.md) ثم هذا الملفّ ثم [`ROADMAP.md`](ROADMAP.md) ثم ملفّ المرحلة المطلوبة.',
     '2. `nvm use && corepack enable && pnpm install --frozen-lockfile`',
-    '3. `pnpm gate:a` — يجب أن يخرج أخضر قبل أي تعديل.',
+    '3. `pnpm gate:a` — يجب أن يخرج أخضر قبل أي تعديل. ومرحلة ضمن موجة لا تشغّلها في مستهلّها: دليل أساسها وسم الموجة.',
     '4. نفّذ من حقل «نقطة الاستئناف» في ملفّ المرحلة، لا من ذاكرة محادثة.',
     '',
   ]

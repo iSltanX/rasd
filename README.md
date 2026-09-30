@@ -74,22 +74,25 @@ pnpm build
 
 ## الأوامر
 
-| الأمر                | ماذا يفعل                                 |
-| -------------------- | ----------------------------------------- |
-| `pnpm dev`           | تطوير مع HMR                              |
-| `pnpm build`         | بناء + فحص الحزمة                         |
-| `pnpm typecheck`     | فحص الأنواع (المصدر وملفات الإعداد)       |
-| `pnpm lint`          | ESLint، بلا تسامح مع أي تحذير             |
-| `pnpm format`        | Prettier                                  |
-| `pnpm test`          | اختبارات الوحدة والتكامل                  |
-| `pnpm test:coverage` | مع تقرير التغطية                          |
-| `pnpm check`         | الفحوص الساكنة والاختبارات معًا           |
-| `pnpm zip`           | حزمة `.zip` جاهزة للرفع                   |
-| `pnpm tokens:sync`   | توليد التوكنز من لقطة Figma               |
-| `pnpm gate:a`        | البوّابة المحلّية، مرّة عند إغلاق المرحلة |
-| `pnpm stages:sync`   | اشتقاق `STATUS.md` وجدول `ROADMAP.md`     |
-| `pnpm verify:<اسم>`  | حارس متصفّح حقيقي — 19 حارسًا             |
-| `pnpm test:e2e`      | غير مبنيّ بعد — `STAGES/16`               |
+| الأمر                | ماذا يفعل                                  |
+| -------------------- | ------------------------------------------ |
+| `pnpm dev`           | تطوير مع HMR                               |
+| `pnpm build`         | بناء + فحص الحزمة                          |
+| `pnpm typecheck`     | فحص الأنواع (المصدر وملفات الإعداد)        |
+| `pnpm lint`          | ESLint، بلا تسامح مع أي تحذير              |
+| `pnpm format`        | Prettier                                   |
+| `pnpm test`          | اختبارات الوحدة والتكامل                   |
+| `pnpm test:coverage` | مع تقرير التغطية                           |
+| `pnpm check`         | الفحوص الساكنة والاختبارات معًا            |
+| `pnpm zip`           | حزمة `.zip` جاهزة للرفع                    |
+| `pnpm tokens:sync`   | توليد التوكنز من لقطة Figma                |
+| `pnpm gate:a`        | البوّابة المحلّية، مرّة عند إغلاق المرحلة  |
+| `pnpm stages:sync`   | اشتقاق `STATUS.md` وجدول `ROADMAP.md`      |
+| `pnpm waves:check`   | اتّساق خطّة الموجات مع ترويسات المراحل     |
+| `pnpm waves:board`   | توليد لوحة التشغيل `Docs/Waves/board.html` |
+| `pnpm verify:wave`   | حرّاس كروم لمرحلة أو لبوّابة موجة، بقفل    |
+| `pnpm verify:<اسم>`  | حارس متصفّح حقيقي — 19 حارسًا              |
+| `pnpm test:e2e`      | غير مبنيّ بعد — `STAGES/16`                |
 
 ## البنية
 
@@ -127,6 +130,9 @@ tests/
 2. [`STATUS.md`](STATUS.md) — آخر إنجاز مثبت، والمرحلة النشطة، والخطوة التالية.
 3. [`ROADMAP.md`](ROADMAP.md) — المراحل واعتمادياتها، وما بُني فعلًا.
 4. [`STAGES/NN.md`](STAGES/) — مواصفة المرحلة وسجلّ تنفيذها ونقطة استئنافها.
+5. [`Docs/Waves.md`](Docs/Waves.md) — موجات التوازي وأدوارها، ولوحتها
+   [`Docs/Waves/board.html`](Docs/Waves/board.html): تُفتح بـ`open Docs/Waves/board.html`، ومنها
+   يُنسخ أمر كل جلسة (`/stage NN` أو `/wave-merge XX`).
 
 ```bash
 git clone https://github.com/iSltanX/rasd.git && cd rasd

@@ -23,68 +23,17 @@
  *
  *   pnpm gate:a
  *   RASD_GATE_BASE=origin/main pnpm gate:a   ← عند الإغلاق، والدفعات التزامات محلّية
+ *   RASD_GATE_BASE=wave-XX/base pnpm gate:a  ← مرحلة ضمن موجة، وبوّابة الموجة (ADR 0026)
  */
 import { execFileSync, execSync } from 'node:child_process'
 import { fileURLToPath, URL } from 'node:url'
+
+import { changedFiles, coneOf } from './impact.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 
 /** السقف المقيس عند التبنّي — تغييره يحتاج قياسًا جديدًا وقيدًا في CHANGELOG. */
 const CEILING_SECONDS = 48
-
-/**
- * مخروط الأثر: أي منطقة تغيّرت ← أي سكربت حيّ يلزم قبل الإغلاق.
- *
- * تغييرٌ لا يطابق أي مدخل هنا يستدعي **طقم الإغلاق كاملًا** — الافتراض
- * الآمن حين لا يُعرف الأثر، لا الصمت.
- */
-const IMPACT = [
-  { match: /^src\/background\/commands\.ts/u, scripts: ['verify:activate'] },
-  /*
-   * بوّابة الحقن: قرارها يسبق **كل** حقن — الاختصارات والقائمة والنافذة
-   * والالتقاط والاستئناف. فمسّها يستدعي مسارَي الإقلاع والنافذة معًا، لا
-   * أحدهما: خطأٌ فيها يظهر إمّا حقنًا لا يقع أو حالةً لا تُعرَض.
-   */
-  {
-    match: /^(src\/background\/gate\.ts|src\/shared\/(injection-gate|site-match)\.ts)/u,
-    scripts: ['verify:gate', 'verify:activate', 'verify:popup'],
-  },
-  {
-    match: /^src\/background\/full-page-job\.ts/u,
-    scripts: ['verify:activate', 'verify:fullpage'],
-  },
-  { match: /^src\/content\/index\.ts/u, scripts: ['verify:activate'] },
-  // منطقة حسّاسة مسمّاة كانت خارج الجدول (الصفّ 114 في `Docs/Engineering.md §6`).
-  { match: /^src\/background\/lifecycle\.ts/u, scripts: ['verify:lifecycle'] },
-  { match: /^src\/content\/host\.ts/u, scripts: ['verify:activate', 'verify:overlay'] },
-  { match: /^src\/content\/tools\/compare\.ts/u, scripts: ['verify:compare'] },
-  { match: /^src\/content\/tools\/measure\.ts/u, scripts: ['verify:measure'] },
-  { match: /^src\/content\/tools\/eyedropper\.ts/u, scripts: ['verify:colour'] },
-  { match: /^src\/content\/tools\/inspect\.ts/u, scripts: ['verify:inspect'] },
-  { match: /^src\/ui\/overlay\/compare\//u, scripts: ['verify:compare'] },
-  { match: /^src\/pages\/popup\//u, scripts: ['verify:popup'] },
-  { match: /^src\/pages\/editor\//u, scripts: ['verify:editor'] },
-  { match: /^src\/pages\/library\//u, scripts: ['verify:library'] },
-  { match: /^src\/shared\/messaging\//u, scripts: ['verify:activate', 'verify:capture'] },
-  { match: /^src\/shared\/storage\//u, scripts: ['verify:library', 'verify:compare'] },
-  {
-    match: /^(manifest\.config\.ts|src\/shared\/permission-policy\.ts)/u,
-    scripts: ['verify:load'],
-  },
-  /*
-   * إعداد CI وسجلّ ترقية الحرّاس: لا يدخلان الحزمة ولا يغيّران سلوك الإضافة، فلا
-   * سكربت حيّ محلّيًّا يثبت عنهما شيئًا. دليل `ci.yml` الجولة التي يطلقها رفعه،
-   * ودليل السجلّ `guards:check` في هذه البوّابة نفسها. وكان غياب هذا المدخل يطلب
-   * طقم الإغلاق كاملًا عند أي تعديل على ملفّ CI (الصفّ 136 في `Docs/Engineering.md §6`).
-   */
-  { match: /^\.github\//u, scripts: [] },
-  // توثيق وسكربتات وخطّة: لا أثر تشغيلي — تُستثنى صراحةً لا صمتًا.
-  {
-    match:
-      /^(Docs\/|STAGES\/|scripts\/|tests\/|README\.md|ROADMAP\.md|STATUS\.md|AGENTS\.md|package\.json)/u,
-    scripts: [],
-  },
-]
 
 const STEPS = [
   { name: 'pnpm check', run: () => execSync('pnpm run check', { cwd: root, stdio: 'inherit' }) },
@@ -144,33 +93,12 @@ for (const step of STEPS) {
 const seconds = Math.round((Date.now() - started) / 1000)
 
 // ── مخروط الأثر ─────────────────────────────────────────────────
-/** ما تغيّر: شجرة العمل أوّلًا، وإن كانت نظيفة فآخر التزام — كي يعمل قبل الالتزام وبعده. */
-function changedFiles() {
-  const base = process.env.RASD_GATE_BASE ?? 'HEAD'
-  const list = (ref) =>
-    execSync(`git diff --name-only ${ref}`, { cwd: root, encoding: 'utf8' })
-      .split('\n')
-      .filter(Boolean)
-  try {
-    const working = list(base)
-    return working.length > 0 ? working : list('HEAD~1')
-  } catch {
-    return []
-  }
-}
-
-const changed = changedFiles()
-
-const needed = new Set()
-let unmapped = 0
-for (const file of changed) {
-  const entry = IMPACT.find((i) => i.match.test(file))
-  if (!entry) {
-    unmapped += 1
-    continue
-  }
-  for (const s of entry.scripts) needed.add(s)
-}
+// الجدول ودالّتاه في `impact.mjs`: بوّابة الموجة تقرؤه أيضًا. و`RASD_GATE_BASE` يقبل وسم
+// الموجة (`wave-XX/base`) كما يقبل `origin/main`.
+const changed = changedFiles(process.env.RASD_GATE_BASE ?? 'HEAD')
+const cone = coneOf(changed)
+const needed = new Set(cone.needed)
+const unmapped = cone.unmapped
 
 console.log('\n── البوّابة A ──')
 console.log(`  الزمن: ${seconds}s (السقف ${CEILING_SECONDS}s)`)

@@ -43,6 +43,20 @@
  * لا خضراء ولا ثغرة، كأنها لم تكن. وتُعرف بوظيفة `DOCS_JOB` وقد جرت فعلًا، لا
  * بغياب الحرّاس: الغياب لسببٍ آخر (سقوط البناء) يبقى ثغرةً كما في القرار 3.
  * والنافذة تُعدّ جولات الحرّاس لا الجولات كلّها، كي لا تُضيّقها التزامات التوثيق.
+ *
+ * **5. جولةٌ لم تبدأ ليست جولة.** حين يرفض GitHub بدء الوظائف (قيدٌ في حساب
+ * المالك: الفوترة أو الحصّة) تُسجَّل الجولة `completed` وكل وظائفها بلا خطوة
+ * واحدة. لو عُدّت لصارت ثغرةً لكل حارس فانكسرت السلاسل كلّها عند الالتقاط
+ * التالي — قِيس: أربع جولات مرفوضة (2026-09-30) تُنزل الحرّاس الخمسة عشر
+ * الحاجبة كلّهم. وحالها حال جولة التوثيق: لا حكم فيها على أي شيفرة، فتُستبعَد.
+ *
+ * **6. جولةٌ لم تطلب الحرّاس بقرار `ci.yml` ليست جولة حرّاس.** ADR 0026 يقصر الحرّاس
+ * على `workflow_dispatch` بشرطٍ على وظيفتها. والأحداث تُقرأ **من ذلك الشرط نفسه**
+ * (‏`readGuardEvents`) لا من ثابتٍ هنا، فيبقى القرار صادقًا قبل تطبيق الشرط وبعده:
+ * بلا شرط تجري الحرّاس على كل حدث فلا يُستبعَد شيء بهذا القرار. ومع الشرط، جولةٌ
+ * حدثُها خارجه **ولم تُصدر فيها وظيفة حارس حكمًا** تُستبعَد؛ ودفعٌ قديم جرت فيه الحرّاس
+ * يُعدّ كما كان. والجولة اليدوية التي سقط بناؤها فتخطّت حرّاسها تبقى ثغرةً كما في
+ * القرار 3: طُلبت الأدلّة ولم تُجمَع.
  */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -80,6 +94,46 @@ export const DOCS_JOB = 'توثيق فقط · فحوص ساكنة'
 /** جرت وظيفة مسار التوثيق ⇐ لم تطلب الجولة حارسًا. التخطّي يعني أنها جولة كاملة. */
 export function isDocsOnlyRun(jobs) {
   return jobs.some((job) => job.name === DOCS_JOB && job.conclusion && job.conclusion !== 'skipped')
+}
+
+/**
+ * الأحداث التي تجري فيها وظيفة الحرّاس، مقروءةً من شرط `if` على وظيفة `live` في `ci.yml`
+ * (القرار 6). `null` ⇐ لا شرط: الحرّاس تجري على كل حدث. وشرطٌ بشكل غير هذا يُرمى خطأً
+ * صريحًا لا يُتخطّى — على سنّة ترقيع العمود.
+ */
+export function readGuardEvents(path = CI_PATH) {
+  const yml = readFileSync(path, 'utf8')
+  const block = /\n {2}live:\n((?: {4}.*\n|\s*\n)+)/u.exec(yml)?.[1]
+  if (!block) throw new Error('لم تُقرأ وظيفة live من ci.yml — تغيّر الشكل؟')
+  const cond = /^ {4}if: (.+)$/mu.exec(block)?.[1]
+  if (cond === undefined) return null
+  const events = [...cond.matchAll(/github\.event_name == '([a-z_]+)'/gu)].map((m) => m[1])
+  if (events.length === 0) throw new Error(`شرط وظيفة live غير مفهوم: «${cond}»`)
+  return events
+}
+
+/** لم تبدأ أي وظيفة: كلّها بلا خطوة واحدة — قيدُ حساب لا حكمٌ على شيفرة (القرار 5). */
+export function isUnstartedRun(jobs) {
+  return jobs.every((job) => !Array.isArray(job.steps) || job.steps.length === 0)
+}
+
+const GUARD_JOB = /verify:([a-z-]+)\s*$/u
+
+/**
+ * مصير الجولة في السجلّ: `guards` تُعدّ، وما سواها يُستبعَد كأنه لم يكن.
+ * الترتيب مقصود: التوثيق أوّلًا (قراره الأقدم)، ثمّ ما لم يبدأ، ثمّ ما لم يطلب الحرّاس.
+ * `guardEvents` من `readGuardEvents`؛ و`null` يُطفئ القرار 6.
+ */
+export function runDisposition(event, jobs, guardEvents = null) {
+  if (isDocsOnlyRun(jobs)) return 'docs'
+  if (isUnstartedRun(jobs)) return 'unstarted'
+  if (guardEvents && !guardEvents.includes(event)) {
+    const judged = jobs.some(
+      (job) => GUARD_JOB.test(job.name) && job.conclusion && job.conclusion !== 'skipped',
+    )
+    if (!judged) return 'no-guards'
+  }
+  return 'guards'
 }
 
 /** صفّ المصفوفة في `ci.yml` — مرسًى على اسم الحارس، فلا يُعاد توليد الملفّ. */
@@ -157,8 +211,11 @@ async function capture() {
       '--branch',
       'main',
       '--limit',
-      // أوسع من النافذة: جولات مسار التوثيق تُستبعَد، والنافذة تُملأ بجولات حرّاس.
-      String(WINDOW * 4),
+      // أوسع من النافذة بكثير: جولات التوثيق والمرفوضة والرخيصة تُستبعَد (القرارات 4–6)،
+      // والنافذة تُملأ بجولات حرّاس. ومنذ صارت الحرّاس يدوية تفصل بينها دفعاتٌ كثيرة، ونافذةُ
+      // ثمانين جولة كانت ستخلو منها يومًا فتُنزل الحاجبة كلّها بلا حكم. وكل جولة تُستبعَد
+      // تكلّف نداءً واحدًا، والحلقة تقف عند امتلاء النافذة.
+      String(WINDOW * 20),
       '--json',
       'databaseId,headSha,conclusion,status,event,createdAt',
     ]),
@@ -166,15 +223,26 @@ async function capture() {
 
   const guards = Object.fromEntries(matrix.map((m) => [m.guard, { results: [], scripts: [] }]))
   const recorded = []
-  let docsOnly = 0
+  const excluded = { docs: 0, unstarted: 0, 'no-guards': 0 }
+  const guardEvents = readGuardEvents()
 
   for (const run of runs) {
     if (recorded.length === WINDOW) break
-    const jobs = JSON.parse(
-      gh(['api', `repos/${REPO}/actions/runs/${run.databaseId}/jobs`, '--paginate']),
-    ).jobs
-    if (isDocsOnlyRun(jobs)) {
-      docsOnly += 1
+    // `--jq '.jobs[]'` لا `JSON.parse` على الردّ كلّه: مع `--paginate` تُلصق gh صفحاتٍ متتالية
+    // كائناتٍ متجاورة لا تُقرأ JSON واحدًا — وجولةٌ تتجاوز ثلاثين وظيفة تبلغ صفحتين.
+    const jobs = gh([
+      'api',
+      `repos/${REPO}/actions/runs/${run.databaseId}/jobs`,
+      '--paginate',
+      '--jq',
+      '.jobs[]',
+    ])
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+    const disposition = runDisposition(run.event, jobs, guardEvents)
+    if (disposition !== 'guards') {
+      excluded[disposition] += 1
       continue
     }
     const byGuard = new Map()
@@ -233,7 +301,7 @@ async function capture() {
 
   console.log('\n── سجلّ ترقية الحرّاس ──')
   console.log(
-    `  ${recorded.length} جولة حرّاس · ${docsOnly} جولة توثيق مستبعَدة · العتبة ${PROMOTION_STREAK}`,
+    `  ${recorded.length} جولة حرّاس · مستبعَدة: ${excluded.docs} توثيق · ${excluded.unstarted} لم تبدأ · ${excluded['no-guards']} بلا حرّاس بقرار · العتبة ${PROMOTION_STREAK}`,
   )
   for (const { guard } of matrix) {
     const e = guards[guard]

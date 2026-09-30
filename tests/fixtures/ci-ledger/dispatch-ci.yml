@@ -1,0 +1,11 @@
+# عِدل — وظيفة الحرّاس بشرط حدث، كما يقرّره ADR 0026 (القرار 6 في guards-sync.mjs).
+# يُقرأ عبر readGuardEvents. ليس ملفّ سير عمل: لا يشغّله GitHub ولا يُستورَد.
+jobs:
+  live:
+    name: كروم حقيقي · verify:${{ matrix.guard }}
+    needs: build
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    strategy:
+      matrix:
+        include:
+          - { guard: overlay, blocking: true }

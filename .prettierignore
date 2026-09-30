@@ -27,3 +27,6 @@ ROADMAP.md
 
 # سجلّ ترقية الحرّاس — يكتبه `guards-sync.mjs` ويحرسه `--check`
 .github/guards-ledger.json
+
+# لوحة موجات التوازي — يولّدها `waves-board.mjs` من الخطّة والترويسات والوسوم
+Docs/Waves/board.html

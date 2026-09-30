@@ -1,0 +1,10 @@
+# عِدل سالب — شرطٌ على وظيفة الحرّاس بشكل لا تفهمه الأداة: يُرمى خطأً لا يُتخطّى.
+# يُقرأ عبر readGuardEvents. ليس ملفّ سير عمل: لا يشغّله GitHub ولا يُستورَد.
+jobs:
+  live:
+    needs: build
+    if: ${{ always() }}
+    strategy:
+      matrix:
+        include:
+          - { guard: overlay, blocking: true }
