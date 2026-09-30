@@ -40,6 +40,12 @@ export interface Backdrop {
 const clamp01 = (n: number): number => (n > 0 ? (n < 1 ? n : 1) : 0)
 
 /**
+ * الألفا بثماني بتّات كما يخزّنها المرسِم: `0.5` تُرسم `128/255`، فأسود بنصف شفافية فوق أبيض `127` لا
+ * `127.5`. قِيس في Chrome (`verify:colour`): البكسل المرسوم `127`، والتباين عليه `4.00` لا `3.95`.
+ */
+const alpha8 = (n: number): number => Math.round(clamp01(n) * 255) / 255
+
+/**
  * سطح المتصفّح الأبيض تحت كل شيء: `c + 255·(1 − α)` بألفا ناتجٍ واحد.
  *
  * وهو ما يفعله المتصفّح ونصّ WCAG معًا («If no background color is specified, then white is assumed»).
@@ -48,8 +54,8 @@ export const CANVAS: Backdrop = { s: 1, p: [-255, -255, -255], q: [255, 255, 255
 
 /** خطوة عنصر واحد: خلفيته (`null` حين لا تُرسم) تحت محتواه، ثمّ شفافيته على المجموعة. */
 export function layerStep(bg: Layer | null, opacity: number): Backdrop {
-  const o = clamp01(opacity)
-  const a = bg ? clamp01(bg.alpha) : 0
+  const o = alpha8(opacity)
+  const a = bg ? alpha8(bg.alpha) : 0
   const c: Triple = bg ? [bg.rgb.r * a, bg.rgb.g * a, bg.rgb.b * a] : [0, 0, 0]
   return {
     s: o,
@@ -84,7 +90,7 @@ export function within(outer: Backdrop, inner: Backdrop): Backdrop {
  * بايتات مقرَّبة كما يرسمها المتصفّح — والتباين يُحسب عليها لا على كسورٍ لا يراها أحد.
  */
 export function paintOver(b: Backdrop, paint: Layer | null): Rgb255 {
-  const a = paint ? clamp01(paint.alpha) : 0
+  const a = paint ? alpha8(paint.alpha) : 0
   const alpha = b.t * a + b.w
   const ch = (i: 0 | 1 | 2, v: number): number => {
     const premul = b.s * v * a + b.p[i] * a + b.q[i]

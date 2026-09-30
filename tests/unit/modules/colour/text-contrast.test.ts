@@ -62,15 +62,15 @@ const ratioOf = (el: Element): string | null => {
 }
 
 describe('measure — التراكب الشفّاف من الشجرة', () => {
-  it('طبقة سوداء بنصف شفافية بين الجسم والنصّ الأبيض: الخلفية 128 والنسبة 3.94', () => {
+  it('طبقة سوداء بنصف شفافية بين الجسم والنصّ الأبيض: الخلفية 127 والنسبة 4.00', () => {
     page('<div id="veil"><span id="t">نصّ</span></div>')
     styles.set($('#veil'), { 'background-color': 'rgba(0, 0, 0, 0.5)' })
     styles.set($('#t'), { color: 'rgb(255, 255, 255)' })
 
     const read = createContrastProbe().measure($('#t'))
-    expect(read?.bg).toEqual({ r: 128, g: 128, b: 128 })
+    expect(read?.bg).toEqual({ r: 127, g: 127, b: 127 })
     expect(read?.fg).toEqual({ r: 255, g: 255, b: 255 })
-    expect(floorRatio(read?.ratio ?? 0)).toBe('3.94')
+    expect(floorRatio(read?.ratio ?? 0)).toBe('4.00')
     expect(read?.unknown).toBeNull()
   })
 
@@ -80,15 +80,15 @@ describe('measure — التراكب الشفّاف من الشجرة', () => {
     styles.set($('#t'), { color: 'rgb(255, 255, 255)' })
 
     const read = createContrastProbe().measure($('#t'))
-    expect(read?.bg).toEqual({ r: 128, g: 128, b: 128 })
+    expect(read?.bg).toEqual({ r: 127, g: 127, b: 127 })
     expect(read?.fg).toEqual({ r: 255, g: 255, b: 255 })
   })
 
-  it('لون النصّ بألفاه: أسود بنصف شفافية على الأبيض يُرسم 128', () => {
+  it('لون النصّ بألفاه: أسود بنصف شفافية على الأبيض يُرسم 127', () => {
     page('<p id="t">نصّ</p>')
     styles.set($('#t'), { color: 'rgba(0, 0, 0, 0.5)' })
 
-    expect(createContrastProbe().measure($('#t'))?.fg).toEqual({ r: 128, g: 128, b: 128 })
+    expect(createContrastProbe().measure($('#t'))?.fg).toEqual({ r: 127, g: 127, b: 127 })
   })
 
   it('`-webkit-text-fill-color` هو المرسوم ولو خالف `color`', () => {

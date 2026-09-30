@@ -3,7 +3,7 @@
   "repo": "iSltanX/rasd",
   "promotionStreak": 10,
   "window": 20,
-  "capturedAt": "2026-09-30T16:12:18.264Z",
+  "capturedAt": "2026-09-30T17:11:49.199Z",
   "runs": [
     {
       "id": 36653482704,
@@ -316,8 +316,8 @@
         "cf5ab73b19432ae356849a64aa01c2f07559eb43",
         "cf5ab73b19432ae356849a64aa01c2f07559eb43"
       ],
-      "streak": 20,
-      "eligible": true
+      "streak": 0,
+      "eligible": false
     },
     "compare": {
       "results": [

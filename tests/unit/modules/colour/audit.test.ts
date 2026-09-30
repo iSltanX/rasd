@@ -17,13 +17,14 @@ import { contrastRatio } from '@/modules/colour/contrast'
 /**
  * التراكب الشفّاف على عيّنات معروفة القيمة (`STAGES/14`، معيار القبول الأوّل).
  *
- * القيم محسوبة يدويًّا من `source-over` وشفافية المجموعة، لا مأخوذة من المخرَج: أسود بنصف شفافية فوق أبيض
- * `127.5` فيُرسم `128`، ونسبة `#808080` على الأبيض `3.95`.
+ * القيم محسوبة يدويًّا من `source-over` وشفافية المجموعة، لا مأخوذة من المخرَج — بألفا ثماني البتّات كما
+ * يرسمها Chrome: `0.5` تُخزَّن `128/255`، فأسود بنصف شفافية فوق أبيض `255 × 127/255 = 127`، ونسبة `#7f7f7f` على
+ * الأبيض `4.00`. والبكسل نفسه مقيسٌ في Chrome حقيقي في `verify:colour`.
  */
 
 const L = (r: number, g: number, b: number, alpha = 1): Layer => ({ rgb: { r, g, b }, alpha })
 const WHITE = { r: 255, g: 255, b: 255 }
-const GREY_128 = { r: 128, g: 128, b: 128 }
+const GREY_127 = { r: 127, g: 127, b: 127 }
 
 /** مكدّسٌ من الأبعد إلى الأقرب: `[خلفية, شفافية]` لكل عنصر، فوق السطح الأبيض. */
 function chainOf(steps: readonly (readonly [Layer | null, number])[]): Backdrop {
@@ -44,30 +45,35 @@ describe('التراكب — عيّنات معروفة القيمة', () => {
     expect(paintOver(chain, null)).toEqual(WHITE)
   })
 
-  it('نصٌّ أسود بنصف شفافية على الأبيض يُرسم 128 ونسبته 3.95', () => {
+  it('نصٌّ أسود بنصف شفافية على الأبيض يُرسم 127 ونسبته 4.00', () => {
     const chain = chainOf([[L(255, 255, 255), 1]])
     const fg = paintOver(chain, L(0, 0, 0, 0.5))
-    expect(fg).toEqual(GREY_128)
-    expect(floorRatio(contrastRatio(fg, WHITE))).toBe('3.94')
+    expect(fg).toEqual(GREY_127)
+    expect(floorRatio(contrastRatio(fg, WHITE))).toBe('4.00')
   })
 
-  it('طبقةٌ سوداء بنصف شفافية تحت نصٍّ أبيض: الخلفية 128 والنسبة نفسها', () => {
+  it('الألفا بثماني بتّات: `0.3` تُرسم `77/255` فأسودها فوق الأبيض 178 لا 178.5', () => {
+    const chain = chainOf([[L(255, 255, 255), 1]])
+    expect(paintOver(chain, L(0, 0, 0, 0.3))).toEqual({ r: 178, g: 178, b: 178 })
+  })
+
+  it('طبقةٌ سوداء بنصف شفافية تحت نصٍّ أبيض: الخلفية 127 والنسبة نفسها', () => {
     const chain = chainOf([
       [L(255, 255, 255), 1],
       [L(0, 0, 0, 0.5), 1],
     ])
-    expect(paintOver(chain, null)).toEqual(GREY_128)
+    expect(paintOver(chain, null)).toEqual(GREY_127)
     expect(paintOver(chain, L(255, 255, 255))).toEqual(WHITE)
   })
 
-  it('طبقتان نصف شفّافتين: أحمر فوق أزرق فوق أبيض = (191, 64, 128)', () => {
-    // الأزرق فوق الأبيض (127.5, 127.5, 255)، ثمّ الأحمر فوقه (191.25, 63.75, 127.5).
+  it('طبقتان نصف شفّافتين: أحمر فوق أزرق فوق أبيض = (191, 64, 127)', () => {
+    // بألفا 128/255: الأزرق فوق الأبيض (127, 127, 255)، ثمّ الأحمر فوقه (191, 63.25, 127).
     const chain = chainOf([
       [null, 1],
       [L(0, 0, 255, 0.5), 1],
       [L(255, 0, 0, 0.5), 1],
     ])
-    expect(paintOver(chain, null)).toEqual({ r: 191, g: 64, b: 128 })
+    expect(paintOver(chain, null)).toEqual({ r: 191, g: 63, b: 127 })
   })
 
   it('`opacity` تخفت المجموعة كلّها: خلفية سوداء معتمة بنصف شفافية تُرى 128 لا أسود', () => {
@@ -78,25 +84,26 @@ describe('التراكب — عيّنات معروفة القيمة', () => {
     ])
     const bg = paintOver(chain, null)
     const fg = paintOver(chain, L(255, 255, 255))
-    expect(bg).toEqual(GREY_128)
+    expect(bg).toEqual(GREY_127)
     // النصّ الأبيض فوق الأسود داخل المجموعة أبيض، ثمّ يخفت فوق الأبيض فيبقى أبيض.
     expect(fg).toEqual(WHITE)
-    // «أوّل معتم» يقف عند الأسود فيقول 21 — والمرسوم 3.95.
-    expect(floorRatio(contrastRatio(fg, bg))).toBe('3.94')
+    // «أوّل معتم» يقف عند الأسود فيقول 21 — والمرسوم 4.00.
+    expect(floorRatio(contrastRatio(fg, bg))).toBe('4.00')
   })
 
   it('`opacity` على جدٍّ بعيد تخفت النصّ وخلفيته القريبة معًا', () => {
-    // الجذر أسود، والجدّ `opacity: 0.5` بلا خلفية، والعنصر أبيض معتم ونصّه أسود.
+    // الجذر أسود، والجدّ `opacity: 0.5` بلا خلفية، والعنصر أبيض معتم ونصّه أسود: الأبيض يخفت إلى 128/255
+    // فوق الأسود فيُرسم 128.
     const chain = chainOf([
       [L(0, 0, 0), 1],
       [null, 0.5],
       [L(255, 255, 255), 1],
     ])
-    expect(paintOver(chain, null)).toEqual(GREY_128)
+    expect(paintOver(chain, null)).toEqual({ r: 128, g: 128, b: 128 })
     expect(paintOver(chain, L(0, 0, 0))).toEqual({ r: 0, g: 0, b: 0 })
   })
 
-  it('يطابق `flatten` بلا `opacity` على مكدّسات عشوائية (±1 لتقريب `over` الوسيط)', () => {
+  it('يطابق `flatten` بلا `opacity` على مكدّسات عشوائية بألفا ثماني البتّات (±1 لتقريب `over` الوسيط)', () => {
     // مولّدٌ ثابت البذرة — النتيجة لا تتبدّل بين جولتين.
     let seed = 0x5eed
     const rand = (): number => {
@@ -109,7 +116,7 @@ describe('التراكب — عيّنات معروفة القيمة', () => {
           Math.floor(rand() * 256),
           Math.floor(rand() * 256),
           Math.floor(rand() * 256),
-          Math.round(rand() * 100) / 100,
+          Math.round(rand() * 255) / 255,
         ),
       )
       const ours = paintOver(chainOf(layers.map((l) => [l, 1] as const)), null)

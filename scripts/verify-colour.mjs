@@ -21,7 +21,15 @@
  * عيّنة `colour/` مبنية لهذا: كل كتلة فيها حالة يفترق فيها المصدران أو
  * تُثبت تطابقهما، بمواضع ثابتة لا تحتاج قياسًا.
  *
+ * **وتدقيق تباين الصفحة (`STAGES/14`)** بنقرات حقيقية من لوحة خمول الفحص: عيّنة
+ * `contrast-5000/cases.html` بحالاتٍ معروفة القيمة — النسب تُقارَن بصيغة WCAG
+ * مكتوبةٍ هنا على الألوان المصرَّحة، وللمركَّبة على بكسلات لقطة الشاشة نفسها، لا بمخرَج
+ * الإضافة — ثمّ القفز
+ * إلى نصٍّ تحت الطيّ و«سجّلها مشكلة»، ثمّ `contrast-5000/` بخمسة آلاف نصّ تحت
+ * 150ms، ونسختها بخمسين ألفًا تُظهر التقدّم وتُلغى بنقرة.
+ *
  *   pnpm build && pnpm verify:colour
+ *   RASD_BREAK_AUDIT=1 pnpm verify:colour   # يجب أن يفشل: التدقيق يتجاهل `opacity`
  */
 import { spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -37,6 +45,9 @@ const dist = join(root, 'dist')
 const PORT = 9341
 const FIXTURES = Number(process.env.RASD_FIXTURES_PORT ?? 5399)
 const BASE = `http://127.0.0.1:${FIXTURES}`
+const BREAK_AUDIT = process.env.RASD_BREAK_AUDIT === '1'
+/** معيار القبول في `STAGES/14`: مسح عيّنة الخمسة آلاف. */
+const AUDIT_BUDGET_MS = 150
 
 const CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -77,6 +88,28 @@ const manifest = JSON.parse(readFileSync(stagedManifest, 'utf8'))
  */
 manifest.host_permissions = ['<all_urls>']
 writeFileSync(stagedManifest, JSON.stringify(manifest, null, 2))
+
+/**
+ * ترقيع الحالة السالبة للتدقيق: قراءة `opacity` في قارئ التباين تُستبدل بخاصيةٍ لا تُقرأ رقمًا، فتسقط
+ * شفافية المجموعات ويُقرأ نصٌّ داخل حاويةٍ نصف شفّافة على خلفيتها المعتمة.
+ *
+ * **ويرمي بصوتٍ عالٍ إن لم يجد نمطه مرّة واحدة بالضبط** — ترقيعٌ صامت يُنتج حارسًا أخضر لأنه لم يكسر
+ * شيئًا. نفس حكم `RASD_BREAK_STATUS` في `verify-issues.mjs`.
+ */
+if (BREAK_AUDIT) {
+  const contentPath = join(stage, 'content.js')
+  const src = readFileSync(contentPath, 'utf8')
+  const hits = src.split('.opacity,1)').length - 1
+  if (hits !== 1) {
+    console.error(
+      `RASD_BREAK_AUDIT: قراءة opacity في قارئ التباين وُجدت ${hits} مرّة لا مرّة — عدِّل النمط.`,
+    )
+    rmSync(stage, { recursive: true, force: true })
+    fixtures.stop()
+    process.exit(1)
+  }
+  writeFileSync(contentPath, src.replace('.opacity,1)', '.zIndex,1)'))
+}
 
 const profile = mkdtempSync(join(tmpdir(), 'rasd-colour-'))
 const proc = spawn(
@@ -629,6 +662,331 @@ if (extId && sw && granted) {
       }
     }
   }
+}
+
+// ── 13–16) تدقيق تباين الصفحة (`STAGES/14`) ────────────────────────
+/** صيغة WCAG 2.2 مكتوبةٌ هنا — الحَكَم مستقلٌّ عن `modules/colour/contrast.ts`. */
+const luminance = ({ r, g, b }) => {
+  const f = (c) => {
+    const v = c / 255
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+}
+const wcag = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+const grey = (v) => ({ r: v, g: v, b: v })
+const WHITE = grey(255)
+
+/**
+ * البكسل المرسوم فعلًا: لقطة شاشة الصفحة تفكّها الصفحة نفسها في قماش، ثمّ يُقرأ لكل نصٍّ مركَّب بكسلان —
+ * مركز «█» في أوّله (لون النصّ) وطرف فقرته الأيسر (خلفيته).
+ */
+async function renderedPair(pageSession, ids) {
+  const { data } = await send('Page.captureScreenshot', { format: 'png' }, pageSession)
+  const res = await send(
+    'Runtime.evaluate',
+    {
+      expression: `(async () => {
+        const img = new Image(); img.src = 'data:image/png;base64,${data}'; await img.decode()
+        const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height
+        const ctx = cv.getContext('2d', { willReadFrequently: true }); ctx.drawImage(img, 0, 0)
+        const k = img.width / innerWidth
+        const at = (x, y) => { const d = ctx.getImageData(Math.round(x * k), Math.round(y * k), 1, 1).data; return { r: d[0], g: d[1], b: d[2] } }
+        const out = {}
+        for (const id of ${JSON.stringify(ids)}) {
+          const el = document.getElementById(id)
+          const box = el.getBoundingClientRect()
+          const range = document.createRange(); range.setStart(el.firstChild, 0); range.setEnd(el.firstChild, 1)
+          const glyph = range.getBoundingClientRect()
+          out[id] = { fg: at(glyph.left + glyph.width / 2, glyph.top + glyph.height / 2), bg: at(box.left + 4, box.top + box.height / 2) }
+        }
+        return out
+      })()`,
+      awaitPromise: true,
+      returnByValue: true,
+    },
+    pageSession,
+  )
+  return res.result.value
+}
+
+/** نسبةٌ على بعد بايتٍ من البكسل المرسوم — أدنى وأعلى ما يُقبل. */
+const byteBand = (fg, bg) => {
+  const shift = (c, d) => ({ r: c.r + d, g: c.g + d, b: c.b + d })
+  const all = [-1, 0, 1].flatMap((a) => [-1, 0, 1].map((b) => wcag(shift(fg, a), shift(bg, b))))
+  return [Math.min(...all), Math.max(...all)]
+}
+
+const auditState = (tabId) =>
+  inOverlay(
+    tabId,
+    `() => {
+      const a = globalThis.__rasdColour.audit.state
+      return {
+        open: a.open.value, phase: a.phase.value, done: a.done.value, total: a.total.value,
+        texts: a.texts.value, elapsed: a.elapsed.value, selected: a.selected.value, box: a.box.value,
+        findings: a.findings.value.map(f => ({ severity: f.severity, label: f.label, ratio: f.ratio, unknown: f.unknown, large: f.large })),
+      }
+    }`,
+  )
+
+/** مركز عنصرٍ في الطبقة بمعرّفه — والصفّ يُختار بنصّه. */
+const overlayPoint = (tabId, id, text = null) =>
+  inOverlay(
+    tabId,
+    `() => {
+      const all = [...globalThis.__rasdColour.host.layer.querySelectorAll('[data-rasd-ov="${id}"]')]
+      const el = ${JSON.stringify(text)} === null ? all[0] : all.find(e => e.textContent.includes(${JSON.stringify(text)}))
+      if (!el) return null
+      el.scrollIntoView({ block: 'nearest' })
+      const r = el.getBoundingClientRect()
+      return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }
+    }`,
+  )
+
+async function waitAudit(tabId, done, ms = 10_000) {
+  const until = Date.now() + ms
+  let st = await auditState(tabId)
+  while (!done(st) && Date.now() < until) {
+    await new Promise((r) => setTimeout(r, 10))
+    st = await auditState(tabId)
+  }
+  return st
+}
+
+/** يفتح عيّنةً ويشغّل الطبقة ويدخل وضع الفحص — ويُرجع جلسة الصفحة للنقر الحقيقي. */
+async function openAuditPage(path) {
+  const tabId = await openTab(path)
+  const injected = await injectOverlay(tabId)
+  const started = await startOverlay(tabId)
+  if (injected !== 'injected' || !started?.ok) {
+    fail(`تعذّر بدء الطبقة على ${path}: ${injected} / ${JSON.stringify(started)}`)
+    return null
+  }
+  const pageSession = await attachToPage(path)
+  if (!pageSession) {
+    fail(`تعذّر الاتصال بهدف ${path}.`)
+    return null
+  }
+  await setMode(tabId, 'inspect')
+  await settle(pageSession)
+  return { tabId, pageSession }
+}
+
+/** نقرةٌ حقيقية على عنصرٍ في الطبقة — `false` إن لم يُرسم. */
+async function tapOverlay(page, id, text = null) {
+  const p = await overlayPoint(page.tabId, id, text)
+  if (!p) return false
+  await clickAt(page.pageSession, p.x, p.y)
+  return true
+}
+
+if (extId && sw && granted) {
+  // ── 13) الحالات المعروفة: من لوحة خمول الفحص إلى النتائج بنقرتين ────
+  const cases = await openAuditPage('/contrast-5000/cases.html')
+  if (cases) {
+    // البكسلات قبل أي نقرة: لا إبراز ولا إطار فوق الصفحة بعد.
+    const rendered = await renderedPair(cases.pageSession, ['veil', 'grouped', 'alpha']).catch(
+      () => null,
+    )
+    if (!(await tapOverlay(cases, 'audit-open'))) {
+      fail('لا مدخل «دقّق تباين الصفحة» في لوحة خمول الفحص')
+    } else if (!(await tapOverlay(cases, 'audit-start'))) {
+      fail('لوحة التدقيق لم تُفتح بالنقر على مدخلها')
+    } else {
+      const st = await waitAudit(cases.tabId, (s) => s.phase !== 'scanning')
+      if (st.phase === 'done') ok(`التدقيق بدأ بنقرتين حقيقيتين وانتهى (${st.texts} نصًّا ظاهرًا)`)
+      else fail(`التدقيق لم ينتهِ: ${JSON.stringify(st.phase)}`)
+
+      if (st.texts === 15)
+        ok('النصوص الظاهرة خمسة عشر — المخفيّ والمقصوص والمدفوع خارج الصفحة لا تُعدّ')
+      else fail(`النصوص الظاهرة ${st.texts} لا 15`)
+
+      // الحَكَم: صيغة WCAG هنا على الألوان المصرَّحة، وللمركَّبة على ما رُسم فعلًا قبل أي إبراز.
+      const px = rendered ?? {}
+      const failing = [
+        ['#fill', 'below-3', grey(204), WHITE, 'ملء -webkit-text-fill-color لا color'],
+        ['#in-shadow', 'below-3', grey(187), WHITE, 'نصٌّ في جذر ظلّ مفتوح'],
+        ['#faint', 'below-3', grey(170), WHITE, 'رماديّ فاتح'],
+        ['#big-fail', 'below-3', grey(170), WHITE, 'نصٌّ كبير دون حدّه 3'],
+        ['#below-fold', 'below-3', grey(153), WHITE, 'نصٌّ تحت الطيّ'],
+        ['#veil', 'below-4.5', px.veil?.fg, px.veil?.bg, 'طبقة سوداء 50% فوق الأبيض'],
+        ['#grouped', 'below-4.5', px.grouped?.fg, px.grouped?.bg, 'حاوية سوداء بـopacity 0.5'],
+        ['#alpha', 'below-4.5', px.alpha?.fg, px.alpha?.bg, 'لون نصّ بألفا 0.5'],
+        ['#mid', 'below-4.5', grey(119), WHITE, 'رماديّ متوسّط'],
+      ]
+      const unknown = { '#on-image': 'image', '#on-gradient': 'gradient', '#over-img': 'overlap' }
+      const byLabel = new Map(st.findings.map((f) => [f.label, f]))
+      for (const [label, severity, fg, bg, what] of failing) {
+        const f = byLabel.get(label)
+        if (!fg || !bg) {
+          fail(`${what} (${label}): لم يُقرأ البكسل المرسوم`)
+          continue
+        }
+        // على بعد بايتٍ من المرسوم: الحَكَم البكسل، والتقريب إلى بايت حدّ قراءته.
+        const [lo, hi] = byteBand(fg, bg)
+        const drawn = `${JSON.stringify(fg)} على ${JSON.stringify(bg)}`
+        const inBand = f?.ratio != null && f.ratio >= lo - 1e-9 && f.ratio <= hi + 1e-9
+        if (f?.severity === severity && inBand) {
+          ok(`${what} (${label}): ${f.ratio.toFixed(2)} : 1 والمرسوم ${drawn} ⟵ ${severity}`)
+        } else {
+          fail(
+            `${what} (${label}): ${JSON.stringify(f)} والمتوقَّع ${severity} في [${lo.toFixed(3)}, ${hi.toFixed(3)}] — المرسوم ${drawn}`,
+          )
+        }
+      }
+      if (byLabel.get('#big-fail')?.large === true) ok('النصّ الكبير مميَّز: حدّه 3 : 1')
+      else fail(`النصّ الكبير لم يُميَّز: ${JSON.stringify(byLabel.get('#big-fail'))}`)
+      for (const [label, reason] of Object.entries(unknown)) {
+        const f = byLabel.get(label)
+        if (f?.severity === 'unknown' && f.ratio === null && f.unknown === reason) {
+          ok(`«تعذّر الحساب» بلا رقم (${label}): ${reason}`)
+        } else {
+          fail(`${label}: ${JSON.stringify(f)} والمتوقَّع «تعذّر الحساب» بسبب ${reason}`)
+        }
+      }
+      const passing = [
+        '#big',
+        '#solid',
+        '#slotted',
+        '#hidden',
+        '#invisible',
+        '#sr-only',
+        '#offscreen',
+      ]
+      const leaked = passing.filter((label) => byLabel.has(label))
+      if (leaked.length === 0) {
+        ok('لا نتيجة لسليم ولا لمخفيّ — والمُسند إلى فتحةٍ يُقرأ على إطار الظلّ لا على الجسم')
+      } else {
+        fail(`نتائج لا تُتوقَّع: ${leaked.join(' · ')}`)
+      }
+      const extra = st.findings.filter(
+        (f) => !failing.some(([l]) => l === f.label) && !(f.label in unknown),
+      )
+      if (extra.length) fail(`نتائج زائدة: ${JSON.stringify(extra)}`)
+      const rank = { 'below-3': 0, 'below-4.5': 1, unknown: 2 }
+      const sorted = st.findings.every((f, i, all) => {
+        const prev = all[i - 1]
+        if (!prev) return true
+        const d = rank[prev.severity] - rank[f.severity]
+        return d < 0 || (d === 0 && (prev.ratio ?? 0) <= (f.ratio ?? 0) + 1e-9)
+      })
+      if (sorted) ok('القائمة مرتّبة بالخطورة ثمّ بالنسبة، و«تعذّر الحساب» آخرًا')
+      else fail(`ترتيبٌ خاطئ: ${st.findings.map((f) => f.label).join(' ← ')}`)
+
+      // ── 14) القفز إلى نصٍّ تحت الطيّ وإبرازه، و«سجّلها مشكلة» ────
+      const before = await inPage(
+        cases.tabId,
+        `() => document.getElementById('below-fold').getBoundingClientRect().top`,
+      )
+      if (!(await tapOverlay(cases, 'audit-row', '#below-fold'))) {
+        fail('لا صفّ لـ#below-fold في القائمة')
+      } else {
+        await settle(cases.pageSession)
+        const after = await inPage(
+          cases.tabId,
+          `() => { const r = document.getElementById('below-fold').getBoundingClientRect(); return { top: r.top, height: r.height, vh: innerHeight } }`,
+        )
+        const picked = await auditState(cases.tabId)
+        const drawn = await inOverlay(
+          cases.tabId,
+          `() => !!globalThis.__rasdColour.host.layer.querySelector('[data-rasd-ov="audit-box"]')`,
+        )
+        if (before > after.vh && after.top >= 0 && after.top + after.height <= after.vh) {
+          ok(
+            `النقر على النتيجة قفز إليها: من ${Math.round(before)} إلى ${Math.round(after.top)} داخل النافذة`,
+          )
+        } else {
+          fail(`لم يُقفز إلى العنصر: ${Math.round(before)} ⟵ ${JSON.stringify(after)}`)
+        }
+        if (drawn && picked.box && near(picked.box.y, after.top, 2)) {
+          ok('وإطارها مرسومٌ على العنصر نفسه')
+        } else {
+          fail(`إطار النتيجة: ${drawn} ${JSON.stringify(picked.box)}`)
+        }
+        if (!(await tapOverlay(cases, 'audit-log-issue'))) {
+          fail('«سجّلها مشكلة» لا يظهر تحت النتيجة المختارة')
+        } else {
+          const form = await inOverlay(
+            cases.tabId,
+            `() => { const f = globalThis.__rasdColour.issues.state.form.value; return f && { expected: f.expected, title: f.title, kind: f.options[0]?.kind, value: f.options[0]?.value } }`,
+          )
+          const floor = (Math.floor(wcag(grey(153), WHITE) * 100) / 100).toFixed(2)
+          if (form?.kind === 'contrast' && form.expected === '4.5' && form.value === floor) {
+            ok(
+              `«سجّلها مشكلة» فتح نموذج 32: التباين الآن ${form.value} والمتوقَّعة ${form.expected}`,
+            )
+          } else {
+            fail(`نموذج المشكلة: ${JSON.stringify(form)} والمتوقَّع التباين ${floor} بحدّ 4.5`)
+          }
+        }
+      }
+    }
+    await setMode(cases.tabId, 'idle')
+  }
+
+  // ── 15) عيّنة الخمسة آلاف تحت حدّها ─────────────────────────────
+  const big = await openAuditPage('/contrast-5000/')
+  let fast = false
+  if (big) {
+    const built = await inPage(big.tabId, `() => window.__texts`)
+    await tapOverlay(big, 'audit-open')
+    await tapOverlay(big, 'audit-start')
+    const st = await waitAudit(big.tabId, (s) => s.phase !== 'scanning')
+    if (built === 5000 && st.total === 5000 && st.phase === 'done') {
+      ok(`عيّنة ${st.total} عنصر نصّ مُسحت كاملة: ${st.texts} ظاهرًا و${st.findings.length} نتيجة`)
+    } else {
+      fail(`عيّنة الخمسة آلاف: بُني ${built} ومُسح ${st.total} والحالة ${st.phase}`)
+    }
+    fast = st.elapsed !== null && st.elapsed <= AUDIT_BUDGET_MS
+    if (fast) ok(`المسح في ${Math.round(st.elapsed)}ms ≤ ${AUDIT_BUDGET_MS}ms`)
+    else
+      lines.push(
+        `  · المسح في ${Math.round(st.elapsed ?? -1)}ms فوق ${AUDIT_BUDGET_MS}ms — فالتقدّم والإلغاء شرطٌ أدناه`,
+      )
+    await setMode(big.tabId, 'idle')
+  }
+
+  // ── 16) خمسون ألفًا: التقدّم مرئي، و«ألغِ» يُلغي فورًا ─────────────
+  const huge = await openAuditPage('/contrast-5000/?n=50000')
+  if (huge) {
+    await tapOverlay(huge, 'audit-open')
+    await tapOverlay(huge, 'audit-start')
+    const mid = await waitAudit(huge.tabId, (s) => s.phase !== 'scanning' || s.done > 0, 5000)
+    const bar = await inOverlay(
+      huge.tabId,
+      `() => { const b = globalThis.__rasdColour.host.layer.querySelector('[role="progressbar"]'); return b && Number(b.getAttribute('aria-valuenow')) }`,
+    )
+    if (mid.phase === 'scanning' && mid.done > 0 && mid.done < mid.total && bar > 0) {
+      ok(`التقدّم مرئي أثناء المسح: ${mid.done} من ${mid.total}، والشريط عند ${bar}`)
+    } else {
+      fail(
+        `لا تقدّم مرئي: ${JSON.stringify({ phase: mid.phase, done: mid.done, total: mid.total, bar })}`,
+      )
+    }
+    const tapped = await tapOverlay(huge, 'audit-cancel')
+    const cut = await auditState(huge.tabId)
+    await new Promise((r) => setTimeout(r, 300))
+    const later = await auditState(huge.tabId)
+    if (
+      tapped &&
+      cut.phase === 'cancelled' &&
+      later.phase === 'cancelled' &&
+      later.done === 0 &&
+      later.findings.length === 0
+    ) {
+      ok('«ألغِ» أوقف المسح مع النقرة نفسها، ولا شريحة كتبت بعده')
+    } else {
+      fail(
+        `الإلغاء: ${JSON.stringify({ tapped, now: cut.phase, later: later.phase, done: later.done })}`,
+      )
+    }
+    await setMode(huge.tabId, 'idle')
+  }
+  if (!fast) lines.push('  · معيار الخمسة آلاف قائمٌ بشقّه الثاني: تقدّمٌ مرئي وإلغاءٌ فوري (16)')
 }
 
 // ── التقرير ─────────────────────────────────────────────────────

@@ -461,12 +461,12 @@ describe('observeIssue — التباين', () => {
     })
   })
 
-  it('لون النصّ بألفاه يُركَّب فوق خلفيته: أسود بنصف شفافية على الأبيض 3.94 لا 21', () => {
+  it('لون النصّ بألفاه يُركَّب فوق خلفيته: أسود بنصف شفافية على الأبيض 4.00 لا 21', () => {
     const el = mountText('rgba(0, 0, 0, 0.5)')
 
     expect(observeIssue(issueOn(el, contrast('4.5')), document)).toMatchObject({
       outcome: 'mismatch',
-      observed: '3.94',
+      observed: '4.00',
     })
   })
 

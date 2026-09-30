@@ -257,7 +257,7 @@ jobs:
           - { guard: activate, blocking: true }
           - { guard: capture, blocking: true }
           - { guard: capturing, blocking: true }
-          - { guard: colour, blocking: true }
+          - { guard: colour, blocking: false }
           - { guard: compare, blocking: false }
           - { guard: compare-diff, blocking: true }
           - { guard: editor, blocking: true }
