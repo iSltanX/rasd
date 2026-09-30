@@ -333,6 +333,7 @@ async function openPopupOnce(windowId) {
       paintMs: performance.getEntriesByType("paint")
         .filter((e) => e.name === "first-contentful-paint")
         .map((e) => e.startTime)[0] ?? null,
+      parsed: performance.getEntriesByType("navigation")[0]?.domInteractive ?? null,
       marks: Object.fromEntries(performance.getEntriesByType("mark")
         .filter((m) => m.name.startsWith("rasd:popup:"))
         .map((m) => [m.name.slice(11), m.startTime])),
@@ -340,7 +341,12 @@ async function openPopupOnce(windowId) {
     const reading = JSON.parse(raw)
     if (reading.state && reading.paintMs !== null) {
       elapsedMs = reading.timeOrigin + reading.paintMs - startedAt
-      parts.push({ open: reading.timeOrigin - startedAt, ...reading.marks, paint: reading.paintMs })
+      parts.push({
+        open: reading.timeOrigin - startedAt,
+        parsed: reading.parsed,
+        ...reading.marks,
+        paint: reading.paintMs,
+      })
       break
     }
     await new Promise((r) => setTimeout(r, 2))
@@ -368,6 +374,8 @@ try {
   // بين فتحات النافذة الحقيقية أيضًا، فتجاهل هذه التكلفة هنا يطابق الواقع
   // لا يُجمِّله.
   await openPopupOnce(targetTab.windowId).catch(() => null)
+  // مكوّنات الإحماء لا تدخل المتوسّط — كما لا يدخله زمنه.
+  parts.length = 0
 
   // محاولة فاشلة (مهلة اكتشاف الهدف عبر CDP، لا علاقة للإضافة بها) لا تُسقط
   // الدفعة كلّها — تُسجَّل وتُتجاوَز، فمتوسّط المحاولات الناجحة يبقى ذا معنى.
@@ -394,7 +402,7 @@ try {
       return values.length ? fmt(values.reduce((a, b) => a + b, 0) / values.length) : '—'
     }
     lines.push(
-      `    مكوّنات الزمن (متوسّطات): فتح التبويب حتى بدء المستند ${mean('open')} · ثمّ من بدء المستند: تقييم الحزمة ${mean('boot')} · وصول البيانات ${mean('data')} · التركيب بها ${mean('commit')} · أول رسم ${mean('paint')}`,
+      `    مكوّنات الزمن (متوسّطات): فتح التبويب حتى بدء المستند ${mean('open')} · ثمّ من بدء المستند: تحليله ${mean('parsed')} · تقييم الحزمة ${mean('boot')} · وصول البيانات ${mean('data')} · التركيب بها ${mean('commit')} · أول رسم ${mean('paint')}`,
     )
   }
 } catch (e) {
