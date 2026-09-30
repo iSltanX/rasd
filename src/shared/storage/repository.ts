@@ -144,15 +144,17 @@ export async function putIssueWithEvidence(
   return withDb(async (db) => {
     const tx = db.transaction(['captures', 'blobs', 'annotations', 'issues'], 'readwrite')
     const blobRecord: BlobRecord = { id: capture.id, blob, mime: blob.type, bytes: blob.size }
+    // الطلبات تُجمَع واحدًا واحدًا لا في مصفوفةٍ حرفية: رميٌ متزامن في أحدها يقع قبل أن يشترك `Promise.all`
+    // في ما سبقه، فيرفضها الإجهاض بلا مستمع.
+    const requests: Promise<unknown>[] = []
     try {
-      await Promise.all([
-        tx.objectStore('captures').put(capture),
-        tx.objectStore('blobs').put(blobRecord),
-        ...(annotation ? [tx.objectStore('annotations').put(annotation)] : []),
-        tx.objectStore('issues').put(issue),
-        tx.done,
-      ])
+      requests.push(tx.objectStore('captures').put(capture))
+      requests.push(tx.objectStore('blobs').put(blobRecord))
+      if (annotation) requests.push(tx.objectStore('annotations').put(annotation))
+      requests.push(tx.objectStore('issues').put(issue))
+      await Promise.all([...requests, tx.done])
     } catch (thrown) {
+      for (const request of requests) request.catch(() => undefined)
       abortQuietly(tx)
       throw thrown
     }
