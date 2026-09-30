@@ -50,13 +50,17 @@ export function DeleteConfirm({
   onCancel,
 }: DeleteConfirmProps): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null)
+  // الأب يمرّر `onCancel` سطريًّا فيتجدّد مع كل رسم؛ لو كان تبعيّة الأثر لأُعيد التركيز إلى «ألغِ» عند كل
+  // رسمٍ للأب (المراجعة المستقلّة لـ`STAGES/04`). فالتركيز عند الفتح وحده، والمستمع يقرأ الأحدث.
+  const cancel = useRef(onCancel)
+  cancel.current = onCancel
 
   useEffect(() => {
     dialog.current?.querySelector<HTMLElement>('[data-rasd-cancel]')?.focus()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onCancel()
+        cancel.current()
         return
       }
       if (e.key !== 'Tab' || !dialog.current) return
@@ -74,7 +78,7 @@ export function DeleteConfirm({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
+  }, [])
 
   return (
     <div class={styles.scrim} onClick={onCancel}>

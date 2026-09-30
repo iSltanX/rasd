@@ -128,14 +128,6 @@ export function normalizeSitePattern(raw: string): SitePattern | null {
   // `*.` و`.` صدرًا: اصطلاحان لـ«وكل النطاقات الفرعية» — وهو سلوكنا أصلًا.
   const bare = cleaned.replace(/^\*\./u, '').replace(/^\./u, '')
   if (bare === '') return null
-  /*
-   * **فراغ داخل النمط يرفضه النمط نفسه، لا محلّل العنوان.** `URL` في Node يرمي على
-   * `https://ليس نمطا`، و`URL` في Chrome يقبله مضيفًا بـ`%20` مهرَّبة داخل الترميز
-   * (`xn--%20-qze0d1a0gmi9a`، قِيس في `STAGES/04`) — فكان يُحفَظ نمطٌ لا يطابق موقعًا أبدًا،
-   * والاختبارات في Node تراه مرفوضًا.
-   */
-  if (/\s/u.test(bare)) return null
-
   const candidate = withScheme(bare)
   if (candidate === null) return null
 
@@ -151,8 +143,15 @@ export function normalizeSitePattern(raw: string): SitePattern | null {
 
   const host = stripRootDot(parsed.hostname)
   if (host === '' || host === '.') return null
-  // مضيفٌ فيه `%` لم يُفكّ ترميزه: Chrome يُبقي المحارف الممنوعة مهرَّبة بدل أن يرمي.
-  if (host.includes('%')) return null
+  /*
+   * **المضيف الذي يُحفَظ هو ما يطابق موقعًا.** `URL` يقبل في المضيف ما لا يحمله نطاق حقيقي: `,` و`;`
+   * و`"` و`(` و`&` و`{` و`*` في Node وChrome كليهما، وفي Chrome فراغًا مهرَّبًا `%20` داخل الترميز
+   * (`ليس نمطا` ⟵ `xn--%20-qze0d1a0gmi9a`، قِيس في `STAGES/04`) حيث يرمي Node. فكان يُحفَظ
+   * `bank.com,mail.com` مضيفًا لا يطابق أيًّا منهما، و«أُضيف الموقع» يؤكّد حماية غير موجودة. المقبول
+   * حروف وأرقام و`-` و`_` بين نقاط — والدولي صار punycode — أو IPv6 بقوسيه. والفراغ في المسار أو
+   * الاستعلام لا يمسّ المضيف فلا يُرفض النمط به.
+   */
+  if (!/^(?:[a-z\d_-]+(?:\.[a-z\d_-]+)*|\[[\da-f:.]+\])$/u.test(host)) return null
 
   const star = parsed.pathname.indexOf('*')
   return {

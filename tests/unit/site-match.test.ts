@@ -323,6 +323,42 @@ describe('normalizeSitePattern — ما يُرفَض وقت الحفظ', () => {
     },
   )
 
+  /*
+   * المراجعة المستقلّة لـ`STAGES/04`: `URL` في Node وChrome كليهما يقبل في المضيف `,` و`;` و`"` و`(`
+   * و`&` و`{` و`*` — فكان `bank.com,mail.com` يُحفَظ مضيفًا واحدًا لا يطابق أيًّا من الموقعين، وإشعار
+   * «أُضيف الموقع» يؤكّد حمايةً غير موجودة. المضيف المقبول حروف وأرقام و`-` و`_` ونقاط، أو IPv6.
+   */
+  it.each([
+    'bank.com,mail.com',
+    'bank.com;mail.com',
+    'ban{k}.com',
+    'bank"com',
+    '(bank).com',
+    'bank&co.com',
+    '*bank.com',
+  ])('يرفض %j — مضيف لا يطابق موقعًا أبدًا', (raw) => {
+    expect(normalizeSitePattern(raw)).toBeNull()
+  })
+
+  // والفراغ في المسار أو الاستعلام لا يُفسد النمط: كان يُحفظ مهرَّبًا ويطابق، ورفضه كلّه أسقطه.
+  it('يقبل فراغًا في المسار أو الاستعلام، والمضيف سليم', () => {
+    expect(normalizeSitePattern('bank.com/my docs/*')).toMatchObject({
+      host: 'bank.com',
+      pathPrefix: '/my%20docs/',
+    })
+    expect(normalizeSitePattern('bank.com/login?q=a b')).toMatchObject({
+      host: 'bank.com',
+      pathPrefix: null,
+    })
+  })
+
+  it('يقبل مضيفًا فيه `_` وIPv6 بقوسيه', () => {
+    expect(normalizeSitePattern('dev_box.example.com')).toMatchObject({
+      host: 'dev_box.example.com',
+    })
+    expect(normalizeSitePattern('[::1]:3000')).toMatchObject({ host: '[::1]', port: '3000' })
+  })
+
   it('يعيد المضيف مُطبَّعًا كي تعرضه الشاشة كما سيُطبَّق فعلًا', () => {
     expect(normalizeSitePattern('  HTTPS://Bank.com./login?x=1  ')).toMatchObject({
       host: 'bank.com',

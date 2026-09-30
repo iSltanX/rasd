@@ -305,8 +305,6 @@ function AreaLayer({
         if (event.key === 'Escape') {
           event.preventDefault()
           countdown.value = null
-          // والتقاط الظاهر المؤجَّل معه — لا يبقى معلَّقًا فيبدأ العدّ عند الدخول التالي.
-          pendingViewport.value = false
         }
         return
       }
@@ -334,7 +332,7 @@ function AreaLayer({
     // `capture: true` — نرى المفتاح قبل مستمعي الصفحة، كما في `shortcuts.ts`.
     window.addEventListener('keydown', onKey, { capture: true })
     return () => window.removeEventListener('keydown', onKey, { capture: true })
-  }, [area, countdown, delaySeconds, onCapture, pendingViewport])
+  }, [area, countdown, delaySeconds, onCapture])
 
   if (countdown.value !== null) {
     return (

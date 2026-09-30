@@ -1180,7 +1180,12 @@ async function bootOverlay(
         // التأجيل يمرّ عبر وضع «منطقة» بلا تحديد: العدّاد يعيش في العرض،
         // والطبقة تبقى خاملة للمؤشِّر فيستطيع المستخدم فتح قائمة أثناء العدّ.
         pendingViewport.value = true
-        modes.set('area')
+        // دخولٌ مرفوض (أداة منشغلة بسحب جارٍ) لا يُبقي التقاطًا مسلَّحًا ينطلق عند دخولٍ لاحق لم
+        // يُطلب له — المراجعة المستقلّة لـ`STAGES/04`.
+        if (!modes.set('area').ok) {
+          pendingViewport.value = false
+          return { started: false }
+        }
       } else {
         runCaptureNow(null)
       }

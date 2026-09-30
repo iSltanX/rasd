@@ -17,7 +17,7 @@
 
 import { findReferenceForPage } from '@/modules/compare/reference'
 import { VIEWPORT_ORDER } from '@/modules/compare/viewport'
-import { evaluateGate } from '@/shared/injection-gate'
+import { evaluateGate, type GateDecision } from '@/shared/injection-gate'
 import { hasHostPermission, originPatternFor } from '@/shared/permissions'
 import { getSettingsResult } from '@/shared/settings'
 import { annotations, blobs, captures } from '@/shared/storage/repository'
@@ -157,6 +157,16 @@ function excludedSitesFrom(reply: SettingsReply): string[] {
 }
 
 /**
+ * تعذّرت قراءة الإعدادات: منعٌ بسببه الحقيقي كما تقرّره الخلفية (`background/gate.ts`) — لا «هذا
+ * الموقع في قائمة المستثناة» الذي كان يعطيه `['*']`. وقيد المنصّة أوّلًا كما في `evaluateGate`: صفحة
+ * `chrome://` ممنوعة بسببها أيًّا كانت الإعدادات، وذكرُه أنفع.
+ */
+function unreadableSettings(url: string | undefined): GateDecision {
+  const platform = evaluateGate(url, [])
+  return platform.allowed ? { allowed: false, reason: 'settings-unavailable' } : platform
+}
+
+/**
  * وضع التصفّح الخاص كما وصل — وردٌّ ساقط يُقرأ `no-save` لا `off`.
  *
  * **والاتجاه المتحفّظ هنا معكوسٌ عمدًا** عن `excludedSitesFrom` أعلاه، ولسببٍ
@@ -202,10 +212,12 @@ export async function loadPopupContext(
    * `chrome.tabs.query` الذي يملكه المستدعي أصلًا، بنفس مصدر
    * `background/gate.ts` حرفًا بحرف.
    */
-  const decision = evaluateGate(url, excludedSitesFrom(settingsReply), {
-    incognito,
-    incognitoMode: incognitoModeFrom(settingsReply),
-  })
+  const decision = settingsReply.ok
+    ? evaluateGate(url, excludedSitesFrom(settingsReply), {
+        incognito,
+        incognitoMode: incognitoModeFrom(settingsReply),
+      })
+    : unreadableSettings(url)
   const restriction = decision.allowed
     ? { injectable: true as const }
     : { injectable: false as const, reason: decision.reason }

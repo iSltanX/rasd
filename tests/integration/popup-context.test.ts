@@ -70,7 +70,18 @@ describe('loadPopupContext — تعذّر قراءة الإعدادات', () => 
     vi.spyOn(chrome.storage.local, 'get').mockRejectedValue(new Error('تعذّرت القراءة'))
     const partial = await loadPopupContext(1, 'https://example.com/')
     expect(partial.restriction.injectable).toBe(false)
+    // والسبب المعروض هو الحقيقي، كما تقرّره الخلفية — لا «هذا الموقع في قائمة المستثناة» (المراجعة
+    // المستقلّة لـ`STAGES/04`).
+    expect(partial.restriction).toEqual({ injectable: false, reason: 'settings-unavailable' })
     expect(selectPopupState(toContext(partial, true))).toBe('restricted')
+    vi.restoreAllMocks()
+  })
+
+  it('صفحة مقيّدة تبقى بسببها الحقيقي ولو تعذّرت القراءة', async () => {
+    resetSettingsCache()
+    vi.spyOn(chrome.storage.local, 'get').mockRejectedValue(new Error('تعذّرت القراءة'))
+    const partial = await loadPopupContext(1, 'chrome://settings')
+    expect(partial.restriction).toEqual({ injectable: false, reason: 'browser-internal' })
     vi.restoreAllMocks()
   })
 })

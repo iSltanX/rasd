@@ -187,6 +187,27 @@ describe('ربط الطبقة', () => {
     expect(countdown()).toBeNull()
   })
 
+  // المراجعة المستقلّة لـ`STAGES/04`: رفضُ الدخول إلى المنطقة (سحبٌ جارٍ في أداة أخرى) كان يُبقي
+  // التقاطًا مؤجَّلًا مسلَّحًا، فيبدأ العدّ عند دخولٍ لاحق لم يُطلب له ويُحفظ الظاهر كلّه.
+  it('أمر التقاط يُرفض دخوله إلى المنطقة لا يُسلِّح عدًّا لدخولٍ لاحق', async () => {
+    await patchSettings({ capture: { delaySeconds: 3 } } as never)
+    const session = await boot()
+    const countdown = () => session.host.layer.querySelector('[data-rasd-ov="countdown"]')
+
+    session.modes.set('measure')
+    session.modes.busy.value = true
+    await settle()
+    await fromBackground('capture/start', { kind: 'viewport' })
+    await settle()
+    expect(session.modes.mode.peek()).toBe('measure')
+    expect(countdown()).toBeNull()
+
+    session.modes.busy.value = false
+    session.modes.set('area')
+    await settle()
+    expect(countdown()).toBeNull()
+  })
+
   it('تأجيل الالتقاط يُقرأ حيًّا — تغييره والطبقة قائمة يسري على الالتقاط التالي', async () => {
     const session = await boot()
     const countdown = () => session.host.layer.querySelector('[data-rasd-ov="countdown"]')

@@ -72,6 +72,28 @@ describe('DeleteConfirm — `library / delete-confirm`', () => {
     expect(document.activeElement).toBe(cancel)
   })
 
+  // المراجعة المستقلّة لـ`STAGES/04`: الأب يمرّر `onCancel` سطريًّا فيتجدّد مع كل رسم، وكان التركيز
+  // يُعاد إلى «ألغِ» عند كل رسمٍ للأب — يسحب المستخدم ممّا وضع عليه التركيز.
+  it('إعادة رسم الأب بدالّة إلغاء جديدة لا تنقل التركيز، وEsc يستدعي الأحدث', async () => {
+    const { confirm } = await mount(3)
+    confirm.focus()
+    const latest = vi.fn()
+    render(
+      <DeleteConfirm
+        count={3}
+        forms={CAPTURE_FORMS}
+        note="تُحذف نهائيًّا."
+        onConfirm={vi.fn()}
+        onCancel={latest}
+      />,
+      container!,
+    )
+    await new Promise((r) => setTimeout(r, 40))
+    expect(document.activeElement).toBe(confirm)
+    key('Escape')
+    expect(latest).toHaveBeenCalledOnce()
+  })
+
   it('«احذف» يؤكّد، و«ألغِ» و«×» والغشاء وEsc تلغي', async () => {
     const m = await mount(3)
     m.confirm.click()
