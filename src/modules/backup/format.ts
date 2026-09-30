@@ -45,10 +45,17 @@ const EXTENSIONS: Readonly<Record<string, string>> = {
  * ملفّ، والترتيب رقمٌ لا يُساء. والامتداد من النوع كي تُفتح الصورة بعد الفكّ مباشرة.
  */
 export function fileEntry(store: string, index: number, type: string): string {
-  return `files/${store}/${String(index).padStart(6, '0')}.${EXTENSIONS[type] ?? 'bin'}`
+  const ext = Object.hasOwn(EXTENSIONS, type) ? EXTENSIONS[type] : 'bin'
+  return `files/${store}/${String(index).padStart(6, '0')}.${ext}`
 }
 
 const count = v.pipe(v.number(), v.integer(), v.minValue(0))
+
+/** أقصى ما يقبله `Date` (±8.64e15ms) — زمنٌ فوقه يرمي عند أوّل عرضٍ له، لا عند قراءته. */
+export const MAX_TIME = 8.64e15
+
+/** لحظةٌ تصير تاريخًا: عددٌ منتهٍ بين بداية العصر وأقصى `Date`. */
+export const TimestampSchema = v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(MAX_TIME))
 
 /**
  * البيان. **الصيغة ونسختها تُفحصان قبل أيّ حقل آخر** (`readManifest`): بيانٌ من إصدارٍ أحدث قد يحمل
@@ -58,8 +65,8 @@ export const ManifestSchema = v.strictObject({
   format: v.literal(BACKUP_FORMAT),
   version: v.pipe(v.number(), v.integer(), v.minValue(1)),
   database: v.pipe(v.number(), v.integer(), v.minValue(1)),
-  createdAt: v.number(),
-  app: v.string(),
+  createdAt: TimestampSchema,
+  app: v.pipe(v.string(), v.maxLength(64)),
   stores: v.record(v.string(), count),
 })
 

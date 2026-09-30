@@ -17,18 +17,35 @@
 
 import * as v from 'valibot'
 
-import { CHECK_KINDS, CHECK_OUTCOMES, ISSUE_STATUSES, RECHECK_REASONS } from '@/shared/issue-schema'
+import { EXCLUSION_LIMITS } from '@/shared/exclusion-schema'
+import {
+  CHECK_KINDS,
+  CHECK_OUTCOMES,
+  ISSUE_LIMITS,
+  ISSUE_STATUSES,
+  MAX_ISSUE_HISTORY,
+  RECHECK_REASONS,
+} from '@/shared/issue-schema'
+
+import { TimestampSchema } from './format'
 
 import type { RasdDB, StoreName } from '@/shared/storage/schema'
 
 const id = v.pipe(v.string(), v.minLength(1))
-const num = v.number()
+/**
+ * **عددٌ منتهٍ لا أيّ عدد:** `1e400` في JSON يُقرأ `Infinity`، ويمرّ من `v.number()`. وكل زمنٍ `TimestampSchema`:
+ * عددٌ يُرسم تاريخًا، لا `1e20` يرمي `RangeError` في أوّل واجهةٍ تعرضه (المراجعة المستقلّة، `STAGES/07`).
+ */
+const num = v.pipe(v.number(), v.finite())
+const ts = TimestampSchema
 const nullableId = v.nullable(v.string())
+/** نصٌّ بسقفه الذي يفرضه كاتبه الأصلي — ما يكتبه رصد لا يتجاوزه، فالملفّ لا يتجاوزه كذلك. */
+const text = (max: number) => v.pipe(v.string(), v.maxLength(max))
 
 /** مرجعٌ إلى صورة داخل الحاوية — بدل `Blob` في JSON. */
 export const BlobRefSchema = v.strictObject({
-  file: v.string(),
-  type: v.string(),
+  file: v.pipe(v.string(), v.maxLength(256)),
+  type: v.pipe(v.string(), v.maxLength(128)),
   size: v.pipe(v.number(), v.integer(), v.minValue(0)),
 })
 export type BlobRef = v.InferOutput<typeof BlobRefSchema>
@@ -37,15 +54,15 @@ const rect = <S extends string>(space: S) =>
   v.looseObject({ space: v.literal(space), x: num, y: num, width: num, height: num })
 
 const fingerprint = v.looseObject({
-  tag: v.string(),
-  attrs: v.array(v.string()),
-  textHash: v.string(),
+  tag: text(64),
+  attrs: v.pipe(v.array(text(128)), v.maxLength(64)),
+  textHash: text(64),
   textLength: num,
 })
 
 const CaptureSchema = v.looseObject({
   id,
-  createdAt: num,
+  createdAt: ts,
   origin: v.string(),
   url: v.string(),
   title: v.string(),
@@ -58,7 +75,7 @@ const CaptureSchema = v.looseObject({
   devicePixelRatio: num,
   favorite: v.boolean(),
   archived: v.boolean(),
-  trashedAt: v.nullable(num),
+  trashedAt: v.nullable(ts),
 })
 
 const BlobSchema = v.looseObject({ id, blob: BlobRefSchema, mime: v.string(), bytes: num })
@@ -67,8 +84,8 @@ const ProjectSchema = v.looseObject({
   id,
   name: v.string(),
   color: v.string(),
-  createdAt: num,
-  updatedAt: num,
+  createdAt: ts,
+  updatedAt: ts,
 })
 
 const ColorSchema = v.looseObject({
@@ -79,7 +96,7 @@ const ColorSchema = v.looseObject({
   source: v.picklist(['pixel', 'css', 'manual']),
   projectId: nullableId,
   sourceUrl: v.nullable(v.string()),
-  createdAt: num,
+  createdAt: ts,
 })
 
 const PaletteSchema = v.looseObject({
@@ -87,19 +104,20 @@ const PaletteSchema = v.looseObject({
   name: v.string(),
   colors: v.array(v.string()),
   projectId: nullableId,
-  createdAt: num,
+  createdAt: ts,
 })
 
+/** حدود `EXCLUSION_LIMITS` نفسها التي تفرضها الخلفية على الطبقة (`exclusion-parse.ts`). */
 const ExclusionSchema = v.looseObject({
   id,
-  label: v.nullable(v.string()),
-  createdAt: num,
+  label: v.nullable(text(EXCLUSION_LIMITS.label)),
+  createdAt: ts,
   anchor: v.variant('kind', [
     v.looseObject({ kind: v.literal('rect'), rect: rect('device') }),
     v.looseObject({
       kind: v.literal('element'),
-      selector: v.string(),
-      hosts: v.array(v.string()),
+      selector: text(EXCLUSION_LIMITS.selector),
+      hosts: v.pipe(v.array(text(EXCLUSION_LIMITS.selector)), v.maxLength(16)),
       fingerprint,
       rect: rect('device'),
     }),
@@ -113,15 +131,15 @@ const ReferenceSchema = v.looseObject({
   path: v.string(),
   viewport: v.picklist(['desktop', 'tablet', 'phone', 'custom']),
   blobId: v.string(),
-  createdAt: num,
-  exclusions: v.array(ExclusionSchema),
+  createdAt: ts,
+  exclusions: v.pipe(v.array(ExclusionSchema), v.maxLength(EXCLUSION_LIMITS.zones)),
 })
 
 const AnnotationSchema = v.looseObject({
   captureId: id,
   // `unknown` يجعل المفتاح اختياريًّا في النوع المستنتَج؛ والمشهد مطلوبٌ في السجلّ — حاضرٌ بأيّ قيمة.
   scene: v.custom<NonNullable<unknown> | null>((value) => value !== undefined, 'مشهدٌ مفقود'),
-  updatedAt: num,
+  updatedAt: ts,
   schemaVersion: v.exactOptional(num),
   redaction: v.exactOptional(v.looseObject({ total: num, irreversible: num })),
 })
@@ -131,7 +149,7 @@ const GuideSchema = v.looseObject({
   title: v.string(),
   projectId: nullableId,
   captureIds: v.array(v.string()),
-  createdAt: num,
+  createdAt: ts,
 })
 
 const TagSchema = v.looseObject({
@@ -141,12 +159,13 @@ const TagSchema = v.looseObject({
 
 const ThumbnailSchema = v.looseObject({ id, blob: BlobRefSchema, width: num, height: num })
 
+/** حدود `ISSUE_LIMITS` نفسها التي يفرضها مخطّط الخلفية على المسودّة (`modules/issues/schema.ts`). */
 const identity = v.looseObject({
-  selector: v.string(),
+  selector: text(ISSUE_LIMITS.selector),
   unique: v.boolean(),
   positional: v.boolean(),
   inShadow: v.boolean(),
-  hosts: v.array(v.string()),
+  hosts: v.pipe(v.array(text(ISSUE_LIMITS.selector)), v.maxLength(16)),
   fingerprint,
   rect: v.looseObject({ x: num, y: num, width: num, height: num }),
 })
@@ -154,13 +173,14 @@ const identity = v.looseObject({
 const status = v.picklist(ISSUE_STATUSES)
 const outcome = v.picklist(CHECK_OUTCOMES)
 const reason = v.nullable(v.picklist(RECHECK_REASONS))
+const value = text(ISSUE_LIMITS.value)
 
 const IssueSchema = v.looseObject({
   id,
   schemaVersion: num,
   projectId: nullableId,
-  createdAt: num,
-  updatedAt: num,
+  createdAt: ts,
+  updatedAt: ts,
   page: v.looseObject({
     url: v.string(),
     origin: v.string(),
@@ -172,38 +192,42 @@ const IssueSchema = v.looseObject({
   pair: v.nullable(identity),
   check: v.looseObject({
     kind: v.picklist(CHECK_KINDS),
-    property: v.string(),
-    actual: v.string(),
-    expected: v.string(),
+    property: text(64),
+    actual: value,
+    expected: value,
     tolerance: num,
   }),
   status,
-  lastCheck: v.nullable(
-    v.looseObject({ at: num, outcome, observed: v.nullable(v.string()), reason }),
-  ),
-  history: v.array(
-    v.variant('kind', [
-      v.looseObject({ kind: v.literal('created'), at: num, status, observed: v.string() }),
-      v.looseObject({
-        kind: v.literal('check'),
-        at: num,
-        status,
-        outcome,
-        observed: v.nullable(v.string()),
-        reason,
-      }),
-      v.looseObject({ kind: v.literal('manual'), at: num, status }),
-    ]),
+  lastCheck: v.nullable(v.looseObject({ at: ts, outcome, observed: v.nullable(value), reason })),
+  history: v.pipe(
+    v.array(
+      v.variant('kind', [
+        v.looseObject({ kind: v.literal('created'), at: ts, status, observed: value }),
+        v.looseObject({
+          kind: v.literal('check'),
+          at: ts,
+          status,
+          outcome,
+          observed: v.nullable(value),
+          reason,
+        }),
+        v.looseObject({ kind: v.literal('manual'), at: ts, status }),
+      ]),
+    ),
+    v.maxLength(MAX_ISSUE_HISTORY),
   ),
   evidence: v.looseObject({
     captureId: v.string(),
-    snapshot: v.record(v.string(), v.string()),
+    snapshot: v.pipe(
+      v.record(text(64), value),
+      v.check((r) => Object.keys(r).length <= ISSUE_LIMITS.snapshot, 'لقطة فحص أكبر من حدّها'),
+    ),
     crop: v.looseObject({ x: num, y: num, width: num, height: num }),
   }),
   note: v.nullable(v.looseObject({ captureId: v.string(), noteId: v.string() })),
-  title: v.string(),
-  body: v.string(),
-  steps: v.array(v.string()),
+  title: text(ISSUE_LIMITS.title),
+  body: text(ISSUE_LIMITS.body),
+  steps: v.pipe(v.array(text(ISSUE_LIMITS.step)), v.maxLength(ISSUE_LIMITS.steps)),
 })
 
 /** مخطّط كل مخزن باسمه — مفتاحٌ لكل `StoreName`، فالمخزن الجديد بلا مخطّط خطأ ترجمة. */

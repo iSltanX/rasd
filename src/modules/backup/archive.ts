@@ -21,6 +21,11 @@ import { errText, ok, type Result } from '@/shared/result'
 export interface ArchiveEntry {
   readonly name: string
   readonly data: Uint8Array | Blob
+  /**
+   * CRC محسوبٌ سلفًا — النسخ يقرأ كل صورة مرّةً ليحسبه ويعرف أنها تُقرأ أصلًا (`createBackup`)، فلا تُقرأ
+   * ثانيةً هنا. وغيابه: يُحسب من البايتات.
+   */
+  readonly crc?: number
 }
 
 /** سقف ZIP بلا امتداد Zip64 — ما فوقه يُرفض برسالة لا يُكتب ملفًّا تالفًا. */
@@ -98,7 +103,7 @@ export async function buildArchive(
     if (options.signal?.aborted) return ok('cancelled')
     const name = encoder.encode(entry.name)
     const size = sizeOf(entry.data)
-    const crc = crc32(await bytesOf(entry.data))
+    const crc = entry.crc ?? crc32(await bytesOf(entry.data))
 
     const local = new Uint8Array(LOCAL_HEADER + name.length)
     const lv = new DataView(local.buffer)
@@ -192,6 +197,15 @@ const utf8 = new TextDecoder('utf-8', { fatal: true })
  * الملفّات نفسها — ذاك لـ`read` حين تُطلب.
  */
 export async function openArchive(file: Blob): Promise<Result<OpenArchive>> {
+  try {
+    return await open(file)
+  } catch (thrown) {
+    // قراءةٌ رُفضت (ملفٌّ أُزيل أو تغيّر بعد اختياره) — لا بنيةٌ رُفضت.
+    return errText('not-found', 'تعذّرت قراءة الملفّ.', String(thrown))
+  }
+}
+
+async function open(file: Blob): Promise<Result<OpenArchive>> {
   if (file.size < END_RECORD) return notArchive('أصغر من خاتمة ZIP')
   const tailStart = Math.max(0, file.size - END_RECORD - MAX_COMMENT)
   const tail = await readRange(file, tailStart, file.size)

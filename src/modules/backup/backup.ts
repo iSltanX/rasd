@@ -13,7 +13,8 @@
 
 import * as v from 'valibot'
 
-import { err, ok, type RasdError, type Result } from '@/shared/result'
+import { crc32 } from '@/modules/export/zip'
+import { err, ok, toRasdError, type RasdError, type Result } from '@/shared/result'
 import {
   emptyCounts,
   keyOf,
@@ -111,10 +112,21 @@ export interface BackupOptions extends ProgressOptions {
 /**
  * يصنع النسخة من صورةٍ متّسقة للقاعدة. `empty` حين لا سجلّ في أيّ مخزن، و`cancelled` حين يُلغى —
  * والإلغاء لا يترك شيئًا: لا شيء يُكتب على القرص قبل أن يُسلَّم الملفّ.
+ *
+ * **ولا يرمي:** كل رفضٍ يعود `storage` — نافذةٌ تنتظر وعدًا رُفض كانت تبقى «تُجمع الصور» بلا مخرج
+ * (المراجعة المستقلّة، `STAGES/07`).
  */
 export async function createBackup(
   options: BackupOptions,
 ): Promise<Result<BackupOutcome, BackupFailure>> {
+  try {
+    return await build(options)
+  } catch (thrown) {
+    return err({ kind: 'storage', error: toRasdError(thrown) })
+  }
+}
+
+async function build(options: BackupOptions): Promise<Result<BackupOutcome, BackupFailure>> {
   const read = await readLibrary()
   if (!read.ok) return err({ kind: 'storage', error: read.error })
   const library = read.value
@@ -124,6 +136,8 @@ export async function createBackup(
   const skipped = emptyCounts()
   const stores: ArchiveEntry[] = []
   const files: ArchiveEntry[] = []
+  const images = BLOB_STORES.reduce((sum, name) => sum + library[name].length, 0)
+  let seen = 0
 
   for (const name of STORE_NAMES) {
     const shaped: unknown[] = []
@@ -132,14 +146,22 @@ export async function createBackup(
       let candidate: object = record
       let file: ArchiveEntry | null = null
       if (isBlobStore(name)) {
+        if (options.signal?.aborted) return ok({ kind: 'cancelled' })
         const blob = (record as { blob?: unknown }).blob
-        if (!isBlob(blob)) {
+        /*
+         * **كل صورةٍ تُقرأ هنا مرّةً واحدة:** لـCRC الحاوية، ولتُعرف قابلةً للقراءة. صورةٌ فقد المتصفّح
+         * ملفّها يرفض `arrayBuffer` قراءتها — فتُترك وتُعدّ كالسجلّ التالف، ولا تُسقط النسخة كلّها.
+         */
+        const bytes = isBlob(blob) ? await readBytes(blob) : null
+        seen += 1
+        options.onProgress?.({ done: seen, total: images })
+        if (!isBlob(blob) || bytes === null) {
           skipped[name] += 1
           continue
         }
         const entry = fileEntry(name, index + 1, blob.type)
         candidate = { ...record, blob: { file: entry, type: blob.type, size: blob.size } }
-        file = { name: entry, data: blob }
+        file = { name: entry, data: blob, crc: crc32(bytes) }
       }
       if (!v.is(BACKUP_RECORDS[name], candidate)) {
         skipped[name] += 1
@@ -176,11 +198,6 @@ export async function createBackup(
   const built = await buildArchive([...head, ...files], {
     modified: options.now,
     signal: options.signal,
-    onEntry: (done) => {
-      if (done > head.length) {
-        options.onProgress?.({ done: done - head.length, total: files.length })
-      }
-    },
   })
   if (!built.ok) return invalid(built.error.detail ?? built.error.message)
   if (built.value === 'cancelled') return ok({ kind: 'cancelled' })
@@ -193,18 +210,29 @@ export async function createBackup(
   })
 }
 
+async function readBytes(blob: Blob): Promise<Uint8Array | null> {
+  try {
+    return new Uint8Array(await blob.arrayBuffer())
+  } catch {
+    return null
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────
 // القراءة والاستعادة
 // ─────────────────────────────────────────────────────────────────
 
+/** سجلّات الملفّ خامًا بمخزنها، قبل أن يُحكم عليها بمخطّط اليوم — ما تعمل عليه خطوات الترقية. */
+export type RawRecords = Record<StoreName, unknown[]>
+
 /**
  * خطوة كل ترحيلٍ بعد `FIRST_DATABASE` على سجلّات النسخ الأقدم — المفتاح نسخة القاعدة المستهدَفة كما في
- * `MIGRATIONS`. فارغٌ اليوم لأن القاعدة 4 هي أوّل ما تحمله الصيغة؛ و`backup.test.ts` يُسقط البناء إن ارتفع
- * `DB_VERSION` بلا خطوةٍ هنا — ولو كانت الخطوة «لا تغيير» (مخزنٌ جديد يُقرأ فارغًا من النسخ الأقدم).
+ * `MIGRATIONS`. **تعمل على السجلّات الخام قبل التحقّق** لا بعده: سجلٌّ من قاعدةٍ أقدم لا يطابق مخطّط اليوم
+ * بطبعه، وترقيته هي ما يجعله يطابقه (المراجعة المستقلّة، `STAGES/07`). فارغةٌ اليوم لأن القاعدة 4 أوّل ما
+ * تحمله الصيغة؛ و`data-backup.test.ts` يُسقط البناء إن ارتفع `DB_VERSION` بلا خطوةٍ هنا — ولو كانت
+ * «لا تغيير» (مخزنٌ جديد يُقرأ فارغًا من النسخ الأقدم).
  */
-export const RECORD_UPGRADES: Readonly<
-  Record<number, (records: LibraryRecords) => LibraryRecords>
-> = {}
+export const RECORD_UPGRADES: Readonly<Record<number, (records: RawRecords) => RawRecords>> = {}
 
 export interface RestorePlan {
   readonly manifest: Manifest
@@ -213,6 +241,12 @@ export interface RestorePlan {
   readonly counts: StoreCounts
   /** مجموع بايتات الصور — ما يُعرض على بوّابة الحصّة قبل الكتابة. */
   readonly bytes: number
+}
+
+export interface ReadOptions extends ProgressOptions {
+  /** للاختبار: خطوات ترقيةٍ وأقدم قاعدةٍ مقبولة بدل ما في هذا الإصدار. */
+  readonly upgrades?: Readonly<Record<number, (records: RawRecords) => RawRecords>>
+  readonly firstDatabase?: number
 }
 
 async function readJson(
@@ -233,13 +267,32 @@ async function readJson(
 /**
  * يقرأ الملفّ ويتحقّق منه كاملًا — **ولا يكتب شيئًا**. الناتج خطّةٌ تُعرض قبل الاستعادة (`data /
  * restore-preview`) ثمّ تُكتب بـ`restoreBackup`. والتقدّم يعدّ الصور التي فُحص CRC بايتاتها.
+ *
+ * **ولا يرمي:** ملفٌّ تتعذّر قراءته بعد اختياره (أُزيل من القرص، أو تغيّر) يعود `damaged`.
  */
 export async function readBackup(
   file: Blob,
-  options: ProgressOptions = {},
+  options: ReadOptions = {},
 ): Promise<Result<RestorePlan | 'cancelled', BackupFailure>> {
+  try {
+    return await read(file, options)
+  } catch {
+    return damaged('تعذّرت قراءة الملفّ')
+  }
+}
+
+async function read(
+  file: Blob,
+  options: ReadOptions,
+): Promise<Result<RestorePlan | 'cancelled', BackupFailure>> {
+  const upgrades = options.upgrades ?? RECORD_UPGRADES
+  const firstDatabase = options.firstDatabase ?? FIRST_DATABASE
+
   const opened = await openArchive(file)
-  if (!opened.ok) return invalid(opened.error.detail ?? opened.error.message)
+  if (!opened.ok) {
+    const detail = opened.error.detail ?? opened.error.message
+    return opened.error.code === 'not-found' ? damaged(detail) : invalid(detail)
+  }
   const archive = opened.value
 
   const manifestFile = archive.files.get(MANIFEST_ENTRY)
@@ -261,19 +314,15 @@ export async function readBackup(
   const parsed = v.safeParse(ManifestSchema, rawManifest.value)
   if (!parsed.success) return invalid('بيانٌ لا يطابق مخطّطه')
   const manifest = parsed.output
-  if (manifest.database < FIRST_DATABASE) return invalid(`القاعدة ${manifest.database}`)
+  if (manifest.database < firstDatabase) return invalid(`القاعدة ${manifest.database}`)
 
   const known = new Set<string>(STORE_NAMES)
   for (const name of Object.keys(manifest.stores)) {
     if (!known.has(name)) return invalid(`مخزنٌ لا يعرفه رصد: ${name}`)
   }
 
-  const records = Object.fromEntries(STORE_NAMES.map((n) => [n, []])) as unknown as LibraryRecords
-  const counts = emptyCounts()
-  const pending: ArchiveFile[] = []
-  const claimed = new Set<string>()
-  let bytes = 0
-
+  // ١ — السجلّات خامًا، بعددها كما في البيان.
+  let raw = Object.fromEntries(STORE_NAMES.map((n) => [n, []])) as unknown as RawRecords
   for (const name of STORE_NAMES) {
     const declared = manifest.stores[name]
     const entry = archive.files.get(storeEntry(name))
@@ -282,15 +331,32 @@ export async function readBackup(
       if (manifest.database < DB_VERSION && declared === undefined && !entry) continue
       return invalid(`مخزنٌ ناقص: ${name}`)
     }
-    const raw = await readJson(archive, entry, MAX_JSON_BYTES)
-    if (!raw.ok) return raw
-    if (!Array.isArray(raw.value) || raw.value.length !== declared) {
+    const list = await readJson(archive, entry, MAX_JSON_BYTES)
+    if (!list.ok) return list
+    if (!Array.isArray(list.value) || list.value.length !== declared) {
       return invalid(`${name}: العدد يخالف البيان`)
     }
+    raw = { ...raw, [name]: list.value as unknown[] }
+  }
 
+  // ٢ — الترقية على الخام، قبل التحقّق.
+  for (let version = manifest.database + 1; version <= DB_VERSION; version++) {
+    const step = upgrades[version]
+    if (!step) return invalid(`لا ترقية لسجلّات القاعدة ${version}`)
+    raw = step(raw)
+  }
+
+  // ٣ — كل سجلٍّ بمخطّط اليوم، والمفاتيح غير مكرّرة، والصور موجودةٌ بحجمها.
+  const records = Object.fromEntries(STORE_NAMES.map((n) => [n, []])) as unknown as LibraryRecords
+  const counts = emptyCounts()
+  const pending: ArchiveFile[] = []
+  const claimed = new Set<string>()
+  let bytes = 0
+
+  for (const name of STORE_NAMES) {
     const keys = new Set<string>()
     const list: object[] = []
-    for (const [i, record] of (raw.value as unknown[]).entries()) {
+    for (const [i, record] of (raw[name] ?? []).entries()) {
       if (!v.is(BACKUP_RECORDS[name], record)) return invalid(`${name}[${i}]`)
       const key = keyOf(name, record)
       if (keys.has(key)) return invalid(`${name}: مفتاحٌ مكرّر`)
@@ -315,21 +381,14 @@ export async function readBackup(
     counts[name] = list.length
   }
 
-  // البايتات آخرًا: البنية كلّها سليمة قبل أن تُقرأ مئات الميغابايتات.
+  // ٤ — البايتات آخرًا: البنية كلّها سليمة قبل أن تُقرأ مئات الميغابايتات.
   for (const [i, target] of pending.entries()) {
     if (options.signal?.aborted) return ok('cancelled')
     if (!(await archive.read(target))) return damaged(target.name)
     options.onProgress?.({ done: i + 1, total: pending.length })
   }
 
-  let upgraded = records
-  for (let version = manifest.database + 1; version <= DB_VERSION; version++) {
-    const step = RECORD_UPGRADES[version]
-    if (!step) return invalid(`لا ترقية لسجلّات القاعدة ${version}`)
-    upgraded = step(upgraded)
-  }
-
-  return ok({ manifest, records: upgraded, counts, bytes })
+  return ok({ manifest, records, counts, bytes })
 }
 
 /** يكتب الخطّة في معاملة واحدة — إضافةٌ لا استبدال (`mergeLibrary`). */

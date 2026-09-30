@@ -1,7 +1,7 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto'
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildArchive, openArchive, type ArchiveEntry } from '@/modules/backup/archive'
 import {
@@ -34,6 +34,10 @@ import {
  */
 
 const NOW = Date.UTC(2026, 8, 30, 9, 0, 0)
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 beforeEach(async () => {
   setIncognitoWritePolicy(false)
@@ -393,5 +397,168 @@ describe('ترقية سجلّات النسخ الأقدم', () => {
     for (let version = FIRST_DATABASE + 1; version <= DB_VERSION; version++) {
       expect(RECORD_UPGRADES[version], `ترقية سجلّات القاعدة ${version}`).toBeTypeOf('function')
     }
+  })
+})
+
+/*
+ * ما كشفته المراجعة المستقلّة (`STAGES/07`) — كُتبت قبل إصلاحاتها وسقطت عليها.
+ */
+describe('المراجعة: قراءةٌ تُرفض لا تُجمّد النافذة', () => {
+  it('صورةٌ في القاعدة تتعذّر قراءة بايتاتها: تُترك وتُعدّ، والنسخة تكتمل بغيرها', async () => {
+    await seedDatabase(libraryFixture())
+    const real = Blob.prototype.arrayBuffer
+    vi.spyOn(Blob.prototype, 'arrayBuffer').mockImplementation(function (this: Blob) {
+      if (this.size === 6 && this.type === 'image/webp') {
+        return Promise.reject(new DOMException('gone', 'NotFoundError'))
+      }
+      return real.call(this)
+    })
+    const r = await createBackup({ now: NOW, app: '0.1.0' })
+    vi.restoreAllMocks()
+    expect(r.ok && r.value.kind).toBe('ready')
+    if (!r.ok || r.value.kind !== 'ready') return
+    expect(r.value.skipped.blobs).toBe(1)
+    expect(r.value.counts.blobs).toBe(3)
+    await clearAllStores()
+    expect((await restoreBackup(await planOf(r.value.blob))).ok).toBe(true)
+  })
+
+  it('ملفٌّ تتعذّر قراءته أثناء الفحص: `damaged` لا رفضٌ غير ملتقَط', async () => {
+    await seedDatabase(libraryFixture())
+    const backup = await backupOf()
+    const bytes = new Uint8Array(await backup.blob.arrayBuffer())
+    let reads = 0
+    const flaky = new Blob([bytes])
+    // ملفٌّ بواجهة `Blob` التي يستعملها القارئ (`size` · `slice`)، تتعذّر قراءة شرائحه بعد البيان والدليل —
+    // كملفٍّ أُزيل من القرص أثناء الفحص.
+    const file = {
+      size: flaky.size,
+      type: '',
+      slice: (a?: number, b?: number, t?: string): Blob => {
+        const part = flaky.slice(a, b, t)
+        reads += 1
+        if (reads <= 8) return part
+        return {
+          size: part.size,
+          type: part.type,
+          arrayBuffer: () => Promise.reject(new DOMException('file gone', 'NotReadableError')),
+          slice: part.slice.bind(part),
+        } as unknown as Blob
+      },
+    } as unknown as Blob
+    const r = await readBackup(file)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.kind).toBe('damaged')
+  })
+})
+
+describe('المراجعة: أرقامٌ خارج مداها وحدودٌ يفرضها كل كاتبٍ آخر', () => {
+  async function withRecord(store: string, edit: (records: object[]) => object[]) {
+    await seedDatabase(libraryFixture())
+    const blob = (await backupOf()).blob
+    await clearAllStores()
+    return rebuilt(
+      blob,
+      editJson(`stores/${store}.json`, (list) => edit(list as object[])),
+    )
+  }
+
+  it('تاريخ البيان خارج مدى `Date`: `invalid` — لا معاينة ترمي أثناء الرسم', async () => {
+    await seedDatabase(libraryFixture())
+    const blob = (await backupOf()).blob
+    await clearAllStores()
+    const far = editJson(MANIFEST_ENTRY, (m) => ({ ...(m as object), createdAt: 1e20 }))
+    const r = await readBackup(await rebuilt(blob, far))
+    expect(!r.ok && r.error.kind).toBe('invalid')
+  })
+
+  it('زمن لقطةٍ لا يصير تاريخًا، أو عددٌ غير منتهٍ: `invalid`', async () => {
+    const future = await withRecord('captures', (l) =>
+      l.map((c, i) => (i ? c : { ...c, createdAt: 1e20 })),
+    )
+    expect(await readBackup(future).then((r) => !r.ok && r.error.kind)).toBe('invalid')
+
+    await closeDatabase()
+    indexedDB.deleteDatabase(DB_NAME)
+    await new Promise((r) => setTimeout(r, 0))
+    // `1e400` في JSON يُقرأ `Infinity`.
+    const infinite = await withRecord('issues', (l) => l)
+    const text = (
+      await openArchive(infinite).then(async (o) => {
+        if (!o.ok) throw new Error('open')
+        return new TextDecoder().decode(
+          (await o.value.read(o.value.files.get('stores/issues.json')!))!,
+        )
+      })
+    ).replace('"updatedAt":1000', '"updatedAt":1e400')
+    const patched = await rebuilt(infinite, (n, b) =>
+      n === 'stores/issues.json' ? new TextEncoder().encode(text) : b,
+    )
+    expect(await readBackup(patched).then((r) => !r.ok && r.error.kind)).toBe('invalid')
+  })
+
+  it('مرجعٌ بمناطق فوق حدّها، ومشكلةٌ بتاريخٍ فوق حدّه: `invalid`', async () => {
+    const zones = await withRecord('references', (l) =>
+      l.map((r, i) => {
+        if (i) return r
+        const zone = (r as { exclusions: object[] }).exclusions[0]!
+        return {
+          ...r,
+          exclusions: Array.from({ length: 33 }, (_, k) => ({ ...zone, id: `z${k}` })),
+        }
+      }),
+    )
+    expect(await readBackup(zones).then((r) => !r.ok && r.error.kind)).toBe('invalid')
+
+    await closeDatabase()
+    indexedDB.deleteDatabase(DB_NAME)
+    await new Promise((r) => setTimeout(r, 0))
+    const history = await withRecord('issues', (l) =>
+      l.map((issue, i) => {
+        if (i) return issue
+        const entry = (issue as { history: object[] }).history[0]!
+        return { ...issue, history: Array.from({ length: 21 }, () => entry) }
+      }),
+    )
+    expect(await readBackup(history).then((r) => !r.ok && r.error.kind)).toBe('invalid')
+  })
+})
+
+describe('المراجعة: الترقية قبل التحقّق', () => {
+  it('سجلٌّ من قاعدةٍ أقدم يمرّ بخطوة ترقيته قبل أن يُحكم عليه بمخطّط اليوم', async () => {
+    await seedDatabase(libraryFixture())
+    const blob = (await backupOf()).blob
+    await clearAllStores()
+    // قاعدةٌ «سابقة» كانت تسمّي نوع اللقطة `screenshot`، وخطوة ترقيتها تعيده `viewport`.
+    const older = await rebuilt(blob, (name, bytes) => {
+      const text = new TextDecoder().decode(bytes)
+      if (name === MANIFEST_ENTRY) {
+        return new TextEncoder().encode(
+          JSON.stringify({ ...(JSON.parse(text) as object), database: DB_VERSION - 1 }),
+        )
+      }
+      if (name === 'stores/captures.json') {
+        return new TextEncoder().encode(text.replaceAll('"kind":"viewport"', '"kind":"screenshot"'))
+      }
+      return bytes
+    })
+    const upgrades = {
+      [DB_VERSION]: (raw: Record<string, unknown[]>) => ({
+        ...raw,
+        captures: raw.captures!.map((c) =>
+          (c as { kind: string }).kind === 'screenshot'
+            ? { ...(c as object), kind: 'viewport' }
+            : c,
+        ),
+      }),
+    }
+    const r = await readBackup(older, { upgrades, firstDatabase: DB_VERSION - 1 })
+    expect(r.ok, JSON.stringify(!r.ok && r.error)).toBe(true)
+    if (!r.ok || r.value === 'cancelled') return
+    expect(r.value.records.captures.map((c) => c.kind)).toEqual([
+      'viewport',
+      'full-page',
+      'viewport',
+    ])
   })
 })
