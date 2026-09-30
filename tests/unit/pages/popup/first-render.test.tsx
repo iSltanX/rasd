@@ -85,6 +85,7 @@ describe('Popup — يتركّب ساعة وصول البيانات لا بعد 
       tabId: 7,
       origin: 'chrome://settings',
       recent: [],
+      pageIssues: null,
       context: {
         restriction: { injectable: false, reason: 'browser-internal' },
         firstRun: false,

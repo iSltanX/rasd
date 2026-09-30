@@ -10,7 +10,8 @@ import { attempt, ok, type Result } from '../result'
 
 const KEY = 'rasd:session'
 
-export type ActiveMode = 'idle' | 'area' | 'element' | 'inspect' | 'measure' | 'colour' | 'compare'
+export type ActiveMode =
+  'idle' | 'area' | 'element' | 'inspect' | 'measure' | 'colour' | 'compare' | 'issues'
 
 export interface SessionState {
   /** الوضع النشط في كل تبويب على حدة. */

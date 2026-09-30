@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
+import { LogIssueButton } from '../issues/IssueForm'
+
 import type { InspectSnapshot } from '@/shared/inspect-schema'
 import type { JSX } from 'preact'
 
@@ -52,6 +54,8 @@ export interface InspectPanelProps {
    * النصوص المعروضة صادقة («تنزيل» لا «نسخ»).
    */
   onCopy?: (kind: 'css' | 'tailwind' | 'json') => void
+  /** «سجّل مشكلة» على العنصر المثبَّت (`STAGES/32`) — غيابه يُخفي الزرّ. */
+  onLogIssue?: () => void
 }
 
 /**
@@ -70,6 +74,7 @@ export function InspectPanel({
   groups,
   onClose,
   onCopy,
+  onLogIssue,
 }: InspectPanelProps): JSX.Element {
   const [tab, setTab] = useState<InspectTabId>('styles')
   const tabsRef = useRef<HTMLDivElement>(null)
@@ -224,6 +229,7 @@ export function InspectPanel({
           تنزيل CSS
         </button>
       </div>
+      {onLogIssue ? <LogIssueButton onClick={onLogIssue} /> : null}
     </div>
   )
 }

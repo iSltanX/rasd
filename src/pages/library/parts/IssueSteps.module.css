@@ -1,0 +1,18 @@
+/* الخطوات مرقَّمة بأرقام هندية: عدٌّ بشريّ لا قياس (`Docs/Design.md`، سياسة الأرقام). */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+  margin: 0;
+  padding-inline-start: var(--rasd-space-24);
+  list-style-type: arabic-indic;
+  color: var(--rasd-text-primary);
+}
+.none {
+  margin: 0;
+  color: var(--rasd-text-tertiary);
+}
+.actions {
+  display: flex;
+  justify-content: flex-start;
+}

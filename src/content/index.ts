@@ -64,6 +64,7 @@ import {
   stepFullPage,
 } from './tools/full-page'
 import { createInspect } from './tools/inspect'
+import { createIssues, type IssuesController } from './tools/issues'
 import { createMeasure, type MeasureTool } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
@@ -190,6 +191,8 @@ async function bootOverlay(
       if (modes.mode.peek() === 'colour') colourTool?.frame(reasons)
       colourUsageTool?.frame()
       compareTool?.frame(reasons)
+      // إطارات المشكلات تتبع عناصرها مع التمرير — في وضعها وحده، كالقطّارة.
+      if (modes.mode.peek() === 'issues') issuesTool?.frame()
       options.onFrame?.(space)
     },
   })
@@ -201,6 +204,7 @@ async function bootOverlay(
   let colourTool: EyedropperTool | null = null
   let colourUsageTool: ColourUsageTool | null = null
   let compareTool: CompareTool | null = null
+  let issuesTool: IssuesController | null = null
 
   const stopDpr = watchDpr(() => sync.invalidate('dpr'), win)
 
@@ -463,6 +467,29 @@ async function bootOverlay(
   colourTool = colour
   colourUsageTool = colourUsage
   compareTool = compare
+
+  /**
+   * المشكلات (`STAGES/32`) — نموذج «سجّل مشكلة» ولوحة «مشكلات هذه الصفحة».
+   *
+   * العنصر من الأداة التي فُتح منها النموذج: المثبَّت في الفحص، والمرجع والهدف المثبَّت في القياس، والعنصر
+   * الذي أُخذ منه اللون. والكتابة كلّها في الخلفية.
+   */
+  const issues = createIssues({
+    doc,
+    skip: host.hostEl,
+    targets: {
+      inspect: () => inspect.pinnedElement(),
+      measure: () => measure.pair(),
+      colour: () => {
+        const pinned = colour.state.pinned.peek()
+        return pinned ? { el: pinned.element, hex: pinned.formats.hex } : null
+      },
+    },
+    space: () => spaceSignal.peek(),
+    notify: (notice) => notices.show(notice),
+    showIssues: () => modes.set('issues'),
+  })
+  issuesTool = issues
 
   /**
    * **مقاس الصفحة وحده يُرسَل — لا أصلها ولا مسارها.**
@@ -1049,6 +1076,11 @@ async function bootOverlay(
     fullPage,
     notices,
     onCancelFullPage: () => void send('fullpage/cancel', undefined),
+    issues,
+    onLogIssue: (source) => issues.openForm(source),
+    // الإيماءة تُقرأ لحظة النقر: `click()` من سكربت الصفحة لا يمنحها، فلا تبدأ جولةٌ بلا مستخدم.
+    onRecheckIssues: () => void issues.recheck(navigator.userActivation?.isActive ?? false),
+    onOpenIssuesLibrary: () => openPage('library', { view: 'issues' }),
     space: spaceSignal,
     delaySeconds: delaySignal,
     pendingViewport,
@@ -1088,6 +1120,9 @@ async function bootOverlay(
 
   const unsubscribeInteractive = modes.subscribe((mode) => {
     host.setInteractive(INTERACTIVE_MODES.has(mode))
+    // النموذج مربوطٌ بعنصر أداته — مغادرة الوضع تُغلقه، ودخول وضع المشكلات يقرأ قائمتها.
+    issues.closeForm()
+    if (mode === 'issues') void issues.load()
     if (mode !== 'area') {
       area.reset()
       // التقاط الظاهر المؤجَّل يعيش في وضع المنطقة وحده: مغادرته — `Esc` أو أداة أخرى — تُلغيه،
@@ -1203,6 +1238,15 @@ async function bootOverlay(
   })
 
   /**
+   * «أعد الفحص» من النافذة (`issue/recheck-tab`): الخلفية تحقن وتطلب، والطلب من الخلفية وحدها — صفحةٌ لا
+   * تبلغ هذا المستقبِل. فالإيماءة هنا نقرة المستخدم في النافذة (ADR 0031 §4).
+   */
+  const unregisterRecheck = onMessage('issue/run-recheck', async () => {
+    modes.set('issues')
+    return { checked: await issues.recheck(true) }
+  })
+
+  /**
    * تُقرأ هنا لا في `.then()` كبقيّة إعدادات الالتقاط أدناه: خريطة الاختصار
    * يجب أن تكون صحيحة **قبل** أوّل ضغطة مفتاح، لا بعد ثانية إضافة —
    * والإعدادات مخزَّنة مؤقّتًا أصلًا (`watchSettings` أعلاه قرأتها للتوّ).
@@ -1221,13 +1265,18 @@ async function bootOverlay(
      * وعدٌ معروض بلا سلك خلفه.
      */
     shouldSwallowEscape: () => modes.mode.value !== 'idle' || hasFullPageSession(),
+    // حقلٌ من حقول النموذج مركَّز: لا حرف يبدّل الأداة (ADR 0032).
+    isTyping: () => issues.state.typing.peek(),
     onAction: (action) => {
       switch (action.kind) {
         case 'mode':
           modes.set(action.mode)
           break
         case 'escape':
-          if (hasFullPageSession()) {
+          if (issues.state.form.peek()) {
+            // `Esc` في النموذج يُغلقه وحده ويبقي الأداة ولوحتها.
+            issues.closeForm()
+          } else if (hasFullPageSession()) {
             // الإلغاء يمرّ من الخلفية: هي التي تملك الحلقة و`AbortController`.
             void send('fullpage/cancel', undefined)
           } else if (modes.mode.value !== 'idle') {
@@ -1278,6 +1327,7 @@ async function bootOverlay(
     unregisterStart()
     unregisterHide()
     unregisterShow()
+    unregisterRecheck()
     unsubscribeInteractive()
     app.unmount()
     area.dispose()
@@ -1344,6 +1394,8 @@ async function bootOverlay(
     colourPalette,
     colourScale,
     compare,
+    /** المشكلات — يبلغها حارس `verify:issues` واختبار ربط النموذج (`STAGES/32`). */
+    issues,
     lastCapture: () => lastCapture,
     teardown,
   })

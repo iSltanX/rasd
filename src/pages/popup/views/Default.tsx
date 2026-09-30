@@ -2,10 +2,11 @@ import { isMacPlatform } from '@/shared/platform'
 
 import { CaptureCard } from '../parts/CaptureCard'
 import { InspectTool } from '../parts/InspectTool'
+import { PageIssuesCard } from '../parts/PageIssuesCard'
 import { RecentThumb } from '../parts/RecentThumb'
 import styles from '../Popup.module.css'
 
-import type { RecentEntry } from '../context'
+import type { PageIssueCounts, RecentEntry } from '../context'
 import type { ToolName } from '@/shared/messaging'
 import type { JSX } from 'preact'
 
@@ -14,11 +15,19 @@ export interface DefaultProps {
   recent: readonly RecentEntry[]
   onOpenRecent: (id: string) => void
   onOpenLibrary: () => void
+  /**
+   * مشكلات صفحة التبويب — `null` أو غيابها ⇐ لا قسم لها وتبقى «الأخيرة». وإن وُجدت ظهر «مشكلات هذه
+   * الصفحة» **بدل** «الأخيرة» لا معها: النافذة 520 لا تتّسع لهما.
+   */
+  pageIssues?: PageIssueCounts | null
+  onShowIssues?: () => void
+  onRecheckIssues?: () => void
 }
 
 /**
  * الحالة الافتراضية — ثلاث مجموعات، بترتيب `13 — Extension Popup` نفسه:
- * الالتقاط (شبكة 2×2)، الفحص (صفّ 4)، الأخيرة (بطاقتان أو سطر فراغ `popup / no-recent`).
+ * الالتقاط (شبكة 2×2)، الفحص (صفّ 4)، الأخيرة (بطاقتان أو سطر فراغ `popup / no-recent`) — أو
+ * «مشكلات هذه الصفحة» مكانها حين للصفحة مشكلات (`popup / page-issues`).
  *
  * **ترتيب DOM هو ترتيب القراءة من اليمين**، أي عكس ترتيب أبناء الإطار: Figma يرتّب
  * أبناء الصفّ الأفقي من اليسار. فالشبكة `منطقة · عنصر` ثم `الظاهر · صفحة كاملة`، والصفّ
@@ -29,7 +38,13 @@ export function Default({
   recent,
   onOpenRecent,
   onOpenLibrary,
+  pageIssues = null,
+  onShowIssues,
+  onRecheckIssues,
 }: DefaultProps): JSX.Element {
+  // مشكلاتٌ للصفحة **وفعلاها** معًا، وإلا عُرضت «الأخيرة»: قسمٌ يعِد بـ«أعد الفحص» بلا محرّك زرٌّ صامت.
+  const showIssues =
+    pageIssues !== null && onShowIssues !== undefined && onRecheckIssues !== undefined
   return (
     <>
       <section class={styles.group} aria-label="الالتقاط">
@@ -111,33 +126,45 @@ export function Default({
         </div>
       </section>
 
-      <section class={styles.group} aria-label="الأخيرة">
-        <div class={styles.groupHead}>
-          <span class={styles.groupLabel}>الأخيرة</span>
-          {/* لا «عرض الكل» بلا لقطات — `popup / no-recent` (`319:56341`) لا يعرضه: لا كلّ يُعرض. */}
-          {recent.length > 0 ? (
-            <button type="button" class={styles.groupLink} onClick={onOpenLibrary}>
-              عرض الكل
+      {showIssues ? (
+        <section class={styles.group} aria-label="مشكلات هذه الصفحة">
+          <div class={styles.groupHead}>
+            <span class={styles.groupLabel}>مشكلات هذه الصفحة</span>
+            <button type="button" class={styles.groupLink} onClick={onShowIssues}>
+              اعرضها
             </button>
-          ) : null}
-        </div>
-        {recent.length > 0 ? (
-          <div class={styles.recentRow}>
-            {recent.map(({ record, thumbUrl, withheld }) => (
-              <RecentThumb
-                key={record.id}
-                title={record.title || record.origin}
-                createdAt={record.createdAt}
-                thumbUrl={thumbUrl}
-                withheld={withheld}
-                onClick={() => onOpenRecent(record.id)}
-              />
-            ))}
           </div>
-        ) : (
-          <p class={styles.groupEmpty}>لا لقطات بعد. التقط أوّل لقطة لتظهر هنا.</p>
-        )}
-      </section>
+          <PageIssuesCard counts={pageIssues} onRecheck={onRecheckIssues} />
+        </section>
+      ) : (
+        <section class={styles.group} aria-label="الأخيرة">
+          <div class={styles.groupHead}>
+            <span class={styles.groupLabel}>الأخيرة</span>
+            {/* لا «عرض الكل» بلا لقطات — `popup / no-recent` (`319:56341`) لا يعرضه: لا كلّ يُعرض. */}
+            {recent.length > 0 ? (
+              <button type="button" class={styles.groupLink} onClick={onOpenLibrary}>
+                عرض الكل
+              </button>
+            ) : null}
+          </div>
+          {recent.length > 0 ? (
+            <div class={styles.recentRow}>
+              {recent.map(({ record, thumbUrl, withheld }) => (
+                <RecentThumb
+                  key={record.id}
+                  title={record.title || record.origin}
+                  createdAt={record.createdAt}
+                  thumbUrl={thumbUrl}
+                  withheld={withheld}
+                  onClick={() => onOpenRecent(record.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p class={styles.groupEmpty}>لا لقطات بعد. التقط أوّل لقطة لتظهر هنا.</p>
+          )}
+        </section>
+      )}
     </>
   )
 }

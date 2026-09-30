@@ -42,6 +42,15 @@ export const IMPACT = [
   { match: /^src\/content\/tools\/measure\.ts/u, scripts: ['verify:measure'] },
   { match: /^src\/content\/tools\/eyedropper\.ts/u, scripts: ['verify:colour'] },
   { match: /^src\/content\/tools\/inspect\.ts/u, scripts: ['verify:inspect'] },
+  /*
+   * المشكلات (`STAGES/32`): النموذج ولوحة الصفحة وإعادة الفحص ومعالجاتها وهوية العنصر — يحرسها رحلتها
+   * كاملةً في `verify:issues`.
+   */
+  {
+    match:
+      /^(src\/content\/tools\/issues\.ts|src\/ui\/overlay\/issues\/|src\/modules\/issues\/|src\/background\/issues\.ts|src\/modules\/dom-picker\/identity\.ts|src\/shared\/issue-schema\.ts)/u,
+    scripts: ['verify:issues'],
+  },
   { match: /^src\/ui\/overlay\/compare\//u, scripts: ['verify:compare'] },
   { match: /^src\/pages\/popup\//u, scripts: ['verify:popup'] },
   { match: /^src\/pages\/editor\//u, scripts: ['verify:editor'] },

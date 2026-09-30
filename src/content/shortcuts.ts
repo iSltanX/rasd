@@ -178,6 +178,13 @@ export interface ShortcutOptions {
    * الأدوات، أو دالّةً تُسأل وقت كل حدث (`liveBindings().get`) كي يسري تغيّرها بلا إعادة تركيب.
    */
   bindings?: readonly Binding[] | (() => readonly Binding[])
+  /**
+   * هل يكتب المستخدم في حقلٍ من حقول الطبقة؟ (ADR 0032)
+   *
+   * جذر الظلّ مغلق، فـ`deepActiveElement` يقف عند المضيف ولا يرى الحقل — والطبقة وحدها تعرف أن
+   * التركيز فيها. بلا هذا السؤال تبدّل الحروف الأداةَ والمستخدم يكتب عنوان مشكلة.
+   */
+  isTyping?: () => boolean
 }
 
 /**
@@ -202,7 +209,8 @@ export function installShortcuts(options: ShortcutOptions): () => void {
      * حالة تركيز يريد تصويرها)، فلو ابتلع الحارسُ `Esc` لصار الإلغاء غير
      * قابل للوصول أصلًا.
      */
-    if (e.code === 'Escape') {
+    // `Esc` أثناء تركيب IME يُلغي التركيب لا الأداة ولا النموذج.
+    if (e.code === 'Escape' && !e.isComposing) {
       const swallow = options.shouldSwallowEscape?.() ?? false
       if (swallow) {
         e.preventDefault()
@@ -212,7 +220,7 @@ export function installShortcuts(options: ShortcutOptions): () => void {
       return
     }
 
-    if (isTypingTarget(deepActiveElement(doc))) return
+    if (options.isTyping?.() || isTypingTarget(deepActiveElement(doc))) return
 
     if (e.key === 'Shift' && !e.repeat) {
       options.onAction({ kind: 'constrain', held: true }, e)

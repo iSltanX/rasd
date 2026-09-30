@@ -11,6 +11,7 @@
 import type { DeviceRect } from '../geometry'
 import type { GateReason } from '../injection-gate'
 import type { InspectSnapshot } from '../inspect-schema'
+import type { IssueDraftInput, IssueObservation, IssueRecord } from '../issue-schema'
 import type { PageName } from '../page-paths'
 import type { CaptureKind, ColorSource, Viewport } from '../storage/schema'
 import type { ActiveMode } from '../storage/session'
@@ -327,6 +328,31 @@ export interface RequestMap {
    * أن تُفتح.
    */
   'page/open': { page: PageName; active?: boolean; params?: Record<string, string> }
+  /**
+   * مشكلات هذه الصفحة — للوحة «مشكلات هذه الصفحة» (ADR 0030). **من الخلفية**: المخزن في قاعدة الإضافة لا قاعدة الموقع، والأصل والمسار من التبويب لا
+   * من الحمولة — نفس قاعدة `reference/load`.
+   */
+  'issue/page': void
+  /**
+   * يسجّل مشكلة: تلتقط الخلفية لقطة الدليل، وتبني الملاحظة إن طُلبت، وتكتب الثلاثة مع المشكلة في
+   * معاملة واحدة. الحمولة من صفحةٍ قد تكون معادية فتُتحقَّق بمخطّطها (`parseDraft`)، والرابط والعنوان من
+   * `sender.tab`. وإخفاء الطبقة قبل اللقطة على الخلفية كما في `capture/run`.
+   */
+  'issue/create': IssueDraftInput
+  /**
+   * قراءات جولة فحص: ما رأته الصفحة لكل مشكلة، **بلا حكم على القيمة ولا حالة** — الخلفية تقارن المرصودة
+   * بالمتوقَّعة المخزَّنة (`judge`) وتشتقّ الحالة (`statusFor`، ADR 0030 §2)، ولا تكتب إلا مشكلاتٍ لصفحة
+   * المُرسِل نفسها.
+   */
+  'issue/recheck-save': { observations: readonly IssueObservation[] }
+  /**
+   * «أعد الفحص» من النافذة: تحقن الطبقة بوضع `issues` ثمّ تطلب الجولة. **تُقبل من صفحات هذه الإضافة
+   * وحدها** (أصل المُرسِل أصلُ الإضافة) — سكربت المحتوى أصله أصل الصفحة فيُرفض، فلا يطلب فحص تبويبٍ بلا
+   * إيماءة (ADR 0031 §4)؛ والنافذة لا تُفتح إلا بها.
+   */
+  'issue/recheck-tab': { tabId: number }
+  /** من الخلفية إلى الطبقة: ابدأ جولة الفحص الآن. يسجّله `content/index.ts` ما دامت الجلسة قائمة. */
+  'issue/run-recheck': void
   'offscreen/ensure': void
   'offscreen/close': void
 }
@@ -388,6 +414,23 @@ export interface ResponseMap {
   'inspect/report': { ok: true }
   'inspect/get': { snapshot: InspectSnapshot | null }
   'page/open': { tabId: number }
+  /**
+   * `lines` سطر القيمتين أو السبب تحت كل مشكلة، و`checked` «آخر فحص قبل…» — تُبنى هنا لا في الطبقة، فلا
+   * تشحن `content.js` مفرداتها (ADR 0031 §3).
+   */
+  'issue/page': {
+    issues: readonly IssueRecord[]
+    lines: Readonly<Record<string, string>>
+    checked: string
+  }
+  'issue/create': { id: string; captureId: string }
+  'issue/recheck-save': {
+    issues: readonly IssueRecord[]
+    lines: Readonly<Record<string, string>>
+  }
+  'issue/recheck-tab': { started: true } | { started: false; reason: ActivationFailure }
+  /** عدد ما فُحص فعلًا — قد يقلّ عن مشكلات الصفحة إن بلغت الجولة حدّها. */
+  'issue/run-recheck': { checked: number }
   'offscreen/ensure': { created: boolean }
   'offscreen/close': { closed: boolean }
 }

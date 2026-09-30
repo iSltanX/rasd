@@ -48,6 +48,9 @@ import { PalettePanel } from '@/ui/overlay/colour/PalettePanel'
 import { ScalePanel } from '@/ui/overlay/colour/ScalePanel'
 import { Crosshair } from '@/ui/overlay/Crosshair'
 import { at, box, HINT_OFFSET_PX } from '@/ui/overlay/geometry'
+import { IssueForm } from '@/ui/overlay/issues/IssueForm'
+import { MeasurePanel } from '@/ui/overlay/issues/MeasurePanel'
+import { IssueBoxes, PageIssues } from '@/ui/overlay/issues/PageIssues'
 import { Loupe } from '@/ui/overlay/Loupe'
 import { MeasureIdle } from '@/ui/overlay/MeasureIdle'
 import { NoticeToast, type OverlayNotice } from '@/ui/overlay/Notice'
@@ -67,6 +70,7 @@ import type { CompareTool } from './tools/compare'
 import type { ElementHoverTool } from './tools/element-hover'
 import type { EyedropperTool } from './tools/eyedropper'
 import type { InspectDetail, InspectTool } from './tools/inspect'
+import type { IssueSource, IssuesController } from './tools/issues'
 import type { MeasureTarget, MeasureTool } from './tools/measure'
 import type { PaletteFormat } from '@/modules/colour/export'
 import type { LiveDiff } from '@/shared/messaging/contract'
@@ -218,6 +222,16 @@ export interface OverlayAppProps {
   fullPage: Signal<FullPageState | null>
   /** يُطلَب حين يضغط المستخدم زرّ الإلغاء في اللوحة. */
   onCancelFullPage?: () => void
+  /**
+   * المشكلات (`STAGES/32`): نموذج «سجّل مشكلة» بجوار لوحة الأداة، ولوحة «مشكلات هذه الصفحة» في وضع
+   * `issues`. اختيارية كبقيّة الأسلاك — غيابها يُخفي الأزرار لا يعطّلها صامتة.
+   */
+  issues?: IssuesController
+  /** «سجّل مشكلة» في لوحة فحص أو قياس أو لون — يفتح النموذج على عنصرها. */
+  onLogIssue?: (source: IssueSource) => void
+  /** «أعد الفحص» في لوحة الصفحة — الإيماءة تُقرأ عند النقر لا هنا. */
+  onRecheckIssues?: () => void
+  onOpenIssuesLibrary?: () => void
   /** لقطة الإحداثيات الحيّة — تُقرأ عند كل إطار مزامنة. */
   space: Signal<CoordSpace>
   /** ثوانٍ التأجيل من الإعدادات؛ صفر يعني التقاطًا فوريًا. */
@@ -457,10 +471,12 @@ function MeasureLayer({
   measure,
   space,
   unit,
+  onLogIssue,
 }: {
   measure: MeasureTool
   space: Signal<CoordSpace>
   unit: string
+  onLogIssue?: () => void
 }) {
   const hover = measure.state.hover.value
   const reference = measure.state.reference.value
@@ -610,6 +626,24 @@ function MeasureLayer({
         </div>
       ) : null}
 
+      {/*
+       * لوحة القياس بين عنصرين — مدخل «سجّل مشكلة» (`STAGES/32`). في ركن `measure / idle` نفسه، وتظهر
+       * متى وُجد مرجعٌ وهدفٌ مختلفان.
+       */}
+      {!freeRect && reference && hover && !sameTarget && comparison ? (
+        <div
+          class="rasd-ov-place"
+          style={at({ x: PANEL_INSET, y: PANEL_TOP })}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <MeasurePanel
+            gap={comparison.gap.nearestValue === null ? 'تداخل' : fmt(comparison.gap.nearestValue)}
+            pinned={measure.state.pinned.value}
+            {...(onLogIssue ? { onLogIssue } : {})}
+          />
+        </div>
+      ) : null}
+
       {/* `measure / idle` (`98:251`): لا مرجع ولا هدف ولا سحب — بطاقة الأداة في ركن اللوحة. */}
       {!freeRect && !hover && !reference ? (
         <div class="rasd-ov-place" style={at({ x: PANEL_INSET, y: PANEL_TOP })}>
@@ -646,6 +680,7 @@ function ColourLayer({
   onExportScale,
   onSavePalette,
   onSaveScale,
+  onLogIssue,
 }: {
   colour: EyedropperTool
   /** أداة المرحلة 14 — غيابها يُخفي كتلة الاستخدام وزرّ الاستبدال. */
@@ -666,6 +701,7 @@ function ColourLayer({
   onSavePalette?: () => void
   /** «احفظ في المكتبة» في لوحة الدرجات — المسار نفسه، درجاتٍ لوحةً. */
   onSaveScale?: () => void
+  onLogIssue?: () => void
 }) {
   const live = colour.state.live.value
   const pinned = colour.state.pinned.value
@@ -793,6 +829,7 @@ function ColourLayer({
             {...(usage ? { onHighlightAll: () => usage.highlightAll() } : {})}
             {...(onReplace ? { onReplace } : {})}
             {...(onGenerateScale ? { onGenerateScale } : {})}
+            {...(onLogIssue && shown.element ? { onLogIssue } : {})}
             onClose={() => colour.clear()}
           />
         ) : (
@@ -1024,10 +1061,12 @@ function InspectLayer({
   inspect,
   space,
   onCopy,
+  onLogIssue,
 }: {
   inspect: InspectTool
   space: Signal<CoordSpace>
   onCopy?: (kind: 'css' | 'tailwind' | 'json') => void
+  onLogIssue?: () => void
 }) {
   const detail = inspect.state.detail.value
   const rect = inspect.state.rect.value
@@ -1061,6 +1100,7 @@ function InspectLayer({
             groups={buildGroups(detail)}
             onClose={() => inspect.clear()}
             {...(onCopy ? { onCopy } : {})}
+            {...(onLogIssue ? { onLogIssue } : {})}
           />
         ) : (
           <InspectIdle />
@@ -1083,6 +1123,72 @@ const PANEL_TOP = 64
 
 /** لوحة اللون أعلى قليلًا — `65:55` يضعها عند (40, 44). */
 const COLOUR_PANEL_TOP = 44
+
+/** النموذج بجوار لوحة الأداة: عرض اللوحة (380) وفجوة — `issue / create` عند (425, 40). */
+const FORM_OFFSET_PX = 385
+const FORM_WIDTH_PX = 400
+
+/**
+ * نموذج «سجّل مشكلة» بجوار لوحة الأداة — في أوضاع الفحص والقياس واللون، ويُغلق مع مغادرة الوضع.
+ *
+ * يُفتح على يمين اللوحة ما اتّسعت النافذة، ويُزاح إلى داخلها حين تضيق — يغطّي اللوحة ولا يخرج.
+ */
+function IssueFormLayer({
+  issues,
+  space,
+}: {
+  issues: IssuesController | undefined
+  space: CoordSpace
+}) {
+  const model = issues?.state.form.value
+  if (!issues || !model) return null
+  // بجوار اللوحة ما اتّسعت النافذة، وإلى داخلها حين تضيق — يغطّي اللوحة ولا يخرج.
+  const x = Math.min(PANEL_INSET + FORM_OFFSET_PX, space.layoutWidth - FORM_WIDTH_PX)
+  return (
+    <div class="rasd-ov-place" style={at({ x, y: COLOUR_PANEL_TOP })}>
+      <IssueForm
+        key={model.subject}
+        model={model}
+        busy={issues.state.formBusy.value}
+        error={issues.state.formError.value}
+        onSubmit={(values) => void issues.submit(values)}
+        onCancel={() => issues.closeForm()}
+        onTyping={(typing) => {
+          issues.state.typing.value = typing
+        }}
+      />
+    </div>
+  )
+}
+
+/** وضع `issues`: إطار كل مشكلة على عنصرها ورقمها، ولوحة «مشكلات هذه الصفحة» في ركن اللوحات. */
+function IssuesLayer(props: {
+  issues: IssuesController
+  onRecheck: () => void
+  onOpenLibrary: () => void
+  onClose: () => void
+}) {
+  const { state } = props.issues
+  const list = state.list.value
+  return (
+    <>
+      <IssueBoxes list={list} boxes={state.boxes.value} />
+      <div class="rasd-ov-place" style={at({ x: PANEL_INSET, y: PANEL_TOP })}>
+        <PageIssues
+          list={list}
+          lines={state.lines.value}
+          checkedLabel={state.checked.value}
+          page={`${location.host}${location.pathname}`}
+          phase={state.phase.value}
+          checked={state.checkedAt.value !== null}
+          onRecheck={props.onRecheck}
+          onOpenLibrary={props.onOpenLibrary}
+          onClose={props.onClose}
+        />
+      </div>
+    </>
+  )
+}
 
 /**
  * أدوات الشريط العائم بترتيب القراءة — `Overlay / Toolbar` في إطارات الأدوات (`62:2`
@@ -1173,6 +1279,25 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         : {})}
     />
   )
+  const logIssue = (source: IssueSource) =>
+    props.onLogIssue ? { onLogIssue: () => props.onLogIssue?.(source) } : {}
+  const issueForm = <IssueFormLayer issues={props.issues} space={props.space.value} />
+  if (mode === 'issues')
+    return (
+      <>
+        {props.issues ? (
+          <IssuesLayer
+            issues={props.issues}
+            onRecheck={() => props.onRecheckIssues?.()}
+            onOpenLibrary={() => props.onOpenIssuesLibrary?.()}
+            onClose={() => props.onSwitchMode?.('idle')}
+          />
+        ) : null}
+        {dock}
+        {job}
+        {notice}
+      </>
+    )
   if (mode === 'inspect')
     return (
       <>
@@ -1180,7 +1305,9 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           inspect={props.inspect}
           space={props.space}
           {...(props.onCopyInspect ? { onCopy: props.onCopyInspect } : {})}
+          {...logIssue('inspect')}
         />
+        {issueForm}
         {dock}
         {job}
         {notice}
@@ -1206,7 +1333,9 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           measure={props.measure}
           space={props.space}
           unit={props.measure.state.unit.value}
+          {...logIssue('measure')}
         />
+        {issueForm}
         {dock}
         {job}
         {notice}
@@ -1230,7 +1359,9 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           {...(props.onExportScale ? { onExportScale: props.onExportScale } : {})}
           {...(props.onSavePalette ? { onSavePalette: props.onSavePalette } : {})}
           {...(props.onSaveScale ? { onSaveScale: props.onSaveScale } : {})}
+          {...logIssue('colour')}
         />
+        {issueForm}
         {dock}
         {job}
         {notice}

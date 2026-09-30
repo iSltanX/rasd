@@ -6,13 +6,16 @@
  * استعلام مئات الميغابايت إلى الذاكرة. `captures` تحمل الوصف، و`blobs` تحمل
  * البايتات، والربط بالمعرّف نفسه. و`thumbnails` (النسخة 2) نفس المنطق
  * درجةً أخرى: شبكة المكتبة لا تحمِّل `blobs` الكاملة لكل بطاقة، بل مصغَّرة
- * مولَّدة كسولًا ومخزَّنة مرّة واحدة — انظر `ThumbnailRecord`.
+ * مولَّدة كسولًا ومخزَّنة مرّة واحدة — انظر `ThumbnailRecord`. و`issues` (النسخة 3) سجلّ المشكلة
+ * المرتبطة بعنصر — [ADR 0030](../../../Docs/ADR/0030-issue-record.md): مستقلّ عن المشهد، يشير إلى
+ * لقطته وملاحظته ولا يشيران إليه.
  */
 
+import type { IssueRecord } from '../issue-schema'
 import type { DBSchema } from 'idb'
 
 export const DB_NAME = 'rasd'
-export const DB_VERSION = 2
+export const DB_VERSION = 3
 
 export type CaptureKind = 'area' | 'element' | 'viewport' | 'full-page' | 'window'
 export type CaptureStatus = 'ready' | 'processing' | 'failed'
@@ -169,6 +172,17 @@ export interface RasdDB extends DBSchema {
   guides: { key: string; value: GuideRecord; indexes: { projectId: string } }
   tags: { key: string; value: TagRecord }
   thumbnails: { key: string; value: ThumbnailRecord }
+  issues: {
+    key: string
+    value: IssueRecord
+    indexes: {
+      projectId: string
+      origin: string
+      status: string
+      updatedAt: number
+      captureId: string
+    }
+  }
 }
 
 /**
@@ -188,6 +202,7 @@ export const STORE_NAMES = [
   'guides',
   'tags',
   'thumbnails',
+  'issues',
 ] as const
 
 export type StoreName = (typeof STORE_NAMES)[number]

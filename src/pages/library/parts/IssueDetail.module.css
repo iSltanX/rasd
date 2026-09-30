@@ -1,0 +1,164 @@
+/*
+ * `library / issue-detail` (`382:9828`): الصفحة تتمرّر كلّها (لا شريط علوي ثابت — لا بحث هنا)، والمحتوى بحشوة
+ * 20/24/24 وفجوة 16. الرأس: العنوان وحالته في البداية، والإجراءات في النهاية.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  block-size: 100vh;
+  min-inline-size: 0;
+  overflow-y: auto;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-16);
+  padding-block: var(--rasd-space-20) var(--rasd-space-24);
+  padding-inline: var(--rasd-space-24);
+}
+
+/* حالة الخطأ في وسط المساحة، والرجوع تحتها. */
+.fail {
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  min-inline-size: 0;
+}
+.crumb {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--rasd-text-link);
+  cursor: pointer;
+}
+.crumb:hover {
+  text-decoration: underline;
+}
+.crumb:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+  border-radius: var(--rasd-radius-xs);
+}
+.sep {
+  flex: none;
+  color: var(--rasd-icon-tertiary);
+}
+.here {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--rasd-text-tertiary);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-16);
+}
+.heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-10);
+  min-inline-size: 0;
+}
+.title {
+  margin: 0;
+  min-inline-size: 0;
+  color: var(--rasd-text-primary);
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-12);
+}
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-4);
+}
+.controlLabel {
+  color: var(--rasd-text-tertiary);
+}
+.meta {
+  margin: 0;
+  color: var(--rasd-text-tertiary);
+}
+
+/* أعمدة تتّسع بعرض النافذة؛ وبطاقتا الخطوات والملاحظة على العرض كلّه. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+  gap: var(--rasd-space-16);
+  align-items: start;
+}
+
+.mono {
+  color: var(--rasd-text-primary);
+}
+.now-danger {
+  color: var(--rasd-status-danger-fg);
+}
+.now-warning {
+  color: var(--rasd-status-warning-fg);
+}
+.now-success {
+  color: var(--rasd-status-success-fg);
+}
+
+/* التاريخ: أحدثه أوّلًا، وخطٌّ يصل الأحداث بحدّ البداية. */
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.event {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-4);
+  padding-inline-start: var(--rasd-space-12);
+  border-inline-start: var(--rasd-stroke-medium) solid var(--rasd-border-default);
+}
+.eventHead {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+}
+.eventTitle {
+  color: var(--rasd-text-primary);
+}
+.when,
+.observed {
+  color: var(--rasd-text-tertiary);
+}
+
+.body {
+  margin: 0;
+  color: var(--rasd-text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.none {
+  margin: 0;
+  color: var(--rasd-text-tertiary);
+}
+.noteAction {
+  display: flex;
+  justify-content: flex-start;
+}

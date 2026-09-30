@@ -265,6 +265,7 @@ jobs:
           - { guard: fullpage, blocking: true }
           - { guard: gate, blocking: true }
           - { guard: inspect, blocking: true }
+          - { guard: issues, blocking: false }
           - { guard: library, blocking: false }
           - { guard: lifecycle, blocking: true }
           - { guard: load, blocking: true }

@@ -17,6 +17,10 @@ export type LibraryView =
   | { readonly kind: 'references' }
   | { readonly kind: 'guides' }
   | { readonly kind: 'colors' }
+  /** مكتبة المشكلات (قائمتها) — `?view=issues`. */
+  | { readonly kind: 'issues' }
+  /** تفصيل مشكلة واحدة — `?issue=<id>` كما يحمل عرض المشروع `?project=`. */
+  | { readonly kind: 'issue'; readonly id: string }
 
 const SIMPLE = [
   'all',
@@ -27,6 +31,7 @@ const SIMPLE = [
   'references',
   'guides',
   'colors',
+  'issues',
 ] as const
 
 type SimpleKind = (typeof SIMPLE)[number]
@@ -37,21 +42,26 @@ const isSimple = (value: string): value is SimpleKind =>
 /** يقرأ العرض من سلسلة الاستعلام؛ غير المعروف يعود إلى «كل اللقطات». */
 export function viewFromSearch(search: string): LibraryView {
   const params = new URLSearchParams(search)
+  // التفصيل أخصّ العروض فيسبق: رابطٌ يحمل مشكلةً يفتحها ولو حمل معها مشروعًا.
+  const issue = params.get('issue')
+  if (issue) return { kind: 'issue', id: issue }
   const project = params.get('project')
   if (project) return { kind: 'project', id: project }
   const view = params.get('view') ?? 'all'
   return isSimple(view) ? { kind: view } : { kind: 'all' }
 }
 
-/** معرّف العنصر في الشريط الجانبي. */
+/** معرّف العنصر في الشريط الجانبي. تفصيل المشكلة يُضيء «المشكلات» لا عنصرًا لا وجود له. */
 export function viewId(view: LibraryView): string {
-  return view.kind === 'project' ? `project:${view.id}` : view.kind
+  if (view.kind === 'project') return `project:${view.id}`
+  return view.kind === 'issue' ? 'issues' : view.kind
 }
 
 /** سلسلة الاستعلام وحدها — للمكتبة وهي تبدّل عرضها بلا تنقّل. */
 export function searchFor(view: LibraryView): string {
   if (view.kind === 'all') return ''
   if (view.kind === 'project') return `?project=${encodeURIComponent(view.id)}`
+  if (view.kind === 'issue') return `?issue=${encodeURIComponent(view.id)}`
   return `?view=${view.kind}`
 }
 

@@ -9,7 +9,8 @@ import { errWith, ok, type Result } from '../result'
 
 import { database, guardWrite, withDb } from './db'
 
-import type { BlobRecord, RasdDB, StoreName } from './schema'
+import type { IssueRecord } from '../issue-schema'
+import type { AnnotationRecord, BlobRecord, CaptureRecord, RasdDB, StoreName } from './schema'
 
 type RecordOf<S extends StoreName> = RasdDB[S]['value']
 type KeyOf<S extends StoreName> = RasdDB[S]['key']
@@ -122,6 +123,93 @@ export const annotations = repository('annotations')
 export const guides = repository('guides')
 export const tags = repository('tags')
 export const thumbnails = repository('thumbnails')
+export const issues = repository('issues')
+
+/**
+ * يسجّل مشكلةً مع لقطة دليلها وملاحظتها في **معاملة واحدة** (ADR 0030 §3).
+ *
+ * أربعة مخازن تُكتب معًا أو لا يُكتب منها شيء: مشكلةٌ بلا لقطة تعِد بدليلٍ غائب، ولقطةٌ بلا مشكلة تملأ
+ * المكتبة بصورٍ لم يطلبها أحد حين يفشل التسجيل بعد الالتقاط. و`annotation` اختيارية: مربّع «أضف ملاحظة
+ * مرتبطة» في النموذج.
+ */
+export async function putIssueWithEvidence(
+  capture: CaptureRecord,
+  blob: Blob,
+  annotation: AnnotationRecord | null,
+  issue: IssueRecord,
+): Promise<Result<string>> {
+  const guard = await guardWrite(blob.size)
+  if (!guard.ok) return guard
+
+  return withDb(async (db) => {
+    const tx = db.transaction(['captures', 'blobs', 'annotations', 'issues'], 'readwrite')
+    const blobRecord: BlobRecord = { id: capture.id, blob, mime: blob.type, bytes: blob.size }
+    // الطلبات تُجمَع واحدًا واحدًا لا في مصفوفةٍ حرفية: رميٌ متزامن في أحدها يقع قبل أن يشترك `Promise.all`
+    // في ما سبقه، فيرفضها الإجهاض بلا مستمع.
+    const requests: Promise<unknown>[] = []
+    try {
+      requests.push(tx.objectStore('captures').put(capture))
+      requests.push(tx.objectStore('blobs').put(blobRecord))
+      if (annotation) requests.push(tx.objectStore('annotations').put(annotation))
+      requests.push(tx.objectStore('issues').put(issue))
+      await Promise.all([...requests, tx.done])
+    } catch (thrown) {
+      for (const request of requests) request.catch(() => undefined)
+      abortQuietly(tx)
+      throw thrown
+    }
+    return issue.id
+  })
+}
+
+/**
+ * يقرأ مشكلاتٍ بمعرّفاتها ويكتب ما يُرجعه `apply` لكلٍّ منها، **في معاملة واحدة**.
+ *
+ * القراءة والكتابة معًا لا على دورتين: جولتا فحص من تبويبين على الصفحة نفسها تتلاحقان على المخزن ولا
+ * تتداخلان، فلا يضيع حدثٌ من التاريخ بكتابةٍ عمياء فوقه. و`apply` يُرجع `null` لما لا يُكتب — مشكلةٌ ليست
+ * لصفحة المُرسِل مثلًا — ولا يسقط الباقي بسببه.
+ */
+export async function updateIssues(
+  ids: readonly string[],
+  apply: (issue: IssueRecord) => IssueRecord | null,
+): Promise<Result<IssueRecord[]>> {
+  const guard = await guardWrite(0)
+  if (!guard.ok) return guard
+
+  return withDb(async (db) => {
+    const tx = db.transaction('issues', 'readwrite')
+    const written: IssueRecord[] = []
+    try {
+      for (const id of ids) {
+        const current = await tx.store.get(id)
+        if (!current) continue
+        const next = apply(current)
+        if (!next) continue
+        await tx.store.put(next)
+        written.push(next)
+      }
+      await tx.done
+    } catch (thrown) {
+      abortQuietly(tx)
+      throw thrown
+    }
+    return written
+  })
+}
+
+/**
+ * رميٌ متزامن داخل المعاملة (مفتاحٌ لا يقبله IndexedDB، أو `apply` ترمي) يخرج قبل `tx.done` فلا يُجهضها —
+ * فتُثبَّت الكتابات التي سبقته وحدها. الإجهاض الصريح يعيد «كلّها أو لا شيء» (المراجعة المستقلّة). والمعاملة
+ * المنتهية أصلًا لا تُجهَض، فيُبتلع ذلك الرمي وحده.
+ */
+function abortQuietly(tx: { abort(): void; done: Promise<void> }): void {
+  try {
+    tx.abort()
+  } catch {
+    /* انتهت المعاملة قبل الإجهاض — لا شيء يُتراجَع عنه */
+  }
+  tx.done.catch(() => undefined)
+}
 
 /**
  * يحفظ لقطة: الوصف في `captures` والبايتات في `blobs`، بمعاملة واحدة.

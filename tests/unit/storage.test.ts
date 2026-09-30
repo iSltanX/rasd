@@ -13,17 +13,22 @@ import {
   colors,
   deleteCaptureWithBlob,
   guides,
+  issues,
   palettes,
   projects,
   putCaptureWithBlob,
+  putIssueWithEvidence,
   putIfUnchanged,
   putReferenceWithBlob,
   references,
   repository,
   tags,
   thumbnails,
+  updateIssues,
 } from '@/shared/storage/repository'
 import { DB_VERSION, STORE_NAMES } from '@/shared/storage/schema'
+
+import { issueFixture } from './modules/issues/fixture'
 
 function capture(id: string, over: Partial<Record<string, unknown>> = {}) {
   return {
@@ -54,7 +59,7 @@ beforeEach(async () => {
 })
 
 describe('المخطّط', () => {
-  it('يُنشئ المخازن العشرة كلها', async () => {
+  it('يُنشئ المخازن كلها', async () => {
     const db = await database()
     expect([...db.objectStoreNames].sort()).toEqual([...STORE_NAMES].sort())
     expect(db.version).toBe(DB_VERSION)
@@ -252,11 +257,43 @@ describe('اللقطة وبايتاتها ذرّيًا', () => {
     await putCaptureWithBlob(capture('x3'), new Blob(['abc']))
     await tags.put({ name: 'وسم', count: 1 })
     const result = await clearAllStores()
-    expect(result.ok && result.value).toBe(10)
+    expect(result.ok && result.value).toBe(STORE_NAMES.length)
     const capturesLeft = await captures.count()
     const tagsLeft = await tags.count()
     expect(capturesLeft.ok && capturesLeft.value).toBe(0)
     expect(tagsLeft.ok && tagsLeft.value).toBe(0)
+  })
+})
+
+describe('المشكلات — كلّها أو لا شيء (المراجعة المستقلّة)', () => {
+  it('clearAllStores يمسح المشكلات مع سائر المخازن', async () => {
+    await issues.put(issueFixture())
+    expect((await clearAllStores()).ok).toBe(true)
+    const left = await issues.count()
+    expect(left.ok && left.value).toBe(0)
+  })
+
+  it('updateIssues: رميٌ في الثانية يُجهض الأولى — لا كتابةٌ نصفية', async () => {
+    await issues.putMany([issueFixture({ id: 'a' }), issueFixture({ id: 'b' })])
+    const result = await updateIssues(['a', 'b'], (issue) => {
+      if (issue.id === 'b') throw new Error('سجلّ لا يُفهم')
+      return { ...issue, status: 'resolved', updatedAt: 99 }
+    })
+    expect(result.ok).toBe(false)
+    const a = await issues.get('a')
+    expect(a.ok && a.value.status).toBe('open')
+  })
+
+  it('putIssueWithEvidence: مفتاح مشكلةٍ مرفوض لا يترك لقطةً ولا بايتات', async () => {
+    const result = await putIssueWithEvidence(
+      capture('ev1'),
+      new Blob(['x']),
+      null,
+      issueFixture({ id: {} as never }),
+    )
+    expect(result.ok).toBe(false)
+    expect((await captures.get('ev1')).ok).toBe(false)
+    expect((await blobs.get('ev1')).ok).toBe(false)
   })
 })
 

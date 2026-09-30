@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>عيّنة المشكلات</title>
+    <!--
+      عيّنة `verify:issues` (STAGES/32): عنصرٌ تُسجَّل عليه مشكلة ثمّ يُعدَّل ثمّ يُحذف، ومئة عنصر بهويات
+      ثابتة لقياس جولة الفحص، ومستمع مفاتيح في طور الفقاعة كاختصارات الصفحات الحقيقية — يثبت أن ما
+      يُكتب في نموذج الطبقة لا يبلغه (ADR 0032). لا شبكة.
+    -->
+    <style>
+      body {
+        margin: 0;
+        padding: 48px;
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      .hero {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        margin-block-end: 32px;
+      }
+      .cta-btn {
+        padding: 14px 24px;
+        border: 0;
+        border-radius: 8px;
+        background: #7c3aed;
+        color: #fff;
+        font: inherit;
+      }
+      .items {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 8px;
+        padding: 0;
+        list-style: none;
+      }
+      .items li {
+        padding: 6px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="hero">
+      <button type="button" class="cta-btn" data-testid="cta">جرّبها مجانًا</button>
+      <a href="#pricing" class="ghost-link">الأسعار</a>
+    </section>
+    <ul class="items" data-testid="items"></ul>
+    <script>
+      const list = document.querySelector('.items')
+      for (let i = 1; i <= 100; i++) {
+        const li = document.createElement('li')
+        li.setAttribute('data-testid', `item-${i}`)
+        li.textContent = `عنصر ${i}`
+        list.append(li)
+      }
+      // اختصارات الصفحة: مستمعٌ في طور الفقاعة يسجّل كل مفتاح يبلغه.
+      window.__pageKeys = []
+      document.addEventListener('keydown', (e) => window.__pageKeys.push(e.key))
+      // و`beforeinput` يحمل الحرف نفسه في `data` — يُسجَّل كذلك (المراجعة المستقلّة، ADR 0032).
+      document.addEventListener('beforeinput', (e) => window.__pageKeys.push(e.data))
+    </script>
+  </body>
+</html>

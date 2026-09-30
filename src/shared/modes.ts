@@ -10,7 +10,16 @@
  */
 
 /** وضع واحد نشط في أي لحظة. `idle` يعني: الطبقة محقونة وصامتة. */
-export const MODES = ['idle', 'area', 'element', 'inspect', 'measure', 'colour', 'compare'] as const
+export const MODES = [
+  'idle',
+  'area',
+  'element',
+  'inspect',
+  'measure',
+  'colour',
+  'compare',
+  'issues',
+] as const
 
 export type Mode = (typeof MODES)[number]
 
@@ -42,6 +51,8 @@ export const MODE_META: Record<Mode, ModeMeta> = {
   measure: { label: 'قياس', icon: 'dimension-h', builtIn: 12 },
   colour: { label: 'لون', icon: 'eyedropper', builtIn: 13 },
   compare: { label: 'مقارنة', icon: 'split-view', builtIn: 16 },
+  // «مشكلات هذه الصفحة» — لوحةٌ لا أداة رسم: لا درع، والصفحة تحتها تعمل (ADR 0031). `STAGES/32`.
+  issues: { label: 'مشكلات الصفحة', icon: 'alert', builtIn: 32 },
 }
 
 /**

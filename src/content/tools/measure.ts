@@ -61,6 +61,11 @@ export interface MeasureState {
   /** `⌥` معطوظ الآن — للعرض فقط؛ القرار الفعلي في `snapPoint`. */
   readonly snapHeld: Signal<boolean>
   readonly unit: Signal<MeasureUnit>
+  /**
+   * الهدف مثبَّت بـ`⇧` مع النقر — القياس بين عنصرين محدّدين لا بين مرجعٍ ومؤشِّر. يُثبَّت كي لا يغيّره
+   * الطريق إلى لوحة القياس، فتُسجَّل المشكلة على ما رآه المستخدم (`STAGES/32`).
+   */
+  readonly pinned: Signal<boolean>
 }
 
 export interface MeasureOptions {
@@ -81,6 +86,8 @@ export interface MeasureTool {
   /** نقرة على خلفية الطبقة (لا على عنصر) تمسح المرجع — النقر بعيدًا يُلغي التحديد. */
   clearReference(): void
   toggleUnit(): void
+  /** المرجع والهدف المثبَّت — `b` بلا تثبيت `null`. */
+  pair(): { readonly a: Element | null; readonly b: Element | null }
   reset(): void
   frame(reasons: ReadonlySet<SyncReason>): void
   dispose(): void
@@ -109,6 +116,7 @@ export function createMeasure(options: MeasureOptions): MeasureTool {
     cursor: signal<ViewportPoint | null>(null),
     snapHeld: signal(false),
     unit: signal<MeasureUnit>('px'),
+    pinned: signal(false),
   }
 
   // حالة ساخنة خارج الإشارات — السبب نفسه المكتوب في `element-hover.ts`:
@@ -193,7 +201,7 @@ export function createMeasure(options: MeasureOptions): MeasureTool {
     const retarget = pointerDirty || reasons.has('scroll') || reasons.has('resize')
     pointerDirty = false
 
-    if (retarget && px >= 0 && !dragActive) {
+    if (retarget && px >= 0 && !dragActive && !state.pinned.peek()) {
       const hit = pickAt(doc, px, py, options.skip)
       const el = hit?.el ?? null
       if (el !== hoverEl) adoptHover(el)
@@ -232,6 +240,15 @@ export function createMeasure(options: MeasureOptions): MeasureTool {
       return
     }
 
+    // `⇧` مع النقر والمرجع قائم: يُثبَّت هذا هدفًا ثانيًا ولا يُستبدَل المرجع.
+    if (event.shiftKey && referenceEl && el !== referenceEl) {
+      adoptHover(el)
+      state.pinned.value = true
+      options.onInvalidate?.()
+      return
+    }
+
+    state.pinned.value = false
     referenceEl = el
     state.reference.value = targetOf(el, win)
     recomputeComparison()
@@ -250,6 +267,7 @@ export function createMeasure(options: MeasureOptions): MeasureTool {
 
   const clearReference = (): void => {
     referenceEl = null
+    state.pinned.value = false
     state.reference.value = null
     state.comparison.value = null
     state.freeRect.value = null
@@ -275,8 +293,11 @@ export function createMeasure(options: MeasureOptions): MeasureTool {
     state.freeRect.value = null
     state.cursor.value = null
     state.snapHeld.value = false
+    state.pinned.value = false
     options.onBusy(false)
   }
+
+  const pair = () => ({ a: referenceEl, b: state.pinned.peek() ? hoverEl : null })
 
   return {
     state,
@@ -285,6 +306,7 @@ export function createMeasure(options: MeasureOptions): MeasureTool {
     onPointerUp,
     clearReference,
     toggleUnit,
+    pair,
     reset,
     frame,
     dispose: reset,
