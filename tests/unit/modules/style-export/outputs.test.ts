@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { toCss, toJson, toTailwindText } from '@/modules/style-export/css'
-import { mapProperty, mapSpacing, toTailwind } from '@/modules/style-export/tailwind'
+import { mapProperty, mapShorthand, mapSpacing, toTailwind } from '@/modules/style-export/tailwind'
 import { EMPTY_LIMITS, type InspectSnapshot, type StyleValue } from '@/shared/inspect-schema'
 
 const used = (value: string): StyleValue => ({ value, reliability: 'used' })
@@ -691,6 +691,85 @@ describe('toTailwindText — الصياغة الكاملة', () => {
       '',
       '{/* بلا مقابل في Tailwind v4: */}',
       '{/*   box-shadow: 0 1px 2px black — سلّم مسمّى في Tailwind — لا مقابل حسابيًّا */}',
+    ])
+  })
+})
+
+describe('toCss — الخصائص المسمّاة خارج المجموعات (حزمة التسليم، ADR 0036 §2)', () => {
+  it('تُلحق بعد المجموعات بترتيب تسميتها، وما لم يُسمَّ يبقى خارجًا', () => {
+    const css = toCss(
+      snapshot({
+        limits: COMPLETE_LIMITS,
+        styles: {
+          'border-radius': used('8px'),
+          padding: used('14px 24px'),
+          'caret-color': used('red'),
+          display: used('flex'),
+        },
+      }),
+      ['padding', 'border-radius', 'display'],
+    )
+    const order = css
+      .split('\n')
+      .filter((l) => l.startsWith('  '))
+      .map((l) => l.trim())
+    expect(order).toEqual(['display: flex;', 'padding: 14px 24px;', 'border-radius: 8px;'])
+  })
+
+  it('المسمّى يمرّ بقاعدة القيم الابتدائية نفسها', () => {
+    const css = toCss(snapshot({ limits: COMPLETE_LIMITS, styles: { gap: used('normal') } }), [
+      'gap',
+    ])
+    expect(css).not.toContain('gap')
+  })
+})
+
+describe('mapShorthand — اختصارات لقطة المشكلة', () => {
+  it('القيمة الواحدة أداةٌ واحدة، والمتناظرة محوران، والأربع المختلفة جهاتٌ فيزيائية', () => {
+    expect(mapShorthand('padding', '16px', 16)).toEqual([{ kind: 'scale', cls: 'p-4' }])
+    expect(mapShorthand('padding', '14px 24px', 16)).toEqual([
+      { kind: 'scale', cls: 'py-3.5' },
+      { kind: 'scale', cls: 'px-6' },
+    ])
+    expect(
+      mapShorthand('margin', '4px 8px 12px 16px', 16)?.map((m) => 'cls' in m && m.cls),
+    ).toEqual(['mt-1', 'mr-2', 'mb-3', 'ml-4'])
+    expect(mapShorthand('margin', '4px 8px 12px', 16)?.map((m) => 'cls' in m && m.cls)).toEqual([
+      'mt-1',
+      'mr-2',
+      'mb-3',
+      'ml-2',
+    ])
+  })
+
+  it('ما لا يُقرأ جهاتٍ يُعلَن متعذّرًا ولا يُخترَع له صنف', () => {
+    expect(mapShorthand('padding', '1px 2px 3px 4px 5px', 16)?.[0]?.kind).toBe('untranslatable')
+    expect(mapShorthand('padding', '', 16)?.[0]?.kind).toBe('untranslatable')
+    expect(mapShorthand('margin', 'auto', 16)?.[0]?.kind).toBe('untranslatable')
+  })
+
+  it('الفجوة بقيمتيها، و`normal` لا شيء', () => {
+    expect(mapShorthand('gap', 'normal', 16)).toEqual([])
+    expect(mapShorthand('gap', '8px', 16)).toEqual([{ kind: 'scale', cls: 'gap-2' }])
+    expect(mapShorthand('gap', '8px 15px', 16)?.map((m) => 'cls' in m && m.cls)).toEqual([
+      'gap-y-2',
+      'gap-x-[15px]',
+    ])
+    expect(mapShorthand('gap', '1px 2px 3px', 16)?.[0]?.kind).toBe('untranslatable')
+  })
+
+  it('الحواف صريحةٌ بقيمتها، والمسافات فيها شرطات سفلية', () => {
+    expect(mapShorthand('border-radius', '8px 4px', 16)).toEqual([
+      { kind: 'arbitrary', cls: 'rounded-[8px_4px]', why: expect.any(String) },
+    ])
+  })
+
+  it('ما ليس اختصارًا يمرّ إلى `mapProperty`، وخصائص لوحة الفحص لا تبلغه', () => {
+    expect(mapShorthand('padding-block-start', '16px', 16)).toBeNull()
+    expect(toTailwind({ 'padding-block-start': '16px' }, 16).classes).toEqual(['pt-4'])
+    expect(toTailwind({ padding: '14px 24px', 'line-height': '24px' }, 16).classes).toEqual([
+      'py-3.5',
+      'px-6',
     ])
   })
 })

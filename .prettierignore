@@ -14,6 +14,8 @@ public/assets/fonts/
 src/ui/icons/icon-data.ts
 src/ui/icons/icon-snapshot.json
 tests/fixtures/lint/
+# لقطات مرجعية بايتًا ببايت لمخرَج حزمة التسليم — التنسيق يغيّر العقد الذي تثبته
+tests/fixtures/handoff/
 public/icons/
 # وثائق مؤلَّفة بالعربية — إعادة تنسيق الجداول تُفسد محاذاتها
 Docs/Rasd_Ar.md

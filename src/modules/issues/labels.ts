@@ -7,15 +7,34 @@
  * `modules/` منطق خالص: لا DOM ولا `chrome.*`.
  */
 
-import { formatRelativeTime } from '@/shared/bidi/numerals'
+import { formatRelativeTime, type CountForms } from '@/shared/bidi/numerals'
 import {
   CONTRAST_PROPERTY,
   type CheckKind,
+  type CheckOutcome,
   type IssueCheck,
   type IssueRecord,
   type IssueStatus,
   type RecheckReason,
 } from '@/shared/issue-schema'
+
+/** «مشكلة واحدة» · «مشكلتان» · «٣ مشكلات» · «١١ مشكلة» — لـ`countText`. */
+export const ISSUE_FORMS: CountForms = {
+  one: 'مشكلة واحدة',
+  two: 'مشكلتان',
+  many: 'مشكلات',
+  accusative: 'مشكلة',
+  singular: 'مشكلة',
+}
+
+/** نتيجة آخر فحص بكلمة — حين لا سبب يُقال (`REASON_LABEL` أولى منها). */
+export const OUTCOME_LABEL: Readonly<Record<CheckOutcome, string>> = {
+  match: 'يطابق',
+  mismatch: 'لا يطابق',
+  'not-found': 'لم يُعثر على العنصر',
+  changed: 'تغيّر العنصر',
+  unreliable: 'قراءة غير موثوقة',
+}
 
 export const STATUS_LABEL: Readonly<Record<IssueStatus, string>> = {
   open: 'مفتوحة',
