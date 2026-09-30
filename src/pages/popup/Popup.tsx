@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'preact/hooks'
 
 import { formatDimensions, formatHuman } from '@/shared/bidi'
 import { CHANNELS, openChannel, send, sendToTab, type ToolName } from '@/shared/messaging'
 import { originPatternFor, requestHostPermission } from '@/shared/permissions'
 import { selectPopupState, type PopupContext, type PopupStateName } from '@/shared/popup-state'
 
-import { copyCaptureImage, loadPopupContext, loadRecent, type RecentEntry } from './context'
+import { copyCaptureImage, loadRecent, POPUP_MARKS, type PopupLoad } from './context'
 import { Footer } from './parts/Footer'
 import { Header } from './parts/Header'
 import styles from './Popup.module.css'
@@ -22,12 +22,7 @@ import { Success, type SuccessAction } from './views/Success'
 
 import type { JSX } from 'preact'
 
-interface Loaded {
-  tabId: number
-  context: PopupContext
-  origin: string
-  recent: RecentEntry[]
-}
+type Loaded = PopupLoad
 
 /** مضيف التبويب ومساره الأوّل كما يكتبه الإطار: `figma.com / design-systems`. */
 function pageLabel(url: string): string {
@@ -66,7 +61,7 @@ interface Failure {
   readonly retry: ToolName | null
 }
 
-export function Popup(): JSX.Element | null {
+export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Element | null {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [dismissedOffline, setDismissedOffline] = useState(false)
   const [firstRunDone, setFirstRunDone] = useState(false)
@@ -135,27 +130,22 @@ export function Popup(): JSX.Element | null {
     return () => channel.close()
   }, [])
 
-  useEffect(() => {
+  // **`useLayoutEffect` لا `useEffect`**: الأخير يُشترَك فيه بعد الإطار التالي،
+  // فتنتظر بياناتٌ وصلت إطارًا كاملًا قبل أن تُركَّب. هذا يشترك ساعة التركيب
+  // الأول، فيتركّب العرض ساعة وصولها — ميزانية أول عرض 100ms (`loadPopup`).
+  useLayoutEffect(() => {
     let cancelled = false
-    void (async () => {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (!tab?.id) return
-      const [partial, recent] = await Promise.all([
-        loadPopupContext(tab.id, tab.url, tab.incognito),
-        loadRecent(),
-      ])
-      if (cancelled) return
-      setLoaded({
-        tabId: tab.id,
-        context: { ...partial, online: navigator.onLine },
-        origin: tab.url ?? '',
-        recent,
-      })
-    })()
+    void initial.then((value) => {
+      if (!cancelled && value) setLoaded(value)
+    })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [initial])
+
+  useLayoutEffect(() => {
+    if (loaded) performance.mark(POPUP_MARKS.commit)
+  }, [loaded])
 
   // مصغَّرة اللقطة التي حُفظت للتوّ: أحدث سجلّ في المكتبة هو هي.
   useEffect(() => {

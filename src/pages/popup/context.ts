@@ -26,6 +26,60 @@ import type { PopupContext } from '@/shared/popup-state'
 import type { CaptureRecord } from '@/shared/storage/schema'
 import type { ActiveMode, SessionState } from '@/shared/storage/session'
 
+/** ما تحتاجه النافذة قبل أول عرض ذي معنى: التبويب المستهدَف وحالته وآخر لقطتين. */
+export interface PopupLoad {
+  readonly tabId: number
+  readonly context: PopupContext
+  readonly origin: string
+  readonly recent: RecentEntry[]
+}
+
+/**
+ * علامات زمن النافذة في جدول أداء الصفحة — يقرؤها `scripts/verify-popup.mjs`
+ * ليطبع مكوّنات «زمن أول عرض» لا مجموعه وحده: تحميل الحزمة (`boot`)، وقراءة
+ * التبويب والإعدادات والجلسة والمكتبة (`data`)، والتركيب بالبيانات (`commit`)،
+ * ثمّ أول رسم من جدول الرسم نفسه. علامةٌ لا تكلّف شيئًا ولا تغيّر ما يُقاس.
+ */
+export const POPUP_MARKS = {
+  boot: 'rasd:popup:boot',
+  data: 'rasd:popup:data',
+  commit: 'rasd:popup:commit',
+} as const
+
+/**
+ * يجلب كل ما يلزم أول عرض — ويُستدعى **عند تقييم الوحدة لا بعد التركيب**.
+ *
+ * كان الجلب داخل `useEffect`، وPreact يؤجّل `useEffect` إلى ما بعد الإطار
+ * التالي (`requestAnimationFrame` ثمّ مهمّة): فتُرسَم قشرة فارغة، وينتظر أول
+ * طلب إطارًا كاملًا قبل أن يبدأ. قِيس محلّيًّا: البيانات جاهزة بعد تقييم
+ * الحزمة بـ12–14ms، منها نحو 10ms انتظار الإطار وحده. فيبدأ الجلب هنا مع
+ * تقييم الحزمة، ويتركّب العرض ساعة وصولها.
+ *
+ * `null` حين لا تبويب نشِطًا بمعرّف — القشرة الفارغة تبقى كما كانت.
+ */
+export async function loadPopup(): Promise<PopupLoad | null> {
+  // الجلسة والإعدادات والمكتبة لا تحتاج التبويب، فتُطلَب مع استعلامه لا بعده —
+  // وحدها حاجة الإذن تنتظر عنوانه.
+  const early = {
+    session: send('session/get', undefined),
+    settings: send('settings/get', undefined),
+  }
+  const recentLoad = loadRecent()
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  if (!tab?.id) return null
+  const [partial, recent] = await Promise.all([
+    loadPopupContext(tab.id, tab.url, tab.incognito, early),
+    recentLoad,
+  ])
+  performance.mark(POPUP_MARKS.data)
+  return {
+    tabId: tab.id,
+    context: { ...partial, online: navigator.onLine },
+    origin: tab.url ?? '',
+    recent,
+  }
+}
+
 export interface RecentEntry {
   readonly record: CaptureRecord
   readonly thumbUrl: string | null
@@ -85,7 +139,10 @@ export async function loadRecent(): Promise<RecentEntry[]> {
  * يُسمَح بها. والثمن لحظةٌ متحفّظة في عطلٍ نادر، مقابل ألّا تَعِد النافذة
  * بما تمنعه البوّابة بعدها.
  */
-function excludedSitesFrom(reply: Awaited<ReturnType<typeof send<'settings/get'>>>): string[] {
+type SettingsReply = Awaited<ReturnType<typeof send<'settings/get'>>>
+type SessionReply = Awaited<ReturnType<typeof send<'session/get'>>>
+
+function excludedSitesFrom(reply: SettingsReply): string[] {
   if (!reply.ok) return ['*']
   const privacy = (reply.value as { privacy?: { excludedSites?: unknown } }).privacy
   return Array.isArray(privacy?.excludedSites) ? (privacy.excludedSites as string[]) : []
@@ -99,9 +156,7 @@ function excludedSitesFrom(reply: Awaited<ReturnType<typeof send<'settings/get'>
  * والردّ الساقط يُنتج `['*']` فيمنع كل شيء أصلًا — فلا حاجة لمنعٍ ثانٍ فوقه،
  * وادّعاءُ `off` على ردٍّ لم يصل يعرض للمستخدم سببًا لم يختره.
  */
-function incognitoModeFrom(
-  reply: Awaited<ReturnType<typeof send<'settings/get'>>>,
-): 'allow' | 'no-save' | 'off' {
+function incognitoModeFrom(reply: SettingsReply): 'allow' | 'no-save' | 'off' {
   if (!reply.ok) return 'no-save'
   const privacy = (reply.value as { privacy?: { incognito?: unknown } }).privacy
   const mode = privacy?.incognito
@@ -120,14 +175,15 @@ export async function loadPopupContext(
   tabId: number,
   url: string | undefined,
   incognito = false,
+  early?: { readonly session: Promise<SessionReply>; readonly settings: Promise<SettingsReply> },
 ): Promise<Omit<PopupContext, 'online'>> {
   // ثلاثتها متوازية لا متتالية: لا تعتمد إحداها على نتيجة الأخرى، وكل رحلة
   // إضافية قبل أول عرض تُحتسَب على ميزانية الـ100ms. ولهذا تُطلَب حاجة الإذن
   // للعنوان دائمًا ثم تُهمَل إن مُنع — ترتيبها بعد الإعدادات كان سيسلسل
   // رحلتين ويكسر الميزانية، مقابل عملٍ محليٍّ ضئيل يُرمى أحيانًا.
   const [sessionReply, settingsReply, permissionForUrl] = await Promise.all([
-    send('session/get', undefined),
-    send('settings/get', undefined),
+    early?.session ?? send('session/get', undefined),
+    early?.settings ?? send('settings/get', undefined),
     findPermissionNeed(url),
   ])
 

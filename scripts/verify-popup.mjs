@@ -298,6 +298,14 @@ try {
 // رسمت. كلا الطرفين على ساعة الجهاز نفسه، ولا نصيب لأداة القياس في أيّهما.
 // وإن غاب جدول الرسم في هذه البيئة، **يُعلَن غيابه ويسقط الحارس** — ولا
 // يُستبدَل صامتًا بقياس المشاهدة الذي بُني هذا كلّه لإسقاطه.
+/**
+ * مكوّنات كل عيّنة — تُطبَع مع المتوسّط كي يُقرأ **أين** ذهب الزمن لا مجموعه
+ * وحده (`STAGES/04`): فتح التبويب حتى بدء المستند، ثمّ علامات النافذة في جدول
+ * أدائها (`POPUP_MARKS` في `src/pages/popup/context.ts`): تقييم الحزمة، ووصول
+ * البيانات، والتركيب بها، ثمّ أول رسم. علامة غائبة تُطبَع «—» ولا تُسقط شيئًا.
+ */
+const parts = []
+
 async function openPopupOnce(windowId) {
   const startedAt = Date.now()
   // **مرئيّة لا خفيّة** — وإلا لم يقع رسمٌ أصلًا: Chrome لا يرسم تبويبًا غير
@@ -325,10 +333,14 @@ async function openPopupOnce(windowId) {
       paintMs: performance.getEntriesByType("paint")
         .filter((e) => e.name === "first-contentful-paint")
         .map((e) => e.startTime)[0] ?? null,
+      marks: Object.fromEntries(performance.getEntriesByType("mark")
+        .filter((m) => m.name.startsWith("rasd:popup:"))
+        .map((m) => [m.name.slice(11), m.startTime])),
     })`)
     const reading = JSON.parse(raw)
     if (reading.state && reading.paintMs !== null) {
       elapsedMs = reading.timeOrigin + reading.paintMs - startedAt
+      parts.push({ open: reading.timeOrigin - startedAt, ...reading.marks, paint: reading.paintMs })
       break
     }
     await new Promise((r) => setTimeout(r, 2))
@@ -376,6 +388,14 @@ try {
     avg < OPEN_BUDGET_MS
       ? ok(`زمن أول عرض أقلّ من ${OPEN_BUDGET_MS}ms — ${line}`)
       : fail(`زمن أول عرض تجاوز ${OPEN_BUDGET_MS}ms — ${line}`)
+    // المتوسّط لكل مكوّن، والفتح من ساعتنا والبقية من بدء المستند.
+    const mean = (key) => {
+      const values = parts.map((p) => p[key]).filter((v) => typeof v === 'number')
+      return values.length ? fmt(values.reduce((a, b) => a + b, 0) / values.length) : '—'
+    }
+    lines.push(
+      `    مكوّنات الزمن (متوسّطات): فتح التبويب حتى بدء المستند ${mean('open')} · ثمّ من بدء المستند: تقييم الحزمة ${mean('boot')} · وصول البيانات ${mean('data')} · التركيب بها ${mean('commit')} · أول رسم ${mean('paint')}`,
+    )
   }
 } catch (e) {
   fail(`قياس زمن الفتح فشل: ${e.message}`)
