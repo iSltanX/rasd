@@ -265,65 +265,6 @@ function colourUtility(prefix: string, value: string): Mapped {
   }
 }
 
-/** اختصارا الصندوق وبادئتاهما — الجهات الأربع فيزيائية بترتيب CSS: أعلى، يمين، أسفل، يسار. */
-const BOX_SHORTHAND: Record<string, string> = { padding: 'p', margin: 'm' }
-
-/**
- * اختصارات لقطة المشكلة: `padding` و`margin` بقيمها الأربع، و`gap` بقيمتيه، و`border-radius`.
- *
- * لوحة الفحص تقرأ الطويلة المنطقية (`padding-block-start`…) فلا تبلغ هذا الفرع؛ والمشكلة تحفظ ما يكتبه
- * المطوّر. **والجهات تبقى فيزيائية كما في الاختصار** (`pt` · `pr` · `pb` · `pl`): تحويلها منطقيةً يحتاج اتجاه
- * الصفحة، وتخمينه يكتب `ps` حيث يلزم `pr` في صفحةٍ عربية. `null` لما ليس اختصارًا فيمرّ إلى `mapProperty`.
- */
-export function mapShorthand(prop: string, value: string, rootPx: number): Mapped[] | null {
-  const v = value.trim()
-  const box = BOX_SHORTHAND[prop]
-  if (box) {
-    const parts = v ? v.split(/\s+/u) : []
-    const [t, r = t, b = t, l = r] = parts
-    if (
-      parts.length > 4 ||
-      t === undefined ||
-      r === undefined ||
-      b === undefined ||
-      l === undefined
-    ) {
-      return [{ kind: 'untranslatable', prop, value: v, why: 'اختصارٌ لا يُقرأ جهاتٍ أربعًا' }]
-    }
-    if (t === r && r === b && b === l) return [mapSpacing(box, t, rootPx)]
-    if (t === b && r === l) {
-      return [mapSpacing(`${box}y`, t, rootPx), mapSpacing(`${box}x`, r, rootPx)]
-    }
-    return [
-      mapSpacing(`${box}t`, t, rootPx),
-      mapSpacing(`${box}r`, r, rootPx),
-      mapSpacing(`${box}b`, b, rootPx),
-      mapSpacing(`${box}l`, l, rootPx),
-    ]
-  }
-  if (prop === 'gap') {
-    if (!v || v === 'normal') return []
-    const parts = v.split(/\s+/u)
-    const [row, column = row] = parts
-    if (parts.length > 2 || row === undefined || column === undefined) {
-      return [{ kind: 'untranslatable', prop, value: v, why: 'اختصارٌ لا يُقرأ صفًّا وعمودًا' }]
-    }
-    if (row === column) return [mapSpacing('gap', row, rootPx)]
-    return [mapSpacing('gap-y', row, rootPx), mapSpacing('gap-x', column, rootPx)]
-  }
-  if (prop === 'border-radius') {
-    if (!v) return []
-    return [
-      {
-        kind: 'arbitrary',
-        cls: `rounded-[${v.replace(/\s+/g, '_')}]`,
-        why: 'سلّم الحواف مسمّى — القيمة الصريحة لا تكذب',
-      },
-    ]
-  }
-  return null
-}
-
 export interface TailwindOutput {
   readonly classes: readonly string[]
   readonly arbitrary: readonly { readonly cls: string; readonly why: string }[]
@@ -345,15 +286,14 @@ export function toTailwind(
   const untranslatable: { prop: string; value: string; why: string }[] = []
 
   for (const [prop, value] of Object.entries(styles)) {
-    for (const mapped of mapShorthand(prop, value, rootPx) ?? [mapProperty(prop, value, rootPx)]) {
-      if (!mapped) continue
-      if (mapped.kind === 'scale') classes.push(mapped.cls)
-      else if (mapped.kind === 'arbitrary') {
-        classes.push(mapped.cls)
-        arbitrary.push({ cls: mapped.cls, why: mapped.why })
-      } else {
-        untranslatable.push({ prop: mapped.prop, value: mapped.value, why: mapped.why })
-      }
+    const mapped = mapProperty(prop, value, rootPx)
+    if (!mapped) continue
+    if (mapped.kind === 'scale') classes.push(mapped.cls)
+    else if (mapped.kind === 'arbitrary') {
+      classes.push(mapped.cls)
+      arbitrary.push({ cls: mapped.cls, why: mapped.why })
+    } else {
+      untranslatable.push({ prop: mapped.prop, value: mapped.value, why: mapped.why })
     }
   }
 

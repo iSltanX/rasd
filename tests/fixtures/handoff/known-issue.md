@@ -45,7 +45,7 @@ CSS:
 Tailwind v4 — على أساس ⟨1rem = 16px⟩ مفترَضًا:
 
 ```text
-py-3.5 px-6 m-0 w-46 h-12 text-[16px] font-semibold text-[#FFFFFF] bg-[#2563EB] rounded-[8px]
+w-46 h-12 text-[16px] font-semibold text-[#FFFFFF] bg-[#2563EB] py-3.5 px-6 m-0 rounded-[8px]
 ```
 
 ### الدليل

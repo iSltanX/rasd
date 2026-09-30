@@ -11,6 +11,7 @@ import { deviceRect } from '@/shared/geometry'
 import { err, ok } from '@/shared/result'
 
 import { ExportFlow } from '../export/ExportFlow'
+import { HandoffLauncher } from '../handoff/HandoffLauncher'
 
 import { buildRenderStyle } from './colors'
 import {
@@ -138,6 +139,8 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
    * الحوار يُعلن `data-editor-state="exporting"` بلا خبزٍ يجري.
    */
   const [exportOpen, setExportOpen] = useState(false)
+  /** «حزمة التسليم» لمشكلات هذه اللقطة مفتوحة؟ نافذةٌ فوق المحرّر كالتصدير، لا حالةٌ بديلة. */
+  const [handoffOpen, setHandoffOpen] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>({
     outcome: 'idle',
     baseUpdatedAt: context.baseUpdatedAt,
@@ -447,8 +450,28 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
             title={context.capture.title}
             onClose={() => setExportOpen(false)}
           />
+        ) : handoffOpen ? (
+          <HandoffLauncher
+            issues={context.issues}
+            source="لقطة في المحرّر"
+            /*
+             * المشهد الحيّ يسبق المحفوظ: آخر حجبٍ رُسم قد لا يكون حُفظ بعد. **إلا حين تعذّرت قراءة
+             * المحفوظ:** المحرّر حينها يعرض مشهدًا فارغًا، وتمريره يُخرج الدليل بلا حجبه — فتقرأ النافذة
+             * المحفوظ وتفشل باسمه (ADR 0036 §5).
+             */
+            {...(context.sceneError === null
+              ? {
+                  live: new Map([
+                    [context.capture.id, { scene: history.state.scene, blob: context.sourceBlob }],
+                  ]),
+                }
+              : {})}
+            tools={{ style, layout, client }}
+            onClose={() => setHandoffOpen(false)}
+          />
         ) : null
       }
+      onOpenHandoff={context.issues.length > 0 ? () => setHandoffOpen(true) : null}
       onExport={(scale) => setExporting(scale)}
       onOpenExport={() => setExportOpen(true)}
       unsaved={autosave !== null && (saveState.dirty || !UNSAVED_SAFE.includes(saveState.outcome))}

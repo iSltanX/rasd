@@ -1,15 +1,17 @@
 /**
  * خصائص المشكلة بصيغها الثلاث — من `style-export` نفسه لا من عارضٍ موازٍ (ADR 0036 §2).
  *
- * لقطة الفحص المحفوظة مع المشكلة (`evidence.snapshot`) اسمٌ وقيمة، و`toCss` و`toTailwindText` و`toJson`
- * تأخذ `InspectSnapshot` كاملة. فهذا الملفّ يبني منها لقطةً بقيمٍ «مستعملة» وحدودٍ فارغة، ويمرّرها كما هي.
+ * لقطة الفحص المحفوظة مع المشكلة (`evidence.snapshot`) اسمٌ وقيمة، و`toCss` و`toTailwind` و`toJson` تأخذ
+ * `InspectSnapshot` كاملة. فهذا الملفّ يبني منها لقطةً بقيمٍ «مستعملة» وحدودٍ فارغة، ويمرّرها إليها عبر
+ * `style-export/issue.ts` — تركيبٌ فوقها يضيف اختصارات الصندوق التي تحفظها المشكلة.
  *
  * `modules/` منطق خالص: لا DOM ولا `chrome.*`.
  */
 
 import { exportPalette } from '@/modules/colour/export'
 import { formatColour, readColour } from '@/modules/colour/formats'
-import { toCss, toJson, toTailwindText, type InspectJson } from '@/modules/style-export/css'
+import { toJson, type InspectJson } from '@/modules/style-export/css'
+import { issueCss, issueTailwind, issueTailwindText } from '@/modules/style-export/issue'
 import { EMPTY_LIMITS, type InspectSnapshot } from '@/shared/inspect-schema'
 import { CONTRAST_PROPERTY, SPACING_PROPERTIES, type IssueRecord } from '@/shared/issue-schema'
 
@@ -66,15 +68,22 @@ function paletteOf(issue: IssueRecord): string | null {
   return exportPalette([swatch], 'css', { prefix: 'expected' })
 }
 
-/** الخصائص بصيغها الثلاث، أو `null` حين لا خاصية CSS في لقطة المشكلة (المسافة). */
+/**
+ * الخصائص بصيغها الثلاث، أو `null` حين لا خاصية CSS في لقطة المشكلة (المسافة).
+ *
+ * `toJson` كما هو، وحقل `tailwind` فيه من `issueTailwind` — فالأصناف في JSON هي نفسها في النصّ، والاختصارات
+ * فيهما معًا (`style-export/issue.ts`).
+ */
 export function issueProperties(issue: IssueRecord): HandoffProperties | null {
   const snapshot = snapshotOf(issue)
   if (!snapshot) return null
+  const plain = Object.fromEntries(Object.entries(snapshot.styles).map(([p, e]) => [p, e.value]))
+  const tailwind = issueTailwind(plain, ASSUMED_ROOT_PX)
   return {
-    css: toCss(snapshot, Object.keys(snapshot.styles)),
-    tailwind: toTailwindText(snapshot, ASSUMED_ROOT_PX),
+    css: issueCss(snapshot, Object.keys(snapshot.styles)),
+    tailwind: issueTailwindText(tailwind),
     rootPx: ASSUMED_ROOT_PX,
     palette: paletteOf(issue),
-    inspect: toJson(snapshot, ASSUMED_ROOT_PX),
+    inspect: { ...toJson(snapshot, ASSUMED_ROOT_PX), tailwind },
   }
 }

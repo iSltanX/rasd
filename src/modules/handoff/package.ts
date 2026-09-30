@@ -24,7 +24,7 @@ export interface HandoffPackage {
   readonly markdown: string
   readonly json: string
   /** الحزمة كاملةً — ZIP بلا ضغط. */
-  readonly bytes: Uint8Array
+  readonly bytes: Uint8Array<ArrayBuffer>
   /** ما فيها بالترتيب، وحجم كلٍّ — للعرض قبل التنزيل. */
   readonly files: readonly { readonly name: string; readonly size: number }[]
 }

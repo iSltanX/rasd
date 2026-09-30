@@ -38,6 +38,7 @@ import { Skeleton } from '@/ui/components/Skeleton/Skeleton'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
+import { HandoffLauncher } from '../../handoff/HandoffLauncher'
 import {
   formatDay,
   formatDayAndTime,
@@ -113,6 +114,7 @@ export function IssueDetail({
   const [attempt, setAttempt] = useState(0)
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [handoff, setHandoff] = useState(false)
 
   useEffect(() => {
     let live = true
@@ -248,8 +250,24 @@ export function IssueDetail({
                 </Button>
               </span>
             )}
+            <Button
+              variant="secondary"
+              size="m"
+              icon="file-code"
+              onClick={() => setHandoff(true)}
+              data-issue-handoff=""
+            >
+              حزمة التسليم
+            </Button>
           </div>
         </div>
+        {handoff ? (
+          <HandoffLauncher
+            issues={[issue]}
+            source="مشكلة من المكتبة"
+            onClose={() => setHandoff(false)}
+          />
+        ) : null}
 
         <p class={cx(styles.meta, 't-arabic-ui-s')}>
           {`سُجّلت ${formatDay(issue.createdAt)} · ${projectName} · ${lastCheckedLabel([issue], now)}`}

@@ -45,22 +45,13 @@ function limitNotes(snapshot: InspectSnapshot): string[] {
   return out
 }
 
-/** كل خاصية في مجموعات اللوحة. */
-const GROUPED: ReadonlySet<string> = new Set(GROUP_ORDER.flatMap((g) => INSPECT_GROUPS[g]))
-
 /**
  * يبني كتلة CSS جاهزة للّصق.
  *
  * المحدِّد رأسًا، والخصائص مجموعةً مجموعةً بترتيب اللوحة نفسه — فما يراه
  * المستخدم في اللوحة هو ما يجده في المخرَج.
- *
- * **و`extra` إضافةٌ مسمّاة لا بابٌ مفتوح.** ما خارج المجموعات يُسقَط كما
- * كان (نسخ كل ما يعيده `getComputedStyle` آلاف الأسطر)، إلا ما يسمّيه
- * المستدعي بعينه فيُلحق بعد المجموعات بترتيبه. لوحة الفحص لا تسمّي شيئًا؛
- * وحزمة التسليم تسمّي اختصارات لقطة المشكلة (`padding` · `margin` ·
- * `border-radius`)، وإلا خرجت بلا الخاصية التي سُجّلت عليها (ADR 0036 §2).
  */
-export function toCss(snapshot: InspectSnapshot, extra: readonly string[] = []): string {
+export function toCss(snapshot: InspectSnapshot): string {
   const lines: string[] = []
 
   for (const note of limitNotes(snapshot)) lines.push(`/* ${note} */`)
@@ -68,19 +59,22 @@ export function toCss(snapshot: InspectSnapshot, extra: readonly string[] = []):
 
   lines.push(`${snapshot.selector} {`)
 
-  const named = extra.filter((p) => !GROUPED.has(p))
-  for (const prop of [...GROUP_ORDER.flatMap((g) => INSPECT_GROUPS[g]), ...named]) {
-    const entry = snapshot.styles[prop]
-    if (!hasValue(entry)) continue
-    const flag = entry.reliability === 'used' ? '' : `  /* ${reliabilityNote(entry)} */`
-    lines.push(`  ${prop}: ${entry.value};${flag}`)
+  for (const group of GROUP_ORDER) {
+    const props = INSPECT_GROUPS[group].filter((p) => hasValue(snapshot.styles[p]))
+    if (props.length === 0) continue
+    for (const prop of props) {
+      const entry = snapshot.styles[prop]!
+      const flag = entry.reliability === 'used' ? '' : `  /* ${reliabilityNote(entry)} */`
+      lines.push(`  ${prop}: ${entry.value};${flag}`)
+    }
   }
 
   lines.push('}')
   return lines.join('\n')
 }
 
-function hasValue(entry: StyleValue | undefined): entry is StyleValue {
+/** هل للقيمة معنى في المخرَج؟ الفارغة والابتدائية الأربع تُسقَط — تعيدها مخرجات المشكلة (`issue.ts`). */
+export function hasValue(entry: StyleValue | undefined): entry is StyleValue {
   if (!entry) return false
   const v = entry.value.trim()
   return v !== '' && v !== 'none' && v !== 'normal' && v !== 'auto'

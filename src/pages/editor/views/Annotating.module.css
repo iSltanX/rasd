@@ -186,6 +186,10 @@
   background: var(--rasd-surface-raised);
   color: var(--rasd-text-tertiary);
 }
+/* «حزمة التسليم» في طرف رأس الملاحظات، بعد العدّاد — للّقطة التي دليلُ مشكلةٍ أو أكثر. */
+.handoff {
+  margin-inline-start: auto;
+}
 .noteBody {
   padding: var(--rasd-space-12) var(--rasd-space-16);
 }

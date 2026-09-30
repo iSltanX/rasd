@@ -1,8 +1,9 @@
 /**
  * `library / issues` و`library / issues-empty` — مكتبة المشكلات: جدولٌ مرشَّح بحالتها ومشروعها وصفحتها.
  *
- * **لا مربّعات تحديد ولا «حزمة التسليم»** وإن رُسمت في الإطار: الحزمة محرّكها غير مبنيّ بعد، وزرٌّ بلا محرّك
- * ممنوع (`AGENTS.md` §4). فالصفّ يفتح تفصيله وحده.
+ * **ومربّعات التحديد تغذّي «حزمة التسليم»** (ADR 0036): الزرّ يصدّر المحدَّد، أو المعروض كلّه حين لا تحديد —
+ * فالحزمة لصفحةٍ أو مشروع مرشِّحٌ ونقرة. والتحديد يتبع المعروض: ما خرج بالمرشّح خرج من التحديد، فلا يُصدَّر ما
+ * لا يُرى. والنقر على المربّع لا يفتح التفصيل.
  *
  * وليس هنا صفّ أنواع السجلّات (`اللقطات · المراجع · …`): المشكلات مدخلها الشريط الجانبي، وصفّ الأنواع
  * وأسماؤه عقد `verify:library` فلا يُمسّ.
@@ -13,15 +14,17 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   displayExpected,
   displayValue,
+  ISSUE_FORMS,
   STATUS_LABEL,
   STATUS_TONE,
   subjectLine,
 } from '@/modules/issues/labels'
 import { countByStatus, currentValue } from '@/modules/issues/status'
-import { countText, formatHuman, formatRelativeTime, type CountForms } from '@/shared/bidi/numerals'
+import { countText, formatHuman, formatRelativeTime } from '@/shared/bidi/numerals'
 import { ISSUE_STATUSES, type IssueRecord } from '@/shared/issue-schema'
 import { Banner } from '@/ui/components/Banner/Banner'
 import { Button } from '@/ui/components/Button/Button'
+import { Checkbox } from '@/ui/components/Checkbox/Checkbox'
 import { ErrorMessage } from '@/ui/components/ErrorMessage/ErrorMessage'
 import { Select } from '@/ui/components/Select/Select'
 import { Skeleton } from '@/ui/components/Skeleton/Skeleton'
@@ -29,6 +32,7 @@ import { Tab, TabRow } from '@/ui/components/Tab/Tab'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
+import { HandoffLauncher } from '../../handoff/HandoffLauncher'
 import { hrefFor } from '../../shell/library-views'
 import {
   ANY,
@@ -50,14 +54,6 @@ import toolbar from './Toolbar.module.css'
 import type { Result } from '@/shared/result'
 import type { ProjectRecord } from '@/shared/storage/schema'
 import type { JSX } from 'preact'
-
-const ISSUE_FORMS: CountForms = {
-  one: 'مشكلة واحدة',
-  two: 'مشكلتان',
-  many: 'مشكلات',
-  accusative: 'مشكلة',
-  singular: 'مشكلة',
-}
 
 const STATUS_TABS: readonly { readonly value: IssueFilters['status']; readonly label: string }[] = [
   { value: 'all', label: 'الكل' },
@@ -92,6 +88,8 @@ export function IssuesView({
 }: IssuesViewProps): JSX.Element {
   const [load, setLoad] = useState<Load>({ state: 'loading' })
   const [attempt, setAttempt] = useState(0)
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
+  const [handoff, setHandoff] = useState<{ issues: IssueRecord[]; source: string } | null>(null)
 
   useEffect(() => {
     let live = true
@@ -115,6 +113,15 @@ export function IssuesView({
   const counts = useMemo(() => countByStatus(base), [base])
   const rows = useMemo(() => filterIssues(all, filters), [all, filters])
   const pages = useMemo(() => pageOptions(all), [all])
+
+  // التحديد يتبع المعروض: ما أخرجه مرشّحٌ لا يبقى محدَّدًا خفيًّا فيُصدَّر.
+  const picked = useMemo(() => rows.filter((issue) => selected.has(issue.id)), [rows, selected])
+
+  const openHandoff = () => {
+    const issues = picked.length > 0 ? picked : rows
+    if (issues.length === 0) return
+    setHandoff({ issues, source: handoffSource(picked.length > 0, filters, projects, rows) })
+  }
 
   const set = (patch: Partial<IssueFilters>) => onFiltersChange({ ...filters, ...patch })
   const tabCount = (value: IssueFilters['status']) =>
@@ -155,6 +162,20 @@ export function IssuesView({
             onChange={(page) => set({ page })}
           />
         </div>
+        {load.state === 'ready' && !empty ? (
+          <div class={toolbar.end}>
+            <Button
+              variant="secondary"
+              size="m"
+              icon="file-code"
+              onClick={openHandoff}
+              data-issues-handoff=""
+              {...(rows.length === 0 ? { state: 'disabled' as const } : {})}
+            >
+              {picked.length > 0 ? `حزمة التسليم · ${formatHuman(picked.length)}` : 'حزمة التسليم'}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <div class={styles.content}>
@@ -255,31 +276,77 @@ export function IssuesView({
                   </div>
                 </div>
               ) : (
-                <IssuesTable rows={rows} onOpen={onOpen} now={now} />
+                <IssuesTable
+                  rows={rows}
+                  selected={selected}
+                  onSelect={setSelected}
+                  onOpen={onOpen}
+                  now={now}
+                />
               )}
             </div>
           </>
         )}
       </div>
+      {handoff ? (
+        <HandoffLauncher
+          issues={handoff.issues}
+          source={handoff.source}
+          onClose={() => setHandoff(null)}
+        />
+      ) : null}
     </div>
   )
+}
+
+/** مصدر الحزمة كما يقرؤه إنسان — المحدَّد، أو ما يحصره المرشّح. */
+function handoffSource(
+  picked: boolean,
+  filters: IssueFilters,
+  projects: readonly ProjectRecord[],
+  rows: readonly IssueRecord[],
+): string {
+  if (picked) return 'تحديد في المكتبة'
+  const project = projects.find((p) => p.id === filters.project)
+  if (project) return `مشروع «${project.name}»`
+  if (filters.page !== ANY && rows[0]) return `صفحة ${pageLabel(rows[0].page)}`
+  return 'المشكلات المعروضة في المكتبة'
 }
 
 const COLUMNS = ['المشكلة', 'الصفحة', 'النوع', 'الآن', 'المتوقّعة', 'الحالة', 'آخر فحص'] as const
 
 function IssuesTable({
   rows,
+  selected,
+  onSelect,
   onOpen,
   now,
 }: {
   rows: readonly IssueRecord[]
+  selected: ReadonlySet<string>
+  onSelect: (next: ReadonlySet<string>) => void
   onOpen: (id: string) => void
   now: number
 }): JSX.Element {
+  const count = rows.filter((issue) => selected.has(issue.id)).length
+  const all = count === rows.length ? 'on' : count > 0 ? 'mixed' : 'off'
+  const toggle = (id: string, on: boolean) => {
+    const next = new Set(selected)
+    if (on) next.add(id)
+    else next.delete(id)
+    onSelect(next)
+  }
   return (
     <table class={styles.table} aria-label="المشكلات المسجَّلة">
       <thead>
         <tr>
+          <th scope="col" class={cx(styles.th, styles.pick)} data-pick="">
+            <Checkbox
+              checked={all}
+              aria-label="حدّد كل المشكلات المعروضة"
+              onChange={(on) => onSelect(new Set(on ? rows.map((issue) => issue.id) : []))}
+            />
+          </th>
           {COLUMNS.map((name) => (
             <th key={name} scope="col" class={cx(styles.th, 't-arabic-ui-xs-strong')}>
               {name}
@@ -289,7 +356,14 @@ function IssuesTable({
       </thead>
       <tbody>
         {rows.map((issue) => (
-          <IssueRow key={issue.id} issue={issue} onOpen={onOpen} now={now} />
+          <IssueRow
+            key={issue.id}
+            issue={issue}
+            picked={selected.has(issue.id)}
+            onPick={(on) => toggle(issue.id, on)}
+            onOpen={onOpen}
+            now={now}
+          />
         ))}
       </tbody>
     </table>
@@ -298,10 +372,14 @@ function IssuesTable({
 
 function IssueRow({
   issue,
+  picked,
+  onPick,
   onOpen,
   now,
 }: {
   issue: IssueRecord
+  picked: boolean
+  onPick: (on: boolean) => void
   onOpen: (id: string) => void
   now: number
 }): JSX.Element {
@@ -309,7 +387,23 @@ function IssueRow({
   // الرابط رابطٌ حقيقيّ: النقر مع ⌘ أو Ctrl أو Shift يفتحه في تبويب جديد كأي رابط، وغيره يفتح التفصيل في مكانه.
   const href = hrefFor({ kind: 'issue', id: issue.id })
   return (
-    <tr class={styles.row} data-issue-id={issue.id} onClick={() => onOpen(issue.id)}>
+    <tr
+      class={cx(styles.row, picked && styles.picked)}
+      data-issue-id={issue.id}
+      onClick={() => onOpen(issue.id)}
+    >
+      {/* المربّع يحدّد ولا يفتح: النقر عليه يقف عند خليّته. */}
+      <td
+        class={cx(styles.td, styles.pick)}
+        data-pick=""
+        onClick={(e: MouseEvent) => e.stopPropagation()}
+      >
+        <Checkbox
+          checked={picked ? 'on' : 'off'}
+          aria-label={`حدّد «${issue.title}»`}
+          onChange={onPick}
+        />
+      </td>
       <td class={styles.td}>
         <a
           class={cx(styles.link, 't-arabic-ui-s-strong')}

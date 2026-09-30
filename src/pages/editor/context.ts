@@ -17,8 +17,9 @@ import { emptyScene, estimateSceneBytes, parseScene } from '@/modules/editor/sce
 import { errText, ok, type Result } from '@/shared/result'
 import { annotations, blobs, captures, putIfUnchanged } from '@/shared/storage/repository'
 
-import { loadNoteIssues, type NoteIssues } from './note-issues'
+import { loadCaptureIssues, type NoteIssues } from './note-issues'
 
+import type { IssueRecord } from '@/shared/issue-schema'
 import type { AnnotationRecord, CaptureRecord } from '@/shared/storage/schema'
 
 /** ما يحتاجه المحرر ليفتح — الصورة والوصف والمشهد. */
@@ -66,6 +67,8 @@ export interface EditorContext {
    * والربط باتجاه واحد — الملاحظة لا تعرف مشكلتها، فالبحث من اللقطة.
    */
   readonly noteIssues: NoteIssues
+  /** مشكلاتٌ دليلها هذه اللقطة — ما تصدّره «حزمة التسليم» من المحرّر. تُقرأ مع الخريطة بقراءةٍ واحدة. */
+  readonly issues: readonly IssueRecord[]
 }
 
 /**
@@ -107,8 +110,8 @@ export async function loadEditorContext(
   captureId: string,
   urls: ObjectUrls = browserUrls,
 ): Promise<Result<EditorContext>> {
-  // تبدأ الآن وتُنتظَر آخرًا: لا ترتيب بينها وبين قراءات اللقطة، ولا تفشل (`loadNoteIssues`).
-  const noteIssues = loadNoteIssues(captureId)
+  // تبدأ الآن وتُنتظَر آخرًا: لا ترتيب بينها وبين قراءات اللقطة، ولا تفشل (`loadCaptureIssues`).
+  const linked = loadCaptureIssues(captureId)
 
   const record = await captures.get(captureId)
   if (!record.ok) {
@@ -153,7 +156,7 @@ export async function loadEditorContext(
     baseUpdatedAt,
     sceneError,
     readOnly: sceneError !== null,
-    noteIssues: await noteIssues,
+    ...(await linked.then(({ notes, evidence }) => ({ noteIssues: notes, issues: evidence }))),
   })
 }
 

@@ -1,0 +1,149 @@
+/*
+ * نافذة حزمة التسليم — ما يختلف عن هيكل نافذة التصدير وحده.
+ *
+ * الحاجب والترويسة والجسم والملخّص والأفعال من `export/export.module.css` نفسها: نافذتان بهيكلٍ واحد
+ * (`handoff / modal` 600 عرضًا). وكل قيمة من العقد — لا لون حرفي ولا `px` حرفية ولا خاصية فيزيائية.
+ */
+
+.modal {
+  inline-size: min(37.5rem, 100%);
+}
+
+/* بطاقتا الصيغة في صفّين متساويين. */
+.formats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--rasd-space-10);
+}
+
+/* ── يشمل ─────────────────────────────────────────────────── */
+
+.include {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-2);
+  padding-block: var(--rasd-space-12);
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+
+.include:last-child {
+  border-block-end: 0;
+}
+
+.includeHint {
+  margin: 0;
+  padding-inline-start: calc(var(--rasd-space-16) + var(--rasd-space-8));
+  color: var(--rasd-text-tertiary);
+}
+
+/*
+ * المعاينة — النصّ الذي يُنسخ ويُنزَّل حرفًا.
+ *
+ * `unicode-bidi: plaintext` يحسم اتجاه كل سطر من أوّل حرفٍ قويّ فيه: سطرٌ عربي يُقرأ من اليمين، وكتلة CSS من
+ * اليسار — في `pre` واحد، بلا إعادة صياغة للنصّ.
+ */
+.preview {
+  margin: 0;
+  max-block-size: calc(var(--rasd-space-48) * 4);
+  overflow: auto;
+  padding-block: var(--rasd-space-12);
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-sunken);
+  color: var(--rasd-text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
+.preview:focus-visible {
+  outline: var(--rasd-focus-ring);
+  outline-offset: var(--rasd-focus-ring-offset);
+}
+
+/* ── البناء ───────────────────────────────────────────────── */
+
+.progressHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+}
+
+.progressStep {
+  color: var(--rasd-text-primary);
+}
+
+.progressCount {
+  color: var(--rasd-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── الفشل ────────────────────────────────────────────────── */
+
+.failure {
+  display: block;
+  margin-block-start: var(--rasd-space-4);
+}
+
+/* ── النجاح ───────────────────────────────────────────────── */
+
+.done {
+  align-items: center;
+  text-align: center;
+}
+
+.doneIcon {
+  display: grid;
+  place-items: center;
+  inline-size: var(--rasd-control-lg);
+  block-size: var(--rasd-control-lg);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-status-success-surface);
+  color: var(--rasd-status-success-fg);
+}
+
+.doneTitle {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+
+.doneText {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+}
+
+.doneFile {
+  color: var(--rasd-text-brand);
+}
+
+.doneSummary {
+  align-self: stretch;
+  text-align: start;
+}
+
+/*
+ * الأفعال في طرف السطر كنافذة التصدير، والأساسيّ **أوّلًا** في DOM: في الإطار يسبق الثانويَّ في القراءة
+ * (يمينه)، وترتيب DOM هو ترتيب لوحة المفاتيح.
+ */
+.actions {
+  justify-content: flex-end;
+}
+
+/* ── إشعار النسخ ──────────────────────────────────────────── */
+
+.toastSlot {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: var(--rasd-space-24);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.toastSlot > * {
+  pointer-events: auto;
+}

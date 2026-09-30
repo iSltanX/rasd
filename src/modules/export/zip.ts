@@ -80,7 +80,10 @@ export function safeEntryName(name: string): boolean {
  *
  * يرفض ولا يكتب: اسمًا غير آمن، أو اسمًا مكرّرًا، أو ما جاوز حدّ ZIP بلا Zip64.
  */
-export function writeZip(entries: readonly ZipEntry[], modified: number): Result<Uint8Array> {
+export function writeZip(
+  entries: readonly ZipEntry[],
+  modified: number,
+): Result<Uint8Array<ArrayBuffer>> {
   if (entries.length > MAX_ENTRIES) {
     return errText('invalid-data', 'الحزمة أكبر من أن تُكتب ملفًّا واحدًا.', `${entries.length}`)
   }
