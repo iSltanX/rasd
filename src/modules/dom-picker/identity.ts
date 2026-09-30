@@ -127,9 +127,10 @@ function queryAll(root: QueryRoot, selector: string): Element[] | null {
  * يعيد العثور على عنصرٍ بهويته.
  *
  * `skip` يُستبعد من المطابقات: مضيف طبقتنا نفسه عنصرٌ في DOM الصفحة، ولا يجوز أن يُعدّ مطابقًا ثانيًا.
+ * والحقول الثلاثة وحدها ما يُقرأ — فتمرّ بها منطقة العنصر المستثناة ([34]) بلا هويةٍ كاملة.
  */
 export function refind(
-  identity: ElementIdentity,
+  identity: Pick<ElementIdentity, 'selector' | 'hosts' | 'fingerprint'>,
   doc: Document,
   skip?: Element | null,
 ): RefindVerdict {

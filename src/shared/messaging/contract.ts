@@ -8,6 +8,7 @@
  * `shared/` طبقة قاعدية: لا تستورد من أي طبقة أعلى منها.
  */
 
+import type { ExclusionZone } from '../exclusion-schema'
 import type { DeviceRect } from '../geometry'
 import type { GateReason } from '../injection-gate'
 import type { InspectSnapshot } from '../inspect-schema'
@@ -78,6 +79,27 @@ export interface LiveDiff {
   readonly overlapHeight: number
   /** صحيحٌ متى خالف مقاسُ المرجع مقاسَ اللقطة — تُعلَن للمستخدم لا تُبتلَع. */
   readonly sizeMismatch: boolean
+  /**
+   * بكسلات التقاطع التي استثنتها مناطق المرجع (ADR 0034) — لا في البسط ولا في `comparedPixels`. تُعلَن
+   * «على المناطق المهمّة» مع ما استُثني، لا تُبتلَع.
+   */
+  readonly excludedPixels: number
+  /** عدد المناطق التي طُبّقت — صفرٌ يعني نسبةً على التقاطع كلّه. */
+  readonly excludedZones: number
+}
+
+/**
+ * بايتات المرجع ومناطقه — ردّ `reference/load` و`reference/set` معًا (ADR 0034).
+ *
+ * `suggested` مناطق عنصر في مراجع المقاسات الأخرى للصفحة نفسها وليست هنا: اقتراحٌ تعرضه الطبقة لا كتابةٌ
+ * وقعت. والمناطق مع البايتات في ردٍّ واحد لأن الطبقة لا تعرض مرجعًا بلا مناطقه.
+ */
+export interface ReferencePayload {
+  readonly base64: string
+  readonly mime: string
+  readonly bytes: number
+  readonly exclusions: readonly ExclusionZone[]
+  readonly suggested: readonly ExclusionZone[]
 }
 
 export interface RequestMap {
@@ -151,6 +173,13 @@ export interface RequestMap {
     viewport: Viewport
     source: { kind: 'capture'; captureId: string } | { kind: 'image'; base64: string; mime: string }
   }
+  /**
+   * يكتب قائمة المناطق المستثناة لمرجع هذه الصفحة بهذا المقاس — القائمة كلّها (ADR 0034).
+   *
+   * الأصل والمسار من التبويب كـ`reference/load`، والقائمة تُتحقَّق في الخلفية بحدود عددٍ وطول
+   * (`modules/compare/exclusion-parse.ts`) — ما يأتي من الصفحة ليس منطقةً حتى يُثبَت.
+   */
+  'reference/exclusions': { viewport: Viewport; exclusions: readonly ExclusionZone[] }
   /**
    * استئنافٌ تلقائي لوضع المقارنة بعد تنقّل — من `background/resume.ts`
    * وحدها، بعد تحقّقها من صلاحية مضيف ممنوحة لأصل الصفحة («البقاء عبر
@@ -289,7 +318,12 @@ export interface RequestMap {
    * وإخفاء الطبقة قبل اللقطة مسؤولية المستدعي (`capture/hide-overlay`)،
    * كما في كل مسار التقاط آخر — فلا تُقاس الطبقة على أنها تغيّرٌ في الصفحة.
    */
-  'compare/diff': { viewport: Viewport }
+  /**
+   * `live`: مستطيل كل منطقة عنصر كما وجدتها الطبقة الآن، ببكسل الجهاز — الطبقة ترى DOM والخلفية لا
+   * تراه. **يُقبل منه ما يخصّ منطقة عنصرٍ محفوظة وحده** (`exclusionRects`)، وما غاب يسقط إلى المستطيل
+   * المحفوظ: الصفحة لا تضيف منطقةً ولا تنقل منطقة مستطيل.
+   */
+  'compare/diff': { viewport: Viewport; live?: Readonly<Record<string, DeviceRect>> }
   /**
    * يهيّئ الصفحة لالتقاط كامل: يجد المُمرِّر، ويحيّد الثوابت، ويمهّد.
    *
@@ -384,8 +418,10 @@ export interface ResponseMap {
   'tool/activate':
     { started: true; mode: ActiveMode | null } | { started: false; reason: ActivationFailure }
   /** بايتات المرجع مُرمَّزة — `null` يعني: لا مرجع محفوظ لهذه الصفحة (نتيجة سليمة لا خطأ). */
-  'reference/load': { base64: string; mime: string; bytes: number } | null
-  'reference/set': { base64: string; mime: string; bytes: number }
+  'reference/load': ReferencePayload | null
+  'reference/set': ReferencePayload
+  /** القائمة كما كُتبت بعد التحقّق — ما أُسقط من الحمولة لا يعود. */
+  'reference/exclusions': { exclusions: readonly ExclusionZone[] }
   'compare/resume': { ok: true }
   'capture/latest': { id: string; width: number; height: number } | null
   /** الأبعاد بالبكسل الفيزيائي — ما حُفظ فعلًا لا ما طُلب. */

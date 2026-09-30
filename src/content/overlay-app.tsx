@@ -16,6 +16,7 @@ import { useEffect } from 'preact/hooks'
 
 import { describeRatio, HANDLES, handlePoint } from '@/modules/capture/selection'
 import { formatColour } from '@/modules/colour/formats'
+import { referenceRectToViewport } from '@/modules/compare/exclusions'
 import { NUDGE_STEP_FAST_PX, NUDGE_STEP_PX } from '@/modules/compare/overlay'
 import { marginRect } from '@/modules/dom-picker/inspect'
 import { pxToRem } from '@/modules/measure/units'
@@ -46,6 +47,7 @@ import { AreaSelect, Countdown, type HandleSpot } from '@/ui/overlay/AreaSelect'
 import { ColourIdle, ColourPanel } from '@/ui/overlay/colour/ColourPanel'
 import { PalettePanel } from '@/ui/overlay/colour/PalettePanel'
 import { ScalePanel } from '@/ui/overlay/colour/ScalePanel'
+import { ZoneMarks } from '@/ui/overlay/compare/ZoneMarks'
 import { Crosshair } from '@/ui/overlay/Crosshair'
 import { at, box, HINT_OFFSET_PX } from '@/ui/overlay/geometry'
 import { IssueForm } from '@/ui/overlay/issues/IssueForm'
@@ -897,6 +899,29 @@ function CompareLayer({
   const blinkShowingLive = compare.state.blinkShowingLive.value
   const s = space.value
 
+  /*
+   * المناطق المستثناة (ADR 0034): المستطيل المخزَّن ببكسل المرجع، ومنطقة العنصر بموضعه الحيّ إن وُجد —
+   * ثمّ إلى النافذة بتحويل المرجع الحالي، فتُرسم فوق المرجع حيث هو.
+   */
+  const zones = compare.state.zones.value
+  const resolved = compare.state.resolved.value
+  const zoneTool = compare.state.zoneTool.value
+  const zoneRows = zones.map((zone) => {
+    const found = resolved[zone.id]
+    const r = found?.rect ?? zone.anchor.rect
+    return {
+      id: zone.id,
+      kind: zone.anchor.kind,
+      fallback: found?.fallback ?? false,
+      name:
+        zone.label ??
+        (zone.anchor.kind === 'element'
+          ? zone.anchor.selector
+          : formatDimensions(zone.anchor.rect.width, zone.anchor.rect.height)),
+      rect: referenceRectToViewport(r, transform),
+    }
+  })
+
   /**
    * ⇧+سهم = 10px، سهم وحده = 1px (`§8.3`) — نفس نمط `AreaLayer` بالضبط.
    *
@@ -940,6 +965,15 @@ function CompareLayer({
         />
       ) : null}
 
+      {reference ? (
+        <ZoneMarks
+          marks={zoneRows}
+          draft={compare.state.zoneDraft.value}
+          tool={zoneTool}
+          bounds={viewportRect(0, 0, s.layoutWidth, s.layoutHeight)}
+        />
+      ) : null}
+
       {reference && displayMode === 'split' ? (
         <SplitHandle
           transform={transform}
@@ -971,6 +1005,13 @@ function CompareLayer({
             diffError={diff?.error ?? null}
             {...(onOpenViewportGallery ? { onOpenViewportPicker: onOpenViewportGallery } : {})}
             {...(onCaptureDiff ? { onCaptureDiff } : {})}
+            zones={zoneRows}
+            zoneTool={zoneTool}
+            suggestedZones={compare.state.suggested.value.length}
+            onDrawZone={() => compare.setZoneTool(zoneTool === 'draw' ? null : 'draw')}
+            onPickZone={() => compare.setZoneTool(zoneTool === 'pick' ? null : 'pick')}
+            onRemoveZone={(id) => compare.removeZone(id)}
+            onAddSuggested={() => compare.addSuggested()}
           />
         ) : (
           <CompareIdle
@@ -1523,7 +1564,8 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
       return
     }
     if (props.mode.value === 'compare') {
-      props.compare.onPointerUp()
+      // إفلاتٌ فوق اللوحة لا يُنهي منطقةً على ما تحتها: نقرة زرّ فيها ليست اختيار عنصر من الصفحة.
+      props.compare.onPointerUp(onBackground(e) ? e : undefined)
       return
     }
     props.area.handlers.onPointerUp(e)

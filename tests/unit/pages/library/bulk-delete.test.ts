@@ -116,6 +116,7 @@ describe('deleteReferences — يحذف البايتات معًا لا السج�
       path: '1:1',
       viewport: 'desktop',
       blobId: 'blob1',
+      exclusions: [],
       createdAt: NOW,
     })
 
@@ -140,6 +141,7 @@ describe('deleteReferences — يحذف البايتات معًا لا السج�
         path: '/',
         viewport: 'desktop',
         blobId: 'blobA',
+        exclusions: [],
         createdAt: NOW,
       },
       {
@@ -149,6 +151,7 @@ describe('deleteReferences — يحذف البايتات معًا لا السج�
         path: '/',
         viewport: 'phone',
         blobId: 'blobB',
+        exclusions: [],
         createdAt: NOW,
       },
     ])

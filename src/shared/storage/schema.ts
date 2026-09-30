@@ -8,14 +8,15 @@
  * درجةً أخرى: شبكة المكتبة لا تحمِّل `blobs` الكاملة لكل بطاقة، بل مصغَّرة
  * مولَّدة كسولًا ومخزَّنة مرّة واحدة — انظر `ThumbnailRecord`. و`issues` (النسخة 3) سجلّ المشكلة
  * المرتبطة بعنصر — [ADR 0030](../../../Docs/ADR/0030-issue-record.md): مستقلّ عن المشهد، يشير إلى
- * لقطته وملاحظته ولا يشيران إليه.
+ * لقطته وملاحظته ولا يشيران إليه. والنسخة 4 تضيف حقلًا لا مخزنًا: `ReferenceRecord.exclusions`.
  */
 
+import type { ExclusionZone } from '../exclusion-schema'
 import type { IssueRecord } from '../issue-schema'
 import type { DBSchema } from 'idb'
 
 export const DB_NAME = 'rasd'
-export const DB_VERSION = 3
+export const DB_VERSION = 4
 
 export type CaptureKind = 'area' | 'element' | 'viewport' | 'full-page' | 'window'
 export type CaptureStatus = 'ready' | 'processing' | 'failed'
@@ -84,6 +85,11 @@ export interface ReferenceRecord {
   viewport: Viewport
   blobId: string
   createdAt: number
+  /**
+   * مناطق لا تدخل حساب الفرق — الوقت والإعلانات والمحتوى المتجدّد (النسخة 4،
+   * [ADR 0034](../../../Docs/ADR/0034-comparison-exclusions.md)). للمرجع لا للصورة: استبدال صورته يُبقيها.
+   */
+  exclusions: ExclusionZone[]
 }
 
 export interface AnnotationRecord {

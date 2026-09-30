@@ -66,6 +66,7 @@ ctx.addEventListener('message', (event: MessageEvent<DiffRequest>) => {
       overlap: diff.overlap,
       diffPixelCount: diff.diffPixelCount,
       comparedPixels: diff.comparedPixels,
+      excludedPixels: diff.excludedPixels,
       diffRatio: diff.diffRatio,
       extraInA: diff.extraInA,
       extraInB: diff.extraInB,

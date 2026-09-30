@@ -41,6 +41,11 @@ export interface DiffOptions {
    */
   readonly removedColor: readonly [number, number, number]
   readonly addedColor: readonly [number, number, number]
+  /**
+   * مناطق مستثناة بفضاء التقاطع — بكسل الجهاز من الزاوية العليا اليسرى (ADR 0034). لا تدخل البسط ولا
+   * المقام ولا القناع الذي يغذّي `regions.ts`، وتُصفَّر في الخريطة الحرارية. تُقصّ على التقاطع ولا ترمي.
+   */
+  readonly exclude: readonly DeviceRect[]
 }
 
 /** الشكل الأسود/الأبيض الافتراضي — تستبدله الواجهة بألوان التوكنز الفعلية. */
@@ -48,6 +53,7 @@ export const DEFAULT_DIFF_OPTIONS: DiffOptions = {
   threshold: 0.1,
   removedColor: [255, 0, 0],
   addedColor: [255, 0, 0],
+  exclude: [],
 }
 
 /**
@@ -83,8 +89,11 @@ export interface DiffResult {
   /** منطقة التقاطع الفعلية بإحداثيات كلتا الصورتين معًا (محاذاة من الأعلى-اليسار). */
   readonly overlap: DeviceRect
   readonly diffPixelCount: number
+  /** بكسلات التقاطع المقارَنة فعلًا — بلا المستثناة. */
   readonly comparedPixels: number
-  /** `diffPixelCount / comparedPixels` — على منطقة التقاطع وحدها، لا الاتحاد. */
+  /** بكسلات التقاطع التي غطّتها `exclude` — كلٌّ مرّة ولو تراكبت منطقتان. */
+  readonly excludedPixels: number
+  /** `diffPixelCount / comparedPixels` — على منطقة التقاطع وحدها بلا المستثناة، لا الاتحاد. */
   readonly diffRatio: number
   /** ما يفيض من كلّ صورة عن التقاطع — `null` إن لم تكن هي الأكبر في ذلك البُعد. */
   readonly extraInA: ExtraStrip
@@ -135,6 +144,74 @@ function maskFromDiffOutput(out: Uint8ClampedArray, width: number, height: numbe
 }
 
 /**
+ * يطبّق المناطق المستثناة على مخرج `pixelmatch` — تمريرةٌ على صفوف المناطق وحدها.
+ *
+ * **بعد العدّ لا قبله** (ADR 0034 §2): نسخ بايتات ب فوق أ داخل المنطقة كان سيُسكت الفرق أيضًا، لكنه يغيّر جيران
+ * البكسلات خارجها فيغيّر حكم كاشف التنعيم عليها. والمخرج (`out` و`mask`) ملك هذه الدالّة وحدها — مخزنا الدخل
+ * لا يُمسّان.
+ *
+ * **صفًّا صفًّا بمجالاتٍ مدموجة**: مجالات المناطق في كل صفّ تُرتَّب وتُدمج، فيُعدّ التراكب مرّة بلا قناعٍ ثانٍ
+ * بحجم الصورة، ويُصفَّر المجال بـ`fill` الأصلية لا بكسلًا بكسلًا. قِيس على 2880 × 1800 بمنطقة تغطّيها كلّها
+ * وفرقٍ في كل سابع بكسل: التمريرة بكسلًا بكسلًا بعلامة مؤقّتة 20–25ms، وهذه 4–6ms بعد الإحماء — ومعيار
+ * القبول ≤ 30ms يقيسه `verify:compare-diff` في الخيط المبنيّ.
+ *
+ * والمستطيل يُوسَّع إلى البكسلات التي يمسّها (أرضية البداية وسقف النهاية)، ثمّ يُقصّ. وغير المنتهي أو بلا
+ * مساحة يُهمَل.
+ */
+export function applyExclusions(
+  out: Uint8ClampedArray,
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  exclude: readonly DeviceRect[],
+): { excluded: number; removedDiff: number } {
+  const spans: [x0: number, y0: number, x1: number, y1: number][] = []
+  let top = height
+  let bottom = 0
+  for (const r of exclude) {
+    if (![r.x, r.y, r.width, r.height].every(Number.isFinite) || r.width <= 0 || r.height <= 0)
+      continue
+    const x0 = Math.max(0, Math.floor(r.x))
+    const y0 = Math.max(0, Math.floor(r.y))
+    const x1 = Math.min(width, Math.ceil(r.x + r.width))
+    const y1 = Math.min(height, Math.ceil(r.y + r.height))
+    if (x1 <= x0 || y1 <= y0) continue
+    spans.push([x0, y0, x1, y1])
+    top = Math.min(top, y0)
+    bottom = Math.max(bottom, y1)
+  }
+
+  let excluded = 0
+  let removedDiff = 0
+  const row: [from: number, to: number][] = []
+  for (let y = top; y < bottom; y++) {
+    row.length = 0
+    for (const [x0, y0, x1, y1] of spans) if (y >= y0 && y < y1) row.push([x0, x1])
+    row.sort((p, q) => p[0] - q[0])
+
+    for (let k = 0; k < row.length;) {
+      const [from, firstTo] = row[k] as [number, number]
+      let to = firstTo
+      for (k++; k < row.length && (row[k] as [number, number])[0] <= to; k++) {
+        to = Math.max(to, (row[k] as [number, number])[1])
+      }
+      const start = y * width + from
+      const end = y * width + to
+      let diffs = 0
+      for (let i = start; i < end; i++) diffs += mask[i] ?? 0
+      excluded += to - from
+      if (diffs > 0) {
+        removedDiff += diffs
+        mask.fill(0, start, end)
+        // البكسل غير المختلف شفّافٌ صفرٌ أصلًا في مخرج `diffMask`، فتصفير المجال كلّه لا يغيّر سواه.
+        out.fill(0, start * 4, end * 4)
+      }
+    }
+  }
+  return { excluded, removedDiff }
+}
+
+/**
  * يقارن صورتين بكسليًّا. لا يرمي عند اختلاف الأبعاد — يحاذي من الأعلى-اليسار
  * ويقارن التقاطع، ويُعلن الفائض صراحةً بدل رفض المقارنة (نصّ المرحلة 17 في الخطّة السابقة (تاريخ Git عند `63a0966`)).
  */
@@ -163,6 +240,7 @@ export function computeDiff(
       overlap: deviceRect(0, 0, 0, 0),
       diffPixelCount: 0,
       comparedPixels: 0,
+      excludedPixels: 0,
       diffRatio: 0,
       extraInA: extraStripsFor(a, 0, 0),
       extraInB: extraStripsFor(b, 0, 0),
@@ -181,14 +259,24 @@ export function computeDiff(
     diffMask: true,
   })
 
-  const comparedPixels = overlapW * overlapH
+  const mask = maskFromDiffOutput(out, overlapW, overlapH)
+  // `?? []`: الحقل يعبر `postMessage` داخل `diffOptions`، و`undefined` صريحةٌ فيه تغلب الافتراضي عند الدمج.
+  const exclude = opts.exclude ?? []
+  const { excluded, removedDiff } =
+    exclude.length > 0
+      ? applyExclusions(out, mask, overlapW, overlapH, exclude)
+      : { excluded: 0, removedDiff: 0 }
+
+  const counted = diffPixelCount - removedDiff
+  const comparedPixels = overlapW * overlapH - excluded
   return {
     diff: { data: out, width: overlapW, height: overlapH },
-    mask: maskFromDiffOutput(out, overlapW, overlapH),
+    mask,
     overlap: deviceRect(0, 0, overlapW, overlapH),
-    diffPixelCount,
+    diffPixelCount: counted,
     comparedPixels,
-    diffRatio: comparedPixels === 0 ? 0 : diffPixelCount / comparedPixels,
+    excludedPixels: excluded,
+    diffRatio: comparedPixels === 0 ? 0 : counted / comparedPixels,
     extraInA: extraStripsFor(a, overlapW, overlapH),
     extraInB: extraStripsFor(b, overlapW, overlapH),
   }

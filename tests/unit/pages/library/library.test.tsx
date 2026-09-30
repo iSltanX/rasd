@@ -433,6 +433,7 @@ describe('Library — التبويبات', () => {
       path: '12:34',
       viewport: 'desktop',
       blobId: 'b1',
+      exclusions: [],
       createdAt: NOW,
     })
     const root = await mount()

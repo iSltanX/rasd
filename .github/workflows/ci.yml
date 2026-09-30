@@ -259,7 +259,7 @@ jobs:
           - { guard: capturing, blocking: true }
           - { guard: colour, blocking: true }
           - { guard: compare, blocking: false }
-          - { guard: compare-diff, blocking: true }
+          - { guard: compare-diff, blocking: false }
           - { guard: editor, blocking: true }
           - { guard: export, blocking: false }
           - { guard: fullpage, blocking: true }

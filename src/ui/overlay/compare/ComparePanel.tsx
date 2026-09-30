@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks'
 
-import { formatDimensions, formatHuman, formatPercent } from '@/shared/bidi'
+import { formatDimensions, formatHuman, formatPercent, plural } from '@/shared/bidi'
+import { EXCLUSION_LIMITS } from '@/shared/exclusion-schema'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
@@ -62,6 +63,17 @@ import type { JSX } from 'preact'
  * `Docs/Engineering.md §6` صفّ 89.
  */
 
+/**
+ * منطقةٌ مستثناة كما تعرضها اللوحة (ADR 0034) — مبنيّةٌ في السلك: الاسم (اسم المستخدم، أو المحدِّد، أو المقاس)
+ * وهل سقطت إلى مستطيلها المحفوظ.
+ */
+export interface CompareZoneItem {
+  readonly id: string
+  readonly kind: 'rect' | 'element'
+  readonly name: string
+  readonly fallback: boolean
+}
+
 export interface ComparePanelProps {
   readonly displayMode: CompareDisplayMode
   /** 0–100. */
@@ -88,7 +100,23 @@ export interface ComparePanelProps {
   readonly onCaptureDiff?: () => void
   readonly onOpenViewportPicker?: () => void
   readonly onClose?: () => void
+  /**
+   * «مناطق مستثناة» — `compare / exclusions` (`391:1989`) وأخواتها. غياب `onDrawZone` يُخفي القسم كلّه:
+   * لا زرّ بلا محرّك.
+   */
+  readonly zones?: readonly CompareZoneItem[]
+  readonly zoneTool?: 'draw' | 'pick' | null
+  /** مناطق عنصر من مقاسات أخرى للصفحة نفسها، موجودةٌ في الصفحة الآن. */
+  readonly suggestedZones?: number
+  readonly onDrawZone?: () => void
+  readonly onPickZone?: () => void
+  readonly onRemoveZone?: (id: string) => void
+  readonly onAddSuggested?: () => void
 }
+
+/** نصيب المستثنى من مساحة التقاطع — المقام قبل الطرح، لا بعده. */
+const excludedShare = (d: LiveDiff): number =>
+  d.excludedPixels / Math.max(1, d.comparedPixels + d.excludedPixels)
 
 const MODE_TABS: readonly { mode: CompareDisplayMode; label: string }[] = [
   { mode: 'split', label: 'تقسيم' },
@@ -118,6 +146,13 @@ export function ComparePanel({
   onCaptureDiff,
   onOpenViewportPicker,
   onClose,
+  zones = [],
+  zoneTool = null,
+  suggestedZones = 0,
+  onDrawZone,
+  onPickZone,
+  onRemoveZone,
+  onAddSuggested,
 }: ComparePanelProps): JSX.Element {
   /*
    * القسم يُعرَض حين يكون فيه ما يُعرَض أو ما يُفعَل، لا دائمًا — سابقة
@@ -191,8 +226,20 @@ export function ComparePanel({
         <div class="rasd-ov-cmp-diff" data-rasd-ov="compare-diff">
           <div class="rasd-ov-cmp-diff-row">
             <span class="rasd-ov-cmp-diff-value">{diff ? formatPercent(diff.diffRatio) : '—'}</span>
-            <span class="rasd-ov-cmp-diff-label">فرق البكسلات</span>
+            {/* النسبة على جزءٍ تُسمّى بجزئها — كما يُعلَن اختلاف المقاسين أدناه (ADR 0034). */}
+            <span class="rasd-ov-cmp-diff-label">
+              {diff?.excludedZones ? 'فرق البكسلات · على المناطق المهمّة' : 'فرق البكسلات'}
+            </span>
           </div>
+          {diff?.excludedZones ? (
+            <div class="rasd-ov-cmp-diff-row" data-rasd-ov="compare-excluded">
+              <span class="rasd-ov-cmp-diff-count">
+                {plural(diff.excludedZones, 'منطقة', 'منطقتان', 'مناطق')} ·{' '}
+                {formatPercent(excludedShare(diff))} من الصفحة
+              </span>
+              <span class="rasd-ov-cmp-diff-label">مستثنى</span>
+            </div>
+          ) : null}
           <div class="rasd-ov-cmp-diff-row">
             <span class="rasd-ov-cmp-diff-count">{diff ? formatHuman(diff.regionCount) : '—'}</span>
             <span class="rasd-ov-cmp-diff-label">عناصر تحرّكت</span>
@@ -223,6 +270,92 @@ export function ComparePanel({
         </button>
         <span class="rasd-ov-cmp-vp-note">المرجع لـ</span>
       </div>
+
+      {onDrawZone ? (
+        <div class="rasd-ov-cmp-zones" data-rasd-ov="compare-zones">
+          <p class="rasd-ov-cmp-zones-h">مناطق مستثناة</p>
+          {zones.length === 0 ? (
+            <p class="rasd-ov-cmp-zones-note">لا مناطق مستثناة — كل البكسلات تدخل الفرق.</p>
+          ) : (
+            <ul class="rasd-ov-cmp-zones-list">
+              {zones.map((zone, i) => (
+                <li
+                  key={zone.id}
+                  class="rasd-ov-cmp-zone"
+                  data-rasd-ov="compare-zone"
+                  data-fallback={zone.fallback}
+                >
+                  <span class="rasd-ov-cmp-zone-n">{formatHuman(i + 1)}</span>
+                  <bdi class="rasd-ov-cmp-zone-name">{zone.name}</bdi>
+                  <span class="rasd-ov-cmp-zone-kind">
+                    {zone.fallback ? 'مستطيل احتياطي' : zone.kind === 'rect' ? 'مستطيل' : 'عنصر'}
+                  </span>
+                  <button
+                    type="button"
+                    class="rasd-ov-cmp-icon"
+                    aria-label={`احذف المنطقة ${formatHuman(i + 1)}`}
+                    onClick={() => onRemoveZone?.(zone.id)}
+                  >
+                    <Icon name="trash" size="sm" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {/* `compare / exclusion-fallback` (`391:3022`): العنصر الغائب يُسمّى ولا يُبتلَع. */}
+          {zones
+            .filter((zone) => zone.fallback)
+            .map((zone) => (
+              <p key={zone.id} class="rasd-ov-cmp-zone-warn" role="status">
+                <Icon name="alert" size="sm" />
+                <span>
+                  لم يُعثر على <bdi dir="ltr">{zone.name}</bdi> في الصفحة، فاستُعمل مستطيله المحفوظ.
+                  تحقّق منه أو احذفه.
+                </span>
+              </p>
+            ))}
+          {/* الحدّ يُعلَن قبل الفعل لا بعد رفض الحفظ — نفس الحدّ الذي تتحقّق به الخلفية. */}
+          {zones.length >= EXCLUSION_LIMITS.zones ? (
+            <p class="rasd-ov-cmp-zones-note">
+              بلغت القائمة حدّها — {formatHuman(EXCLUSION_LIMITS.zones)} منطقة. احذف منطقةً لتضيف
+              غيرها.
+            </p>
+          ) : null}
+          {suggestedZones > 0 && onAddSuggested && zones.length < EXCLUSION_LIMITS.zones ? (
+            <p class="rasd-ov-cmp-zones-note">
+              {plural(suggestedZones, 'منطقة عنصر', 'منطقتا عنصر', 'مناطق عنصر')} من مقاسات أخرى
+              لهذه الصفحة.{' '}
+              <button type="button" class="rasd-ov-cmp-link" onClick={onAddSuggested}>
+                أضفها
+              </button>
+            </p>
+          ) : null}
+          <div class="rasd-ov-cmp-zones-actions">
+            <button
+              type="button"
+              class="rasd-ov-cmp-btn"
+              aria-pressed={zoneTool === 'draw'}
+              disabled={zones.length >= EXCLUSION_LIMITS.zones}
+              onClick={onDrawZone}
+            >
+              <Icon name="capture-area" size="sm" />
+              <span>ارسم مستطيلًا</span>
+            </button>
+            {onPickZone ? (
+              <button
+                type="button"
+                class="rasd-ov-cmp-btn"
+                aria-pressed={zoneTool === 'pick'}
+                disabled={zones.length >= EXCLUSION_LIMITS.zones}
+                onClick={onPickZone}
+              >
+                <Icon name="capture-element" size="sm" />
+                <span>اختر عنصرًا</span>
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <footer class="rasd-ov-cmp-actions">
         <button type="button" class="rasd-ov-cmp-btn" onClick={onSwap}>

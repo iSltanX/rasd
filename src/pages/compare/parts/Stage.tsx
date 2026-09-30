@@ -10,10 +10,13 @@ import { AdjacentView } from './AdjacentView'
 import { BlinkView } from './BlinkView'
 import { DiffView } from './DiffView'
 import styles from './Stage.module.css'
+import { ZoneBoxes, ZoneDrawLayer } from './ZoneLayer'
 
 import type { PixelSize } from '@/pages/compare/layout'
 import type { RegionItem } from '@/pages/compare/region-format'
+import type { SessionZone } from '@/pages/compare/session-zones'
 import type { DiffOutcome } from '@/pages/compare/worker-client'
+import type { DeviceRect } from '@/shared/geometry'
 import type { JSX } from 'preact'
 
 export type CompareMode = 'adjacent' | 'diff' | 'blink'
@@ -46,6 +49,12 @@ export interface StageProps {
   readonly regionItems: readonly RegionItem[]
   readonly selectedRegionIndex: number | null
   readonly onSelectRegion: (index: number) => void
+  /** مناطق هذه الجلسة — تُرسَم في كل طرق العرض، والمحرّك يستثني بكسلاتها. */
+  readonly zones: readonly SessionZone[]
+  /** وضع الرسم: طبقة التقاط شفّافة فوق المسرح تستقبل السحب. */
+  readonly drawing: boolean
+  readonly onAddZone: (rect: DeviceRect) => void
+  readonly onCancelDrawing: () => void
 }
 
 export function Stage({
@@ -63,6 +72,10 @@ export function Stage({
   regionItems,
   selectedRegionIndex,
   onSelectRegion,
+  zones,
+  drawing,
+  onAddZone,
+  onCancelDrawing,
 }: StageProps): JSX.Element {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const measureExtent = useCallback(() => stageRef.current?.getBoundingClientRect().width ?? 0, [])
@@ -120,6 +133,10 @@ export function Stage({
           selectedIndex={selectedRegionIndex}
           onSelectRegion={onSelectRegion}
         />
+      ) : null}
+      <ZoneBoxes zones={zones} stage={stageSizePx} />
+      {drawing ? (
+        <ZoneDrawLayer stageSizePx={stageSizePx} onAddZone={onAddZone} onCancel={onCancelDrawing} />
       ) : null}
     </div>
   )

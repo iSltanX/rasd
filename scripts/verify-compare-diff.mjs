@@ -11,13 +11,24 @@
  * من 30000، ومنطقتين حدودهما 30×20 تمامًا (بلا انتفاخ التزامًا بإصلاح
  * `regions.ts` في هذه المرحلة) — لا تخمينًا اتجاهيًّا كبقيّة فحوص هذا الملفّ.
  *
+ * **والمناطق المستثناة** (`STAGES/34`): لقطتان تختلفان في «ساعة» وحدها، ومنطقةٌ تُرسم حولها بسحبٍ حقيقي
+ * فتصير النسبة صفرًا — ولا تبقى بعد إعادة التحميل.
+ *
  * صفحة إضافة صرفة — بلا صلاحية مضيف ولا خادم عيّنات، خلافًا لـ
  * `verify-overlay.mjs`/`verify-capture.mjs` (نفس سبب `verify-library.mjs`).
  *
  *   pnpm build && pnpm verify:compare-diff
  */
 import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
@@ -767,6 +778,274 @@ if (!cmpSession) {
       }
     } catch (e) {
       fail(`استثناء أثناء فحص اللقطة الطويلة: ${e.message ?? e}`)
+    }
+
+    /*
+     * ── المناطق المستثناة: ساعةٌ متغيّرة داخل منطقة ⟵ النسبة صفر (`STAGES/34`) ──────────
+     *
+     * لقطتان 300×200 متطابقتان إلا في «ساعة» — رقعةٌ 60×24 عند (200,20) بلونين. بلا منطقة تُحصى الساعة؛ ثمّ
+     * «ارسم مستطيلًا» وسحبٌ حقيقي حولها فوق المسرح ⟵ `0%` ولا مناطق، والنسبة «على المناطق المهمّة»، والمنطقة
+     * معلَنة «غير محفوظة». وإعادة تحميل الصفحة تُسقطها — مقارنة لقطتين بلا مرجع لا تحفظ شيئًا. وهذا القسم هو
+     * ما يسقط حين يُعطَّل القناع في المحرّك (سجلّ `STAGES/34`).
+     */
+    try {
+      const CLOCK_A = 'verify-clock-a'
+      const CLOCK_B = 'verify-clock-b'
+      const seededClock = JSON.parse(
+        await evalIn(
+          S,
+          `(async () => {
+          const db = await new Promise((res, rej) => {
+            const r = indexedDB.open('rasd')
+            r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error)
+          })
+          function page(clock) {
+            const c = new OffscreenCanvas(300, 200)
+            const ctx = c.getContext('2d')
+            ctx.fillStyle = 'rgb(100,100,100)'
+            ctx.fillRect(0, 0, 300, 200)
+            ctx.fillStyle = 'rgb(30,30,30)'
+            ctx.fillRect(20, 120, 120, 40)
+            ctx.fillStyle = clock
+            ctx.fillRect(200, 20, 60, 24)
+            return c.convertToBlob({ type: 'image/png' })
+          }
+          const blobA = await page('rgb(220,40,40)')
+          const blobB = await page('rgb(40,200,60)')
+          const now = Date.now()
+          const tx = db.transaction(['captures','blobs'], 'readwrite')
+          const rec = (id, title) => ({
+            id, createdAt: now, origin: 'https://example.com', url: 'https://example.com/clock',
+            title, kind: 'viewport', status: 'ready', projectId: null, tags: [],
+            width: 300, height: 200, devicePixelRatio: 1, favorite: false, archived: false, trashedAt: null,
+          })
+          tx.objectStore('captures').put(rec('${CLOCK_A}', 'ساعة أ'))
+          tx.objectStore('captures').put(rec('${CLOCK_B}', 'ساعة ب'))
+          tx.objectStore('blobs').put({ id: '${CLOCK_A}', blob: blobA, mime: 'image/png', bytes: blobA.size })
+          tx.objectStore('blobs').put({ id: '${CLOCK_B}', blob: blobB, mime: 'image/png', bytes: blobB.size })
+          await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error) })
+          db.close()
+          return JSON.stringify({ ok: true })
+        })().catch(e => JSON.stringify({ ok: false, error: String(e) }))`,
+        ),
+      )
+
+      /** نسبةٌ مستقرّة ثلاث قراءات متتالية على الصفحة الحالية — الحساب غير متزامن (خيط + عرض). */
+      async function stableRatio(timeoutMs = 10000) {
+        const start = Date.now()
+        let last = null
+        let same = 0
+        while (Date.now() - start < timeoutMs) {
+          const computed = await evalIn(S, comparedPixelsExpr).catch(() => null)
+          const text = computed
+            ? await evalIn(
+                S,
+                `document.querySelector('[class*="ratioValue"]')?.textContent ?? null`,
+              ).catch(() => null)
+            : null
+          if (text !== null && text === last) {
+            if (++same >= 3) return text
+          } else same = 0
+          last = text
+          await new Promise((r) => setTimeout(r, 150))
+        }
+        return null
+      }
+      const readPanel = () =>
+        evalIn(
+          S,
+          `JSON.stringify({
+            label: document.querySelector('[class*="ratioLabel"]')?.textContent ?? '',
+            detail: document.querySelector('[class*="ratioDetail"]')?.textContent ?? '',
+            regions: document.querySelectorAll('[class*="regionChips"] [class*="chip"]').length,
+            zonesSection: document.querySelector('[data-compare-zones]')?.textContent ?? '',
+            rows: document.querySelectorAll('[data-compare-zone]').length,
+            boxes: document.querySelectorAll('[data-compare-zone-box]').length,
+          })`,
+        ).then((t) => JSON.parse(t))
+
+      if (!seededClock.ok) {
+        fail(`تعذّر زرع لقطتَي الساعة: ${seededClock.error}`)
+      } else {
+        const clockUrl = `chrome-extension://${extId}/src/pages/compare/index.html?a=${CLOCK_A}&b=${CLOCK_B}`
+        await send('Page.navigate', { url: clockUrl }, S)
+        await new Promise((r) => setTimeout(r, 600))
+        const before = await stableRatio()
+        const beforePanel = await readPanel()
+        if (before && before.trim() !== '0%' && beforePanel.regions === 1) {
+          ok(`بلا منطقة: الساعة وحدها فرقٌ مقيس — ${before} ومنطقة واحدة`)
+        } else {
+          fail(`الساعة المتغيّرة لم تُحصَ بلا منطقة: ${before} · ${JSON.stringify(beforePanel)}`)
+        }
+
+        // ── رسمٌ حقيقي: الزرّ ثمّ سحب الفأرة فوق طبقة الالتقاط، بإحداثيات بكسل الصورة ──
+        await evalIn(S, `document.querySelector('[data-compare-zone-draw]')?.click()`)
+        await new Promise((r) => setTimeout(r, 200))
+        const layer = JSON.parse(
+          await evalIn(
+            S,
+            `(() => {
+              const el = document.querySelector('[data-compare-zone-layer]')
+              if (!el) return JSON.stringify(null)
+              const r = el.getBoundingClientRect()
+              return JSON.stringify({ x: r.left, y: r.top, w: r.width, h: r.height })
+            })()`,
+          ),
+        )
+        if (!layer) {
+          fail('«ارسم مستطيلًا» لم يُظهر طبقة الالتقاط')
+        } else {
+          // الساعة (200..260 × 20..44) وحولها هامش — بكسل الصورة إلى بكسل الشاشة بمقياس المسرح.
+          const k = layer.w / 300
+          const at = (x, y) => ({ x: layer.x + x * k, y: layer.y + y * k })
+          const from = at(192, 12)
+          const to = at(268, 52)
+          const mouse = (type, p) =>
+            send(
+              'Input.dispatchMouseEvent',
+              { type, x: p.x, y: p.y, button: 'left', clickCount: 1, pointerType: 'mouse' },
+              S,
+            )
+          await mouse('mousePressed', from)
+          await mouse('mouseMoved', at(230, 30))
+          await mouse('mouseMoved', to)
+          await mouse('mouseReleased', to)
+          await new Promise((r) => setTimeout(r, 400))
+
+          const after = await stableRatio()
+          const afterPanel = await readPanel()
+          if (
+            after?.trim() === '0%' &&
+            afterPanel.regions === 0 &&
+            afterPanel.label.includes('على المناطق المهمّة') &&
+            afterPanel.detail.includes('استُثني') &&
+            afterPanel.rows === 1 &&
+            afterPanel.boxes === 1 &&
+            afterPanel.zonesSection.includes('غير محفوظة')
+          ) {
+            ok(
+              `بمنطقةٍ مرسومة حول الساعة: ${after} ولا مناطق — «${afterPanel.label}» · «${afterPanel.detail}»`,
+            )
+          } else {
+            fail(`المنطقة المرسومة لم تُسقط الساعة: ${after} · ${JSON.stringify(afterPanel)}`)
+          }
+
+          // غير محفوظة: إعادة التحميل تُسقطها، والساعة تعود فرقًا.
+          await send('Page.reload', {}, S)
+          await new Promise((r) => setTimeout(r, 600))
+          const reloaded = await stableRatio()
+          const reloadedPanel = await readPanel()
+          if (reloaded?.trim() === before?.trim() && reloadedPanel.rows === 0) {
+            ok(`إعادة التحميل أسقطت منطقة الجلسة — ${reloaded} كما قبلها، ولا شيء حُفظ`)
+          } else {
+            fail(
+              `منطقة الجلسة بقيت بعد إعادة التحميل: ${reloaded} · ${JSON.stringify(reloadedPanel)}`,
+            )
+          }
+        }
+      }
+    } catch (e) {
+      fail(`استثناء أثناء فحص المناطق المستثناة: ${e.message ?? e}`)
+    }
+
+    /*
+     * ── كلفة القناع في كروم حقيقي: ≤ 30ms تُضاف على 1440 × 900 بـDPR 2 (`STAGES/34`) ──────────
+     *
+     * القياس المُلزِم للبند هنا لا في اختبار الوحدة: هناك Node تحت أدوات التغطية ومع عشرات الملفّات بالتوازي،
+     * وقِيس فيه 50ms لتمريرةٍ تأخذ 4–6ms وحدها. وهنا الخيط المبنيّ نفسه (`diff.worker`) في الصفحة نفسها،
+     * بطلبين على الصورتين نفسيهما — بلا مناطق، وبمنطقتين متراكبتين تغطّيان نصف الصورة ووسطها — و`ms` هو ما يقيسه
+     * الخيط حول `computeDiff` و`groupDiffRegions`. الأدنى من خمسٍ لكلٍّ، والفرق ما أضافه القناع.
+     */
+    try {
+      const workerFile = readdirSync(join(dist, 'assets')).find((f) =>
+        /^diff\.worker-.*\.js$/.test(f),
+      )
+      if (!workerFile) {
+        fail('لم يُعثر على الخيط المبنيّ diff.worker في dist/assets')
+      } else {
+        const timing = JSON.parse(
+          await evalIn(
+            S,
+            `(async () => {
+            const W = 2880, H = 1800
+            const make = (seed) => {
+              const c = new OffscreenCanvas(W, H)
+              const ctx = c.getContext('2d')
+              ctx.fillStyle = 'rgb(240,240,240)'
+              ctx.fillRect(0, 0, W, H)
+              ctx.fillStyle = 'rgb(20,20,20)'
+              for (let i = 0; i < 60; i++) {
+                ctx.fillRect((i * 211 + seed) % (W - 200), (i * 97 + seed) % (H - 100), 160, 60)
+              }
+              return ctx.getImageData(0, 0, W, H).data
+            }
+            const a = make(0)
+            const b = make(37)
+            const worker = new Worker(chrome.runtime.getURL('assets/${workerFile}'), { type: 'module' })
+            await new Promise((res, rej) => {
+              worker.onmessage = (e) => { if (e.data && e.data.ready) res() }
+              worker.onerror = () => rej(new Error('تعذّر تحميل الخيط'))
+            })
+            let id = 0
+            const run = (exclude) => new Promise((res) => {
+              const mine = ++id
+              worker.onmessage = (e) => { if (e.data && e.data.id === mine) res(e.data) }
+              const ab = a.slice().buffer
+              const bb = b.slice().buffer
+              worker.postMessage({
+                id: mine,
+                a: { buffer: ab, width: W, height: H },
+                b: { buffer: bb, width: W, height: H },
+                diffOptions: { exclude },
+                regionOptions: {},
+              }, [ab, bb])
+            })
+            const zones = [
+              { space: 'device', x: 0, y: 0, width: W / 2, height: H },
+              { space: 'device', x: W / 4, y: H / 4, width: W / 2, height: H / 2 },
+            ]
+            const plain = []
+            const masked = []
+            let excluded = 0
+            for (let k = 0; k < 5; k++) {
+              plain.push((await run([])).ms)
+              const r = await run(zones)
+              masked.push(r.ms)
+              excluded = r.excludedPixels
+            }
+            worker.terminate()
+            return JSON.stringify({ plain, masked, excluded })
+          })()`,
+          ),
+        )
+        const best = (xs) => Math.min(...xs)
+        const added = best(timing.masked) - best(timing.plain)
+        // الأرقام دليلٌ يُقرأ بعد الجولة — الحارس الأخضر لا يطبع سطوره.
+        const dir = join(root, 'artifacts')
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+        writeFileSync(
+          join(dir, 'compare-mask-cost.json'),
+          JSON.stringify({ ...timing, addedMs: added }, null, 2),
+        )
+        const expectedExcluded = 2880 * 1800 * 0.5 + 720 * 900
+        if (timing.excluded !== expectedExcluded) {
+          fail(
+            `القناع في الخيط المبنيّ استثنى ${timing.excluded} بكسلًا — المتوقَّع ${expectedExcluded}`,
+          )
+        } else if (added > 30) {
+          fail(
+            `القناع أضاف ${added.toFixed(1)}ms إلى الفرق على 2880×1800 — السقف 30ms ` +
+              `(بلا مناطق ${best(timing.plain).toFixed(1)}ms، بها ${best(timing.masked).toFixed(1)}ms)`,
+          )
+        } else {
+          ok(
+            `كلفة القناع على 2880×1800 في الخيط المبنيّ: ${added.toFixed(1)}ms مضافة ≤ 30ms ` +
+              `(بلا مناطق ${best(timing.plain).toFixed(1)}ms، بها ${best(timing.masked).toFixed(1)}ms، الأدنى من خمس)`,
+          )
+        }
+      }
+    } catch (e) {
+      fail(`استثناء أثناء قياس كلفة القناع: ${e.message ?? e}`)
     }
 
     /*

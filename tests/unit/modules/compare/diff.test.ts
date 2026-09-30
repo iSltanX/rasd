@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { computeDiff, DEFAULT_DIFF_OPTIONS, type RasterImage } from '@/modules/compare/diff'
+import { groupDiffRegions } from '@/modules/compare/regions'
+import { deviceRect } from '@/shared/geometry'
 
 /** صورة صلبة اللون — كل بكسل بنفس القيمة. */
 function solid(
@@ -302,5 +304,134 @@ describe('computeDiff — بُعدٌ صفريّ ⇐ لا تقاطع، والصو
     expect(result.extraInA.rows).toEqual({ space: 'device', x: 0, y: 0, width: 9, height: 7 })
     expect(result.extraInB.cols).toEqual({ space: 'device', x: 0, y: 0, width: 5, height: 0 })
     expect(result.extraInB.rows).toBeNull()
+  })
+})
+
+/**
+ * المناطق المستثناة (ADR 0034) — البكسل المستثنى لا يدخل البسط ولا المقام ولا القناع الذي يغذّي المناطق.
+ *
+ * كُتبت هذه الحالات **قبل** `DiffOptions.exclude` (`STAGES/34` الدفعة 1): سقطت كلّها على المحرّك السابق — النسبة
+ * على التقاطع كلّه، والمناطق من القناع كلّه.
+ */
+describe('computeDiff — المناطق المستثناة', () => {
+  /** صورتان 40×30 رماديّتان، وب فيها رقعة حمراء `w×h` عند `(x, y)`. */
+  function withPatch(x: number, y: number, w: number, h: number) {
+    const a = solid(40, 30, GRAY)
+    const b = clone(a)
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) setPixel(b, x + dx, y + dy, RED)
+    return { a, b }
+  }
+
+  it('اختلافٌ داخل منطقة مستثناة وحدها ⟵ النسبة صفر، والقناع والخريطة خاليان، ولا مناطق', () => {
+    const { a, b } = withPatch(10, 10, 6, 4)
+    const result = computeDiff(a, b, { exclude: [deviceRect(8, 8, 10, 8)] })
+
+    expect(result.diffPixelCount).toBe(0)
+    expect(result.diffRatio).toBe(0)
+    expect(result.mask.every((m) => m === 0)).toBe(true)
+    // ألفا الخريطة الحرارية صفرٌ حيث صُفِّر القناع — العميل يشتقّ القناع منها (`worker-client.ts`).
+    for (let i = 0; i < result.mask.length; i++) expect(result.diff.data[i * 4 + 3]).toBe(0)
+    expect(groupDiffRegions(result.mask, result.overlap.width, result.overlap.height)).toEqual([])
+  })
+
+  it('والمقام يستبعد بكسلات المنطقة بقيمتها المعروفة: 40×30 − 10×8', () => {
+    const { a, b } = withPatch(10, 10, 6, 4)
+    const result = computeDiff(a, b, { exclude: [deviceRect(8, 8, 10, 8)] })
+
+    expect(result.excludedPixels).toBe(80)
+    expect(result.comparedPixels).toBe(40 * 30 - 80)
+    expect(result.overlap).toEqual(deviceRect(0, 0, 40, 30))
+  })
+
+  it('اختلافٌ خارج المنطقة يُعدّ كاملًا، على مقامٍ بلا المنطقة', () => {
+    const { a, b } = withPatch(28, 20, 6, 4)
+    const without = computeDiff(a, b)
+    const result = computeDiff(a, b, { exclude: [deviceRect(0, 0, 10, 10)] })
+
+    expect(without.diffPixelCount).toBe(24)
+    expect(result.diffPixelCount).toBe(24)
+    expect(result.comparedPixels).toBe(1200 - 100)
+    expect(result.diffRatio).toBe(24 / 1100)
+    expect(groupDiffRegions(result.mask, 40, 30)).toEqual([
+      { id: 1, rect: deviceRect(28, 20, 6, 4), pixels: 24 },
+    ])
+  })
+
+  it('رقعةٌ تعبر حدّ المنطقة: ما داخلها يسقط وما خارجها يبقى، بكسلًا بكسلًا', () => {
+    const { a, b } = withPatch(10, 10, 6, 4) // 24 بكسلًا، عمودان منها (x=10،11) داخل المنطقة
+    const result = computeDiff(a, b, { exclude: [deviceRect(0, 0, 12, 30)] })
+
+    expect(result.diffPixelCount).toBe(16)
+    expect(result.excludedPixels).toBe(12 * 30)
+    expect(groupDiffRegions(result.mask, 40, 30)).toEqual([
+      { id: 1, rect: deviceRect(12, 10, 4, 4), pixels: 16 },
+    ])
+  })
+
+  it('منطقتان متراكبتان تُعدّ مساحتهما المشتركة مرّة واحدة', () => {
+    const a = solid(20, 20, GRAY)
+    const result = computeDiff(a, clone(a), {
+      exclude: [deviceRect(0, 0, 10, 10), deviceRect(5, 5, 10, 10)],
+    })
+    // 100 + 100 − 25 مشتركة.
+    expect(result.excludedPixels).toBe(175)
+    expect(result.comparedPixels).toBe(400 - 175)
+  })
+
+  it('منطقةٌ على حدّ التقاطع تُقصّ ولا ترمي، ومنطقةٌ خارجه تُهمَل', () => {
+    const a = solid(30, 20, GRAY)
+    const b = solid(20, 30, GRAY) // التقاطع 20×20
+    const exclude = [
+      deviceRect(15, 15, 10, 10), // تعبر الحدّين: 5×5 داخله
+      deviceRect(-4, 0, 6, 3), // تبدأ قبل الأصل: 2×3 داخله
+      deviceRect(22, 0, 5, 5), // داخل أ وحدها — خارج التقاطع
+      deviceRect(0, 25, 5, 5), // داخل ب وحدها — خارج التقاطع
+    ]
+    expect(() => computeDiff(a, b, { exclude })).not.toThrow()
+    const result = computeDiff(a, b, { exclude })
+    expect(result.excludedPixels).toBe(25 + 6)
+    expect(result.comparedPixels).toBe(400 - 31)
+    // الفائض يبقى كما هو: الاستثناء على التقاطع وحده.
+    expect(result.extraInA.cols).toEqual(deviceRect(20, 0, 10, 20))
+  })
+
+  it('مستطيلٌ غير منتهٍ أو بلا مساحة يُتجاهل، والكسور تُوسَّع إلى البكسلات التي تمسّها', () => {
+    const a = solid(10, 10, GRAY)
+    const result = computeDiff(a, clone(a), {
+      exclude: [
+        deviceRect(Number.NaN, 0, 5, 5),
+        deviceRect(0, 0, Number.POSITIVE_INFINITY, 5),
+        deviceRect(2, 2, 0, 5),
+        deviceRect(2, 2, -3, 5),
+        deviceRect(0.5, 0.5, 1, 1), // تمسّ البكسلات (0..1)×(0..1): أربعة
+      ],
+    })
+    expect(result.excludedPixels).toBe(4)
+  })
+
+  it('التقاطع كلّه مستثنى ⟵ لا مقام، والنسبة صفر لا NaN', () => {
+    const { a, b } = withPatch(10, 10, 6, 4)
+    const result = computeDiff(a, b, { exclude: [deviceRect(0, 0, 40, 30)] })
+    expect(result.comparedPixels).toBe(0)
+    expect(result.diffRatio).toBe(0)
+    expect(result.excludedPixels).toBe(1200)
+  })
+
+  it('بلا مناطق: `excludedPixels` صفر والنتيجة كما كانت بايتًا بايتًا', () => {
+    const { a, b } = withPatch(10, 10, 6, 4)
+    const plain = computeDiff(a, b)
+    const empty = computeDiff(a, b, { exclude: [] })
+    expect(plain.excludedPixels).toBe(0)
+    expect(empty.diffPixelCount).toBe(plain.diffPixelCount)
+    expect(empty.diff.data).toEqual(plain.diff.data)
+  })
+
+  it('المحرّك لا يمسّ مخزنَي الدخل — ولو تساوى العرضان فكان التقاطع عرضًا على مخزن أ نفسه', () => {
+    const { a, b } = withPatch(10, 10, 6, 4)
+    const beforeA = Uint8ClampedArray.from(a.data)
+    const beforeB = Uint8ClampedArray.from(b.data)
+    computeDiff(a, b, { exclude: [deviceRect(0, 0, 40, 30)] })
+    expect(a.data).toEqual(beforeA)
+    expect(b.data).toEqual(beforeB)
   })
 })

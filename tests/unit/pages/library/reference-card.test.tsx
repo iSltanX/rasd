@@ -15,6 +15,7 @@ function reference(over: Partial<ReferenceRecord> = {}): ReferenceRecord {
     path: '/pricing',
     viewport: 'desktop',
     blobId: 'blob-1',
+    exclusions: [],
     createdAt: NOW - 60_000,
     ...over,
   }

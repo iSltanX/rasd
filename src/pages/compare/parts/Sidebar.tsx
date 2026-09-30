@@ -23,7 +23,7 @@ import {
   type RegionItem,
 } from '@/pages/compare/region-format'
 import { formatDimensions } from '@/shared/bidi'
-import { formatHuman, formatPercent } from '@/shared/bidi/numerals'
+import { formatHuman, formatMeasure, formatPercent } from '@/shared/bidi/numerals'
 import { Banner } from '@/ui/components/Banner/Banner'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 import {
@@ -34,8 +34,10 @@ import { Slider } from '@/ui/components/Slider/Slider'
 import { cx } from '@/ui/cx'
 
 import styles from './Sidebar.module.css'
+import { ZonesSection } from './ZonesSection'
 
 import type { CompareMode } from './Stage'
+import type { SessionZone } from '@/pages/compare/session-zones'
 import type { JSX } from 'preact'
 
 const MODE_OPTIONS: readonly (SegmentedOption & { value: CompareMode })[] = [
@@ -63,13 +65,28 @@ export interface SidebarProps {
   readonly sizeB: { readonly width: number; readonly height: number }
   /** اكتمل حساب الفرق — قبله لا يُقال «متطابقتان» عن صفرٍ لم يُحسب. */
   readonly computed: boolean
+  /** مناطق هذه الجلسة — مؤقّتة، لا تُحفَظ في أي مكان. */
+  readonly zones: readonly SessionZone[]
+  /** بكسلات التقاطع التي استثنتها المناطق من العدّ — قياسٌ غربي في سطر النسبة. */
+  readonly excludedPixels: number
+  /** وضع الرسم قائم — حالة زرّ «ارسم مستطيلًا». */
+  readonly drawing: boolean
+  readonly onToggleDrawing: () => void
+  readonly onRemoveZone: (id: number) => void
 }
 
 /**
  * سطر الحكم فوق النسبة — `compare / identical` (`291:12984`) و`size-mismatch` (`291:13076`).
  * كانت المقارنة المتطابقة تعرض «٠٪» كأيّ مقارنة، والمقاسان المختلفان علامةً في الدليل وحدها.
  */
-function Verdict(props: Pick<SidebarProps, 'sizeA' | 'sizeB' | 'computed' | 'diffPixelCount'>) {
+function Verdict(
+  props: Pick<
+    SidebarProps,
+    'sizeA' | 'sizeB' | 'computed' | 'diffPixelCount' | 'comparedPixels'
+  > & {
+    readonly zoneCount: number
+  },
+) {
   const { sizeA, sizeB } = props
   if (sizeA.width !== sizeB.width || sizeA.height !== sizeB.height) {
     return (
@@ -79,6 +96,24 @@ function Verdict(props: Pick<SidebarProps, 'sizeA' | 'sizeB' | 'computed' | 'dif
           <bdi dir="ltr">{formatDimensions(sizeA.width, sizeA.height)}</bdi> · ب{' '}
           <bdi dir="ltr">{formatDimensions(sizeB.width, sizeB.height)}</bdi>
         </Banner>
+      </div>
+    )
+  }
+  /*
+   * **مع مناطق الجلسة الحكمُ على جزءٍ يُسمّى بجزئه** (ADR 0034 §2): ما أُخفي قد يختلف، فلا يُقال «متطابقتان».
+   * وإن غطّت المناطق التقاطع كلّه فلا حكم أصلًا — لم يُقارَن بكسلٌ واحد (المراجعة المستقلّة، `STAGES/34`).
+   */
+  if (props.computed && props.zoneCount > 0 && props.comparedPixels === 0) {
+    return (
+      <div data-compare-verdict="all-excluded">
+        <Banner tone="warning">المناطق تغطّي ما يُقارَن كلّه — لا بكسل بقي للمقارنة.</Banner>
+      </div>
+    )
+  }
+  if (props.computed && props.zoneCount > 0 && props.diffPixelCount === 0) {
+    return (
+      <div data-compare-verdict="unchanged-important">
+        <Banner tone="success">لا فرق على المناطق المهمّة — ما استُثني لا يُقارَن.</Banner>
       </div>
     )
   }
@@ -109,6 +144,11 @@ export function Sidebar({
   sizeA,
   sizeB,
   computed,
+  zones,
+  excludedPixels,
+  drawing,
+  onToggleDrawing,
+  onRemoveZone,
 }: SidebarProps): JSX.Element {
   const modeIndex = MODE_OPTIONS.findIndex((o) => o.value === mode)
 
@@ -127,12 +167,28 @@ export function Sidebar({
         />
       </section>
 
-      <Verdict sizeA={sizeA} sizeB={sizeB} computed={computed} diffPixelCount={diffPixelCount} />
+      <Verdict
+        sizeA={sizeA}
+        sizeB={sizeB}
+        computed={computed}
+        diffPixelCount={diffPixelCount}
+        comparedPixels={comparedPixels}
+        zoneCount={zones.length}
+      />
 
       <section class={cx(styles.section, styles.ratioCard)}>
-        <p class={styles.ratioLabel}>نسبة الاختلاف</p>
+        <p class={styles.ratioLabel}>
+          {zones.length > 0 ? 'نسبة الاختلاف · على المناطق المهمّة' : 'نسبة الاختلاف'}
+        </p>
         <p class={styles.ratioValue}>{formatPercent(diffRatio)}</p>
-        <p class={styles.ratioDetail}>{pixelCountSummary(diffPixelCount, comparedPixels)}</p>
+        {/*
+         * `من <N>` في `pixelCountSummary` يبقى كما هو: حرّاس Chrome يقرؤونه بـ`/من\s+(\d+)/`
+         * ويفسد مطابقتَه أيُّ نصٍّ يُقحَم قبله. والمستثنى يُلحَق **بعده** قياسًا غربيًّا.
+         */}
+        <p class={styles.ratioDetail}>
+          {pixelCountSummary(diffPixelCount, comparedPixels)}
+          {zones.length > 0 ? ` · استُثني ${formatMeasure(excludedPixels)}` : ''}
+        </p>
       </section>
 
       <section class={styles.section}>
@@ -172,6 +228,13 @@ export function Sidebar({
           </div>
         ) : null}
       </section>
+
+      <ZonesSection
+        zones={zones}
+        drawing={drawing}
+        onToggleDrawing={onToggleDrawing}
+        onRemoveZone={onRemoveZone}
+      />
 
       <section class={styles.section}>
         <h2 class={styles.heading}>الدليل</h2>

@@ -24,6 +24,12 @@
 import { signal, type Signal } from '@preact/signals'
 
 import {
+  drawnRectToReference,
+  newZone,
+  resolveElementZone,
+  type ZoneResolution,
+} from '@/modules/compare/exclusions'
+import {
   identityOverlayTransform,
   matchWidthScale,
   referenceToViewport,
@@ -34,7 +40,20 @@ import {
   type OverlayTransform,
   type SplitAxis,
 } from '@/modules/compare/overlay'
-import { referencePoint, viewportPoint, type ViewportPoint } from '@/shared/geometry'
+import { pickAt } from '@/modules/dom-picker/hit-test'
+import { identify, refind } from '@/modules/dom-picker/identity'
+import { EXCLUSION_LIMITS, type ElementAnchor, type ExclusionZone } from '@/shared/exclusion-schema'
+import {
+  fromDomRect,
+  normalizeRect,
+  referencePoint,
+  viewportPoint,
+  viewportRectToDevice,
+  type CoordSpace,
+  type DeviceRect,
+  type ViewportPoint,
+  type ViewportRect,
+} from '@/shared/geometry'
 
 import type { SyncReason } from '../sync'
 
@@ -63,12 +82,28 @@ export interface CompareState {
   readonly pinned: Signal<boolean>
   /** أثناء ضغط مفتاح الوميض المطوَّل — يُظهر التنفيذ الحيّ بدل المرجع مؤقّتًا. */
   readonly blinkShowingLive: Signal<boolean>
+  /** مناطق المرجع المستثناة كما حُفظت (ADR 0034). */
+  readonly zones: Signal<readonly ExclusionZone[]>
+  /** مناطق عنصر من مقاسات أخرى للصفحة نفسها — اقتراحٌ لا يُكتب إلا بنقرة. */
+  readonly suggested: Signal<readonly ExclusionZone[]>
+  /** إعداد منطقة جارٍ: رسم مستطيل فوق المرجع، أو اختيار عنصر من الصفحة. */
+  readonly zoneTool: Signal<'draw' | 'pick' | null>
+  /** المستطيل الجاري رسمه، أو العنصر تحت المؤشِّر — بفضاء النافذة. */
+  readonly zoneDraft: Signal<{ readonly rect: ViewportRect; readonly selector?: string } | null>
+  /** حلّ مناطق العنصر في الصفحة الحيّة الآن، بمعرّف المنطقة. */
+  readonly resolved: Signal<Readonly<Record<string, ZoneResolution>>>
 }
 
 export interface CompareOptions {
   win?: Window
   onInvalidate?: () => void
   onBusy?: (busy: boolean) => void
+  /** مضيف الطبقة — لا يُعدّ عنصرًا يُختار. */
+  skip?: Element | null
+  /** فضاء الإحداثيات الحيّ — نسبة البكسل لمستطيل العنصر. */
+  space?: () => CoordSpace
+  /** قائمةٌ جديدة يجب أن تُحفظ مع المرجع — الحفظ خارج هذا الملفّ (`zone-saver.ts`). */
+  onZonesChange?: (zones: readonly ExclusionZone[]) => void
 }
 
 export interface CompareTool {
@@ -76,7 +111,7 @@ export interface CompareTool {
   setReference(image: ReferenceImage | null): void
   onPointerDown(event: PointerEvent): void
   onPointerMove(event: PointerEvent): void
-  onPointerUp(): void
+  onPointerUp(event?: PointerEvent): void
   onWheel(event: WheelEvent): void
   /** رياضيات الدلتا في `overlay.ts`؛ خطوة ⇧ تُحسَب خارج هذا الملفّ (انظر تعليق الرأس). */
   nudge(dx: number, dy: number): void
@@ -90,6 +125,14 @@ export interface CompareTool {
   /** «طابق العرض» — الزاوية العلوية اليسرى للمرجع تبقى في مكانها، التحجيم وحده يتغيّر. */
   matchWidth(containerWidth: number): void
   frame(reasons: ReadonlySet<SyncReason>): void
+  /** مناطق المرجع المحمَّل ومقترحاته — من ردّ `reference/load` أو `reference/set`. */
+  setZones(zones: readonly ExclusionZone[], suggested: readonly ExclusionZone[]): void
+  setZoneTool(tool: 'draw' | 'pick' | null): void
+  removeZone(id: string): void
+  /** يضيف المقترح الموجود في الصفحة الآن، بمستطيله فيها. */
+  addSuggested(): void
+  /** مستطيل كل منطقة عنصر وُجدت في الصفحة الآن — يرافق طلب الفرق. */
+  liveRects(): Record<string, DeviceRect>
   reset(): void
   dispose(): void
 }
@@ -106,6 +149,16 @@ const MAX_SCALE = 50
 const clampScale = (s: number): number => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s))
 const clampPercent = (n: number): number => Math.min(100, Math.max(0, n))
 
+/**
+ * معرِّف منطقة — `getRandomValues` لا `randomUUID`: الأخيرة غائبة عن سكربت المحتوى في صفحة `http` غير محلّية
+ * (سياقٌ غير آمن، قِيس في كروم)، فلم تكن تُنشأ منطقة هناك (المراجعة المستقلّة، `STAGES/34`). و`host.ts` يولّد
+ * معرّفه بالطريقة نفسها.
+ */
+const zoneId = (): string =>
+  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+    b.toString(16).padStart(2, '0'),
+  ).join('')
+
 export function createCompare(options: CompareOptions = {}): CompareTool {
   const win = options.win ?? window
 
@@ -119,6 +172,49 @@ export function createCompare(options: CompareOptions = {}): CompareTool {
     splitAxis: signal<SplitAxis>('vertical'),
     pinned: signal(true),
     blinkShowingLive: signal(false),
+    zones: signal<readonly ExclusionZone[]>([]),
+    suggested: signal<readonly ExclusionZone[]>([]),
+    zoneTool: signal<'draw' | 'pick' | null>(null),
+    zoneDraft: signal(null),
+    resolved: signal({}),
+  }
+  const doc = win.document
+  let drawStart: ViewportPoint | null = null
+  // العنصر تحت المؤشِّر ومحدِّده — يُبنى المحدِّد حين يتبدّل العنصر لا مع كل حركة.
+  let hovered: { el: Element; selector: string } | null = null
+
+  /** مستطيل عنصرٍ بفضاء الجهاز — موضعه في لقطة الصفحة التي يقارنها الفرق الحيّ بالمرجع. */
+  const deviceOf = (el: Element): DeviceRect | null => {
+    const r = el.getBoundingClientRect()
+    if (r.width <= 0 || r.height <= 0 || !options.space) return null
+    return viewportRectToDevice(fromDomRect(r), options.space())
+  }
+
+  const locate = (anchor: ElementAnchor): ZoneResolution => {
+    const verdict = refind(anchor, doc, options.skip)
+    const el = verdict.kind === 'found' || verdict.kind === 'changed' ? verdict.el : null
+    return resolveElementZone(anchor, verdict.kind, el ? deviceOf(el) : null)
+  }
+
+  /** يعيد العثور على مناطق العنصر — عند التحميل والتمرير وقبل كل قياس. */
+  const resolveZones = (): void => {
+    const next: Record<string, ZoneResolution> = {}
+    for (const zone of state.zones.peek()) {
+      if (zone.anchor.kind === 'element') next[zone.id] = locate(zone.anchor)
+    }
+    state.resolved.value = next
+  }
+
+  const commitZones = (zones: readonly ExclusionZone[]): void => {
+    state.zones.value = zones
+    resolveZones()
+    options.onZonesChange?.(zones)
+  }
+
+  /** العنصر المختار: إطارٌ متداخل يُستثنى كلّه — المحدِّد لا يعبر حدّ الإطار. */
+  const pickedAt = (event: PointerEvent): Element | null => {
+    const hit = pickAt(doc, event.clientX, event.clientY, options.skip)
+    return hit ? (hit.frames[0] ?? hit.el) : null
   }
 
   let dragStart: ViewportPoint | null = null
@@ -126,20 +222,62 @@ export function createCompare(options: CompareOptions = {}): CompareTool {
   let lastScrollX = win.scrollX
   let lastScrollY = win.scrollY
 
+  /** المقترح يُعرض إن وُجد عنصره في الصفحة الآن وحده — اقتراحُ ما لا يُرى وعدٌ لا يُوفى. */
+  const setZones = (zones: readonly ExclusionZone[], suggested: readonly ExclusionZone[]): void => {
+    state.zones.value = zones
+    state.suggested.value = suggested.filter(
+      (s) => s.anchor.kind === 'element' && !locate(s.anchor).fallback,
+    )
+    resolveZones()
+  }
+
   const setReference = (image: ReferenceImage | null): void => {
     state.reference.value = image
     // مرجعٌ جديد يبدأ بتحويل محايد — موضع مرجع سابق لا معنى له لصورة أخرى.
     state.transform.value = identityOverlayTransform
+    // ومناطق المرجع السابق ليست مناطقه — يضعها المستدعي من ردّ المرجع الجديد.
+    setZones([], [])
+    state.zoneTool.value = null
+  }
+
+  const setZoneTool = (tool: 'draw' | 'pick' | null): void => {
+    state.zoneTool.value = state.reference.peek() ? tool : null
+    state.zoneDraft.value = null
+    drawStart = null
+    hovered = null
   }
 
   const onPointerDown = (event: PointerEvent): void => {
     if (!state.reference.peek()) return
+    if (state.zoneTool.peek() === 'draw') {
+      drawStart = viewportPoint(event.clientX, event.clientY)
+      return
+    }
+    if (state.zoneTool.peek()) return
     dragStart = viewportPoint(event.clientX, event.clientY)
     dragOrigin = state.transform.peek()
     options.onBusy?.(true)
   }
 
   const onPointerMove = (event: PointerEvent): void => {
+    const tool = state.zoneTool.peek()
+    if (tool === 'pick') {
+      const el = pickedAt(event)
+      if (el && hovered?.el !== el) hovered = { el, selector: identify(el, win).selector }
+      state.zoneDraft.value =
+        el && hovered
+          ? { rect: fromDomRect(el.getBoundingClientRect()), selector: hovered.selector }
+          : null
+      return
+    }
+    if (tool === 'draw') {
+      if (drawStart) {
+        state.zoneDraft.value = {
+          rect: normalizeRect(drawStart, viewportPoint(event.clientX, event.clientY)),
+        }
+      }
+      return
+    }
     if (!dragStart) return
     const dx = event.clientX - dragStart.x
     const dy = event.clientY - dragStart.y
@@ -147,10 +285,71 @@ export function createCompare(options: CompareOptions = {}): CompareTool {
     options.onInvalidate?.()
   }
 
-  const onPointerUp = (): void => {
+  /** يُنهي الإعداد الجاري بمنطقة جديدة — أو بلا شيء إن لم يُرسم ما يُعدّ ولم يُصَب عنصر. */
+  const finishZone = (event: PointerEvent): void => {
+    const tool = state.zoneTool.peek()
+    const now = Date.now()
+    let zone: ExclusionZone | null = null
+    if (tool === 'draw' && drawStart) {
+      const rect = drawnRectToReference(
+        drawStart,
+        viewportPoint(event.clientX, event.clientY),
+        state.transform.peek(),
+      )
+      if (rect.width >= 2 && rect.height >= 2) zone = newZone({ kind: 'rect', rect }, zoneId(), now)
+    }
+    if (tool === 'pick') {
+      const el = pickedAt(event)
+      const rect = el ? deviceOf(el) : null
+      if (el && rect) {
+        const { selector, hosts, fingerprint } = identify(el, win)
+        zone = newZone({ kind: 'element', selector, hosts, fingerprint, rect }, zoneId(), now)
+      }
+    }
+    setZoneTool(null)
+    if (zone) commitZones([...state.zones.peek(), zone])
+  }
+
+  const onPointerUp = (event?: PointerEvent): void => {
+    if (state.zoneTool.peek()) {
+      if (event) finishZone(event)
+      else {
+        drawStart = null
+        state.zoneDraft.value = null
+      }
+      return
+    }
     if (!dragStart) return
     dragStart = null
     options.onBusy?.(false)
+  }
+
+  const removeZone = (id: string): void => {
+    commitZones(state.zones.peek().filter((z) => z.id !== id))
+  }
+
+  const addSuggested = (): void => {
+    const now = Date.now()
+    // لا فوق حدّ القائمة الذي تتحقّق به الخلفية — ما زاد يُرفض عند الحفظ فتُعاد القائمة كلّها.
+    const room = Math.max(0, EXCLUSION_LIMITS.zones - state.zones.peek().length)
+    const added = state.suggested
+      .peek()
+      .slice(0, room)
+      .flatMap((s) => {
+        if (s.anchor.kind !== 'element') return []
+        const found = locate(s.anchor)
+        if (found.fallback) return []
+        return [newZone({ ...s.anchor, rect: found.rect }, zoneId(), now)]
+      })
+    state.suggested.value = []
+    if (added.length > 0) commitZones([...state.zones.peek(), ...added])
+  }
+
+  const liveRects = (): Record<string, DeviceRect> => {
+    resolveZones()
+    const out: Record<string, DeviceRect> = {}
+    for (const [id, r] of Object.entries(state.resolved.peek())) if (!r.fallback) out[id] = r.rect
+    return out
   }
 
   /** عجلة الفأرة: تكبير نحو المؤشِّر — نفس معامل `editor/Stage.tsx` (`exp(-Δy·0.0015)`) لتناسق الإحساس بين أداتين. */
@@ -209,6 +408,12 @@ export function createCompare(options: CompareOptions = {}): CompareTool {
    * التمرير كي يبقى فوق محتوى الصفحة نفسه بصريًا.
    */
   const frame = (reasons: ReadonlySet<SyncReason>): void => {
+    // موضع العنصر يتبع التمرير وتغيير الحجم — منطقته تُرسم حيث هو الآن.
+    if (
+      (reasons.has('scroll') || reasons.has('resize')) &&
+      Object.keys(state.resolved.peek()).length
+    )
+      resolveZones()
     if (!reasons.has('scroll')) return
     const dx = win.scrollX - lastScrollX
     const dy = win.scrollY - lastScrollY
@@ -234,6 +439,8 @@ export function createCompare(options: CompareOptions = {}): CompareTool {
     state.splitAxis.value = 'vertical'
     state.pinned.value = true
     state.blinkShowingLive.value = false
+    setZones([], [])
+    setZoneTool(null)
     options.onBusy?.(false)
   }
 
@@ -254,6 +461,11 @@ export function createCompare(options: CompareOptions = {}): CompareTool {
     setBlinkShowingLive,
     matchWidth,
     frame,
+    setZones,
+    setZoneTool,
+    removeZone,
+    addSuggested,
+    liveRects,
     reset,
     dispose: reset,
   }

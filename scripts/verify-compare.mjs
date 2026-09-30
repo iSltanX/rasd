@@ -17,6 +17,9 @@
  * `verify-picker.mjs`/`verify-measure.mjs`، وأداة المقارنة لا تحتاج محتوى
  * صفحة محدَّدًا (تتفاعل مع طبقتنا نفسها لا عناصر الصفحة).
  *
+ * والمناطق المستثناة (`STAGES/34`، القسم 8.7): الفرق الحيّ من زرّ اللوحة إلى الخلفية، وساعةٌ متغيّرة
+ * تُحصى بلا منطقة وتسقط بمنطقة عنصر أو مستطيل، والمنطقة تُحفظ مع المرجع وتعود معه.
+ *
  *   pnpm build && pnpm verify:compare
  */
 import { spawn } from 'node:child_process'
@@ -58,7 +61,13 @@ const stage = mkdtempSync(join(tmpdir(), 'rasd-compare-ext-'))
 cpSync(dist, stage, { recursive: true })
 const stagedManifest = join(stage, 'manifest.json')
 const manifest = JSON.parse(readFileSync(stagedManifest, 'utf8'))
-manifest.host_permissions = ['http://127.0.0.1/*']
+/*
+ * **`<all_urls>` لا `http://127.0.0.1/*`** منذ قسم المناطق المستثناة (8.7): الفرق الحيّ يلتقط بـ
+ * `captureVisibleTab`، وهي لا تقبل صلاحية مضيف ضيّقة — «Either the '<all_urls>' or 'activeTab' permission
+ * is required» (قِيس هنا، وعلّته نفسها في `verify-capture.mjs`). و`activeTab` لا تُمنح برمجيًّا. فالصلاحية
+ * الشاملة محصورة في هذه النسخة المؤقّتة التي تُحذف بعد الفحص، والحزمة المشحونة كما هي.
+ */
+manifest.host_permissions = ['<all_urls>']
 writeFileSync(stagedManifest, JSON.stringify(manifest, null, 2))
 
 const profile = mkdtempSync(join(tmpdir(), 'rasd-compare-'))
@@ -189,7 +198,7 @@ if (!extId || !sw) {
 } else if (!granted) {
   fail('صلاحية المضيف للعيّنات غير ممنوحة — الحقن عبر chrome.scripting غير ممكن.')
 } else {
-  ok(`نسخة الفحص محمَّلة، والصلاحية للعيّنات المحلّية وحدها (${BASE}/*)`)
+  ok(`نسخة الفحص محمَّلة، والصلاحية ممنوحة للعيّنات (${BASE}/*) في النسخة المؤقّتة`)
 }
 
 async function openTab(path) {
@@ -830,6 +839,196 @@ if (extId && sw && granted) {
         if (galleryClosed) ok('زرّ الإغلاق يطوي المعرض')
         else fail('المعرض بقي مفتوحًا بعد نقر زرّ الإغلاق.')
       }
+
+      // ── 8.7) المناطق المستثناة — ساعةٌ متغيّرة داخل منطقة ⟵ النسبة صفر (`STAGES/34`) ──
+      /*
+       * المرجع لقطةٌ للصفحة نفسها والطبقة مخفيّة، وساعةٌ تُكتب قبلها وتتغيّر بعدها — فالفرق الحيّ كلّه في الساعة،
+       * معروف الموضع. بلا منطقة: نسبةٌ موجبة ومنطقةٌ متحرّكة، وهي الحالة التي يسقط عليها هذا القسم حين يُعطَّل
+       * القناع في المحرّك (سجلّ `STAGES/34`). بمنطقة عنصرٍ فوق الساعة: صفرٌ ولا مناطق، والنسبة «على المناطق
+       * المهمّة». ثمّ المنطقة تُحفظ مع المرجع وتعود معه، ومستطيلٌ مرسوم يؤدّي الشيء نفسه.
+       *
+       * أوّل قسمٍ يقود الفرق الحيّ من زرّ اللوحة إلى الخلفية ذهابًا وإيابًا — لا حارس غيره يمرّ به.
+       */
+      const dpr = await inPage(tabId, `() => window.devicePixelRatio`)
+      const setClock = (text, background) =>
+        inPage(
+          tabId,
+          `() => {
+            let el = document.getElementById('rasd-verify-clock')
+            if (!el) {
+              el = document.createElement('time')
+              el.id = 'rasd-verify-clock'
+              el.style.cssText = 'position:fixed;top:120px;left:${vw - 320}px;width:200px;height:48px;' +
+                'font:700 32px/48px monospace;color:#111;text-align:center;z-index:10'
+              document.body.appendChild(el)
+            }
+            el.textContent = ${JSON.stringify(text)}
+            el.style.background = ${JSON.stringify(background)}
+            const r = el.getBoundingClientRect()
+            return { x: r.x, y: r.y, w: r.width, h: r.height }
+          }`,
+        )
+      const panelClick = (label) =>
+        inOverlay(
+          tabId,
+          `() => {
+            const btn = [...globalThis.__rasdCompare.host.layer.querySelectorAll('[data-rasd-ov="compare-panel"] button')]
+              .find((b) => b.textContent.trim() === ${JSON.stringify(label)} || b.getAttribute('aria-label') === ${JSON.stringify(label)})
+            if (!btn) return false
+            btn.click()
+            return true
+          }`,
+        )
+      const readLiveDiff = () =>
+        inOverlay(
+          tabId,
+          `() => {
+            const layer = globalThis.__rasdCompare.host.layer
+            const section = layer.querySelector('[data-rasd-ov="compare-diff"]')
+            const busy = [...layer.querySelectorAll('[data-rasd-ov="compare-panel"] button')]
+              .some((b) => b.getAttribute('aria-busy') === 'true')
+            return {
+              busy,
+              value: section?.querySelector('.rasd-ov-cmp-diff-value')?.textContent ?? null,
+              count: [...(section?.querySelectorAll('.rasd-ov-cmp-diff-row') ?? [])]
+                .find((r) => r.textContent.includes('عناصر تحرّكت'))
+                ?.querySelector('.rasd-ov-cmp-diff-count')?.textContent ?? null,
+              label: section?.querySelector('.rasd-ov-cmp-diff-label')?.textContent ?? null,
+              excluded: section?.querySelector('[data-rasd-ov="compare-excluded"]')?.textContent ?? null,
+              error: section?.querySelector('.rasd-ov-cmp-diff-error')?.textContent ?? null,
+            }
+          }`,
+        )
+      async function measureLive() {
+        if (!(await panelClick('التقط الفرق'))) return null
+        for (let i = 0; i < 60; i++) {
+          await settleAsync(150)
+          const d = await readLiveDiff()
+          if (!d.busy && (d.value !== '—' || d.error)) return d
+        }
+        return null
+      }
+      const readZones = () =>
+        inOverlay(
+          tabId,
+          `() => {
+            const c = globalThis.__rasdCompare.compare.state
+            const layer = globalThis.__rasdCompare.host.layer
+            return {
+              zones: c.zones.value.map((z) => ({ id: z.id, kind: z.anchor.kind, selector: z.anchor.selector ?? null, rect: z.anchor.rect })),
+              rows: layer.querySelectorAll('[data-rasd-ov="compare-zone"]').length,
+              marks: layer.querySelectorAll('[data-rasd-ov="compare-zone-mark"]').length,
+            }
+          }`,
+        )
+
+      if (dpr !== 1) {
+        fail(`نسبة البكسل ${dpr} لا 1 — القسم يفترض مرجعًا بكسله بكسل النافذة`)
+      } else {
+        // المرجع: الطبقة مخفيّة كما يخفيها مسار الالتقاط نفسه، والساعة على «10:42».
+        const clock = await setClock('10:42', '#fc6')
+        await inOverlay(tabId, `() => globalThis.__rasdCompare.host.hide().then(() => true)`)
+        const shot = await inSW(`chrome.tabs.captureVisibleTab(undefined, { format: 'png' })`)
+        await inOverlay(tabId, `() => { globalThis.__rasdCompare.host.show(); return true }`)
+        await inPage(
+          tabId,
+          `() => (async () => {
+            const blob = await (await fetch(${JSON.stringify(shot)})).blob()
+            const file = new File([blob], 'reference.png', { type: 'image/png' })
+            const dt = new DataTransfer()
+            dt.items.add(file)
+            document.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt }))
+            return 'dispatched'
+          })()`,
+        )
+        await settleAsync(800)
+        await setClock('11:59', '#36c')
+
+        const plain = await measureLive()
+        if (!plain || plain.error) {
+          fail(`الفرق الحيّ بلا منطقة لم يُقَس: ${JSON.stringify(plain)}`)
+        } else if (plain.value === '0%' || plain.count === '٠' || plain.excluded) {
+          fail(`الساعة المتغيّرة لم تُعدّ فرقًا بلا منطقة: ${JSON.stringify(plain)}`)
+        } else {
+          ok(`بلا منطقة: الساعة المتغيّرة فرقٌ مقيس — ${plain.value}، ${plain.count} منطقة`)
+        }
+
+        // منطقة عنصر: «اختر عنصرًا» ثمّ نقرةٌ على الساعة نفسها.
+        const cx = clock.x + clock.w / 2
+        const cy = clock.y + clock.h / 2
+        await panelClick('اختر عنصرًا')
+        await moveTo(pageSession, cx, cy)
+        await clickAt(pageSession, cx, cy)
+        await settleAsync(600)
+        let z = await readZones()
+        const picked = z.zones[0]
+        if (
+          z.zones.length === 1 &&
+          picked.kind === 'element' &&
+          picked.selector?.includes('rasd-verify-clock') &&
+          picked.rect.width === clock.w &&
+          z.rows === 1 &&
+          z.marks === 1
+        ) {
+          ok(`اختيار الساعة أنشأ منطقة عنصر «${picked.selector}» بمستطيلها، مرسومةً ومسرودة`)
+        } else {
+          fail(`منطقة العنصر لم تُنشأ كما يجب: ${JSON.stringify(z)}`)
+        }
+
+        const masked = await measureLive()
+        if (
+          masked &&
+          !masked.error &&
+          masked.value === '0%' &&
+          masked.count === '٠' &&
+          masked.label?.includes('على المناطق المهمّة') &&
+          masked.excluded?.includes('منطقة')
+        ) {
+          ok(`بمنطقةٍ فوق الساعة: ${masked.value} «${masked.label}» — ${masked.excluded}`)
+        } else {
+          fail(`القناع لم يُسقط الساعة من الفرق: ${JSON.stringify(masked)}`)
+        }
+
+        // الحفظ مع المرجع: مغادرة الوضع ثمّ العودة تستدعي المرجع بمناطقه.
+        await setMode(tabId, 'idle')
+        await setMode(tabId, 'compare')
+        await settleAsync(800)
+        z = await readZones()
+        if (z.zones.length === 1 && z.zones[0].id === picked?.id && z.rows === 1) {
+          ok('المنطقة حُفظت مع المرجع وعادت معه بعد مغادرة الوضع')
+        } else {
+          fail(`المنطقة لم تعد مع المرجع: ${JSON.stringify(z)}`)
+        }
+
+        // مستطيلٌ مرسوم: حذف منطقة العنصر، ثمّ سحبٌ يحيط بالساعة.
+        await panelClick('احذف المنطقة ١')
+        await settleAsync(500)
+        await panelClick('ارسم مستطيلًا')
+        await pressAt(pageSession, clock.x - 4, clock.y - 4)
+        await moveTo(pageSession, clock.x + clock.w + 4, clock.y + clock.h + 4)
+        await releaseAt(pageSession, clock.x + clock.w + 4, clock.y + clock.h + 4)
+        await settleAsync(600)
+        z = await readZones()
+        const drawnZone = await measureLive()
+        if (
+          z.zones.length === 1 &&
+          z.zones[0].kind === 'rect' &&
+          drawnZone?.value === '0%' &&
+          drawnZone?.count === '٠'
+        ) {
+          ok(
+            `مستطيلٌ مرسوم حول الساعة يُسقطها كذلك: ${JSON.stringify(z.zones[0].rect)} ⟵ ${drawnZone.value}`,
+          )
+        } else {
+          fail(`المستطيل المرسوم لم يُسقط الساعة: ${JSON.stringify({ z, drawnZone })}`)
+        }
+        await panelClick('احذف المنطقة ١')
+        await settleAsync(400)
+      }
+      await inPage(
+        tabId,
+        `() => { document.getElementById('rasd-verify-clock')?.remove(); return true }`,
+      )
 
       // ── 9) مغادرة الوضع تمسح الحيّ، وإعادة الدخول تستدعي المحفوظ ──
       await setMode(tabId, 'idle')

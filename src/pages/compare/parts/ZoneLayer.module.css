@@ -1,0 +1,44 @@
+/*
+ * مستطيل المنطقة المستثناة — قناع معتم بحدٍّ متقطّع بلون التحذير: «غير محفوظة» حالةٌ تستحقّ انتباهًا
+ * لا خطأً. `pointer-events: none` لأنه علامةٌ لا هدف؛ تمرّ النقرات إلى ما تحته.
+ * والموضع فيزيائي (`left`/`top` من `percentBoxStyle`) مقصود: بكسلُ الصورة لا اتجاه القراءة —
+ * انظر `layout.ts`.
+ */
+.zoneBox {
+  position: absolute;
+  box-sizing: border-box;
+  border: var(--rasd-stroke-medium) dashed var(--rasd-status-warning-fg);
+  background: var(--rasd-overlay-mask);
+  pointer-events: none;
+}
+
+/*
+ * **داخل الزاوية لا فوقها.** المسرح `overflow: hidden`، فعلامةٌ فوق حافّة منطقةٍ ملاصقة للحافّة
+ * العلوية تُقصّ. والمنطقي مقصود على خلاف `.zoneBox`: العلامة رقمٌ يُقرأ لا موضعٌ في الصورة
+ * (نفس قاعدة `.badge` في `DiffView.module.css`).
+ */
+.zoneLabel {
+  position: absolute;
+  inset-block-start: var(--rasd-space-2);
+  inset-inline-start: var(--rasd-space-2);
+  padding-inline: var(--rasd-space-6);
+  padding-block: var(--rasd-space-2);
+  border: var(--rasd-stroke-thin) solid var(--rasd-status-warning-border);
+  border-radius: var(--rasd-radius-sm);
+  background: var(--rasd-status-warning-surface);
+  color: var(--rasd-status-warning-fg);
+  font-family: var(--rasd-font-family-text);
+  font-size: var(--rasd-font-size-xs);
+  font-weight: 700;
+  line-height: var(--rasd-leading-label);
+  white-space: nowrap;
+}
+
+/* شفّافة فوق المسرح كلّه — مرجع إحداثيات الرسم. `touch-action: none` كي لا يبتلع التمرير السحبَ. */
+.drawLayer {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}

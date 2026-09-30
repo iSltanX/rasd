@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import { computeDiff, type DiffOptions, type RasterImage } from '@/modules/compare/diff'
+import {
+  isReply,
+  type DiffReply,
+  type DiffRequest,
+  type WorkerLike,
+} from '@/modules/compare/diff-protocol'
 import { groupDiffRegions, type DiffRegion, type RegionOptions } from '@/modules/compare/regions'
 import { createDiffClient, READY_TIMEOUT_MS, REPLY_TIMEOUT_MS } from '@/pages/compare/worker-client'
-
-import type { DiffReply, DiffRequest, WorkerLike } from '@/modules/compare/diff-protocol'
+import { deviceRect } from '@/shared/geometry'
 
 /**
  * عقد الرسائل والسقوط المتزامن — مرآة `blur-worker-client.test.ts` (المرحلة
@@ -154,6 +159,7 @@ function fakeWorker(
       overlap: diff.overlap,
       diffPixelCount: diff.diffPixelCount,
       comparedPixels: diff.comparedPixels,
+      excludedPixels: diff.excludedPixels,
       diffRatio: diff.diffRatio,
       extraInA: diff.extraInA,
       extraInB: diff.extraInB,
@@ -564,6 +570,64 @@ describe('عميل خيط الفرق — الخيارات غير الافترا�
  * يُنهي الطلب، لعلّق الوعد إلى ما لا نهاية وسقط الاختبار بمهلته — لا بمرور
  * صامت.
  */
+describe('عميل خيط الفرق — المناطق المستثناة تعبر الرسالة (ADR 0034)', () => {
+  it('**`exclude` يصل الخيط كما هو، والنتيجة بايتًا ببايت كمسار السقوط**', async () => {
+    const { worker, posted } = fakeWorker()
+    const viaWorker = createDiffClient({ spawn: () => worker })
+    const viaMain = createDiffClient({ spawn: () => null })
+    // المنطقة تغطّي الرقعة الحمراء (5..7 × 5..7) كلّها ومعها عمودٌ خالٍ.
+    const options: Partial<DiffOptions> = { exclude: [deviceRect(4, 4, 5, 4)] }
+
+    const onThread = makeImages()
+    const onMain = makeImages()
+    const w = await viaWorker.run(onThread.a, onThread.b, options)
+    const m = await viaMain.run(onMain.a, onMain.b, options)
+
+    expect(w.path).toBe('worker')
+    expect(posted[0]?.diffOptions).toEqual(options)
+    for (const out of [w, m]) {
+      expect(out.diffPixelCount).toBe(0)
+      expect(out.diffRatio).toBe(0)
+      expect(out.excludedPixels).toBe(20)
+      expect(out.comparedPixels).toBe(W * H - 20)
+      expect(out.regions).toEqual([])
+    }
+    // والقناع المشتقّ من ألفا المخزن المنقول خالٍ هو الآخر — العميل لا يعيد عدّ ما صُفِّر.
+    expect(Array.from(w.mask)).toEqual(Array.from(m.mask))
+    expect(Array.from(w.diff.data)).toEqual(Array.from(m.diff.data))
+
+    viaWorker.dispose()
+    viaMain.dispose()
+  })
+
+  it('وردٌّ بلا `excludedPixels` لا يُقبل نجاحًا — يسقط إلى الحساب المتزامن', () => {
+    const reply = { ...expectedReply(), excludedPixels: undefined }
+    expect(isReply(reply)).toBe(false)
+    expect(isReply(expectedReply())).toBe(true)
+  })
+})
+
+/** ردٌّ كامل الشكل من الدالّتين نفسيهما — لاختبار `isReply` وحده. */
+function expectedReply(): DiffReply {
+  const { a, b } = makeImages()
+  const { diff, regions } = expected(a, b)
+  return {
+    id: 1,
+    diffBuffer: diff.diff.data.buffer as ArrayBuffer,
+    diffWidth: diff.diff.width,
+    diffHeight: diff.diff.height,
+    overlap: diff.overlap,
+    diffPixelCount: diff.diffPixelCount,
+    comparedPixels: diff.comparedPixels,
+    excludedPixels: diff.excludedPixels,
+    diffRatio: diff.diffRatio,
+    extraInA: diff.extraInA,
+    extraInB: diff.extraInB,
+    regions,
+    ms: 1,
+  }
+}
+
 describe('عميل خيط الفرق — انهيار الخيط ورفض النقل', () => {
   /** يسجّل المهل المطلوبة ولا يُطلق أيًّا منها. */
   const frozenTimer = (fired: number[]) => (_fn: () => void, ms: number) => {

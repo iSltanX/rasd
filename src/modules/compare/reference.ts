@@ -32,9 +32,18 @@
  * يعني «غيّر رأيي» لا «أضِف بديلًا».
  */
 
-import { ok, type Result } from '@/shared/result'
-import { blobs, captures, putReferenceWithBlob, references } from '@/shared/storage/repository'
+import { errText, ok, type Result } from '@/shared/result'
+import {
+  blobs,
+  captures,
+  putReferenceWithBlob,
+  references,
+  updateReferenceFor,
+} from '@/shared/storage/repository'
 
+import { suggestElementZones } from './exclusions'
+
+import type { ExclusionZone } from '@/shared/exclusion-schema'
 import type { ReferenceRecord, Viewport } from '@/shared/storage/schema'
 
 export interface PageKey {
@@ -68,6 +77,8 @@ function buildRecord(
     // تعليل putReferenceWithBlob في repository.ts.
     blobId: id,
     createdAt: existing?.createdAt ?? now,
+    // المناطق للصفحة لا للصورة — استبدال الصورة «غيّرت رأيي فيها» لا في ما يتغيّر في الصفحة (ADR 0034 §1).
+    exclusions: existing?.exclusions ?? [],
   }
 }
 
@@ -109,4 +120,42 @@ export async function assignImageAsReference(
   const written = await putReferenceWithBlob(record, image)
   if (!written.ok) return written
   return ok(record)
+}
+
+/**
+ * يكتب قائمة المناطق المستثناة لمرجع هذه الصفحة بهذا المقاس — القائمة كلّها لا فرقًا عليها: الطبقة تملك
+ * ما تعرضه، وآخر كتابة هي ما يراه المستخدم. والتحقّق من شكلها قبل هذا النداء (`exclusion-parse.ts`).
+ *
+ * لا مرجع ⇒ خطأ لا إنشاء: منطقةٌ بلا صورة تُرسم فوقها لا معنى لها.
+ */
+export async function setReferenceExclusions(
+  key: PageKey,
+  exclusions: readonly ExclusionZone[],
+): Promise<Result<ReferenceRecord>> {
+  // القراءة والكتابة في معاملة واحدة — حذفٌ أو تعيينٌ يتداخل معهما لا يُكتب فوقه بقديمه (`updateReferenceFor`).
+  const written = await updateReferenceFor(key, (record) => ({
+    ...record,
+    exclusions: [...exclusions],
+  }))
+  if (!written.ok) return written
+  if (!written.value) return errText('not-found', 'لا مرجع محفوظًا لهذا المقاس.')
+  return ok(written.value)
+}
+
+/**
+ * مناطق العنصر في مراجع المقاسات الأخرى للصفحة نفسها، وليست في هذا المرجع (ADR 0034 §3).
+ *
+ * فهرس `origin` نفسه الذي يقرؤه `findReferenceForPage` — لا فهرس مركَّب. ومرجعٌ قديم بلا الحقل (نسخة سبقت
+ * الترحيل ولم تُرقَّ بعد) يُقرأ بلا مناطق لا خطأً.
+ */
+export async function suggestedZonesForPage(
+  key: PageKey,
+  current: readonly ExclusionZone[],
+): Promise<Result<ExclusionZone[]>> {
+  const found = await references.byIndex('origin', key.origin)
+  if (!found.ok) return found
+  const siblings = found.value
+    .filter((r) => r.path === key.path && r.viewport !== key.viewport)
+    .map((r) => r.exclusions ?? [])
+  return ok(suggestElementZones(current, siblings))
 }

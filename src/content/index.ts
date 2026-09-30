@@ -66,9 +66,10 @@ import {
 import { createInspect } from './tools/inspect'
 import { createIssues, type IssuesController } from './tools/issues'
 import { createMeasure, type MeasureTool } from './tools/measure'
+import { createZoneSaver } from './zone-saver'
 
 import type { AreaSelectTool } from './tools/area-select'
-import type { LiveDiff } from '@/shared/messaging/contract'
+import type { LiveDiff, ReferencePayload } from '@/shared/messaging/contract'
 import type { Viewport } from '@/shared/storage/schema'
 import type { ViewportGalleryCard } from '@/ui/overlay'
 
@@ -459,6 +460,13 @@ async function bootOverlay(
       modes.busy.value = busy
     },
     onInvalidate: () => sync.invalidate('pointer'),
+    skip: host.hostEl,
+    space: () => spaceSignal.peek(),
+    onZonesChange: (zones) => {
+      // النسبة المعروضة حُسبت على المناطق السابقة — تسقط كما تسقط مع مرجعٍ جديد.
+      clearLiveDiff()
+      zoneSaver.save(zones)
+    },
   })
 
   elementTool = element
@@ -566,7 +574,8 @@ async function bootOverlay(
     liveDiffError.value = null
     void (async () => {
       try {
-        const measured = await send('compare/diff', { viewport })
+        // مناطق العنصر بموضعها الحيّ الآن — الخلفية تبني القناع من السجلّ وتقبل منها هذا وحده (ADR 0034).
+        const measured = await send('compare/diff', { viewport, live: compare.liveRects() })
         if (!measured.ok) {
           liveDiffAt.value = null
           liveDiffError.value = measured.error.message
@@ -610,11 +619,27 @@ async function bootOverlay(
       img.src = url
     })
 
+  /**
+   * يحفظ قائمة المناطق مع المرجع المعروض (ADR 0034) — `zone-saver.ts`: مقاس المرجع لا مقاس النافذة الآن،
+   * والحفظ متسلسل، والفشل يعيد آخر قائمةٍ أكّدتها الخلفية ويُعلَن. منطقةٌ تظهر ولم تُحفظ كذبةٌ صامتة.
+   */
+  const zoneSaver = createZoneSaver({
+    send: (viewport, exclusions) => send('reference/exclusions', { viewport, exclusions }),
+    apply: (zones) => compare.setZones(zones, compare.state.suggested.peek()),
+    failed: (message) => notices.show(saveFailed('المناطق المستثناة', message)),
+  })
+
   /** يُحمِّل صورة مرجع في الأداة ويحرِّر عنوان الكائن السابق — لا تسريب عبر استبدالات متتالية. */
-  const setCompareReference = (image: ReferenceImage | null): void => {
+  const setCompareReference = (
+    image: ReferenceImage | null,
+    loaded: { readonly payload: ReferencePayload; readonly viewport: Viewport } | null = null,
+  ): void => {
     const previous = referenceObjectUrl
     referenceObjectUrl = image?.url ?? null
     compare.setReference(image)
+    // المناطق مع مرجعها لا بعده: لا يُرسم مرجعٌ بلا مناطقه ولا يُقاس بدونها. ومقاسه يُحفظ معه — به تُكتب.
+    if (image && loaded) compare.setZones(loaded.payload.exclusions, loaded.payload.suggested)
+    zoneSaver.reset(image && loaded ? loaded.viewport : null, loaded?.payload.exclusions ?? [])
     // مرجعٌ جديد يُبطل نسبة المرجع السابق — هذا هو الشقّ الذي لا يمسكه
     // حسابُ `compareDiff` (المرجع لا أثر له في `spaceSignal`).
     clearLiveDiff()
@@ -631,8 +656,9 @@ async function bootOverlay(
   const loadStoredReference = (): void => {
     if (compare.state.reference.peek()) return
     const myEpoch = ++referenceEpoch
+    const viewport = currentViewport()
     void (async () => {
-      const found = await send('reference/load', { viewport: currentViewport() })
+      const found = await send('reference/load', { viewport })
       if (!found.ok || !found.value) return
       if (referenceEpoch !== myEpoch) return
       try {
@@ -644,7 +670,7 @@ async function bootOverlay(
           URL.revokeObjectURL(image.url)
           return
         }
-        setCompareReference(image)
+        setCompareReference(image, { payload: found.value, viewport })
       } catch (e) {
         console.warn(`[رصد] ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -686,7 +712,7 @@ async function bootOverlay(
           URL.revokeObjectURL(image.url)
           return
         }
-        setCompareReference(image)
+        setCompareReference(image, { payload: written.value, viewport })
       } catch (e) {
         console.warn(`[رصد] ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -804,7 +830,8 @@ async function bootOverlay(
         viewportGallery.value = existing.map((c) =>
           c.viewport === viewport ? { viewport, image, diffRatio: null } : c,
         )
-        if (viewport === currentViewport()) setCompareReference(image)
+        if (viewport === currentViewport())
+          setCompareReference(image, { payload: written.value, viewport })
       } catch (e) {
         console.warn(`[رصد] ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -1151,6 +1178,7 @@ async function bootOverlay(
       // يمرّ دومًا عبر `modes.escape()`، فيصل هذا الفرع قبل أي دخول لاحق.
       referenceEpoch++
       compare.reset()
+      zoneSaver.reset(null, [])
       // `reset()` يمسح الإشارة بلا معرفة بعنوان الكائن — التحرير هنا لا هناك.
       if (referenceObjectUrl) {
         URL.revokeObjectURL(referenceObjectUrl)
@@ -1276,6 +1304,9 @@ async function bootOverlay(
           if (issues.state.form.peek()) {
             // `Esc` في النموذج يُغلقه وحده ويبقي الأداة ولوحتها.
             issues.closeForm()
+          } else if (compare.state.zoneTool.peek()) {
+            // وفي رسم منطقة أو اختيار عنصرها يُلغي الإعداد وحده ويبقي المقارنة (`391:2217` · `391:2422`).
+            compare.setZoneTool(null)
           } else if (hasFullPageSession()) {
             // الإلغاء يمرّ من الخلفية: هي التي تملك الحلقة و`AbortController`.
             void send('fullpage/cancel', undefined)

@@ -6,7 +6,7 @@
  * خطوتها ساعة إضافتها.
  */
 
-import type { RasdDB, StoreName } from './schema'
+import type { RasdDB, ReferenceRecord, StoreName } from './schema'
 import type { IDBPDatabase, IDBPTransaction } from 'idb'
 
 /** معاملة الترقية ترى كل المخازن — `idb` يشتقّ النوع من أسمائها. */
@@ -73,6 +73,35 @@ export const MIGRATIONS: Readonly<Record<number, MigrationStep>> = {
     issues.createIndex('status', 'status')
     issues.createIndex('updatedAt', 'updatedAt')
     issues.createIndex('captureId', 'evidence.captureId')
+  },
+
+  /*
+   * المناطق المستثناة حقلٌ في المرجع (ADR 0034) — نقل بيانات لا بنية: كل مرجعٍ قائم يُكتب بـ`exclusions: []`.
+   *
+   * **داخل معاملة الترقية نفسها، بطلبات مخزنها وحدها** — لا `await` لشيء غيرها، وإلا أُغلقت المعاملة قبل
+   * آخر كتابة. وأيّ فشلٍ يُجهض المعاملة فتُرفض الترقية كلّها وتبقى القاعدة على النسخة 3: لا قاعدة نصف
+   * مُرحَّلة. **والإجهاض صريح:** طلبٌ فاشل يُجهضها بنفسه، أمّا رميٌ متزامن من `update` فيخرج قبل أن يُرسَل طلب
+   * ولا يُجهض شيئًا — كانت الترقية تُثبَّت على النسخة 4 بمراجع نصف مُرحَّلة (المراجعة المستقلّة، `STAGES/34`).
+   * وما يحمل قائمةً أصلًا يُترك كما هو، فالخطوة لا تمحو شيئًا لو أُعيدت.
+   * يحرسها `tests/unit/storage-upgrade-v4.test.ts`، وقد كُتب قبلها.
+   */
+  4: (_db, transaction) => {
+    const store = transaction.objectStore('references')
+    void (async () => {
+      for (let cursor = await store.openCursor(); cursor; cursor = await cursor.continue()) {
+        const record = cursor.value as Partial<ReferenceRecord>
+        if (!Array.isArray(record.exclusions)) {
+          await cursor.update({ ...cursor.value, exclusions: [] })
+        }
+      }
+    })().catch(() => {
+      // `openDB` يرفض بالإجهاض — والمعاملة المُجهَضة أصلًا (طلبٌ فاشل) ترمي هنا فيُبتلع ذلك وحده.
+      try {
+        transaction.abort()
+      } catch {
+        /* أُجهضت قبلنا */
+      }
+    })
   },
 }
 

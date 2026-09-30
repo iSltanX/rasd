@@ -177,6 +177,7 @@ describe('moveColorsToProject / movePalettesToProject / moveReferencesToProject 
       path: '/',
       viewport: 'desktop',
       blobId: 'b1',
+      exclusions: [],
       createdAt: NOW,
     })
     const created = await createProject('هدف', '#0090FF', NOW)
@@ -221,6 +222,7 @@ describe('deleteProject — ينقل المحتوى قبل الحذف', () => {
       path: '/',
       viewport: 'desktop',
       blobId: 'b1',
+      exclusions: [],
       createdAt: NOW,
     })
     await guides.put({ id: 'gd1', title: 'دليل', projectId, captureIds: [], createdAt: NOW })

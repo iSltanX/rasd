@@ -99,6 +99,7 @@ const CARDS: readonly [string, string, (h: Hooks) => ComponentChild][] = [
           path: '/',
           viewport: 'desktop',
           blobId: 'b',
+          exclusions: [],
           createdAt: NOW,
         }}
       />
