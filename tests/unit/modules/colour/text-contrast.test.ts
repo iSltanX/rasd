@@ -345,6 +345,25 @@ describe('visibleBox', () => {
     expect(visibleBox($('#t'))).toBeNull()
   })
 
+  it('`display: contents` بلا صندوق: يُقاس بمدى نصّه ما دام أبوه ظاهرًا', () => {
+    page('<section id="box"><div id="t">نصّ</div></section>')
+    styles.set($('#t'), { display: 'contents' })
+    Object.assign($('#t'), { checkVisibility: () => false })
+    vi.spyOn(Range.prototype, 'getBoundingClientRect').mockReturnValue(rect(0, 0, 60, 18))
+    expect(visibleBox($('#t'))?.width).toBe(60)
+
+    Object.assign($('#box'), { checkVisibility: () => false })
+    expect(visibleBox($('#t'))).toBeNull()
+  })
+
+  it('مخفيٌّ بحكم المتصفّح وله صندوق ⟵ null ولا يُسأل مداه', () => {
+    page('<p id="t">نصّ</p>')
+    Object.assign($('#t'), { checkVisibility: () => false })
+    const range = vi.spyOn(Range.prototype, 'getBoundingClientRect')
+    expect(visibleBox($('#t'))).toBeNull()
+    expect(range).not.toHaveBeenCalled()
+  })
+
   it('صندوقٌ بكسلٌ في بكسل (نمط قارئ الشاشة) ⟵ null', () => {
     page('<p id="t">نصّ</p>')
     vi.spyOn($('#t'), 'getBoundingClientRect').mockReturnValue(rect(0, 0, 1, 1))

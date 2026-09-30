@@ -241,21 +241,31 @@ export function collectTextElements(doc: Document, skip: Element | null = null):
 /** أصغر ضلعٍ يُعدّ نصًّا ظاهرًا — نمط «لقارئ الشاشة وحده» بكسلٌ في بكسل. */
 const MIN_TEXT_BOX = 2
 
+const SEEN: CheckVisibilityOptions = {
+  checkOpacity: true,
+  checkVisibilityCSS: true,
+  opacityProperty: true,
+  visibilityProperty: true,
+}
+
 /**
  * مستطيل العنصر إن كان نصّه ظاهرًا — `null` للمخفيّ: `display`/`visibility`/`opacity: 0` على العنصر أو
  * آبائه، أو صندوقٌ أصغر من بكسلين، أو مدفوعٌ قبل بداية الصفحة (`left: -9999px`).
+ *
+ * و`display: contents` بلا صندوقٍ ونصّه يُرسم: يُقاس بمدى محتواه، وتُسأل الرؤيةُ أباه.
  */
 export function visibleBox(el: Element, win: Window = globalThis.window): DOMRect | null {
-  if (
-    el.checkVisibility?.({
-      checkOpacity: true,
-      checkVisibilityCSS: true,
-      opacityProperty: true,
-      visibilityProperty: true,
-    }) === false
-  )
-    return null
-  const r = el.getBoundingClientRect()
+  let r: DOMRect
+  if (el.checkVisibility?.(SEEN) === false) {
+    const parent = flatParent(el)
+    if (win.getComputedStyle(el).display !== 'contents' || !parent) return null
+    if (parent.checkVisibility?.(SEEN) === false) return null
+    const range = el.ownerDocument.createRange()
+    range.selectNodeContents(el)
+    r = range.getBoundingClientRect()
+  } else {
+    r = el.getBoundingClientRect()
+  }
   if (r.width < MIN_TEXT_BOX || r.height < MIN_TEXT_BOX) return null
   if (r.right + win.scrollX <= 0 || r.bottom + win.scrollY <= 0) return null
   return r

@@ -9,14 +9,15 @@
       (`shortLabel`)، وألوانه مصرَّحة كاملةً فلا يدخل لونٌ افتراضي. الجسم أبيض معتم.
 
       دون 3:1 — `#fill` (ملء ‎#ccc‎ يخالف `color`) · `#in-shadow` (‎#bbb‎ في جذر ظلّ مفتوح) · `#faint` (‎#aaa‎) ·
-                `#big-fail` (‎#aaa‎ كبير: حدّه 3 ويسقطه) · `#below-fold` (‎#999‎ تحت الطيّ)
+                `#big-fail` (‎#aaa‎ كبير: حدّه 3 ويسقطه) · `#contents` (‎#aaa‎ في غلاف `display: contents`) ·
+                `#below-fold` (‎#999‎ تحت الطيّ)
       دون 4.5:1 — `#veil` (أبيض فوق أسود 50% فوق أبيض) · `#grouped` (أبيض داخل حاوية سوداء بـopacity 0.5) ·
                 `#alpha` (أسود 50%) · `#mid` (‎#777‎)
       تعذّر الحساب — `#on-image` (صورة خلفية) · `#on-gradient` (تدرّج) · `#over-img` (صورة أختٌ تحته)
       سليم — `#big` (‎#898989‎ كبير: 3.49 فوق حدّه 3) · `#solid` · `#slotted` (أبيض على إطارٍ أسود داخل الظلّ)
       غير ظاهر — `#hidden` · `#invisible` · `#sr-only` · `#offscreen`
 
-      النصوص الظاهرة خمسة عشر. والمركَّبة الثلاثة (`#veil` · `#grouped` · `#alpha`) تبدأ بـ«█» مصمتة: مركزها
+      النصوص الظاهرة ستّة عشر. والمركَّبة الثلاثة (`#veil` · `#grouped` · `#alpha`) تبدأ بـ«█» مصمتة: مركزها
       لون النصّ كما رُسم، وطرف الفقرة الأيسر خلفيتها — فيقرأ الحارس البكسلين من لقطة الشاشة. والمحتوى يبدأ عند
       640px: ظلّ لوحة الفحص عند (40، 64) يمتدّ إلى ما بعد 440 فيُعتم طرف الفقرة (قِيس: 113 بدل 127).
     -->
@@ -92,6 +93,9 @@
     <div id="shadow-host"></div>
     <div id="slot-host"><span id="slotted" style="color: #fff">نصّ مُسند إلى فتحة</span></div>
     <p id="fill" style="color: #000; -webkit-text-fill-color: #ccc">نصّ بملءٍ يخالف لونه</p>
+    <section>
+      <div id="contents" style="display: contents; color: #aaa">نصّ في غلافٍ بلا صندوق</div>
+    </section>
     <p id="hidden" style="display: none; color: #eee">مخفيّ بالعرض</p>
     <p id="invisible" style="visibility: hidden; color: #eee">مخفيّ بالرؤية</p>
     <p id="sr-only" class="sr" style="color: #eee">لقارئ الشاشة وحده</p>

@@ -226,9 +226,19 @@ export function createContrastAudit(options: ContrastAuditOptions = {}): Contras
   const select = (id: number): void => {
     const el = elements.get(id)
     if (!el) return
+    // أزالته الصفحة بعد المسح: لا قفز ولا تسجيل على عنصرٍ غائب — يُقال لا يُسكت عنه.
+    if (!el.isConnected) {
+      clearSelection()
+      options.notify?.({
+        tone: 'danger',
+        title: 'لم يعد هذا النصّ في الصفحة',
+        detail: 'تغيّرت الصفحة بعد التدقيق — أعد التدقيق.',
+      })
+      invalidate()
+      return
+    }
     state.selected.value = id
-    if (el.isConnected)
-      el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' })
+    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' })
     frame()
     invalidate()
   }
