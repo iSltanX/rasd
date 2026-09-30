@@ -1,0 +1,198 @@
+/*
+ * `library / issues` (`380:9549`): عمود الصفحة بارتفاع النافذة كسائر عروض المكتبة — الشريط العلوي ثابت،
+ * والمحتوى بحشوة 20/24/24 وفجوة 16، والجدول وحده يتمرّر. الشريط العلوي من `Toolbar.module.css` نفسه.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  block-size: 100vh;
+  min-inline-size: 0;
+}
+
+.content {
+  flex: 1;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-16);
+  padding-block: var(--rasd-space-20) var(--rasd-space-24);
+  padding-inline: var(--rasd-space-24);
+}
+
+/* العنوان والعدد في البداية على خطّ قاعدة واحد، و«مرتّبة من الأحدث» في النهاية. */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-16);
+  flex-wrap: wrap;
+  flex: none;
+}
+.heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rasd-space-10);
+  min-inline-size: 0;
+}
+.title {
+  margin: 0;
+  color: var(--rasd-text-primary);
+  white-space: nowrap;
+}
+.count,
+.sorted {
+  color: var(--rasd-text-tertiary);
+  white-space: nowrap;
+}
+
+.tabs {
+  flex: none;
+}
+
+/* اللوح يملأ ما تبقّى ويتمرّر وحده. */
+.panel {
+  flex: 1;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-surface-default);
+}
+
+.table {
+  inline-size: 100%;
+  min-inline-size: 60rem;
+  border-collapse: collapse;
+  text-align: start;
+}
+.th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  padding-block: var(--rasd-space-10);
+  padding-inline: var(--rasd-space-16);
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-text-tertiary);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.row {
+  cursor: pointer;
+  transition: background-color var(--rasd-motion-duration-fast) var(--rasd-motion-ease-standard);
+}
+.row:hover {
+  background: var(--rasd-surface-hover);
+}
+.row:has(.link:focus-visible) {
+  background: var(--rasd-surface-hover);
+}
+.row + .row .td {
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+.td {
+  padding-block: var(--rasd-space-12);
+  padding-inline: var(--rasd-space-16);
+  vertical-align: middle;
+  color: var(--rasd-text-secondary);
+}
+
+/* العنوان رابط حقيقيّ، وتحته المحدِّد والخاصية بخطّ أحاديّ معزول LTR. */
+.link {
+  display: block;
+  color: var(--rasd-text-primary);
+  text-decoration: none;
+}
+.link:hover {
+  text-decoration: underline;
+}
+.link:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+  border-radius: var(--rasd-radius-xs);
+}
+.subject {
+  display: block;
+  margin-block-start: var(--rasd-space-2);
+  max-inline-size: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--rasd-text-tertiary);
+}
+.mono {
+  color: var(--rasd-text-secondary);
+}
+.checked {
+  color: var(--rasd-text-tertiary);
+  white-space: nowrap;
+}
+
+/* «الآن» بلون الحالة ما دامت المشكلة غير محلولة — درجاتها هي درجات الرقاقة. */
+.now-danger {
+  color: var(--rasd-status-danger-fg);
+}
+.now-warning {
+  color: var(--rasd-status-warning-fg);
+}
+.now-success {
+  color: var(--rasd-status-success-fg);
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+}
+
+/* الفراغ والخطأ في وسط المساحة كما في `library / empty`. */
+.center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block-end: var(--rasd-space-48);
+}
+
+/* `library / issues-empty` (`381:9699`): حامل الأيقونة والعنوان والتلميح بمقاسات `Empty State` نفسها. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rasd-space-16);
+  box-sizing: border-box;
+  max-inline-size: 26.25rem;
+  padding-block: var(--rasd-space-40);
+  padding-inline: var(--rasd-space-32);
+  text-align: center;
+}
+.emptyIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  inline-size: calc(var(--rasd-space-56) + var(--rasd-space-2));
+  block-size: calc(var(--rasd-space-56) + var(--rasd-space-2));
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  border-radius: var(--rasd-radius-xl);
+  background: var(--rasd-surface-raised);
+}
+.emptyGlyph {
+  color: var(--rasd-icon-tertiary);
+}
+.emptyText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+}
+.emptyTitle {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+.emptyHint {
+  margin: 0;
+  color: var(--rasd-text-tertiary);
+}

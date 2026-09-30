@@ -139,6 +139,8 @@ export function AppShell({
         entry({ kind: 'colors' }, 'colors', 'eyedropper', 'الألوان', data?.colors),
         entry({ kind: 'references' }, 'references', 'image', 'المراجع', data?.references),
         entry({ kind: 'guides' }, 'guides', 'file-code', 'أدلة الخطوات', data?.guides),
+        // آخر «المجموعات» كما في شريط الإطار — مدخل مكتبة المشكلات بعدّاده.
+        entry({ kind: 'issues' }, 'issues', 'alert', 'المشكلات', data?.issues),
       ],
     },
   ].filter((g) => g.entries.length > 0)

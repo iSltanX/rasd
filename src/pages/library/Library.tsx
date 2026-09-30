@@ -68,6 +68,7 @@ import styles from './Library.module.css'
 import { ColorCard } from './parts/ColorCard'
 import { Grid } from './parts/Grid'
 import { GuideCard } from './parts/GuideCard'
+import { IssuesPage } from './parts/IssuesPage'
 import { PaletteCard } from './parts/PaletteCard'
 import { ProjectsOverview } from './parts/ProjectsOverview'
 import { ProjectsPanel } from './parts/ProjectsPanel'
@@ -164,6 +165,8 @@ const TITLE: Record<Exclude<LibraryView['kind'], 'project'>, string> = {
   references: 'المراجع',
   colors: 'الألوان',
   guides: 'أدلة الخطوات',
+  issues: 'المشكلات',
+  issue: 'المشكلة',
 }
 
 const SEARCH_PLACEHOLDER: Record<LibraryTab, string> = {
@@ -329,6 +332,9 @@ export function Library(): JSX.Element {
     // يُعرَض الآن. والتذكرة تميّزه عن أي استدعاء آخر لاحق على التبويب نفسه.
     const requestedTab = activeTab
     const myTicket = ++reloadTicketRef.current
+    // المشكلات مخزنها غير مخزن اللقطات وعرضاها يقرآنه بنفسيهما — لا لقطات تُحمَّل لهما. والتذكرة زِيدت قبل
+    // هذا فيُسقَط استدعاءٌ قديم لعرض اللقطات كان في الطيران وعاد بعد الانتقال.
+    if (view.kind === 'issues' || view.kind === 'issue') return
 
     /**
      * **حارس مبكر — قبل `setLoadState('loading')` لا بعده فقط.** مراجعة
@@ -704,6 +710,24 @@ export function Library(): JSX.Element {
       ),
     [viewMode],
   )
+
+  // عرضا المشكلات لهما صفحتهما تحت القشرة نفسها: لا شريط أنواع السجلّات ولا مبدّل العرض ولا لوحاتها —
+  // ليست منها. و«مشروع جديد» في الشريط يفتح نظرة المشاريع ولوحتها فلا يبقى زرّ بلا أثر.
+  if (view.kind === 'issues' || view.kind === 'issue') {
+    return (
+      <AppShell
+        activeId={viewId(view)}
+        onNavigate={switchView}
+        revision={revision}
+        onNewProject={() => {
+          switchView({ kind: 'projects' })
+          setProjectsPanelOpen(true)
+        }}
+      >
+        <IssuesPage view={view} projects={projects} onNavigate={switchView} />
+      </AppShell>
+    )
+  }
 
   const title =
     view.kind === 'project'

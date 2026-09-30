@@ -1,0 +1,52 @@
+/*
+ * `library / issue-detail` (`382:9828`): بطاقات بسطح `surface/default` وحدّ `border/subtle` ونصف قطر 12،
+ * وحشوة 16 وفجوة 12، في شبكة تتّسع أعمدتها بعرض النافذة.
+ */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-12);
+  box-sizing: border-box;
+  min-inline-size: 0;
+  padding: var(--rasd-space-16);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-surface-default);
+}
+.wide {
+  grid-column: 1 / -1;
+}
+.title {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-10);
+  margin: 0;
+}
+.fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-4) var(--rasd-space-16);
+  min-inline-size: 0;
+}
+.label {
+  margin: 0;
+  color: var(--rasd-text-tertiary);
+  white-space: nowrap;
+}
+.value {
+  margin: 0;
+  min-inline-size: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rasd-space-6);
+  color: var(--rasd-text-primary);
+  overflow-wrap: anywhere;
+}

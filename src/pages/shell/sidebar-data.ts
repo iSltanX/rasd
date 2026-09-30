@@ -12,6 +12,7 @@ import {
   captures,
   colors,
   guides,
+  issues,
   palettes,
   projects,
   references,
@@ -35,12 +36,14 @@ export interface SidebarData {
   readonly colors: number
   readonly references: number
   readonly guides: number
+  /** كل المشكلات المسجَّلة — عدٌّ من المخزن لا من القائمة (`issues.count()`). */
+  readonly issues: number
   readonly storage: { readonly usage: number | null; readonly quota: number | null }
 }
 
 /** يقرأ ما يعرضه الشريط. فشل أي مخزن يُسقط التحميل كلّه: عدّاد صفريّ كاذب أسوأ من غيابه. */
 export async function loadSidebarData(now = Date.now()): Promise<Result<SidebarData>> {
-  const [all, projectList, paletteList, referenceList, guideList, colorList, quota] =
+  const [all, projectList, paletteList, referenceList, guideList, colorList, issueCount, quota] =
     await Promise.all([
       captures.getAll(),
       projects.getAll(),
@@ -48,6 +51,7 @@ export async function loadSidebarData(now = Date.now()): Promise<Result<SidebarD
       references.getAll(),
       guides.getAll(),
       colors.getAll(),
+      issues.count(),
       quotaState(),
     ])
   if (!all.ok) return all
@@ -56,6 +60,7 @@ export async function loadSidebarData(now = Date.now()): Promise<Result<SidebarD
   if (!referenceList.ok) return referenceList
   if (!guideList.ok) return guideList
   if (!colorList.ok) return colorList
+  if (!issueCount.ok) return issueCount
 
   const live = all.value.filter((r) => r.trashedAt === null && !r.archived)
   const perProject = new Map<string, number>()
@@ -75,6 +80,7 @@ export async function loadSidebarData(now = Date.now()): Promise<Result<SidebarD
     colors: colorList.value.length,
     references: referenceList.value.length,
     guides: guideList.value.length,
+    issues: issueCount.value,
     storage:
       quota.quotaBytes > 0
         ? { usage: quota.usageBytes, quota: quota.quotaBytes }
