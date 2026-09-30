@@ -443,12 +443,31 @@ describe('observeIssue — التباين', () => {
     })
   })
 
-  it('الحدّ الأدنى حدّان: 4.54 على الأبيض يمرّ و4.48 يسقط', () => {
+  it('الحدّ الأدنى حدّان: 4.54 على الأبيض يمرّ و4.47 يسقط', () => {
     const pass = observeIssue(issueOn(mountText('rgb(118, 118, 118)'), contrast('4.5')), document)
     expect(pass).toMatchObject({ outcome: 'match', observed: '4.54' })
 
     const fail = observeIssue(issueOn(mountText('rgb(119, 119, 119)'), contrast('4.5')), document)
-    expect(fail).toMatchObject({ outcome: 'mismatch', observed: '4.48' })
+    expect(fail).toMatchObject({ outcome: 'mismatch', observed: '4.47' })
+  })
+
+  it('نسبةٌ تحت الحدّ بجزءٍ من الألف لا تُقرَّب إليه: 4.4995 ⟵ mismatch لا «محلولة» (ADR 0035)', () => {
+    // `rgb(100, 125, 102)` على الأبيض 4.4995 — كانت تُكتب `4.50` فتطابق الحدّ وهي تسقطه.
+    const el = mountText('rgb(100, 125, 102)')
+
+    expect(observeIssue(issueOn(el, contrast('4.5')), document)).toMatchObject({
+      outcome: 'mismatch',
+      observed: '4.49',
+    })
+  })
+
+  it('لون النصّ بألفاه يُركَّب فوق خلفيته: أسود بنصف شفافية على الأبيض 4.00 لا 21', () => {
+    const el = mountText('rgba(0, 0, 0, 0.5)')
+
+    expect(observeIssue(issueOn(el, contrast('4.5')), document)).toMatchObject({
+      outcome: 'mismatch',
+      observed: '4.00',
+    })
   })
 
   it('خلفية العنصر نفسه تُركَّب فوق جدّه', () => {
@@ -578,10 +597,12 @@ describe('formatPx', () => {
 })
 
 describe('formatRatioValue', () => {
-  it('منزلتان ثابتتان — المقارنة على الرقم والعرض يضيف `: 1`', () => {
-    expect(formatRatioValue(3.678)).toBe('3.68')
+  it('منزلتان ثابتتان تُقصّان ولا تُقرَّبان — المقارنة على الرقم والعرض يضيف `: 1`', () => {
+    expect(formatRatioValue(3.678)).toBe('3.67')
     expect(formatRatioValue(21)).toBe('21.00')
     expect(formatRatioValue(4.5)).toBe('4.50')
+    expect(formatRatioValue(4.35)).toBe('4.35')
+    expect(formatRatioValue(4.4995)).toBe('4.49')
   })
 })
 

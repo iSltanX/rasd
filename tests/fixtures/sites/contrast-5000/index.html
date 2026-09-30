@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>contrast audit — 5000 texts</title>
+    <!--
+      عيّنة تدقيق التباين (`STAGES/14`): خمسة آلاف عنصر نصّ بالضبط (`?n=` يغيّر العدد)، في أقسامٍ وبطاقاتٍ
+      متداخلة بعمقٍ يبلغ اثني عشر، بخلفياتٍ معتمة ونصف شفّافة وبعضها بـ`opacity` وبعضها بصورة تدرّج، وألوان
+      نصّ من الأسود إلى الرماديّ الفاتح ونصف الشفّاف. مولَّدة ببذرةٍ ثابتة فالصفحة واحدة في كل جولة.
+
+      `window.__texts` عدد عناصر النصّ المبنيّة.
+    -->
+    <style>
+      body {
+        margin: 0;
+        padding: 16px 16px 16px 440px;
+        font:
+          14px/1.5 system-ui,
+          sans-serif;
+        background: #fff;
+        color: #000;
+      }
+      section {
+        padding: 8px;
+        margin-bottom: 8px;
+      }
+      .card {
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+      p {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="root"></main>
+    <script>
+      const n = Number(new URLSearchParams(location.search).get('n') ?? 5000)
+      let seed = 1234567
+      const rand = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32
+      const pick = (list) => list[Math.floor(rand() * list.length)]
+      const TEXT = [
+        '#000',
+        '#222',
+        '#444',
+        '#555',
+        '#666',
+        '#767676',
+        '#888',
+        '#999',
+        '#aaa',
+        'rgba(0,0,0,.6)',
+      ]
+      const BG = ['#fff', '#f8fafc', '#f1f5f9', 'rgba(0,0,0,.04)', 'rgba(15,23,42,.08)', '#e2e8f0']
+      const WORDS = [
+        'رصد',
+        'تباين',
+        'واجهة',
+        'نصّ',
+        'بطاقة',
+        'عنوان',
+        'وصف',
+        'زرّ',
+        'قائمة',
+        'تذييل',
+      ]
+
+      const root = document.getElementById('root')
+      const frag = document.createDocumentFragment()
+      let made = 0
+      while (made < n) {
+        const section = document.createElement('section')
+        section.style.background = pick(BG)
+        if (rand() < 0.1) section.style.opacity = '0.9'
+        if (rand() < 0.05) section.style.backgroundImage = 'linear-gradient(#fff, #eef)'
+        // غلافٌ متداخل يبلغ بالنصّ عمقًا بين أربعة واثني عشر.
+        let parent = section
+        const depth = 2 + Math.floor(rand() * 8)
+        for (let d = 0; d < depth; d++) {
+          const wrap = document.createElement('div')
+          if (rand() < 0.3) wrap.style.background = pick(BG)
+          parent.appendChild(wrap)
+          parent = wrap
+        }
+        const card = document.createElement('div')
+        card.className = 'card'
+        card.style.background = pick(BG)
+        parent.appendChild(card)
+        for (let i = 0; i < 20 && made < n; i++, made++) {
+          const p = document.createElement(rand() < 0.2 ? 'span' : 'p')
+          p.style.color = pick(TEXT)
+          if (rand() < 0.1) p.style.fontSize = '24px'
+          p.textContent = `${pick(WORDS)} ${pick(WORDS)} ${made}`
+          card.appendChild(p)
+          if (p.localName === 'span') card.appendChild(document.createElement('br'))
+        }
+        frag.appendChild(section)
+      }
+      root.appendChild(frag)
+      window.__texts = made
+    </script>
+  </body>
+</html>

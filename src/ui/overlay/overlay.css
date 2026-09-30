@@ -3917,3 +3917,160 @@
   inset-block-start: calc(var(--rasd-space-10) * -1);
   inset-inline-end: calc(var(--rasd-space-10) * -1);
 }
+
+/*
+ * ── تدقيق التباين (`STAGES/14`) ─────────────────────────────────────
+ *
+ * `contrast-audit / *` في `Docs/Design.md` §5. تبني على `.rasd-ov-insp` (الزجاج والرأس والجسم والتذييل)،
+ * والرقاقات بألوان الحالة من المشكلات (`data-tone`)، وإطار النتيجة المختارة على الصفحة `.rasd-ov-iss-box`.
+ * وما يزيد هنا: البطاقات، والصفّ القابل للنقر، والشارة، والتنبيه.
+ */
+
+/*
+ * الأسطر الثانوية وعناوين الشرائح بـ`text/secondary` كما في الإطار، لا `tertiary` الموروث من لوحتَي الفحص
+ * والمشكلات: ذاك يقصر عن AA على الأسطح الفاتحة (`Docs/Engineering.md §6` الصفّ 10) — ولوحةُ تدقيقِ تباينٍ
+ * تسقط تدقيقها لا تُشحن.
+ */
+.rasd-ov-au :is(.rasd-ov-iss-muted, .rasd-ov-insp-group-title) {
+  color: var(--rasd-text-secondary);
+}
+
+/* أزرارٌ مدمجة عند نهاية التذييل كما في الإطار (يسارًا في RTL)، لا ممتدّة بعرضه. */
+.rasd-ov-au .rasd-ov-insp-foot {
+  justify-content: flex-end;
+  padding: var(--rasd-space-12) var(--rasd-space-20);
+}
+
+.rasd-ov-au .rasd-ov-insp-foot .rasd-ov-cp-btn {
+  flex: none;
+  min-block-size: var(--rasd-control-lg);
+  padding-inline: var(--rasd-space-16);
+}
+
+[data-tone='neutral'] {
+  --iss-fg: var(--rasd-text-secondary);
+  --iss-bg: var(--rasd-surface-raised);
+  --iss-bd: var(--rasd-border-default);
+}
+
+[data-tone='info'] {
+  --iss-fg: var(--rasd-status-info-fg);
+  --iss-bg: var(--rasd-status-info-surface);
+  --iss-bd: var(--rasd-status-info-border);
+}
+
+.rasd-ov-au-sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-16) var(--rasd-space-20);
+}
+
+.rasd-ov-au-sec p {
+  margin: 0;
+}
+
+.rasd-ov-au-center {
+  text-align: center;
+  color: var(--rasd-text-secondary);
+}
+
+.rasd-ov-au-kv,
+.rasd-ov-au-card {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-sunken);
+  overflow: hidden;
+}
+
+.rasd-ov-au-kv div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-10) var(--rasd-space-12);
+}
+
+.rasd-ov-au-kv div + div,
+.rasd-ov-au-item + .rasd-ov-au-item {
+  border-block-start: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}
+
+.rasd-ov-au-kv dt {
+  color: var(--rasd-text-secondary);
+}
+
+.rasd-ov-au-kv dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.rasd-ov-au-item[data-selected] {
+  background: var(--rasd-surface-selected);
+}
+
+.rasd-ov-au-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  inline-size: 100%;
+  padding: var(--rasd-space-10) var(--rasd-space-12);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.rasd-ov-au-row:hover {
+  background: var(--rasd-surface-hover);
+}
+
+.rasd-ov-au-row:focus-visible {
+  outline: var(--rasd-stroke-medium) solid var(--rasd-border-focus);
+  outline-offset: calc(var(--rasd-stroke-medium) * -1);
+}
+
+.rasd-ov-au-row strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.rasd-ov-au-log {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  padding: 0 var(--rasd-space-12) var(--rasd-space-10);
+}
+
+.rasd-ov-au-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--rasd-space-48);
+  block-size: var(--rasd-space-48);
+  border-radius: var(--rasd-radius-full);
+  background: var(--iss-bg);
+  color: var(--iss-fg);
+}
+
+.rasd-ov-au-note {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-10);
+  padding: var(--rasd-space-12);
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-thin) solid var(--iss-bd);
+  background: var(--iss-bg);
+  color: var(--rasd-text-primary);
+}
+
+.rasd-ov-au-note svg {
+  flex: none;
+  color: var(--iss-fg);
+}

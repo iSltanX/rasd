@@ -44,6 +44,7 @@ import {
   type ViewportGalleryCard,
 } from '@/ui/overlay'
 import { AreaSelect, Countdown, type HandleSpot } from '@/ui/overlay/AreaSelect'
+import { AUDIT_TONE, AuditPanel } from '@/ui/overlay/colour/AuditPanel'
 import { ColourIdle, ColourPanel } from '@/ui/overlay/colour/ColourPanel'
 import { PalettePanel } from '@/ui/overlay/colour/PalettePanel'
 import { ScalePanel } from '@/ui/overlay/colour/ScalePanel'
@@ -69,6 +70,7 @@ import type { ColourPaletteTool } from './tools/colour-palette'
 import type { ColourScaleTool } from './tools/colour-scale'
 import type { ColourUsageTool } from './tools/colour-usage'
 import type { CompareTool } from './tools/compare'
+import type { ContrastAuditTool } from './tools/contrast-audit'
 import type { ElementHoverTool } from './tools/element-hover'
 import type { EyedropperTool } from './tools/eyedropper'
 import type { InspectDetail, InspectTool } from './tools/inspect'
@@ -233,6 +235,10 @@ export interface OverlayAppProps {
   onLogIssue?: (source: IssueSource) => void
   /** «أعد الفحص» في لوحة الصفحة — الإيماءة تُقرأ عند النقر لا هنا. */
   onRecheckIssues?: () => void
+  /** تدقيق تباين الصفحة (`STAGES/14`) — لوحته فوق وضع الفحص، ومدخله في لوحة خموله. */
+  audit?: ContrastAuditTool
+  /** «سجّلها مشكلة» على النتيجة المختارة — يفتح النموذج على عنصرها. */
+  onLogAuditIssue?: () => void
   onOpenIssuesLibrary?: () => void
   /** لقطة الإحداثيات الحيّة — تُقرأ عند كل إطار مزامنة. */
   space: Signal<CoordSpace>
@@ -1103,11 +1109,13 @@ function InspectLayer({
   space,
   onCopy,
   onLogIssue,
+  audit,
 }: {
   inspect: InspectTool
   space: Signal<CoordSpace>
   onCopy?: (kind: 'css' | 'tailwind' | 'json') => void
   onLogIssue?: () => void
+  audit?: ContrastAuditTool | undefined
 }) {
   const detail = inspect.state.detail.value
   const rect = inspect.state.rect.value
@@ -1144,11 +1152,65 @@ function InspectLayer({
             {...(onLogIssue ? { onLogIssue } : {})}
           />
         ) : (
-          <InspectIdle />
+          <InspectIdle {...(audit ? { onAudit: () => audit.open() } : {})} />
         )}
       </div>
       {/* الإحداثيات تُقرأ كي تشترك الطبقة في تغيّر المقاس. */}
       <span hidden data-w={s.layoutWidth} />
+    </>
+  )
+}
+
+/** `contrast-audit / *` يضع لوحته عند (20, 20) — فوق لوحة الفحص لا بجوارها. */
+const AUDIT_INSET = 20
+
+/**
+ * لوحة تدقيق التباين وإطار النتيجة المختارة على الصفحة — في وضع الفحص ما دامت مفتوحة.
+ *
+ * الإطار `.rasd-ov-iss-box` بلون شريحته، ويتبع عنصره مع التمرير (`audit.frame()` في حلقة المزامنة).
+ */
+function AuditLayer({
+  audit,
+  onLogIssue,
+}: {
+  audit: ContrastAuditTool
+  onLogIssue?: (() => void) | undefined
+}) {
+  const { state } = audit
+  if (!state.open.value) return null
+  const selected = state.selected.value
+  const findings = state.findings.value
+  const picked = selected === null ? undefined : findings.find((f) => f.id === selected)
+  const hl = state.box.value
+  return (
+    <>
+      {hl && picked ? (
+        <div
+          class="rasd-ov-place rasd-ov-iss-box"
+          data-tone={AUDIT_TONE[picked.severity]}
+          data-rasd-ov="audit-box"
+          style={box(hl)}
+        />
+      ) : null}
+      <div class="rasd-ov-place" style={at({ x: AUDIT_INSET, y: AUDIT_INSET })}>
+        <AuditPanel
+          phase={state.phase.value}
+          done={state.done.value}
+          total={state.total.value}
+          texts={state.texts.value}
+          findings={findings}
+          partialShown={state.partialShown.value}
+          selected={selected}
+          error={state.error.value}
+          onStart={() => void audit.start()}
+          onCancel={() => audit.cancel()}
+          onClose={() => audit.close()}
+          onShowPartial={() => audit.showPartial()}
+          onSelect={(id) => audit.select(id)}
+          onCopy={() => void audit.copyReport()}
+          onLogIssue={onLogIssue}
+        />
+      </div>
     </>
   )
 }
@@ -1345,9 +1407,11 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         <InspectLayer
           inspect={props.inspect}
           space={props.space}
+          audit={props.audit}
           {...(props.onCopyInspect ? { onCopy: props.onCopyInspect } : {})}
           {...logIssue('inspect')}
         />
+        {props.audit ? <AuditLayer audit={props.audit} onLogIssue={props.onLogAuditIssue} /> : null}
         {issueForm}
         {dock}
         {job}

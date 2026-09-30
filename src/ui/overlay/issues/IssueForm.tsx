@@ -58,9 +58,9 @@ export function IssueForm({
   const [index, setIndex] = useState(0)
   const option = model.options[index] ?? model.options[0]
   const contrast = option?.kind === 'contrast'
-  const [expected, setExpected] = useState('')
+  const [expected, setExpected] = useState(model.expected ?? '')
   const [tolerance, setTolerance] = useState(option?.kind === 'spacing' ? 1 : 0)
-  const [title, setTitle] = useState('')
+  const [title, setTitle] = useState(model.title ?? '')
   const [body, setBody] = useState('')
   const [withNote, setWithNote] = useState(true)
 
