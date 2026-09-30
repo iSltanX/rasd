@@ -9,6 +9,7 @@ import {
   readBackup,
   RECORD_UPGRADES,
   restoreBackup,
+  type RawRecords,
   type BackupOutcome,
   type RestorePlan,
 } from '@/modules/backup/backup'
@@ -406,7 +407,9 @@ describe('ترقية سجلّات النسخ الأقدم', () => {
 describe('المراجعة: قراءةٌ تُرفض لا تُجمّد النافذة', () => {
   it('صورةٌ في القاعدة تتعذّر قراءة بايتاتها: تُترك وتُعدّ، والنسخة تكتمل بغيرها', async () => {
     await seedDatabase(libraryFixture())
-    const real = Blob.prototype.arrayBuffer
+    const real = Object.getOwnPropertyDescriptor(Blob.prototype, 'arrayBuffer')!.value as (
+      this: Blob,
+    ) => Promise<ArrayBuffer>
     vi.spyOn(Blob.prototype, 'arrayBuffer').mockImplementation(function (this: Blob) {
       if (this.size === 6 && this.type === 'image/webp') {
         return Promise.reject(new DOMException('gone', 'NotFoundError'))
@@ -543,9 +546,9 @@ describe('المراجعة: الترقية قبل التحقّق', () => {
       return bytes
     })
     const upgrades = {
-      [DB_VERSION]: (raw: Record<string, unknown[]>) => ({
+      [DB_VERSION]: (raw: RawRecords): RawRecords => ({
         ...raw,
-        captures: raw.captures!.map((c) =>
+        captures: raw.captures.map((c) =>
           (c as { kind: string }).kind === 'screenshot'
             ? { ...(c as object), kind: 'viewport' }
             : c,
