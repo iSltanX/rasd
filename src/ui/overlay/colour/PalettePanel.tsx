@@ -264,6 +264,7 @@ export function PalettePanel({
   unavailable,
 }: PalettePanelProps): JSX.Element {
   const isCustomCount = !COUNT_PRESETS.includes(count)
+  const empty = swatches.length === 0
 
   return (
     <section class="rasd-ov-pal" data-rasd-ov="palette-panel" aria-label="لوحة الصفحة">
@@ -442,14 +443,26 @@ export function PalettePanel({
        * وحده كان يكفي هنا لأن النصّ المرئي اسم صيغة مجرَّد بلا فعل («CSS»
        * لا «نسخ CSS») — فلا كلمة صريحة عليه تحتاج تصحيحًا كما في لوحة الفحص.
        */}
+      {/*
+       * **لا ألوان بعد ⟵ لا حفظ ولا تصدير.** أثناء الاستخراج، ومع مصدرٍ غير متاح، اللوحة فارغة:
+       * كان «احفظ اللوحة» يسكت، والتصدير يُنزّل ملفًّا فارغًا ويُعلن نجاحه. والسبب ظاهرٌ في حالة
+       * اللوحة فوق الأزرار.
+       */}
       <footer class="rasd-ov-pal-actions">
-        <button type="button" class="rasd-ov-pal-btn" data-primary="true" onClick={onSave}>
+        <button
+          type="button"
+          class="rasd-ov-pal-btn"
+          data-primary="true"
+          disabled={empty}
+          onClick={onSave}
+        >
           <Icon name="swatches" size="sm" />
           <span>احفظ اللوحة</span>
         </button>
         <button
           type="button"
           class="rasd-ov-pal-btn"
+          disabled={empty}
           title="تنزيل ملفّ Tailwind"
           onClick={() => onExport?.('tailwind')}
         >
@@ -461,6 +474,7 @@ export function PalettePanel({
         <button
           type="button"
           class="rasd-ov-pal-btn"
+          disabled={empty}
           title="تنزيل ملفّ JSON"
           onClick={() => onExport?.('json')}
         >
@@ -472,6 +486,7 @@ export function PalettePanel({
         <button
           type="button"
           class="rasd-ov-pal-btn"
+          disabled={empty}
           title="تنزيل ملفّ CSS"
           onClick={() => onExport?.('css')}
         >

@@ -87,6 +87,12 @@ describe('paletteRecord — تصفية الحمولة', () => {
     expect(paletteRecord('ا'.repeat(500), ['#000000'])?.name).toHaveLength(PALETTE_MAX_NAME)
   })
 
+  it('درجة السلّم المرساة على لونٍ شفّاف (`#RRGGBBAA`) تبقى — كان إسقاطها يُسقط لون المستخدم', () => {
+    const r = paletteRecord('درجات', ['#dbeafe', '#3b82f680', '#1e3a8a'])
+    expect(r?.colors).toEqual(['#dbeafe', '#3b82f680', '#1e3a8a'])
+    expect(paletteRecord('x', ['#3b82f68', '#3b82f6800'])).toBeNull()
+  })
+
   it('لا لون صالحًا ⟵ لا سجلّ', () => {
     expect(paletteRecord('x', [])).toBeNull()
     expect(paletteRecord('x', ['#GGGGGG'])).toBeNull()

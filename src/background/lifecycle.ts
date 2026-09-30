@@ -589,14 +589,15 @@ export function serviceWorkerBootedAt(): number {
 export const PALETTE_MAX_COLORS = 64
 /** حدّ اسمها بالمحارف — اسمٌ يُعرض على بطاقة، لا نصّ. */
 export const PALETTE_MAX_NAME = 80
-const HEX_COLOUR = /^#[0-9a-f]{6}$/iu
+const HEX_COLOUR = /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/iu
 
 /**
  * سجلّ لوحة من حمولة `palette/save`، أو `null` حين لا يبقى لونٌ صالح.
  *
- * **الحمولة من سكربت محتوى فوق صفحةٍ قد تكون معادية**، فتُصفّى هنا لا هناك: `#RRGGBB` وحده
- * (ما تُخرجه اللوحة والسلّم كلاهما)، بلا تكرار بلا اعتبار لحالة الأحرف، وبحدّ أعلى؛ والاسم
- * مقصوص، وفارغُه «لوحة».
+ * **الحمولة من سكربت محتوى فوق صفحةٍ قد تكون معادية**، فتُصفّى هنا لا هناك: `#RRGGBB`، أو
+ * `#RRGGBBAA` لدرجة السلّم المرساة على لونٍ شفّاف (`formatColour().hex` يكتب الألفا حين تقلّ عن 1)
+ * — وكان إسقاطها يُسقط لون المستخدم نفسه صامتًا. بلا تكرار بلا اعتبار لحالة الأحرف، وبحدّ أعلى؛
+ * والاسم مقصوص، وفارغُه «لوحة».
  */
 export function paletteRecord(name: string, sent: readonly string[]): PaletteRecord | null {
   const seen = new Set<string>()

@@ -48,15 +48,15 @@ import { Crosshair } from '@/ui/overlay/Crosshair'
 import { at, box, HINT_OFFSET_PX } from '@/ui/overlay/geometry'
 import { Loupe } from '@/ui/overlay/Loupe'
 import { MeasureIdle } from '@/ui/overlay/MeasureIdle'
-import { NoticeToast } from '@/ui/overlay/Notice'
+import { NoticeToast, type OverlayNotice } from '@/ui/overlay/Notice'
 import { Toolbar } from '@/ui/overlay/Toolbar'
 
 import { contrastView, formatRows, variableView } from './colour-view'
 import { buildGroups } from './inspect-view'
+import { colourReadFailed, type NoticeCenter } from './notices'
 import { LOUPE_CELLS } from './sampler'
 import { measureRootFontSize } from './tools/measure'
 
-import type { NoticeCenter } from './notices'
 import type { AreaSelectTool } from './tools/area-select'
 import type { ColourPaletteTool } from './tools/colour-palette'
 import type { ColourScaleTool } from './tools/colour-scale'
@@ -1138,10 +1138,29 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
   // القراءة داخل المكوّن هي ما يشترك في الإشارة — لا `subscribe` يدوي.
   const mode = props.mode.value
   const dock = <ToolDock mode={mode} space={props.space.value} onSwitchMode={props.onSwitchMode} />
+  /*
+   * `colors / error` (`303:22356`) **مثبَّت لا عابر**: يبقى ما دامت القطّارة عاجزة عن القراءة، وفي
+   * وضع اللون وحده — حلقة الإطار تستدعي القطّارة في كل وضع، وفشلٌ خارجه ليس شأن المستخدم.
+   */
+  const colourError = mode === 'colour' ? props.colour.state.error.value : null
   // الإشعار آخرًا في كل فرع: فوق ما ترسمه الأداة والشريط.
-  const notice = props.notices ? (
-    <NoticeLayer notices={props.notices} space={props.space.value} mode={mode} />
-  ) : null
+  const notice = (
+    <NoticeLayer
+      space={props.space.value}
+      mode={mode}
+      {...(props.notices ? { notices: props.notices } : {})}
+      {...(colourError
+        ? {
+            pinned: {
+              notice: colourReadFailed(colourError),
+              onClose: () => {
+                props.colour.state.error.value = null
+              },
+            },
+          }
+        : {})}
+    />
+  )
   if (mode === 'inspect')
     return (
       <>
@@ -1260,18 +1279,23 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
  * موضع الإشعار أسفل الوسط: فوق الشريط العائم ما دامت أداة مفتوحة، وفوق شريط التلميحات في
  * المنطقة والعنصر (`HINT_OFFSET_PX`، `59:2` و`59:123`)، وفي مكان الشريط نفسه حين لا أداة —
  * فأكثر الإشعارات يأتي بعد أن تُغلق الأداة: التقاطٌ حُفظ، أو `Esc`.
+ *
+ * **عمودٌ لا موضعٌ واحد:** المثبَّت (خطأ القطّارة) أقرب إلى الشريط، والعابر فوقه — فلا يحجب
+ * أحدهما الآخر، ولا يُحسب ارتفاعٌ لا يُعرف قبل الرسم.
  */
 export function NoticeLayer({
   notices,
   space,
   mode,
+  pinned,
 }: {
-  notices: NoticeCenter
+  notices?: NoticeCenter
   space: CoordSpace
   mode: Mode
+  pinned?: { readonly notice: OverlayNotice; readonly onClose: () => void }
 }): JSX.Element | null {
-  const notice = notices.current.value
-  if (!notice) return null
+  const notice = notices?.current.value ?? null
+  if (!notice && !pinned) return null
   const lift =
     mode === 'idle'
       ? DOCK_BOTTOM_PX
@@ -1280,12 +1304,21 @@ export function NoticeLayer({
         : DOCK_BOTTOM_PX + DOCK_HEIGHT_PX + DOCK_GAP_PX
   return (
     <div
-      class="rasd-ov-place"
+      class="rasd-ov-place rasd-ov-notices"
       style={at({ x: space.layoutWidth / 2, y: space.layoutHeight - lift })}
       data-anchor="bottom-center"
-      data-rasd-ov="notice"
+      data-rasd-ov="notices"
     >
-      <NoticeToast notice={notice} onClose={() => notices.dismiss()} />
+      {notice ? (
+        <div data-rasd-ov="notice">
+          <NoticeToast notice={notice} onClose={() => notices?.dismiss()} />
+        </div>
+      ) : null}
+      {pinned ? (
+        <div data-rasd-ov="colour-error">
+          <NoticeToast notice={pinned.notice} onClose={pinned.onClose} />
+        </div>
+      ) : null}
     </div>
   )
 }

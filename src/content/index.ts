@@ -9,7 +9,7 @@
  * أخيرًا، حتى لا يُطلَق معالج على مضيف أُزيل.
  */
 
-import { computed, effect, signal } from '@preact/signals'
+import { computed, signal } from '@preact/signals'
 
 import { captureKindFor, type CaptureSource } from '@/modules/capture/kind'
 import { exportPalette, exportScale, type PaletteFormat } from '@/modules/colour/export'
@@ -34,7 +34,6 @@ import {
   captureFailed,
   captureNotCopied,
   captureSaved,
-  colourReadFailed,
   colourSaved,
   createNoticeCenter,
   exitNotice,
@@ -401,12 +400,6 @@ async function bootOverlay(
     skip: host.hostEl,
     resolver: cssResolver,
     onInvalidate: () => sync.invalidate('pointer'),
-  })
-
-  /** `colors / error` (`303:22356`) — تعذّر العيّنة إشعار خطر في مكان الإشعارات الواحد. */
-  const stopColourError = effect(() => {
-    const reason = colour.state.error.value
-    if (reason) notices.show(colourReadFailed(reason))
   })
 
   /**
@@ -1257,7 +1250,6 @@ async function bootOverlay(
     // رأى المراقبُ المضيفَ يختفي فأعاد إلحاقه في اللحظة نفسها.
     removeShortcuts()
     shortcutBindings.stop()
-    stopColourError()
     notices.dismiss()
     unregisterModeSet()
     unregisterCompareResume()

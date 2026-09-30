@@ -466,3 +466,30 @@ describe('PalettePanel — عزل الاتجاه (§3.5 البند 2)', () => {
     for (const b of bdis) expect(b.getAttribute('dir')).toBe('ltr')
   })
 })
+
+describe('PalettePanel — لا حفظ ولا تصدير بلا ألوان', () => {
+  const footer = (el: HTMLDivElement) => [
+    ...el.querySelectorAll<HTMLButtonElement>('.rasd-ov-pal-actions button'),
+  ]
+
+  it('صفر ألوان (جارٍ الاستخراج أو مصدرٌ غير متاح) ⟵ الأزرار الأربعة معطَّلة، فلا زرّ صامت ولا ملفّ فارغ', () => {
+    const onSave = vi.fn()
+    const onExport = vi.fn()
+    const el = mount(<PalettePanel {...panelProps({ swatches: [], onSave, onExport })} />)
+    const buttons = footer(el)
+    expect(buttons).toHaveLength(4)
+    expect(buttons.every((b) => b.disabled)).toBe(true)
+    for (const b of buttons) b.click()
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onExport).not.toHaveBeenCalled()
+  })
+
+  it('مع ألوان ⟵ الأزرار فاعلة', () => {
+    const onSave = vi.fn()
+    const el = mount(<PalettePanel {...panelProps({ onSave })} />)
+    const buttons = footer(el)
+    expect(buttons.some((b) => b.disabled)).toBe(false)
+    buttons[0]!.click()
+    expect(onSave).toHaveBeenCalledOnce()
+  })
+})

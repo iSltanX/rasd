@@ -489,6 +489,13 @@
 .rasd-ov-toast button {
   pointer-events: auto;
 }
+/* عمود الإشعارات — المثبَّت أسفلًا قرب الشريط والعابر فوقه (`NoticeLayer`). */
+.rasd-ov-notices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rasd-space-8);
+}
 .rasd-ov-toast-badge {
   flex: none;
   display: inline-flex;
@@ -3249,6 +3256,15 @@
 
 .rasd-ov-pal-btn[data-primary='true']:hover {
   background: var(--rasd-action-primary-hover);
+}
+
+/* لا ألوان بعد (جارٍ الاستخراج، أو مصدرٌ غير متاح): الأزرار الأربعة معطَّلة، وسببها حالة اللوحة فوقها. */
+.rasd-ov-pal-btn:disabled,
+.rasd-ov-pal-btn[data-primary='true']:disabled {
+  cursor: not-allowed;
+  border-color: var(--rasd-border-default);
+  background: var(--rasd-surface-disabled);
+  color: var(--rasd-text-tertiary);
 }
 
 /* ── لوحة الاستبدال المؤقّت — `colors / replace` (`125:227`) ──────────

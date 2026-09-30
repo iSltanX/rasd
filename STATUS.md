@@ -8,7 +8,7 @@
 - **الفرع المعتمد:** `main` على `origin` (iSltanX/rasd) — لا فروع طويلة العمر
 - **المكتمل:** 2 من 30 مرحلة
 - **المرحلة التالية:** [03](STAGES/03.md) — تطبيق التصميم الجديد كاملًا في الكود
-- **الخطوة التالية:** الدفعات 1–8 منجزة محلّيًّا. التالي الإغلاق: أوامر القبول وعدّ الاختبارات، ثمّ `RASD_GATE_BASE=origin/main pnpm gate:a` ومخروطها، والمراجعة المستقلّة لـ`src/shared/settings/index.ts` و`src/background/lifecycle.ts` و`src/shared/messaging/contract.ts`، ثمّ الرفع وقراءة CI. ومعلّق للمالك: حوار `library / delete-confirm` (الصفّ 139)، وترقية أربعة حرّاس مؤهَّلين (`compare-diff` · `editor` · `gate` · `picker`).
+- **الخطوة التالية:** منجزة ومحقَّقة محلّيًّا. التالي: `git push origin main`، ثمّ قراءة خواتيم وظائف CI، ثمّ التزام «المرحلة 03: تثبيت التسليم». ومعلّق للمالك: حوار `library / delete-confirm` (الصفّ 139)، وترقية أربعة حرّاس مؤهَّلين (`compare-diff` · `editor` · `gate` · `picker`).
 
 ## المراحل
 

@@ -67,7 +67,7 @@ describe('NoticeToast — إشعار الطبقة', () => {
 describe('NoticeLayer — موضع الإشعار', () => {
   const y = (root: HTMLElement) =>
     root
-      .querySelector<HTMLElement>('[data-rasd-ov="notice"]')
+      .querySelector<HTMLElement>('[data-rasd-ov="notices"]')
       ?.style.getPropertyValue('--rasd-ov-y')
 
   it('لا شيء بلا إشعار', () => {
@@ -84,6 +84,36 @@ describe('NoticeLayer — موضع الإشعار', () => {
     expect(y(idle)).toBe('700px')
     render(<NoticeLayer notices={center} space={SPACE} mode="area" />, idle)
     expect(y(idle)).toBe('656px')
+  })
+
+  it('المثبَّت (خطأ القطّارة) أسفل العابر، ويبقى حين يُغلق العابر', async () => {
+    const center = createNoticeCenter()
+    center.show({ tone: 'success', title: 'نُسخ اللون' })
+    const close = vi.fn()
+    const root = mount(
+      <NoticeLayer
+        notices={center}
+        space={SPACE}
+        mode="colour"
+        pinned={{ notice: { tone: 'danger', title: 'تعذّرت قراءة اللون' }, onClose: close }}
+      />,
+    )
+    const order = [...root.querySelectorAll('[data-rasd-ov="notices"] > [data-rasd-ov]')].map((n) =>
+      n.getAttribute('data-rasd-ov'),
+    )
+    expect(order).toEqual(['notice', 'colour-error'])
+
+    center.dismiss()
+    // الطبقة تقرأ الإشارة فيُعاد رسمها بعد الدورة — لا تزامنًا مع الإغلاق.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(root.querySelector('[data-rasd-ov="notice"]')).toBeNull()
+    expect(root.querySelector('[data-rasd-ov="colour-error"]')?.textContent).toContain(
+      'تعذّرت قراءة اللون',
+    )
+    root
+      .querySelector<HTMLButtonElement>('[data-rasd-ov="colour-error"] button[aria-label="إغلاق"]')!
+      .click()
+    expect(close).toHaveBeenCalledOnce()
   })
 
   it('الإغلاق يُخفيه', () => {
