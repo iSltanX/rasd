@@ -6,6 +6,8 @@ import styles from './AppShell.module.css'
 import { hrefFor, SETTINGS_HREF, type LibraryView } from './library-views'
 import { ShortcutsSheet } from './ShortcutsSheet'
 import { loadSidebarData, type SidebarData } from './sidebar-data'
+import { claimPendingWhatsNew, type ChangelogEntry } from './whats-new'
+import { WhatsNewDialog } from './WhatsNewDialog'
 
 import type { ComponentChildren, JSX } from 'preact'
 
@@ -36,6 +38,9 @@ function typing(target: EventTarget | null): boolean {
  * سجلّات قائم لا مدخل له في شريط الإطار. «لقطة جديدة» تفتح الورقة نفسها: صفحة الإضافة لا
  * تلتقط صفحة أخرى — `activeTab` يُمنح بإيماءة على الصفحة المراد التقاطها — فالزرّ يدلّ على
  * الطريق.
+ *
+ * **وبطاقة «ما الجديد» بعد الترقية** تظهر هنا مرّة واحدة، في أوّل صفحة إضافة يفتحها المستخدم بعدها
+ * (المكتبة أو الإعدادات) — لا تبويبٌ يُفتح عليه من تلقاء نفسه وهو في عمله.
  */
 export function AppShell({
   activeId,
@@ -47,6 +52,18 @@ export function AppShell({
   const [data, setData] = useState<SidebarData | null>(null)
   const [sheet, setSheet] = useState(false)
   const closeSheet = useCallback(() => setSheet(false), [])
+  const [whatsNew, setWhatsNew] = useState<ChangelogEntry | null>(null)
+  const closeWhatsNew = useCallback(() => setWhatsNew(null), [])
+
+  useEffect(() => {
+    let cancelled = false
+    void claimPendingWhatsNew().then((entry) => {
+      if (!cancelled && entry) setWhatsNew(entry)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -138,6 +155,9 @@ export function AppShell({
       />
       <div class={styles.main}>{children}</div>
       {sheet ? <ShortcutsSheet onClose={closeSheet} /> : null}
+      {whatsNew ? (
+        <WhatsNewDialog entry={whatsNew} origin="update" onClose={closeWhatsNew} />
+      ) : null}
     </div>
   )
 }

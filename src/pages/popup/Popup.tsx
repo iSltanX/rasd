@@ -336,6 +336,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
                 patch: { onboarding: { completed: true, completedAt: Date.now() } },
               }).then(() => setFirstRunDone(true))
             }}
+            onTour={() => openPage('onboarding')}
           />
         )
         break

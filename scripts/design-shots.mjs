@@ -35,7 +35,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 import { ensureFixturesServer } from './live-fixtures.mjs'
@@ -77,6 +77,10 @@ const BASELINE_TREES = {
     'phase-20/settings-privacy-a11y-tree.md',
     'الإعدادات ‹ الخصوصية ‹ المواقع المستثناة، بقائمة مواقع',
   ],
+  'onboarding / step-1|dark': ['onboarding/step-1-a11y-tree.md', 'جولة التعريف ‹ الخطوة ١'],
+  'onboarding / step-2|dark': ['onboarding/step-2-a11y-tree.md', 'جولة التعريف ‹ الخطوة ٢'],
+  'onboarding / step-3|dark': ['onboarding/step-3-a11y-tree.md', 'جولة التعريف ‹ الخطوة ٣'],
+  'onboarding / step-4|dark': ['onboarding/step-4-a11y-tree.md', 'جولة التعريف ‹ الخطوة ٤'],
 }
 const baselineLog = []
 /** محطّات تركيز بلا أثر مرئي — `--keys`. */
@@ -191,6 +195,29 @@ const send = (method, params = {}, sessionId) =>
 
 const extId = (await send('Extensions.loadUnpacked', { path: EXT })).id
 const ORIGIN = `chrome-extension://${extId}`
+
+/**
+ * **تبويب جولة التعريف يُغلق قبل أوّل مشهد.** التحميل تثبيتٌ في ملفّ تعريف جديد، والتثبيت يفتح
+ * التأهيل ويقدّمه إلى الواجهة ما دام ما فيها صفحةً غريبة (`background/install-flow.ts`) — وفي الواجهة هنا
+ * `about:blank`. فكان يصل بعد مشهدٍ فُتح ويخفيه، وصفحةٌ مخفيّة لا ترسم إطارًا فيعلق `settle()` بلا نهاية.
+ * يُنتظر التبويب حتى يظهر ثمّ يُغلق، فتبدأ المشاهد على متصفّح هادئ.
+ */
+{
+  const installUrl = `${ORIGIN}/src/pages/onboarding/index.html`
+  const deadline = Date.now() + 15_000
+  let closed = false
+  while (!closed && Date.now() < deadline) {
+    const { targetInfos } = await send('Target.getTargets')
+    const tab = targetInfos.find((t) => t.type === 'page' && t.url === installUrl)
+    if (tab) {
+      await send('Target.closeTarget', { targetId: tab.targetId })
+      closed = true
+    } else {
+      await new Promise((r) => setTimeout(r, 100))
+    }
+  }
+  if (!closed) console.log('  ! لم يظهر تبويب جولة التعريف عند التثبيت خلال 15 ثانية')
+}
 
 /** صفحة جديدة بمقاس الإطار ووضعه — تُرجع أدوات تقييمها ولقطتها وإغلاقها. */
 async function openPage(url, mode, { beforeLoad } = {}) {
@@ -414,6 +441,7 @@ async function writeTree(page, file, title) {
     '```\n' +
     rows.map((r) => `${r.role} — ${r.name || '(بلا اسم)'}`).join('\n') +
     '\n```\n'
+  mkdirSync(dirname(join(BASELINES, file)), { recursive: true })
   writeFileSync(join(BASELINES, file), body)
   baselineLog.push(`${file} — ${rows.length} عنصرًا، بلا اسم ${unnamed}`)
 }

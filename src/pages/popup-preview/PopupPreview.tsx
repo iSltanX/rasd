@@ -165,7 +165,7 @@ export function PopupPreview(): JSX.Element {
       </Frame>
 
       <Frame name="first-run" state="first-run" status="جاهز في هذه الصفحة">
-        <FirstRun onStart={noop} />
+        <FirstRun onStart={noop} onTour={noop} />
       </Frame>
 
       <Frame name="permission" state="permission" status="لم يُمنح الإذن">

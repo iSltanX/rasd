@@ -8,17 +8,10 @@ import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { KeyCap } from '@/ui/TechnicalValue'
 
+import { CAPTURE_COMMANDS } from './capture-commands'
 import styles from './ShortcutsSheet.module.css'
 
 import type { JSX } from 'preact'
-
-/** أوامر الالتقاط الأربعة بترتيب القراءة، وتسمياتها كما في الورقة (`292:1691`). */
-const CAPTURE_COMMANDS: readonly { name: string; label: string }[] = [
-  { name: 'capture-area', label: 'منطقة' },
-  { name: 'capture-element', label: 'عنصر' },
-  { name: 'capture-viewport', label: 'الجزء الظاهر' },
-  { name: 'capture-full-page', label: 'صفحة كاملة' },
-]
 
 const TOOLS: readonly { mode: ToolShortcutMode; label: string }[] = [
   { mode: 'inspect', label: 'فحص' },

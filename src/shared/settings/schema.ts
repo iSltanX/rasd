@@ -145,10 +145,28 @@ export const SettingsSchema = v.object({
     {},
   ),
 
+  /**
+   * جولة التعريف (`src/pages/onboarding/`). **`completed` هي علامة «شوهد»** لا «أُكملت خطواتها
+   * الأربع»: تُكتب عند إنهاء الجولة وعند تخطّيها، وعند أوّل ترقية لمستخدم قائم
+   * (`background/install-flow.ts`) كي لا تفاجئه ترحيبيّة النافذة بعد تحديث. و`completedAt` لحظة
+   * كتابتها، و`null` حين كتبتها الترقية لا المستخدم.
+   */
   onboarding: v.optional(
     v.object({
       completed: v.optional(v.boolean(), false),
       completedAt: v.optional(v.nullable(v.number()), null),
+    }),
+    {},
+  ),
+
+  /**
+   * بطاقة «ما الجديد». `pending` النسخة التي تنتظر بطاقتها أن تُعرض: تكتبها الخلفية عند ترقية
+   * إلى نسخة أعلى، وتمحوها قشرة الصفحات حين تعرضها — فتظهر مرّة واحدة. والافتراضي `null`: التثبيت
+   * الجديد لا بطاقة له، ومستخدمٌ قائم بلا هذا المفتاح لا يراها حتى ترقيته التالية.
+   */
+  whatsNew: v.optional(
+    v.object({
+      pending: v.optional(v.nullable(v.string()), null),
     }),
     {},
   ),
