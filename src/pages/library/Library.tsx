@@ -296,6 +296,8 @@ export function Library(): JSX.Element {
   const [projects, setProjects] = useState<ProjectRecord[]>([])
   const [projectsPanelOpen, setProjectsPanelOpen] = useState(false)
   const [overview, setOverview] = useState<ProjectOverview[] | null>(null)
+  /** تعذّرت قراءة النظرة — كانت تُقرأ «لا مشاريع بعد»، فراغًا كاذبًا (`projects / error`). */
+  const [overviewFailed, setOverviewFailed] = useState(false)
 
   const [tags, setTags] = useState<TagRecord[]>([])
   const [tagsPanelOpen, setTagsPanelOpen] = useState(false)
@@ -463,7 +465,9 @@ export function Library(): JSX.Element {
     if (view.kind !== 'projects') return
     let live = true
     void loadProjectOverview().then((result) => {
-      if (live) setOverview(result.ok ? result.value : [])
+      if (!live) return
+      setOverviewFailed(!result.ok)
+      setOverview(result.ok ? result.value : [])
     })
     return () => {
       live = false
@@ -654,10 +658,12 @@ export function Library(): JSX.Element {
     (name: string, color: string) => {
       void createProject(name, color).then((result) => {
         reportProjectFailure('إنشاء المشروع', result)
+        // `projects / created` (`304:28147`): النجاح يُقال كما يُقال الفشل — كان صامتًا.
+        if (result.ok) announce({ title: 'أُنشئ المشروع', detail: `«${name}» جاهز لأوّل لقطة` })
         afterProjectsChange()
       })
     },
-    [afterProjectsChange, reportProjectFailure],
+    [afterProjectsChange, announce, reportProjectFailure],
   )
   const onRenameProject = useCallback(
     (id: string, name: string) => {
@@ -814,6 +820,18 @@ export function Library(): JSX.Element {
                     {Array.from({ length: 4 }, (_, i) => (
                       <Skeleton key={i} kind="panel" />
                     ))}
+                  </div>
+                ) : overviewFailed ? (
+                  <div class={styles.center}>
+                    <ErrorMessage
+                      layout="page"
+                      title="تعذّرت قراءة المشاريع"
+                      body="لم يستجب التخزين على هذا الجهاز. مشاريعك لم تُحذف — أعد المحاولة."
+                      onRetry={() => {
+                        setOverview(null)
+                        bump()
+                      }}
+                    />
                   </div>
                 ) : overview.length === 0 ? (
                   <div class={styles.center}>

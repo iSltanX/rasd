@@ -24,21 +24,31 @@
   opacity: 0.55;
 }
 
-/* المقاسات — أصغرها 28px يجلس داخل صف 32px، يفي بحدّ الهدف الأدنى. */
+/*
+ * المقاسات من مكوّن `Button` (`44:194`): S 28 · M 36 · L 44، وحشوة 10 · 14 · 18، وفجوة 6 · 8 · 10،
+ * وزاوية 6 · 8 · 12، ونصّ 12 · 13 · 14. كان M وL أقصر بأربعة بكسلات وأعرض حشوةً، والنصّ أكبر
+ * بدرجة في S وM، فخرج كل زرّ في المنتج عن إطاره (`STAGES/04`). و36 و44 ليسا في سلّم `control`،
+ * فيُبنيان منه — أصغرها 28px يجلس داخل صف 32px، يفي بحدّ الهدف الأدنى.
+ */
 .size-s {
   block-size: var(--rasd-control-sm);
-  padding-inline: var(--rasd-space-12);
+  padding-inline: var(--rasd-space-10);
+  border-radius: var(--rasd-radius-sm);
 }
 .size-m {
-  block-size: var(--rasd-control-md);
-  padding-inline: var(--rasd-space-16);
+  block-size: calc(var(--rasd-control-md) + var(--rasd-space-4));
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
 }
 .size-l {
-  block-size: var(--rasd-control-lg);
-  padding-inline: var(--rasd-space-20);
+  block-size: calc(var(--rasd-control-lg) + var(--rasd-space-4));
+  padding-inline: calc(var(--rasd-space-16) + var(--rasd-space-2));
+  border-radius: var(--rasd-radius-lg);
 }
-.size-s .label {
-  font: inherit;
+.size-m .content {
+  gap: var(--rasd-space-8);
+}
+.size-l .content {
+  gap: var(--rasd-space-10);
 }
 
 .content {
@@ -67,10 +77,13 @@
   white-space: nowrap;
 }
 .size-s .label {
+  font-size: var(--rasd-font-size-sm);
+  font-weight: 600;
+}
+.size-m .label {
   font-size: var(--rasd-font-size-base);
   font-weight: 600;
 }
-.size-m .label,
 .size-l .label {
   font-size: var(--rasd-font-size-md);
   font-weight: 600;

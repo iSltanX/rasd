@@ -57,11 +57,12 @@ export function ExportProgress(props: ExportProgressProps): JSX.Element {
           {props.error ? 'تعذّر إخراج الملف' : 'جارٍ إخراج الملف'}
         </h2>
 
-        <p class={cx(styles.detail, 't-mono-xs')} data-export-size>
-          <bdi dir="ltr">
-            {props.width} × {props.height}
-          </bdi>{' '}
-          <span class="t-arabic-ui-xs">عند {props.scale}×</span>
+        {/*
+         * سطر عربي والرقم معزول: «×2» خارج العزل كانت تنقلب في سطر عربي فتُقرأ
+         * «1280 × 800 1 عند×» (`STAGES/04`، لقطة `editor / exporting`).
+         */}
+        <p class={cx(styles.detail, 't-arabic-ui-xs')}>
+          بدقّة <bdi dir="ltr">×{props.scale}</bdi>
         </p>
 
         <div
@@ -80,11 +81,14 @@ export function ExportProgress(props: ExportProgressProps): JSX.Element {
           </p>
         ) : null}
 
+        {/* النسبة في بداية السطر والأبعاد في نهايته، كما في الإطار. غربية كلتاهما: قياس لا عدّ. */}
         <div class={styles.row}>
-          {/* غربية: نسبة قياس لا عدٌّ بشري. */}
-          <span class={cx(styles.hint, 't-mono-xs')} data-export-percent>
+          <span class={cx(styles.percent, 't-mono-xs')} data-export-percent>
             {formatPercent(pct)}
           </span>
+          <bdi dir="ltr" class={cx(styles.hint, 't-mono-xs')} data-export-size>
+            {props.width} × {props.height}
+          </bdi>
         </div>
         <Button
           variant="secondary"
@@ -94,7 +98,7 @@ export function ExportProgress(props: ExportProgressProps): JSX.Element {
           data-export-cancel=""
           onClick={props.onCancel}
         >
-          {props.error ? 'أغلق (⎋)' : 'ألغِ (⎋)'}
+          {props.error ? 'أغلق' : 'ألغِ'}
         </Button>
       </div>
     </div>

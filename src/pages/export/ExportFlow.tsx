@@ -68,6 +68,7 @@ export function ExportFlow(props: ExportFlowProps): JSX.Element {
   const [running, setRunning] = useState(false)
   const [fraction, setFraction] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [cancelled, setCancelled] = useState(false)
   const [done, setDone] = useState<DoneState | null>(null)
 
   /** الحالة المستطلَعة — تُقرأ متزامنًا داخل معالج النقرة. */
@@ -124,6 +125,8 @@ export function ExportFlow(props: ExportFlowProps): JSX.Element {
       setError(null)
       setFraction(0)
       setRunning(true)
+      // محاولة جديدة تمحو ما قبلها: لا يبقى «أُلغي التصدير» فوق تصديرٍ ينجح بعده.
+      setCancelled(false)
       const run = startExport({
         scene: props.scene,
         sourceBlob: props.sourceBlob,
@@ -240,6 +243,7 @@ export function ExportFlow(props: ExportFlowProps): JSX.Element {
         onCancel={() => {
           cancelRef.current()
           setRunning(false)
+          setCancelled(true)
         }}
       />
     )
@@ -278,6 +282,7 @@ export function ExportFlow(props: ExportFlowProps): JSX.Element {
       blocked={plan.ok ? null : plan.reason}
       busy={running}
       error={error}
+      cancelled={cancelled}
       onScale={setScale}
       onFormat={setFormat}
       onQuality={setQuality}

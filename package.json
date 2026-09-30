@@ -56,6 +56,7 @@
     "verify:export": "node scripts/verify-export.mjs",
     "docs:lint": "node scripts/docs-lint.mjs",
     "entrypoints:lint": "node scripts/entrypoints-lint.mjs",
+    "design:shots": "node scripts/design-shots.mjs",
     "guards:sync": "node scripts/guards-sync.mjs",
     "guards:check": "node scripts/guards-sync.mjs --check",
     "gate:a": "node scripts/gate-a.mjs",

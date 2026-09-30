@@ -75,6 +75,10 @@
   color: var(--rasd-text-tertiary);
 }
 
+.percent {
+  color: var(--rasd-text-brand);
+}
+
 .error {
   font-family: var(--rasd-font-family-text);
   font-size: var(--rasd-font-size-sm);

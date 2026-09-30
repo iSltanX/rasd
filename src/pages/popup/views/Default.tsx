@@ -114,9 +114,12 @@ export function Default({
       <section class={styles.group} aria-label="الأخيرة">
         <div class={styles.groupHead}>
           <span class={styles.groupLabel}>الأخيرة</span>
-          <button type="button" class={styles.groupLink} onClick={onOpenLibrary}>
-            عرض الكل
-          </button>
+          {/* لا «عرض الكل» بلا لقطات — `popup / no-recent` (`319:56341`) لا يعرضه: لا كلّ يُعرض. */}
+          {recent.length > 0 ? (
+            <button type="button" class={styles.groupLink} onClick={onOpenLibrary}>
+              عرض الكل
+            </button>
+          ) : null}
         </div>
         {recent.length > 0 ? (
           <div class={styles.recentRow}>

@@ -28,12 +28,20 @@ export interface EmptyStateProps {
 const captureShortcut = (): string => (isMacPlatform() ? '⇧⌘T' : 'Ctrl+Shift+Q')
 
 /** نصوص الحالات الأربع المرسومة من مكوّن Figma `Empty State` (`89:297`). */
-const CONTENT: Record<EmptyStateKind, { icon: IconName; title: string; hint: () => string }> = {
+const CONTENT: Record<
+  EmptyStateKind,
+  { icon: IconName; title: string; hint: () => ComponentChildren }
+> = {
   'no-captures': {
     icon: 'capture-area',
     title: 'لا توجد لقطات بعد',
-    hint: () =>
-      `اضغط ${captureShortcut()} في أي صفحة لالتقاط الأولى، أو افتح نافذة رصد من شريط الأدوات.`,
+    // الاختصار معزول LTR: «⇧⌘T» في سطر عربي كانت تُرسم «T⌘⇧» (`STAGES/04`، لقطة `library / empty`).
+    hint: () => (
+      <>
+        اضغط <bdi dir="ltr">{captureShortcut()}</bdi> في أي صفحة لالتقاط الأولى، أو افتح نافذة رصد
+        من شريط الأدوات.
+      </>
+    ),
   },
   'no-results': {
     icon: 'search',

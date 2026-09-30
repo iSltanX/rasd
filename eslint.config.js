@@ -334,6 +334,8 @@ export default tseslint.config(
     ignores: [
       'dist/**',
       'dist-zip/**',
+      // مخرَجات محلّية مُستبعَدة من Git — بناء التطوير في `artifacts/design/ext` لأداة `design-shots`.
+      'artifacts/**',
       'coverage/**',
       'node_modules/**',
       'src/tokens/**', // مولَّد — لا يُراجَع

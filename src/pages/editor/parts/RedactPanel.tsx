@@ -18,6 +18,8 @@ import {
 import { setCoverToken, setRedactMode, setRedactStrength } from '@/modules/editor/scene-ops'
 import { formatHuman, formatUnit } from '@/shared/bidi'
 import { ANNOTATION_COLORS } from '@/shared/settings/schema'
+import segmented from '@/ui/components/SegmentedControl/SegmentedControl.module.css'
+import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
 import styles from './RedactPanel.module.css'
@@ -119,11 +121,21 @@ export function RedactPanel(props: RedactPanelProps): JSX.Element {
             <span class={styles.label} id="redact-mode-label">
               النمط
             </span>
-            <div class={styles.row} role="group" aria-labelledby="redact-mode-label">
+            {/*
+             * مظهر `SegmentedControl` بصنفَيه، والأزرار باقية بخطّافاتها: `verify:editor` الحاجب
+             * ينقر `[data-redact-mode]`. كانت بلا صنف فرسمها المتصفّح أزرارًا فاتحة افتراضية في
+             * واجهة داكنة (`STAGES/04`، لقطة `editor / redact`).
+             */}
+            <div
+              class={cx(segmented.group, styles.modes)}
+              role="group"
+              aria-labelledby="redact-mode-label"
+            >
               {MODES.map((m) => (
                 <button
                   key={m}
                   type="button"
+                  class={cx(segmented.segment, styles.mode, mode === m && segmented.active)}
                   data-redact-mode={m}
                   aria-pressed={mode === m}
                   // الاسم الكامل لقارئ الشاشة، والمختصر للعين — لا يقرأ

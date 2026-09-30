@@ -39,8 +39,10 @@ export function SimpleSelectionBar({
   // حذف بلا تراجع يمرّ بحوار `library / delete-confirm` — نفس `SelectionBar.tsx`.
   const [confirming, setConfirming] = useState(false)
 
+  // الحوار شقيقُ الشريط لا ابنه: `backdrop-filter` في `.bar` يجعل الشريطَ مرجعَ
+  // `position: fixed` لأبنائه، فكان الحوار يُرسَم فوق الشريط لا في وسط النافذة (`STAGES/04`).
   return (
-    <SelectionDock>
+    <>
       {confirming ? (
         <DeleteConfirm
           count={count}
@@ -53,16 +55,18 @@ export function SimpleSelectionBar({
           onCancel={() => setConfirming(false)}
         />
       ) : null}
-      <SelectionCount count={count} />
-      <MoveToProject projects={projects} onMoveToProject={onMoveToProject} />
-      <BarButton
-        icon="trash"
-        label="حذف"
-        aria-label="حذف المحدَّد نهائيًا"
-        danger
-        onClick={() => setConfirming(true)}
-      />
-      <IconButton icon="close" size="s" aria-label="إلغاء التحديد" onClick={onClear} />
-    </SelectionDock>
+      <SelectionDock>
+        <SelectionCount count={count} />
+        <MoveToProject projects={projects} onMoveToProject={onMoveToProject} />
+        <BarButton
+          icon="trash"
+          label="حذف"
+          aria-label="حذف المحدَّد نهائيًا"
+          danger
+          onClick={() => setConfirming(true)}
+        />
+        <IconButton icon="close" size="s" aria-label="إلغاء التحديد" onClick={onClear} />
+      </SelectionDock>
+    </>
   )
 }

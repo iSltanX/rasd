@@ -22,8 +22,15 @@ import {
 
 import type { ProjectRecord } from '@/shared/storage/schema'
 
+/**
+ * المشاريع بترتيب إنشائها — كما ترتّبها النظرة العامّة (`project-overview.ts`).
+ *
+ * `getAll` يُرجعها بترتيب مفتاحها، والمفتاح `randomUUID`: ترتيبٌ عشوائي يختلف بين اللوحة والنظرة
+ * والشريط، فيقع المشروع الجديد في أيّ موضع (`STAGES/04`، لقطة `projects / created`).
+ */
 export async function loadProjects(): Promise<Result<ProjectRecord[]>> {
-  return projects.getAll()
+  const list = await projects.getAll()
+  return list.ok ? ok([...list.value].sort((a, b) => a.createdAt - b.createdAt)) : list
 }
 
 export async function createProject(

@@ -1,8 +1,9 @@
 import { ASPECT_PRESETS, describeRatio, type AspectPresetId } from '@/modules/capture/selection'
 import { formatDimensions } from '@/shared/bidi'
+import { Banner } from '@/ui/components/Banner/Banner'
 import { Button } from '@/ui/components/Button/Button'
 import { cx } from '@/ui/cx'
-import { TechnicalValue } from '@/ui/TechnicalValue'
+import { KeyCap, TechnicalValue } from '@/ui/TechnicalValue'
 
 import styles from './CropBar.module.css'
 
@@ -34,7 +35,8 @@ export function CropBar(props: CropBarProps): JSX.Element {
 
   return (
     <section class={styles.bar} data-crop-bar="" aria-label="الاقتصاص">
-      <h2 class={cx(styles.title, 't-arabic-ui-m-strong')}>الاقتصاص</h2>
+      {/* عنوان اللوحة كما في `editor / crop` (`303:22926`)، واسم الأداة «الاقتصاص» في السكّة. */}
+      <h2 class={cx(styles.title, 't-arabic-ui-m-strong')}>القص</h2>
 
       <div class={styles.presets} role="group" aria-label="نسبة الاقتصاص">
         {ASPECT_PRESETS.map((preset) => (
@@ -75,9 +77,10 @@ export function CropBar(props: CropBarProps): JSX.Element {
         ) : null}
       </dl>
 
-      <p class={cx(styles.note, 't-arabic-ui-xs')}>
-        الاقتصاص يُطبَّق على الصورة عند التصدير، والأصل محفوظ — تتراجع عنه متى شئت.
-      </p>
+      {/* تنبيه كما في الإطار، ونصّه ما يفعله المحرّك: عند التصدير لا الحفظ، والأصل باقٍ. */}
+      <Banner tone="warning">
+        القص يُطبَّق على الصورة عند التصدير، والأصل محفوظ — تتراجع عنه متى شئت.
+      </Banner>
 
       <div class={styles.actions}>
         <Button
@@ -98,8 +101,15 @@ export function CropBar(props: CropBarProps): JSX.Element {
         >
           أعد الكلّ
         </Button>
-        <Button variant="ghost" size="m" data-crop-cancel="" onClick={props.onCancel}>
-          إنهاء (⎋)
+        {/* المفتاح شارةً لا محرفًا: «⎋» يسقط إلى خطّ بديل (لقطة `editor / crop`). */}
+        <Button
+          variant="ghost"
+          size="m"
+          data-crop-cancel=""
+          trailing={<KeyCap>Esc</KeyCap>}
+          onClick={props.onCancel}
+        >
+          إنهاء
         </Button>
       </div>
     </section>

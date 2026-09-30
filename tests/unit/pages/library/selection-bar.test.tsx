@@ -102,6 +102,8 @@ describe('SelectionBar — وضع trashed', () => {
     await Promise.resolve()
     const dialog = root.querySelector('[role="alertdialog"]')
     expect(dialog?.textContent).toContain('حذف ٣ لقطات')
+    // خارج الشريط لا داخله — `backdrop-filter` فيه يجعله مرجع `position: fixed` للحوار.
+    expect(root.querySelector('[role="alertdialog"]')?.closest('[role="toolbar"]')).toBeNull()
     expect(onPurge).not.toHaveBeenCalled()
     ;(root.querySelector('[data-rasd-confirm="delete"]') as HTMLButtonElement).click()
     await Promise.resolve()

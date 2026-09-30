@@ -32,7 +32,9 @@ export function IconButton({
 }: IconButtonProps): JSX.Element {
   const disabled = state === 'disabled'
   const selected = state === 'selected'
-  const iconSize = size === 'l' ? 'md' : size === 'm' ? 'sm' : 'sm'
+  // مقاس الأيقونة من مكوّن `Icon Button` (`45:122`): S ← 16 · M ← 20 · L ← 20. كان M يأخذ 16 فصغُرت
+  // كل أيقونة في زرّ M (الإعدادات في النافذة، وإغلاق الحوارات) عن إطارها (`STAGES/04`).
+  const iconSize = size === 's' ? 'sm' : 'md'
 
   return (
     <button

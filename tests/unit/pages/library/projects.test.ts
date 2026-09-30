@@ -278,3 +278,16 @@ describe('deleteProject — ينقل المحتوى قبل الحذف', () => {
     expect((await projects.get(sourceId)).ok).toBe(false)
   })
 })
+
+/** اللوحة والنظرة بترتيب واحد — الإنشاء — لا بترتيب المفتاح العشوائي (`STAGES/04`). */
+describe('loadProjects — بترتيب الإنشاء', () => {
+  it('الأقدم أوّلًا مهما كان ترتيب المفاتيح', async () => {
+    const { projects: repo } = await import('@/shared/storage/repository')
+    await repo.put({ id: 'z-old', name: 'الأقدم', color: '#000000', createdAt: 1, updatedAt: 1 })
+    await repo.put({ id: 'a-new', name: 'الأحدث', color: '#000000', createdAt: 3, updatedAt: 3 })
+    await repo.put({ id: 'm-mid', name: 'الأوسط', color: '#000000', createdAt: 2, updatedAt: 2 })
+    const { loadProjects } = await import('@/pages/library/projects')
+    const loaded = await loadProjects()
+    expect(loaded.ok && loaded.value.map((p) => p.name)).toEqual(['الأقدم', 'الأوسط', 'الأحدث'])
+  })
+})

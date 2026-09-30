@@ -162,8 +162,10 @@ export function SelectionBar({
     if (input) input.value = ''
   }
 
+  // الحوار شقيقُ الشريط لا ابنه: `backdrop-filter` في `.bar` يجعل الشريطَ مرجعَ
+  // `position: fixed` لأبنائه، فكان الحوار يُرسَم فوق الشريط لا في وسط النافذة (`STAGES/04`).
   return (
-    <SelectionDock>
+    <>
       {confirming ? (
         <DeleteConfirm
           count={count}
@@ -176,65 +178,72 @@ export function SelectionBar({
           onCancel={() => setConfirming(false)}
         />
       ) : null}
-      <SelectionCount count={count} />
-      <span class={styles.actions}>
-        {viewMode === 'trashed' ? (
-          <>
-            <BarButton
-              icon="refresh"
-              label="استعادة"
-              aria-label="استعادة المحدَّد"
-              onClick={onRestore}
-            />
-            <BarButton
-              icon="trash"
-              label="حذف"
-              aria-label="حذف المحدَّد نهائيًا"
-              danger
-              onClick={() => setConfirming(true)}
-            />
-          </>
-        ) : (
-          <>
-            <MoveToProject projects={projects} onMoveToProject={onMoveToProject} />
-            <form class={cx(styles.action, styles.tagForm)} onSubmit={onTagSubmit}>
-              <Icon name="tag" size="xs" class={styles.actionIcon} />
-              <input
-                type="text"
-                name="tag"
-                placeholder="وسم…"
-                aria-label="أضِف وسمًا للمحدَّد"
-                class={cx(styles.tagInput, 't-arabic-ui-xs-strong')}
-              />
-            </form>
-            <BarButton icon="star" label="تفضيل" aria-label="تفضيل المحدَّد" onClick={onFavorite} />
-            {viewMode === 'archived' ? (
+      <SelectionDock>
+        <SelectionCount count={count} />
+        <span class={styles.actions}>
+          {viewMode === 'trashed' ? (
+            <>
               <BarButton
                 icon="refresh"
                 label="استعادة"
-                aria-label="استعادة المحدَّد من الأرشيف"
-                onClick={onUnarchive}
+                aria-label="استعادة المحدَّد"
+                onClick={onRestore}
               />
-            ) : (
               <BarButton
-                icon="folder"
-                label="أرشفة"
-                aria-label="أرشفة المحدَّد"
-                onClick={onArchive}
+                icon="trash"
+                label="حذف"
+                aria-label="حذف المحدَّد نهائيًا"
+                danger
+                onClick={() => setConfirming(true)}
               />
-            )}
-            <BarButton
-              icon="trash"
-              label="إلى المهملات"
-              aria-label="نقل المحدَّد إلى المهملات"
-              danger
-              onClick={onTrash}
-            />
-          </>
-        )}
-      </span>
-      <IconButton icon="close" size="s" aria-label="إلغاء التحديد" onClick={onClear} />
-    </SelectionDock>
+            </>
+          ) : (
+            <>
+              <MoveToProject projects={projects} onMoveToProject={onMoveToProject} />
+              <form class={cx(styles.action, styles.tagForm)} onSubmit={onTagSubmit}>
+                <Icon name="tag" size="xs" class={styles.actionIcon} />
+                <input
+                  type="text"
+                  name="tag"
+                  placeholder="وسم…"
+                  aria-label="أضِف وسمًا للمحدَّد"
+                  class={cx(styles.tagInput, 't-arabic-ui-xs-strong')}
+                />
+              </form>
+              <BarButton
+                icon="star"
+                label="تفضيل"
+                aria-label="تفضيل المحدَّد"
+                onClick={onFavorite}
+              />
+              {viewMode === 'archived' ? (
+                <BarButton
+                  icon="refresh"
+                  label="استعادة"
+                  aria-label="استعادة المحدَّد من الأرشيف"
+                  onClick={onUnarchive}
+                />
+              ) : (
+                <BarButton
+                  icon="folder"
+                  label="أرشفة"
+                  aria-label="أرشفة المحدَّد"
+                  onClick={onArchive}
+                />
+              )}
+              <BarButton
+                icon="trash"
+                label="إلى المهملات"
+                aria-label="نقل المحدَّد إلى المهملات"
+                danger
+                onClick={onTrash}
+              />
+            </>
+          )}
+        </span>
+        <IconButton icon="close" size="s" aria-label="إلغاء التحديد" onClick={onClear} />
+      </SelectionDock>
+    </>
   )
 }
 

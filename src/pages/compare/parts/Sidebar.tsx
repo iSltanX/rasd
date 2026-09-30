@@ -22,7 +22,9 @@ import {
   pixelCountSummary,
   type RegionItem,
 } from '@/pages/compare/region-format'
+import { formatDimensions } from '@/shared/bidi'
 import { formatHuman, formatPercent } from '@/shared/bidi/numerals'
+import { Banner } from '@/ui/components/Banner/Banner'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 import {
   SegmentedControl,
@@ -56,6 +58,38 @@ export interface SidebarProps {
   readonly thresholdFraction: number
   readonly onThresholdChange: (fraction: number) => void
   readonly hasExtraRegion: boolean
+  /** مقاسا اللقطتين — يُقال اختلافهما لا يُترك لعلامة في الدليل (`compare / size-mismatch`). */
+  readonly sizeA: { readonly width: number; readonly height: number }
+  readonly sizeB: { readonly width: number; readonly height: number }
+  /** اكتمل حساب الفرق — قبله لا يُقال «متطابقتان» عن صفرٍ لم يُحسب. */
+  readonly computed: boolean
+}
+
+/**
+ * سطر الحكم فوق النسبة — `compare / identical` (`291:12984`) و`size-mismatch` (`291:13076`).
+ * كانت المقارنة المتطابقة تعرض «٠٪» كأيّ مقارنة، والمقاسان المختلفان علامةً في الدليل وحدها.
+ */
+function Verdict(props: Pick<SidebarProps, 'sizeA' | 'sizeB' | 'computed' | 'diffPixelCount'>) {
+  const { sizeA, sizeB } = props
+  if (sizeA.width !== sizeB.width || sizeA.height !== sizeB.height) {
+    return (
+      <div data-compare-verdict="size-mismatch">
+        <Banner tone="warning">
+          اللقطتان بمقاسين مختلفين — ما خارج التقاطع لا يُقارَن. أ{' '}
+          <bdi dir="ltr">{formatDimensions(sizeA.width, sizeA.height)}</bdi> · ب{' '}
+          <bdi dir="ltr">{formatDimensions(sizeB.width, sizeB.height)}</bdi>
+        </Banner>
+      </div>
+    )
+  }
+  if (props.computed && props.diffPixelCount === 0) {
+    return (
+      <div data-compare-verdict="identical">
+        <Banner tone="success">اللقطتان متطابقتان — لا بكسل مختلف بينهما.</Banner>
+      </div>
+    )
+  }
+  return null
 }
 
 export function Sidebar({
@@ -72,6 +106,9 @@ export function Sidebar({
   thresholdFraction,
   onThresholdChange,
   hasExtraRegion,
+  sizeA,
+  sizeB,
+  computed,
 }: SidebarProps): JSX.Element {
   const modeIndex = MODE_OPTIONS.findIndex((o) => o.value === mode)
 
@@ -89,6 +126,8 @@ export function Sidebar({
           aria-label="طريقة عرض المقارنة"
         />
       </section>
+
+      <Verdict sizeA={sizeA} sizeB={sizeB} computed={computed} diffPixelCount={diffPixelCount} />
 
       <section class={cx(styles.section, styles.ratioCard)}>
         <p class={styles.ratioLabel}>نسبة الاختلاف</p>

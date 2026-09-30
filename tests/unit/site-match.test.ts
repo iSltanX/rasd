@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { evaluateGate } from '@/shared/injection-gate'
 import { normalizeSitePattern } from '@/shared/site-match'
@@ -290,6 +290,36 @@ describe('normalizeSitePattern — ما يُرفَض وقت الحفظ', () => {
     'يرفض %j',
     (raw) => {
       expect(normalizeSitePattern(raw)).toBeNull()
+    },
+  )
+
+  /*
+   * `URL` في Chrome ليس `URL` في Node: الأوّل يقبل مضيفًا دوليًّا فيه فراغ ويُبقي الفراغ مهرَّبًا
+   * `%20` داخل الترميز، والثاني يرمي. قِيس في Chrome 153: `new URL('https://ليس نمطا').hostname`
+   * = `xn--%20-qze0d1a0gmi9a`. فيُحاكى سلوكه هنا — بلا المحاكاة يمرّ الاختبار في Node على شيفرة
+   * تحفظ النمط في المتصفّح الحقيقي، وهو ما وقع (`STAGES/04`).
+   */
+  it.each(['ليس نمطًا', 'bank com', 'بنك الرياض.com'])(
+    'يرفض %j ولو قبله `URL` في Chrome مضيفًا بـ`%20`',
+    (raw) => {
+      const Real = URL
+      /** ما يعطيه Chrome لمضيف فيه فراغ: الأصل مقبولًا والفراغ مهرَّبًا في الترميز. */
+      class ChromeUrl {
+        protocol = 'https:'
+        hostname = 'xn--%20-qze0d1a0gmi9a'
+        port = ''
+        pathname = '/'
+        constructor(url: string | URL, base?: string | URL) {
+          const text = String(url)
+          if (!/^https?:\/\/[^/]*\s/u.test(text)) return new Real(text, base)
+        }
+      }
+      vi.stubGlobal('URL', ChromeUrl)
+      try {
+        expect(normalizeSitePattern(raw)).toBeNull()
+      } finally {
+        vi.unstubAllGlobals()
+      }
     },
   )
 

@@ -18,6 +18,15 @@ import { Group } from './Group'
 
 const MB = 1024 * 1024
 
+/**
+ * المساحة بالميغابايت في سطر الشرح — **وما دون الميغابايت لا يُقرَّب إلى صفر**: «٠ ميغابايت» بجوار
+ * شارة «286 KB» تناقضٌ في السطر نفسه (`STAGES/04`، لقطة `settings / data`).
+ */
+function usageMegabytes(bytes: number): string {
+  const mb = Math.round(bytes / MB)
+  return mb < 1 ? 'أقلّ من ميغابايت' : `${formatHuman(mb)} ميغابايت`
+}
+
 const SOON = <Chip tone="neutral">قريبًا</Chip>
 
 export function DataSection() {
@@ -41,7 +50,7 @@ export function DataSection() {
           label="المساحة المستخدمة"
           hint={
             known
-              ? `${formatHuman(Math.round(quota.usageBytes / MB))} ميغابايت من حصّة يمنحها المتصفّح لرصد`
+              ? `${usageMegabytes(quota.usageBytes)} من حصّة يمنحها المتصفّح لرصد`
               : 'تعذّر قياس المساحة في هذا المتصفّح'
           }
           divider

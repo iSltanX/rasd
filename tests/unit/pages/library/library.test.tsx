@@ -741,6 +741,34 @@ describe('Library — نظرة المشاريع', () => {
   })
 })
 
+describe('Library — حالتا المشاريع: الإنشاء والتعذّر', () => {
+  it('«تعذّرت قراءة المشاريع» لا «لا مشاريع بعد» حين تسقط القراءة — `projects / error`', async () => {
+    const overviewModule = await import('@/pages/library/project-overview')
+    const load = vi
+      .spyOn(overviewModule, 'loadProjectOverview')
+      .mockResolvedValue({ ok: false, error: { code: 'invalid-data', message: 'تعذّر' } })
+    history.replaceState(null, '', '?view=projects')
+    const root = await mount()
+    await waitFor(() => (root.textContent ?? '').includes('تعذّرت قراءة المشاريع'))
+    expect(root.textContent).not.toContain('لا مشاريع بعد')
+    load.mockRestore()
+    history.replaceState(null, '', location.pathname)
+  })
+
+  it('إنشاء ناجح ⟵ إشعار «أُنشئ المشروع» باسمه — `projects / created`', async () => {
+    const root = await mount()
+    root.querySelector<HTMLButtonElement>('button[aria-label="فتح لوحة المشاريع"]')!.click()
+    await waitFor(() => root.querySelector('input[aria-label="اسم المشروع الجديد"]') !== null)
+    const input = root.querySelector<HTMLInputElement>('input[aria-label="اسم المشروع الجديد"]')!
+    input.value = 'تطبيق سنَد'
+    input.dispatchEvent(new Event('input'))
+    await flush()
+    input.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }))
+    await waitFor(() => (root.textContent ?? '').includes('أُنشئ المشروع'))
+    expect(root.textContent).toContain('«تطبيق سنَد» جاهز لأوّل لقطة')
+  })
+})
+
 describe('Library — فشل عمليات المشاريع يُقال', () => {
   /**
    * `projects / new-error`: كانت نتيجة الإنشاء تُهمَل، فالإنشاء الفاشل يبدو كأنه تمّ واللوحة لم

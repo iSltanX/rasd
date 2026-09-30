@@ -108,3 +108,11 @@
   outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
   outline-offset: var(--rasd-space-2);
 }
+
+/* الأنماط الثلاثة بعرض اللوحة كلّه كما في الإطار (`128:133`)، كلٌّ بحصّة متساوية. */
+.modes {
+  display: flex;
+}
+.mode {
+  flex: 1;
+}

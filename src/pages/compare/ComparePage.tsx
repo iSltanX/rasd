@@ -307,6 +307,9 @@ export function ComparePage(): JSX.Element {
           thresholdFraction={threshold}
           onThresholdChange={setThreshold}
           hasExtraRegion={hasExtraRegion}
+          sizeA={loadedA.capture.record}
+          sizeB={loadedB.capture.record}
+          computed={diffOutcome !== null}
         />
       </div>
     </div>

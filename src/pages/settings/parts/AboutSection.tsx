@@ -35,7 +35,7 @@ export function AboutSection({ version }: AboutSectionProps) {
           hint="فحص بصري لصفحات الويب: التقاط وتعليق وفحص وقياس وألوان ومقارنة"
           divider
           control={
-            <Chip tone="brand" dot={false}>
+            <Chip tone="neutral">
               <bdi dir="ltr">{version}</bdi>
             </Chip>
           }

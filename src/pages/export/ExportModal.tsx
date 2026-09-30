@@ -18,7 +18,7 @@ import {
 } from '@/modules/export/format'
 import { formatDimensions } from '@/shared/bidi'
 import { formatStorage } from '@/shared/bidi/numerals'
-import { Button, Toggle } from '@/ui/components'
+import { Banner, Button, Toggle } from '@/ui/components'
 import { OptionCard } from '@/ui/components/OptionCard/OptionCard'
 import { Select } from '@/ui/components/Select/Select'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
@@ -72,6 +72,8 @@ export interface ExportModalProps {
   readonly blocked: string | null
   readonly busy: boolean
   readonly error: string | null
+  /** أُلغي تصديرٌ جارٍ للتوّ — `export / cancelled` (`290:1997`). */
+  readonly cancelled?: boolean
   readonly onScale: (scale: 1 | 2) => void
   readonly onFormat: (format: ExportFormat) => void
   readonly onQuality: (quality: QualityLevel) => void
@@ -143,6 +145,22 @@ export function ExportModal(props: ExportModalProps): JSX.Element {
         </header>
 
         <div class={styles.body}>
+          {/*
+           * الفشل والإلغاء في رأس النافذة بتنبيه كما في `export / error` (`290:1261`) و`cancelled`
+           * — كان الفشل سطرًا أحمر صغيرًا في ذيلها، والإلغاء يعيد النافذة صامتة كأن شيئًا لم يقع.
+           * `data-export-error` باقٍ: `verify:export` و`verify:editor` يقرآن نصّه وغيابه.
+           */}
+          {props.error ? (
+            <div data-export-error>
+              <Banner tone="danger">تعذّر حفظ الملف — {props.error}</Banner>
+            </div>
+          ) : props.cancelled ? (
+            <div data-export-cancelled>
+              <Banner tone="warning">
+                أُلغي التصدير — لم يُحفظ ملف، واللقطة في المكتبة كما هي.
+              </Banner>
+            </div>
+          ) : null}
           <section class={styles.group} aria-labelledby="export-format-label">
             <h3 id="export-format-label" class={cx(styles.groupLabel, 't-arabic-label-xs')}>
               الصيغة
@@ -256,11 +274,6 @@ export function ExportModal(props: ExportModalProps): JSX.Element {
           {props.blocked ? (
             <p class={styles.error} data-export-blocked>
               {props.blocked}
-            </p>
-          ) : null}
-          {props.error ? (
-            <p class={styles.error} data-export-error>
-              {props.error}
             </p>
           ) : null}
           {clipboardOk ? null : (

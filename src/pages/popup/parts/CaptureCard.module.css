@@ -33,7 +33,8 @@
 }
 
 .icon {
-  color: var(--rasd-icon-secondary);
+  /* أيقونات أدوات الالتقاط بلون العلامة كما في `popup / default` (`50:42`: `#00E3C9` = `icon/brand`). */
+  color: var(--rasd-icon-brand);
 }
 
 .body {

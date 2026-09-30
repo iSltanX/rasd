@@ -58,6 +58,8 @@ describe('SimpleSelectionBar', () => {
     ;(root.querySelector('[aria-label="حذف المحدَّد نهائيًا"]') as HTMLButtonElement).click()
     await Promise.resolve()
     expect(root.querySelector('[role="alertdialog"]')).toBeTruthy()
+    // خارج الشريط لا داخله — `backdrop-filter` فيه يجعله مرجع `position: fixed` للحوار.
+    expect(root.querySelector('[role="alertdialog"]')?.closest('[role="toolbar"]')).toBeNull()
     expect(onDelete).not.toHaveBeenCalled()
     ;(root.querySelector('[data-rasd-confirm="delete"]') as HTMLButtonElement).click()
     expect(onDelete).toHaveBeenCalled()
