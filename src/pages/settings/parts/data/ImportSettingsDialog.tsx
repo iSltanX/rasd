@@ -7,11 +7,10 @@
  */
 import { useState } from 'preact/hooks'
 
-import { countText } from '@/shared/bidi/numerals'
 import { Button, Chip } from '@/ui/components'
 import { cx } from '@/ui/cx'
 
-import { dropReasonText, FORMS, settingLabel } from '../../data-context'
+import { count, dropReasonText, settingLabel } from '../../data-context'
 
 import styles from './data.module.css'
 import { DataDialog, Row, sheet } from './DataDialog'
@@ -119,8 +118,8 @@ export function ImportSettingsDialog({
       <div class={sheet.group}>
         <p class={cx(sheet.groupLabel, 't-arabic-label-s')}>النتيجة</p>
         <div class={sheet.summary}>
-          <Row label="قُبل">{countText(plan.accepted.length, FORMS.settings)}</Row>
-          <Row label="أُسقط">{countText(plan.dropped.length, FORMS.settings)}</Row>
+          <Row label="قُبل">{count(plan.accepted.length, 'settings')}</Row>
+          <Row label="أُسقط">{count(plan.dropped.length, 'settings')}</Row>
         </div>
       </div>
       {plan.dropped.length > 0 ? (

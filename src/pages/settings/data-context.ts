@@ -5,7 +5,9 @@
  * تجري هنا لا في الخلفية — فمكتبةٌ بمئات الميغابايتات لا تعبر رسائل `chrome.runtime` مُرمَّزةً.
  */
 
+import { countText, type CountForms } from '@/shared/bidi/numerals'
 import { attempt } from '@/shared/result'
+import { defaultSettings } from '@/shared/settings'
 import { TRANSFERABLE_LEAVES, type DroppedSetting } from '@/shared/settings/transfer'
 import { libraryCounts, type StoreCounts } from '@/shared/storage/library'
 import {
@@ -14,8 +16,6 @@ import {
   type PersistenceState,
 } from '@/shared/storage/persistence'
 import { quotaState, type QuotaState } from '@/shared/storage/quota'
-
-import type { CountForms } from '@/shared/bidi/numerals'
 
 /** مفتاح «آخر نسخة» — حالةُ هذا الجهاز، تُمحى مع «احذف كل البيانات» كسائر `chrome.storage.local`. */
 const LAST_BACKUP_KEY = 'rasd:last-backup'
@@ -89,6 +89,32 @@ export const FORMS = {
   sites: forms('موقع واحد', 'موقعان', 'مواقع', 'موقعًا', 'موقع'),
 } as const
 
+type Counted = keyof typeof FORMS
+
+/** الصفر كلمةٌ لا رقم: «لا مشكلات» لا «٠ مشكلة». */
+const NONE: Record<Counted, string> = {
+  captures: 'لا لقطات',
+  projects: 'لا مشاريع',
+  tags: 'لا أوسمة',
+  palettes: 'لا لوحات',
+  guides: 'لا أدلّة',
+  references: 'لا مراجع',
+  colors: 'لا ألوان',
+  issues: 'لا مشكلات',
+  settings: 'لا شيء',
+  sites: 'لا مواقع',
+}
+
+/** العدد بمعدوده بقاعدة العدد العربية، والصفر بكلمته. */
+export function count(n: number, what: Counted): string {
+  return n === 0 ? NONE[what] : countText(n, FORMS[what])
+}
+
+/** عدّان في صفٍّ واحد — «١٩ لوحة · ٥ أدلّة». */
+export function pair(a: number, aWhat: Counted, b: number, bWhat: Counted): string {
+  return `${count(a, aWhat)} · ${count(b, bWhat)}`
+}
+
 /** أسماء الإعدادات كما تعرضها أقسام الصفحة — لكل ورقةٍ تنتقل في ملفّ الإعدادات اسمٌ هنا. */
 export const SETTING_LABELS: Readonly<Record<string, string>> = {
   'capture.format': 'الصيغة الافتراضية',
@@ -142,6 +168,15 @@ function kindOf(value: unknown): string {
   return TYPE_NAME[typeof value] ?? 'قيمة أخرى'
 }
 
+/** ما يطلبه الإعداد — من قيمته الافتراضية، وحرف الأداة وعنصر القائمة باسمهما. */
+function expectedKind(path: string): string {
+  if (path.startsWith('shortcuts.toolKeys.')) return 'حرف لاتيني'
+  if (path === 'privacy.excludedSites') return 'نصّ'
+  let node: unknown = defaultSettings()
+  for (const segment of path.split('.')) node = (node as Record<string, unknown> | null)?.[segment]
+  return kindOf(node)
+}
+
 /** القيمة كما في الملفّ، قصيرةً — للعرض وحده. */
 export function shownValue(value: unknown): string {
   if (typeof value === 'string') return value.length > 40 ? `${value.slice(0, 40)}…` : value
@@ -156,7 +191,7 @@ export function dropReasonText(dropped: DroppedSetting): string {
     case 'option':
       return `القيمة في الملفّ «${value}»، وليست من خيارات رصد`
     case 'type':
-      return `القيمة ${kindOf(dropped.received)}، والمطلوب غير ذلك`
+      return `القيمة ${kindOf(dropped.received)}، والمطلوب ${expectedKind(dropped.path)}`
     case 'range':
       return `القيمة ${value} خارج المدى المسموح`
     case 'format':
@@ -168,6 +203,12 @@ export function dropReasonText(dropped: DroppedSetting): string {
   }
 }
 
+/**
+ * التاريخ والوقت عدٌّ بشري: أرقامٌ هندية صراحةً (`nu-arab`) — `ar` وحدها تعطي أرقامًا غربية في Chrome
+ * (قِيس في `STAGES/07`)، والإطار يكتب «١٢ سبتمبر ٢٠٢٦».
+ */
+const HUMAN_LOCALE = 'ar-u-nu-arab'
+
 /** «آخر نسخة: …» في تأكيد الحذف. */
 export function lastBackupText(at: number | null, now = Date.now()): string {
   if (at === null) return 'آخر نسخة: لم تُؤخذ نسخة بعد'
@@ -175,7 +216,7 @@ export function lastBackupText(at: number | null, now = Date.now()): string {
   const today = new Date(now)
   const sameDay = d.toDateString() === today.toDateString()
   const date = new Intl.DateTimeFormat(
-    'ar',
+    HUMAN_LOCALE,
     sameDay ? { timeStyle: 'short' } : { dateStyle: 'long' },
   )
   return `آخر نسخة: ${sameDay ? 'اليوم ' : ''}${date.format(d)}`
@@ -183,5 +224,5 @@ export function lastBackupText(at: number | null, now = Date.now()): string {
 
 /** تاريخ النسخة في معاينة الاستعادة — «١٢ سبتمبر ٢٠٢٦». */
 export function backupDateText(at: number): string {
-  return new Intl.DateTimeFormat('ar', { dateStyle: 'long' }).format(new Date(at))
+  return new Intl.DateTimeFormat(HUMAN_LOCALE, { dateStyle: 'long' }).format(new Date(at))
 }

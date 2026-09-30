@@ -10,13 +10,12 @@
  */
 import { useState } from 'preact/hooks'
 
-import { countText } from '@/shared/bidi/numerals'
 import { eraseAllData } from '@/shared/storage/erase'
 import { Banner, Button, Input, Spinner } from '@/ui/components'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
-import { FORMS, lastBackupText } from '../../data-context'
+import { count, lastBackupText, pair } from '../../data-context'
 
 import styles from './data.module.css'
 import { DataDialog, Row, sheet } from './DataDialog'
@@ -50,13 +49,6 @@ export interface DeleteDialogProps {
   /** اكتمل الحذف أو بعضه — تُقرأ الأعداد من جديد. */
   readonly onErased: () => void
 }
-
-const pair = (
-  a: number,
-  aForms: (typeof FORMS)[keyof typeof FORMS],
-  b: number,
-  bForms: (typeof FORMS)[keyof typeof FORMS],
-) => `${countText(a, aForms)} · ${countText(b, bForms)}`
 
 export function DeleteDialog({
   counts,
@@ -103,15 +95,15 @@ export function DeleteDialog({
           <div class={sheet.summary}>
             {counts ? (
               <>
-                <Row label="اللقطات">{countText(counts.captures, FORMS.captures)}</Row>
+                <Row label="اللقطات">{count(counts.captures, 'captures')}</Row>
                 <Row label="اللوحات والأدلّة">
-                  {pair(counts.palettes, FORMS.palettes, counts.guides, FORMS.guides)}
+                  {pair(counts.palettes, 'palettes', counts.guides, 'guides')}
                 </Row>
                 <Row label="المشاريع والوسوم">
-                  {pair(counts.projects, FORMS.projects, counts.tags, FORMS.tags)}
+                  {pair(counts.projects, 'projects', counts.tags, 'tags')}
                 </Row>
                 <Row label="المراجع والمشكلات">
-                  {pair(counts.references, FORMS.references, counts.issues, FORMS.issues)}
+                  {pair(counts.references, 'references', counts.issues, 'issues')}
                 </Row>
               </>
             ) : (
@@ -168,7 +160,9 @@ export function DeleteDialog({
         }
       >
         <Banner tone="danger">
-          {`اكتب كلمة «${CONFIRM_WORD}» لتأكيد حذف ${countText(captures, FORMS.captures)} وكل ما معها نهائيًّا.`}
+          {captures > 0
+            ? `اكتب كلمة «${CONFIRM_WORD}» لتأكيد حذف ${count(captures, 'captures')} وكل ما معها نهائيًّا.`
+            : `اكتب كلمة «${CONFIRM_WORD}» لتأكيد حذف كل البيانات نهائيًّا.`}
         </Banner>
         <label class={styles.field}>
           <span class={cx(styles.fieldLabel, 't-arabic-label-s')}>كلمة التأكيد</span>

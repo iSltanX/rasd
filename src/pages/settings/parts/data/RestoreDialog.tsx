@@ -17,14 +17,13 @@ import {
   type BackupFailure,
   type RestorePlan,
 } from '@/modules/backup/backup'
-import { countText } from '@/shared/bidi/numerals'
 import { requestPersistence } from '@/shared/storage/persistence'
 import { Banner, Button, ProgressBar, Spinner } from '@/ui/components'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
-import { backupDateText, FORMS } from '../../data-context'
+import { backupDateText, count, pair } from '../../data-context'
 
 import styles from './data.module.css'
 import { DataDialog, Row, sheet } from './DataDialog'
@@ -65,13 +64,6 @@ const FAILURE: Record<BackupFailure['kind'], { readonly title: string; readonly 
     text: 'رفض التخزين الكتابة: المساحة، أو التصفّح الخاص. لم يتغيّر شيء في مكتبتك.',
   },
 }
-
-const pair = (
-  a: number,
-  aForms: (typeof FORMS)[keyof typeof FORMS],
-  b: number,
-  bForms: (typeof FORMS)[keyof typeof FORMS],
-) => `${countText(a, aForms)} · ${countText(b, bForms)}`
 
 export function RestoreDialog({
   file,
@@ -184,10 +176,10 @@ export function RestoreDialog({
         <div class={sheet.group}>
           <p class={cx(sheet.groupLabel, 't-arabic-label-s')}>في الملفّ</p>
           <div class={sheet.summary}>
-            <Row label="اللقطات">{countText(counts.captures, FORMS.captures)}</Row>
-            <Row label="المشاريع">{countText(counts.projects, FORMS.projects)}</Row>
+            <Row label="اللقطات">{count(counts.captures, 'captures')}</Row>
+            <Row label="المشاريع">{count(counts.projects, 'projects')}</Row>
             <Row label="اللوحات والأدلّة">
-              {pair(counts.palettes, FORMS.palettes, counts.guides, FORMS.guides)}
+              {pair(counts.palettes, 'palettes', counts.guides, 'guides')}
             </Row>
             <Row label="تاريخ النسخة">{backupDateText(manifest.createdAt)}</Row>
           </div>
@@ -221,8 +213,8 @@ export function RestoreDialog({
           <h3 class={cx(styles.statusTitle, 't-arabic-heading-s')}>استُعيدت المكتبة</h3>
         </div>
         <div class={sheet.summary}>
-          <Row label="أُضيف من الملفّ">{countText(added.captures, FORMS.captures)}</Row>
-          <Row label="كان في مكتبتك فبقي كما هو">{countText(kept.captures, FORMS.captures)}</Row>
+          <Row label="أُضيف من الملفّ">{count(added.captures, 'captures')}</Row>
+          <Row label="كان في مكتبتك فبقي كما هو">{count(kept.captures, 'captures')}</Row>
         </div>
       </DataDialog>
     )

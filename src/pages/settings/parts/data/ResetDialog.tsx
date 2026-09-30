@@ -7,11 +7,10 @@
  */
 import { useState } from 'preact/hooks'
 
-import { countText } from '@/shared/bidi/numerals'
 import { Button, Checkbox } from '@/ui/components'
 import { cx } from '@/ui/cx'
 
-import { FORMS } from '../../data-context'
+import { count } from '../../data-context'
 
 import styles from './data.module.css'
 import { DataDialog, sheet } from './DataDialog'
@@ -43,9 +42,7 @@ export function ResetDialog({ sites, onReset, onClose, onDone }: ResetDialogProp
   }
 
   const hint =
-    sites === 0
-      ? 'القائمة فارغة الآن.'
-      : `${countText(sites, FORMS.sites)}. حذفها يعيد رصد إلى العمل فيها.`
+    sites === 0 ? 'القائمة فارغة الآن.' : `${count(sites, 'sites')}. حذفها يعيد رصد إلى العمل فيها.`
 
   return (
     <DataDialog

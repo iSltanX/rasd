@@ -5,6 +5,8 @@ import { render } from 'preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  backupDateText,
+  count,
   dropReasonText,
   lastBackupText,
   settingLabel,
@@ -253,6 +255,21 @@ describe('نصوص قسم البيانات', () => {
     )
     expect(dropReasonText({ path: 'x', reason: 'type', received: 7 })).toContain('رقم')
     expect(dropReasonText({ path: 'x', reason: 'unknown', received: true })).toContain('لا يعرفه')
+  })
+
+  it('الصفر كلمةٌ لا رقم، والتاريخ بأرقام هندية', () => {
+    expect(count(0, 'issues')).toBe('لا مشكلات')
+    expect(count(3, 'captures')).toBe('٣ لقطات')
+    expect(backupDateText(new Date(2026, 8, 12).getTime())).toBe('١٢ سبتمبر ٢٠٢٦')
+  })
+
+  it('حرف الأداة يُطلب حرفًا لاتينيًّا، وعنصر القائمة نصًّا', () => {
+    expect(
+      dropReasonText({ path: 'shortcuts.toolKeys.measure', reason: 'type', received: 7 }),
+    ).toBe('القيمة رقم، والمطلوب حرف لاتيني')
+    expect(dropReasonText({ path: 'privacy.excludedSites', reason: 'type', received: 42 })).toBe(
+      'القيمة رقم، والمطلوب نصّ',
+    )
   })
 
   it('«آخر نسخة»: لم تُؤخذ، أو اليوم بالساعة، أو بالتاريخ', () => {

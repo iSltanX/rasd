@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { createBackup, type BackupFailure } from '@/modules/backup/backup'
-import { countText, formatHuman, formatStorage } from '@/shared/bidi/numerals'
+import { formatHuman, formatStorage } from '@/shared/bidi/numerals'
 import { VERSION } from '@/shared/env'
 import { STORE_NAMES, type StoreName } from '@/shared/storage/schema'
 import { Banner, Button, ProgressBar, Spinner } from '@/ui/components'
@@ -21,7 +21,7 @@ import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import { deliver, revealDownload, type Delivered } from '../../../export/deliver'
-import { FORMS, recordLastBackup } from '../../data-context'
+import { count, pair, recordLastBackup } from '../../data-context'
 
 import styles from './data.module.css'
 import { DataDialog, Row, sheet } from './DataDialog'
@@ -56,13 +56,6 @@ function failureText(failure: BackupFailure): string {
   if (failure.kind === 'storage') return 'تعذّرت قراءة المكتبة. لم يُحفظ ملفّ، والمكتبة كما هي.'
   return 'المكتبة أكبر من أن تُكتب في ملفٍّ واحد. لم يُحفظ ملفّ، والمكتبة كما هي.'
 }
-
-const pair = (
-  a: number,
-  aForms: (typeof FORMS)[keyof typeof FORMS],
-  b: number,
-  bForms: (typeof FORMS)[keyof typeof FORMS],
-) => `${countText(a, aForms)} · ${countText(b, bForms)}`
 
 export function BackupDialog({
   route,
@@ -200,12 +193,12 @@ export function BackupDialog({
           </TechnicalValue>
         </p>
         <div class={sheet.summary}>
-          <Row label="اللقطات">{countText(counts.captures, FORMS.captures)}</Row>
+          <Row label="اللقطات">{count(counts.captures, 'captures')}</Row>
           <Row label="المشاريع والوسوم">
-            {pair(counts.projects, FORMS.projects, counts.tags, FORMS.tags)}
+            {pair(counts.projects, 'projects', counts.tags, 'tags')}
           </Row>
           <Row label="اللوحات والأدلّة">
-            {pair(counts.palettes, FORMS.palettes, counts.guides, FORMS.guides)}
+            {pair(counts.palettes, 'palettes', counts.guides, 'guides')}
           </Row>
           <Row label="الحجم">
             <TechnicalValue kind="code" variant="mono-xs">
