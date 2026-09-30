@@ -23,7 +23,15 @@
  */
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
@@ -401,9 +409,18 @@ export async function startGuard(o) {
     }
   }
 
+  /*
+   * `RASD_GUARD_TRANSCRIPT=<مجلّد>` يكتب أسطر التقرير في `<مجلّد>/<البادئة>.txt` أيضًا: `verify:wave` لا
+   * يطبع خَرْج الحارس الأخضر، فبلا هذا لا يُقرأ ما أثبته إلا من رمز خروجه.
+   */
   const print = () => {
     console.log(`\n${o.title}`)
     console.log(report.lines.join('\n'))
+    const dir = process.env.RASD_GUARD_TRANSCRIPT
+    if (dir) {
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, `${o.prefix}.txt`), `${o.title}\n${report.lines.join('\n')}\n`)
+    }
   }
 
   const hardTimeoutMs = o.hardTimeoutMs ?? DEFAULT_HARD_TIMEOUT_MS
