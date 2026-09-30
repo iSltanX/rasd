@@ -4,10 +4,10 @@
  *
  * القرار الوحيد غير البديهي هنا: قرار البوّابة يُحسَب محليًّا لا عبر رسالة
  * `tab/can-operate` — النافذة تملك عنوان التبويب أصلًا من `chrome.tabs.query`،
- * وتجلب `settings/get` في الرحلة نفسها لأسباب أخرى. فـ`evaluateGate` دالّة
- * خالصة على ما بيدها بالفعل، ورحلةٌ إضافية إلى الـservice worker لإعادة
- * الحساب نفسه لا تضيف شيئًا سوى زمن انتظار قبل فتح النافذة (المعيار: أقل
- * من 100ms).
+ * وتقرأ الإعدادات بنفسها لأسباب أخرى. فـ`evaluateGate` دالّة خالصة على ما
+ * بيدها بالفعل، ورحلةٌ إلى الـservice worker لإعادة الحساب نفسه لا تضيف شيئًا
+ * سوى زمن انتظار قبل فتح النافذة (المعيار: أقل من 100ms). وللسبب نفسه لا تمرّ
+ * قراءة الجلسة والإعدادات بالعامل أصلًا — انظر `Read` أدناه.
  *
  * **وهذا القرار استشاريّ لا حاسم**، وهو ما يجعل الحساب المحلّي سليمًا: ما
  * تعرضه النافذة يختار الحالة المعروضة، ولا يأذن بحقن. كل زرّ فيها يمرّ
@@ -18,9 +18,10 @@
 import { findReferenceForPage } from '@/modules/compare/reference'
 import { VIEWPORT_ORDER } from '@/modules/compare/viewport'
 import { evaluateGate } from '@/shared/injection-gate'
-import { send } from '@/shared/messaging'
 import { hasHostPermission, originPatternFor } from '@/shared/permissions'
+import { getSettingsResult } from '@/shared/settings'
 import { annotations, blobs, captures } from '@/shared/storage/repository'
+import { getSession } from '@/shared/storage/session'
 
 import type { PopupContext } from '@/shared/popup-state'
 import type { CaptureRecord } from '@/shared/storage/schema'
@@ -60,10 +61,7 @@ export const POPUP_MARKS = {
 export async function loadPopup(): Promise<PopupLoad | null> {
   // الجلسة والإعدادات والمكتبة لا تحتاج التبويب، فتُطلَب مع استعلامه لا بعده —
   // وحدها حاجة الإذن تنتظر عنوانه.
-  const early = {
-    session: send('session/get', undefined),
-    settings: send('settings/get', undefined),
-  }
+  const early = { session: readSession(), settings: getSettingsResult() }
   const recentLoad = loadRecent()
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab?.id) return null
@@ -137,8 +135,20 @@ export async function loadRecent(): Promise<RecentEntry[]> {
  * يُسمَح بها. والثمن لحظةٌ متحفّظة في عطلٍ نادر، مقابل ألّا تَعِد النافذة
  * بما تمنعه البوّابة بعدها.
  */
-type SettingsReply = Awaited<ReturnType<typeof send<'settings/get'>>>
-type SessionReply = Awaited<ReturnType<typeof send<'session/get'>>>
+/**
+ * قراءة كما وصلت — **`ok: false` حين تتعذّر، لا افتراضيات تبتلع الفشل**.
+ *
+ * كانت الجلسة والإعدادات تصلان برسالتين إلى الـservice worker (`session/get` · `settings/get`)،
+ * وكلتاهما قراءة تخزين خالصة تستطيعها النافذة بنفسها — صفحة إضافة تملك `chrome.storage`. فالرحلتان
+ * كانتا تضيفان إلى أول عرض إيقاظ العامل إن كان نائمًا، وهو الغالب حين ينقر المستخدم الأيقونة
+ * (`STAGES/04`). والإعدادات تُقرأ بـ`getSettingsResult` لا `getSettings`: الثانية تُعيد الافتراضيات
+ * عند تعذّر القراءة — قائمة استثناء فارغة — والنافذة تقرأ التعذّر منعًا (`excludedSitesFrom`).
+ */
+type Read = { readonly ok: true; readonly value: unknown } | { readonly ok: false }
+type SettingsReply = Read
+type SessionReply = Read
+
+const readSession = async (): Promise<SessionReply> => ({ ok: true, value: await getSession() })
 
 function excludedSitesFrom(reply: SettingsReply): string[] {
   if (!reply.ok) return ['*']
@@ -180,8 +190,8 @@ export async function loadPopupContext(
   // للعنوان دائمًا ثم تُهمَل إن مُنع — ترتيبها بعد الإعدادات كان سيسلسل
   // رحلتين ويكسر الميزانية، مقابل عملٍ محليٍّ ضئيل يُرمى أحيانًا.
   const [sessionReply, settingsReply, permissionForUrl] = await Promise.all([
-    early?.session ?? send('session/get', undefined),
-    early?.settings ?? send('settings/get', undefined),
+    early?.session ?? readSession(),
+    early?.settings ?? getSettingsResult(),
     findPermissionNeed(url),
   ])
 

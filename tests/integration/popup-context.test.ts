@@ -5,10 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { assignImageAsReference } from '@/modules/compare/reference'
 import { loadPopupContext } from '@/pages/popup/context'
-import { onMessage, resetHandlers } from '@/shared/messaging'
+import { resetHandlers } from '@/shared/messaging'
 import { selectPopupState, type PopupContext } from '@/shared/popup-state'
+import { patchSettings, resetSettingsCache } from '@/shared/settings'
 import { closeDatabase } from '@/shared/storage/db'
-import { getSession, setTabMode } from '@/shared/storage/session'
+import { setTabMode } from '@/shared/storage/session'
 
 type PermissionsApi = { contains: ReturnType<typeof vi.fn> }
 
@@ -20,11 +21,9 @@ function installPermissionsApi(granted: boolean): PermissionsApi {
 }
 
 /**
- * تحميل سياق النافذة عبر رسائل حقيقية (لا اختلاق) — `session/get` و
- * `settings/get` يمرّان بمسار `send`/`onMessage` الفعلي، بمستقبِلات مبسّطة
- * تحاكي `lifecycle.ts` بما يكفي هذا الاختبار: هل تُشغِّل نتيجتا الرسالتين
- * الحالتين `restricted` و`offline` فعليًّا عبر `selectPopupState`، لا فقط
- * تُعيدان الحقول الصحيحة بمعزل عن بقية الأنبوب.
+ * تحميل سياق النافذة من التخزين الحقيقي (لا اختلاق) — الإعدادات من `chrome.storage.local`
+ * والجلسة من `chrome.storage.session` بمسارَي `getSettingsResult` و`getSession` الفعليين: هل تُشغِّل
+ * قراءتاهما الحالاتِ فعليًّا عبر `selectPopupState`، لا فقط تُعيدان الحقول بمعزل عن بقية الأنبوب.
  */
 
 function toContext(
@@ -41,8 +40,9 @@ beforeEach(async () => {
   // كتبه اختبارٌ سابق يبقى مرئيًّا لتاليه، فيُصدَّق طلب صلاحية لم يعد سببه قائمًا.
   await closeDatabase()
   indexedDB.deleteDatabase('rasd')
-  onMessage('settings/get', () => ({ onboarding: { completed: true, completedAt: 1 } }))
-  onMessage('session/get', async () => (await getSession()) as unknown as Record<string, unknown>)
+  // الإعدادات والجلسة تُقرآن من التخزين مباشرةً لا برسالة إلى العامل (`STAGES/04`) — فتُكتبان فيه.
+  resetSettingsCache()
+  await patchSettings({ onboarding: { completed: true, completedAt: 1 } })
 })
 
 describe('loadPopupContext — restricted', () => {
@@ -64,6 +64,17 @@ describe('loadPopupContext — restricted', () => {
   })
 })
 
+describe('loadPopupContext — تعذّر قراءة الإعدادات', () => {
+  it('قراءة ساقطة تُقرأ منعًا لا قائمة فارغة — الأدوات لا تُعرض على جهلٍ بالمواقع المستثناة', async () => {
+    resetSettingsCache()
+    vi.spyOn(chrome.storage.local, 'get').mockRejectedValue(new Error('تعذّرت القراءة'))
+    const partial = await loadPopupContext(1, 'https://example.com/')
+    expect(partial.restriction.injectable).toBe(false)
+    expect(selectPopupState(toContext(partial, true))).toBe('restricted')
+    vi.restoreAllMocks()
+  })
+})
+
 describe('loadPopupContext — offline', () => {
   it('online:false في السياق المُدمَج تُشغِّل حالة offline بصرف النظر عن القناة', async () => {
     const partial = await loadPopupContext(1, 'https://example.com/')
@@ -76,7 +87,7 @@ describe('loadPopupContext — offline', () => {
 
 describe('loadPopupContext — الجولة الأولى والوضع الحيّ', () => {
   it('onboarding.completed=false على صفحة مسموحة يُنتج firstRun', async () => {
-    onMessage('settings/get', () => ({ onboarding: { completed: false, completedAt: null } }))
+    await patchSettings({ onboarding: { completed: false, completedAt: null } })
 
     const partial = await loadPopupContext(1, 'https://example.com/')
     expect(partial.firstRun).toBe(true)
@@ -84,7 +95,7 @@ describe('loadPopupContext — الجولة الأولى والوضع الحيّ
   })
 
   it('صفحة مقيّدة لا تُنتج firstRun أبدًا — restricted أولى', async () => {
-    onMessage('settings/get', () => ({ onboarding: { completed: false, completedAt: null } }))
+    await patchSettings({ onboarding: { completed: false, completedAt: null } })
 
     const partial = await loadPopupContext(1, 'chrome://settings')
     expect(partial.firstRun).toBe(false)

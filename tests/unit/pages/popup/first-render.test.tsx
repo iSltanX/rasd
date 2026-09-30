@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { loadPopup, type PopupLoad } from '@/pages/popup/context'
 import { Popup } from '@/pages/popup/Popup'
-import { onMessage, resetHandlers } from '@/shared/messaging'
+import { resetHandlers } from '@/shared/messaging'
+import { resetSettingsCache } from '@/shared/settings'
 import { closeDatabase } from '@/shared/storage/db'
 
 import { installFakePorts, type FakePortNetwork } from '../../../helpers/fake-ports'
@@ -17,7 +18,8 @@ import { installFakePorts, type FakePortNetwork } from '../../../helpers/fake-po
  *
  *   1. الجلب كان يبدأ داخل `useEffect`، وPreact يؤجّله إلى ما بعد الإطار التالي:
  *      بيانات وصلت تنتظر إطارًا كاملًا قبل أن تُركَّب.
- *   2. الجلسة والإعدادات والمكتبة كانت تُطلَب بعد استعلام التبويب لا معه.
+ *   2. الجلسة والإعدادات والمكتبة كانت تُطلَب بعد استعلام التبويب لا معه — والأوليان برسالتين
+ *      إلى العامل وهما قراءة تخزين تستطيعها النافذة.
  */
 
 let container: HTMLDivElement | null = null
@@ -26,6 +28,7 @@ let ports: FakePortNetwork | null = null
 beforeEach(async () => {
   fakeBrowser.reset()
   resetHandlers()
+  resetSettingsCache()
   await closeDatabase()
   indexedDB.deleteDatabase('rasd')
 })
@@ -48,16 +51,10 @@ async function flushMicrotasks(rounds = 20): Promise<void> {
 }
 
 describe('loadPopup — ما لا يحتاج التبويب يُطلَب مع استعلامه', () => {
-  it('session/get وsettings/get يصلان والاستعلام عن التبويب لم يعد بعد', async () => {
-    const arrived: string[] = []
-    onMessage('session/get', () => {
-      arrived.push('session/get')
-      return {}
-    })
-    onMessage('settings/get', () => {
-      arrived.push('settings/get')
-      return { onboarding: { completed: true, completedAt: 1 } }
-    })
+  it('الجلسة والإعدادات تُقرآن من التخزين والاستعلام عن التبويب لم يعد بعد — بلا رسالة إلى العامل', async () => {
+    const sessionRead = vi.spyOn(chrome.storage.session, 'get')
+    const settingsRead = vi.spyOn(chrome.storage.local, 'get')
+    const sent = vi.spyOn(chrome.runtime, 'sendMessage')
 
     let answerQuery: (tabs: chrome.tabs.Tab[]) => void = () => undefined
     vi.spyOn(chrome.tabs, 'query').mockImplementation(
@@ -66,7 +63,9 @@ describe('loadPopup — ما لا يحتاج التبويب يُطلَب مع ا
 
     const pending = loadPopup()
     await new Promise((r) => setTimeout(r, 20))
-    expect(arrived.sort()).toEqual(['session/get', 'settings/get'])
+    expect(sessionRead).toHaveBeenCalled()
+    expect(settingsRead).toHaveBeenCalled()
+    expect(sent).not.toHaveBeenCalled()
 
     answerQuery([{ id: 7, url: 'chrome://settings', incognito: false } as chrome.tabs.Tab])
     const loaded = await pending
@@ -75,8 +74,6 @@ describe('loadPopup — ما لا يحتاج التبويب يُطلَب مع ا
   })
 
   it('لا تبويب بمعرّف ⇐ null، فتبقى القشرة الفارغة', async () => {
-    onMessage('session/get', () => ({}))
-    onMessage('settings/get', () => ({}))
     vi.spyOn(chrome.tabs, 'query').mockResolvedValue([] as never)
     expect(await loadPopup()).toBeNull()
   })
