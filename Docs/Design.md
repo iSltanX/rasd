@@ -524,7 +524,7 @@ return {
 | `support / failed`            | خطأ        | [`293:5250`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5250)   | [`310:52476`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52476) | [13](../STAGES/13.md)                                                                                                | —       |
 | `support / local-only`        | رفض صلاحية | [`293:5414`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5414)   | [`310:52528`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52528) | [13](../STAGES/13.md)                                                                                                | —       |
 | `support / cancelled`         | إلغاء      | [`293:5570`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5570)   | [`310:52573`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52573) | [13](../STAGES/13.md)                                                                                                | —       |
-| `whats-new / card`            | أساسية     | [`293:5723`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5723)   | [`310:52615`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52615) | [09](../STAGES/09.md)                                                                                                | —       |
+| `whats-new / card`            | أساسية     | [`293:5723`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5723)   | [`310:52615`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52615) | [`WhatsNewDialog.tsx`](../src/pages/shell/WhatsNewDialog.tsx)                                                        | ✓ · §11 |
 | `settings / save-error`       | خطأ        | [`319:12777`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-12777) | [`319:13305`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-13305) | [`Settings.tsx`](../src/pages/settings/Settings.tsx)                                                                 | ✓       |
 | `settings / saved`            | نجاح       | [`319:12812`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-12812) | [`319:13327`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-13327) | [`Settings.tsx`](../src/pages/settings/Settings.tsx)                                                                 | ✓       |
 | `data / backup-cancelled`     | إلغاء      | [`319:12845`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-12845) | [`319:13349`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-13349) | [07](../STAGES/07.md)                                                                                                | —       |
@@ -554,12 +554,12 @@ return {
 
 ### التأهيل — الصفحة `27 — Onboarding`
 
-| الإطار                | الحالة | الداكن                                                                              | الفاتح                                                                                | منفَّذ                | مطابق |
-| --------------------- | ------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | --------------------- | ----- |
-| `onboarding / step-1` | أساسية | [`74:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=74-2)     | [`308:40`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=308-40)   | [09](../STAGES/09.md) | —     |
-| `onboarding / step-2` | أساسية | [`74:46`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=74-46)   | [`308:76`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=308-76)   | [09](../STAGES/09.md) | —     |
-| `onboarding / step-3` | أساسية | [`74:100`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=74-100) | [`308:111`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=308-111) | [09](../STAGES/09.md) | —     |
-| `onboarding / step-4` | أساسية | [`74:142`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=74-142) | [`308:149`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=308-149) | [09](../STAGES/09.md) | —     |
+| الإطار                | الحالة | الداكن                                                                              | الفاتح                                                                                | منفَّذ                                                     | مطابق   |
+| --------------------- | ------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------- |
+| `onboarding / step-1` | أساسية | [`74:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=74-2)     | [`308:40`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=308-40)   | [`Onboarding.tsx`](../src/pages/onboarding/Onboarding.tsx) | ✓ · §11 |
+| `onboarding / step-2` | أساسية | [`74:46`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=74-46)   | [`308:76`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=308-76)   | [`Onboarding.tsx`](../src/pages/onboarding/Onboarding.tsx) | ✓ · §11 |
+| `onboarding / step-3` | أساسية | [`74:100`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=74-100) | [`308:111`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=308-111) | [`Onboarding.tsx`](../src/pages/onboarding/Onboarding.tsx) | ✓ · §11 |
+| `onboarding / step-4` | أساسية | [`74:142`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=74-142) | [`308:149`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=308-149) | [`Onboarding.tsx`](../src/pages/onboarding/Onboarding.tsx) | ✓ · §11 |
 
 ## 6. تغطية الحالات
 
@@ -695,8 +695,8 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
   أوّل نقرة في الصفحة، ونقل البيانات إليها محرّكُ رسائل لا مرحلة تصميم.
 - `capturing`: «المقطع ٤ من ٦» بدل الارتفاع بالبكسل — المهمّة لا تحمل الارتفاع. والسطر الفرعي يصف
   ما يفعله المحرّك (تحييد العناصر الثابتة) لا تحميل الصور المؤجَّلة الذي لا يفعله.
-- `error`: «أبلغ عن المشكلة» لا تُعرض قبل [13](../STAGES/13.md). `first-run`: «جولة سريعة» لا تُعرض قبل
-  [09](../STAGES/09.md)، و«ابدأ» تُتمّ التشغيل الأوّل. `success`: «مشاركة · قريبًا» حتى
+- `error`: «أبلغ عن المشكلة» لا تُعرض قبل [13](../STAGES/13.md). `first-run`: «جولة سريعة» تفتح جولة
+  التعريف في تبويب، و«ابدأ» تُتمّ التشغيل الأوّل. `success`: «مشاركة · قريبًا» حتى
   [10](../STAGES/10.md)، و«نسخ» للقطات PNG وحدها (الحافظة لا تقبل غيرها).
 - `restricted`: «لماذا؟» يعرض سبب التبويب نفسه — كان زرًّا صامتًا.
 - مسافات أصغر بقليل من الإطار (بطاقة الالتقاط، وأداة الفحص، والبطاقة الأخيرة) كي تسع الحالة الافتراضية
@@ -798,6 +798,23 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
   لخيار واحد.
 - `shortcuts / sheet`: «غيّر اختصارات الالتقاط» لا «غيّر الاختصارات» — صفحة Chrome تغيّر اختصارات الالتقاط
   وحدها، ومفاتيح الأدوات من قسم الاختصارات.
+
+### التأهيل و«ما الجديد»
+
+كُتب في [`STAGES/09`](../STAGES/09.md)، والقرار في [ADR 0028](ADR/0028-onboarding-whats-new.md).
+
+- **البطاقة 420 × 590 لا 560:** خطوة الصلاحيات تسرد أسباب `activeTab` و`scripting` وصلاحية المضيف بنصوص
+  [`permission-policy.ts`](../src/shared/permission-policy.ts) نفسها، والبطاقة بارتفاع أطول خطواتها فلا
+  يقفز «التالي» من تحت المؤشّر بين خطوة وأخرى.
+- **الخطوة ٣** تعرض اختصار «منطقة» كما سجّله المتصفّح (`chrome.commands`) لا `⇧⌘T` المرسومة، وبلا اختصار
+  «بلا اختصار على هذا الجهاز». **والخطوة ٤** زرّها «ابدأ» لا «التقط أوّل لقطة»: صفحة الإضافة لا تلتقط
+  تبويبًا آخر (`activeTab` يُمنح بإيماءة على الصفحة المراد التقاطها)، فالزرّ يُتمّ الجولة ويعيد المستخدم إلى
+  صفحته، ونصّها يقول كيف يلتقط. وبلاطتها «الجزء الظاهر» كما في ورقة الاختصارات.
+- لون العيّنة في الخطوة ١ `color/info/500` — لونُ صفحةٍ مفحوصة لا توكن له.
+- **«ما الجديد»:** البنود من `CHANGELOG.md` للنسخة المثبَّتة، والعنوان برقمين (`1.0` لا `1.0.0`). و«اقرأ سجلّ
+  التغييرات» لا يُعرض ما دام رابط المستودع مخفيًّا — يعطي زائره 404. والعلامات شكل مربّع الاختيار بلا دوره:
+  البند خبرٌ لا خيار. وتظهر البطاقة مرّة في أوّل صفحة يفتحها المستخدم بعد الترقية (المكتبة أو الإعدادات)، ودائمًا
+  من «عن رصد ‹ ما الجديد».
 
 ### مكوّنات
 
