@@ -77,6 +77,8 @@ export interface GuideExportDialogProps {
   readonly captureTitles: ReadonlyMap<string, string>
   /** بايتات أصل كل لقطة — للحجم التقديري قبل الخبز. */
   readonly sourceBytes: readonly number[]
+  /** أبعاد كل لقطة — لعدد صفحات PDF قبل الخبز. */
+  readonly shots: readonly { readonly width: number; readonly height: number }[]
   /** الصيغة التي فُتحت بها النافذة — من رقاقات الصفحة. */
   readonly format?: GuideFormat
   readonly onClose: () => void
@@ -185,7 +187,7 @@ export function GuideExportDialog(props: GuideExportDialogProps): JSX.Element {
 
   const count = props.steps.length
   const estimate = estimateGuideBytes(options.format, props.sourceBytes)
-  const pages = estimateGuidePages(count)
+  const pages = estimateGuidePages(props.shots, options.pageSize)
   const filename = guideFilename(props.title, options.format)
   const subtitle = `${props.title} · ${countText(count, STEP_FORMS)}`
 

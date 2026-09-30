@@ -181,6 +181,7 @@ export function GuidePage({ id, onBack, onChanged, now = Date.now }: GuidePagePr
 
   const captureTitles = new Map(steps.map((s) => [s.captureId, s.capture?.title ?? '']))
   const sourceBytes = steps.map((s) => s.bytes ?? 0)
+  const shots = steps.map((s) => ({ width: s.capture?.width ?? 0, height: s.capture?.height ?? 0 }))
 
   return (
     <div class={styles.page} data-guide-page={guide.id}>
@@ -361,6 +362,7 @@ export function GuidePage({ id, onBack, onChanged, now = Date.now }: GuidePagePr
           steps={steps}
           captureTitles={captureTitles}
           sourceBytes={sourceBytes}
+          shots={shots}
           {...(exporting === 'default' ? {} : { format: exporting })}
           onClose={() => setExporting(null)}
         />

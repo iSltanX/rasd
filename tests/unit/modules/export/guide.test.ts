@@ -371,7 +371,11 @@ describe('الأسماء والتقدير', () => {
     const sizes = [500_000, 400_000]
     expect(estimateGuideBytes('markdown', sizes)).toBeLessThan(estimateGuideBytes('html', sizes))
     expect(estimateGuideBytes('zip', sizes)).toBeGreaterThan(900_000)
-    expect(estimateGuidePages(5)).toBe(6)
-    expect(estimateGuidePages(0)).toBe(1)
+    const screen = { width: 1440, height: 900 }
+    expect(estimateGuidePages([screen, screen, screen, screen, screen], 'a4')).toBe(6)
+    expect(estimateGuidePages([], 'a4')).toBe(1)
+    // لقطة صفحةٍ كاملة تنقسم: صفحتها وما بعدها — كما يقسمها الخبز (المقيس في كروم: ثلاث صفحات لـ1440 × 6000).
+    expect(estimateGuidePages([{ width: 1440, height: 6000 }], 'a4')).toBe(1 + 3)
+    expect(estimateGuidePages([{ width: 0, height: 0 }], 'letter')).toBe(2)
   })
 })

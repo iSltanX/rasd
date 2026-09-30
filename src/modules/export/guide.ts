@@ -31,6 +31,7 @@ import {
 import {
   MAX_SCALE,
   PAGE_MARGIN,
+  pageBox,
   rowsPerPage,
   type BreakFinder,
   type ImageWindow,
@@ -38,7 +39,12 @@ import {
 } from './pdf-layout'
 import { writeZip } from './zip'
 
-import type { GuideExportOptions, GuideFormat, GuideStep } from '@/shared/guide-schema'
+import type {
+  GuideExportOptions,
+  GuideFormat,
+  GuidePageSize,
+  GuideStep,
+} from '@/shared/guide-schema'
 
 // ── النموذج ─────────────────────────────────────────────────────
 
@@ -532,10 +538,33 @@ export function estimateGuideBytes(format: GuideFormat, sourceBytes: readonly nu
   }
 }
 
-/** صفحات PDF قبل الخبز — الغلاف ثمّ صفحةٌ لكل خطوة على الأقلّ: حدٌّ أدنى كما في `estimateImagePages`. */
-export function estimateGuidePages(steps: number): number {
-  return Math.max(1, Math.ceil(steps / COVER_ITEMS_PER_PAGE)) + steps
-}
-
 /** بنود الفهرس في صفحة الغلاف تقريبًا — بندٌ بسطر عنوانٍ واحد في A4. */
 const COVER_ITEMS_PER_PAGE = 24
+
+/** أسفل رأس خطوةٍ بعنوانٍ وسطرَي ملاحظة تقريبًا — للتقدير وحده، والخبز يقيس الرأس نفسه. */
+const ESTIMATED_HEADER_BOTTOM = DOC_MARGIN + 56
+
+/**
+ * صفحات PDF قبل الخبز — الغلاف، ثمّ لكل خطوة صفحتها وما تنقسم إليه لقطتها الطويلة، بقواعد `planStepWindows`
+ * نفسها على رأسٍ مقدَّر. **تقديرٌ يُعرض قبل الخبز**، والرقم الصادق تعرضه شاشة النتيجة من الملفّ المُنتَج.
+ */
+export function estimateGuidePages(
+  shots: readonly { readonly width: number; readonly height: number }[],
+  size: GuidePageSize,
+): number {
+  const box = pageBox(size, 'portrait')
+  const contentWidth = box.width - PAGE_MARGIN * 2
+  const space = box.height - PAGE_MARGIN - (ESTIMATED_HEADER_BOTTOM + HEADER_GAP)
+  const full = box.height - PAGE_MARGIN * 2
+  let pages = Math.max(1, Math.ceil(shots.length / COVER_ITEMS_PER_PAGE))
+  for (const shot of shots) {
+    if (shot.width <= 0 || shot.height <= 0) {
+      pages += 1
+      continue
+    }
+    const drawn = shot.height * Math.min(contentWidth / shot.width, MAX_SCALE)
+    const fits = drawn <= space || (space >= MIN_IMAGE_SPACE && space / drawn >= SHRINK_FLOOR)
+    pages += fits ? 1 : 1 + Math.ceil((drawn - space) / full)
+  }
+  return pages
+}

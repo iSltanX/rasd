@@ -221,7 +221,8 @@
 
 .note {
   color: var(--rasd-text-secondary);
-  resize: vertical;
+  /* ينمو بما فيه — فلا مقبض تحجيم يظهر في زاوية كل ملاحظة. */
+  resize: none;
   field-sizing: content;
   min-block-size: calc(var(--rasd-space-20) * 2);
 }

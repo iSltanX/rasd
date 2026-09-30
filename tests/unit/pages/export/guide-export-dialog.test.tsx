@@ -75,6 +75,10 @@ function mount(format?: 'pdf' | 'zip' | 'markdown' | 'html') {
       steps={STEPS}
       captureTitles={new Map([['b', 'السلّة']])}
       sourceBytes={[400_000, 300_000]}
+      shots={[
+        { width: 1440, height: 900 },
+        { width: 1440, height: 900 },
+      ]}
       {...(format ? { format } : {})}
       onClose={() => (closed += 1)}
       now={() => NOW}
