@@ -142,6 +142,8 @@ export function Settings() {
   const [settings, setSettings] = useState<SettingsValue | null>(null)
   const [{ section, view }, setPlace] = useState(readLocation)
   const [notice, setNotice] = useState<Notice>(null)
+  /** يزيد حين تتغيّر المكتبة من هنا (استعادة أو حذف كامل) — فيُعاد عدّ الشريط الجانبي. */
+  const [revision, setRevision] = useState(0)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => watchSettings(setSettings), [])
@@ -210,7 +212,13 @@ export function Settings() {
       )
       break
     case 'data':
-      content = <DataSection />
+      content = (
+        <DataSection
+          settings={settings}
+          onAnnounce={announce}
+          onLibraryChanged={() => setRevision((n) => n + 1)}
+        />
+      )
       break
     case 'integrations':
       content = <IntegrationsSection />
@@ -221,7 +229,7 @@ export function Settings() {
   }
 
   return (
-    <AppShell activeId="settings">
+    <AppShell activeId="settings" revision={revision}>
       <header class={styles.header}>
         {onSub ? (
           <button type="button" class={styles.back} onClick={() => go('privacy')}>
