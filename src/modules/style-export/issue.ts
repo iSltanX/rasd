@@ -90,7 +90,7 @@ export function mapShorthand(prop: string, value: string, rootPx: number): Mappe
  * ما لم يُسمَّ يبقى خارجًا كما في `toCss`، والقيمة الابتدائية تُسقَط بقاعدته.
  */
 export function issueCss(snapshot: InspectSnapshot, named: readonly string[]): string {
-  const grouped = new Set(GROUP_ORDER.flatMap((g) => INSPECT_GROUPS[g]))
+  const grouped = new Set<string>(GROUP_ORDER.flatMap((g) => INSPECT_GROUPS[g]))
   const extra = named.flatMap((prop) => {
     const entry = snapshot.styles[prop]
     return !grouped.has(prop) && hasValue(entry) ? [`  ${prop}: ${entry.value};`] : []
