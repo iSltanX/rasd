@@ -102,7 +102,7 @@ jobs:
   # في «بناء الحزمة المشتركة» وحدها، والحرّاس التسعة عشر على حزمتها.
   # والشرط `!= 'false'` لا `== 'true'`: إن سقط التصنيف نفسه جرى المسار الكامل.
   verify:
-    name: فحوص ساكنة · typecheck · lint · test
+    name: فحوص ساكنة · typecheck · lint · test · coverage
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
@@ -136,8 +136,11 @@ jobs:
       - name: Format check
         run: pnpm run format:check
 
-      - name: Test
-        run: pnpm run test
+      # الاختبارات مع التغطية في تشغيل واحد لا تشغيلان: العتبات في `vitest.config.ts`
+      # (أرضية «لا انخفاض» عامّة، وأهداف الفروع لـ`modules/` و`shared/` و`ui/`)،
+      # وهبوط أي نسبة دونها يُسقط هذه الخطوة فتظهر الوظيفة حمراء باسم «coverage».
+      - name: Test with coverage thresholds
+        run: pnpm run test:coverage
 
       # عمود `blocking` أدناه مشتقٌّ من `.github/guards-ledger.json`. الفحص هنا
       # بلا شبكة وبلا كروم — فلا يُدخِل الجولة في دورٍ حول نفسها — وموضعه هنا
