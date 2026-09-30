@@ -60,6 +60,20 @@ export const MIGRATIONS: Readonly<Record<number, MigrationStep>> = {
   2: (db) => {
     db.createObjectStore('thumbnails', { keyPath: 'id' })
   },
+
+  /*
+   * المشكلة المرتبطة بعنصر (ADR 0030). مخزنٌ جديد لا يمسّ سجلًّا قائمًا، فلا نقل بيانات.
+   * الفهارس بمسارات متداخلة: `origin` لـ«مشكلات هذه الصفحة» في النافذة والطبقة، و`captureId` لرقاقة
+   * الحالة في المحرّر، والثلاثة الباقية لمرشّحات المكتبة وترتيبها.
+   */
+  3: (db) => {
+    const issues = db.createObjectStore('issues', { keyPath: 'id' })
+    issues.createIndex('projectId', 'projectId')
+    issues.createIndex('origin', 'page.origin')
+    issues.createIndex('status', 'status')
+    issues.createIndex('updatedAt', 'updatedAt')
+    issues.createIndex('captureId', 'evidence.captureId')
+  },
 }
 
 /** أعلى نسخة لها خطوة — يجب أن تساوي `DB_VERSION`. */

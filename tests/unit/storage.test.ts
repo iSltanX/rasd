@@ -54,7 +54,7 @@ beforeEach(async () => {
 })
 
 describe('المخطّط', () => {
-  it('يُنشئ المخازن العشرة كلها', async () => {
+  it('يُنشئ المخازن كلها', async () => {
     const db = await database()
     expect([...db.objectStoreNames].sort()).toEqual([...STORE_NAMES].sort())
     expect(db.version).toBe(DB_VERSION)
@@ -252,7 +252,7 @@ describe('اللقطة وبايتاتها ذرّيًا', () => {
     await putCaptureWithBlob(capture('x3'), new Blob(['abc']))
     await tags.put({ name: 'وسم', count: 1 })
     const result = await clearAllStores()
-    expect(result.ok && result.value).toBe(10)
+    expect(result.ok && result.value).toBe(STORE_NAMES.length)
     const capturesLeft = await captures.count()
     const tagsLeft = await tags.count()
     expect(capturesLeft.ok && capturesLeft.value).toBe(0)

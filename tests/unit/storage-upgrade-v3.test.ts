@@ -1,5 +1,7 @@
 import 'fake-indexeddb/auto'
 
+import { Blob as NodeBlob } from 'node:buffer'
+
 import { openDB } from 'idb'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -17,6 +19,12 @@ import { DB_NAME, STORE_NAMES, type RasdDB } from '@/shared/storage/schema'
  * يدوية تشهد على نفسها، أمّا هاتان فهما ما ينفّذه كل متصفّح رُقّي من قبل. ثمّ تُفتح بـ`database()` كما
  * تفتحها الخلفية عند أوّل إقلاع بعد التحديث، ويُقارَن كل سجلّ بما كُتب.
  */
+
+/**
+ * `Blob` من `node:buffer` لا من البيئة: `structuredClone` في Node — وبه ينسخ `fake-indexeddb` — يحفظ
+ * بايتات Blob الخاصّ به، ويُسطِّح Blob البيئة الوهمية كائنًا بلا بايتات. والمقارنة هنا بالبايت لا بالحقول.
+ */
+const bytesBlob = (bytes: number[], type: string) => new NodeBlob([new Uint8Array(bytes)], { type })
 
 const DAY = 86_400_000
 const at = 1_780_000_000_000
@@ -51,7 +59,7 @@ function sceneWithNote(captureId: string): Scene {
     title: 'المسافة أكبر من التصميم',
     body: 'الحشوة 24 والمطلوب 16',
     tag: 'spacing',
-    font: { family: 'IBM Plex Sans Arabic', sizePx: 14, weight: 400, lineHeight: 1.5 },
+    font: { family: 'IBM Plex Sans Arabic', sizePx: 28, weight: 400, letterSpacingPx: 0 },
     paddingPx: 12,
     pinId: asNodeId('pin-1'),
   }
@@ -93,11 +101,11 @@ async function seedVersion2() {
     put('captures', captureRecord('c2', at + DAY)),
     put('blobs', {
       id: 'c1',
-      blob: new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' }),
+      blob: bytesBlob([137, 80, 78, 71], 'image/png'),
       mime: 'image/png',
       bytes: 4,
     }),
-    put('thumbnails', { id: 'c1', blob: new Blob(['t']), width: 160, height: 120 }),
+    put('thumbnails', { id: 'c1', blob: bytesBlob([116], 'image/webp'), width: 160, height: 120 }),
     put('annotations', {
       captureId: 'c1',
       scene: sceneWithNote('c1'),
@@ -147,7 +155,7 @@ async function dump(names: readonly string[]) {
     const rows = (await db.getAll(name as never)) as Record<string, unknown>[]
     out[name] = await Promise.all(
       rows.map(async (row) =>
-        row.blob instanceof Blob
+        row.blob instanceof NodeBlob
           ? { ...row, blob: [...new Uint8Array(await row.blob.arrayBuffer())] }
           : row,
       ),
@@ -164,7 +172,7 @@ beforeEach(async () => {
 })
 
 describe('الترقية من النسخة 2 إلى 3', () => {
-  it('المخازن العشرة تعبر بلا فقد، و`issues` يولد فارغًا بفهارسه الخمسة', async () => {
+  it('المخازن العشرة القديمة تعبر بلا فقد، و`issues` يولد فارغًا بفهارسه الخمسة', async () => {
     await seedVersion2()
 
     const db = await database()
