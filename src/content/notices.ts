@@ -133,7 +133,10 @@ export function paletteSaved(count: number, open: () => void): OverlayNotice {
   }
 }
 
-export function saveFailed(what: 'اللون' | 'اللوحة', reason: string): OverlayNotice {
+export function saveFailed(
+  what: 'اللون' | 'اللوحة' | 'المناطق المستثناة',
+  reason: string,
+): OverlayNotice {
   return { tone: 'danger', title: `تعذّر حفظ ${what}`, detail: reason }
 }
 

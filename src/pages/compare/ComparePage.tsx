@@ -31,8 +31,10 @@ import { Stage, type CompareMode } from './parts/Stage'
 import { parseCompareQuery } from './query'
 import { decodeRasterImage } from './raster'
 import { buildRegionItems, nextRegionIndex, prevRegionIndex } from './region-format'
+import { addZone, removeZone, type SessionZone } from './session-zones'
 import { createDiffClient, type DiffOutcome } from './worker-client'
 
+import type { DeviceRect } from '@/shared/geometry'
 import type { JSX } from 'preact'
 
 type PageState = 'loading' | 'error' | 'ready'
@@ -57,6 +59,12 @@ export function ComparePage(): JSX.Element {
   const [selectedRegionIndex, setSelectedRegionIndex] = useState<number | null>(null)
   const [blinkShowingA, setBlinkShowingA] = useState(true)
   const [blinkPlaying, setBlinkPlaying] = useState(true)
+  /*
+   * مناطق هذه الجلسة — حالة الصفحة وحدها: لا تخزين ولا رسائل، وتزول بإغلاقها. لقطتان بلا مرجع لا
+   * مكان لها فيه (المناطق الدائمة حقلٌ في المرجع). تدخل الحساب عبر `exclude` أدناه.
+   */
+  const [sessionZones, setSessionZones] = useState<readonly SessionZone[]>([])
+  const [drawingZone, setDrawingZone] = useState(false)
 
   const clientRef = useRef(createDiffClient())
   useEffect(() => () => clientRef.current.dispose(), [])
@@ -151,7 +159,7 @@ export function ComparePage(): JSX.Element {
     }
   }, [])
 
-  // ── حساب الفرق — عند جهوز الصورتين، وعند تغيّر عتبة الحساسية ─────
+  // ── حساب الفرق — عند جهوز الصورتين، وعند تغيّر عتبة الحساسية أو مناطق الجلسة ─────
   useEffect(() => {
     if (!loadedA || !loadedB) return
     let alive = true
@@ -175,6 +183,8 @@ export function ComparePage(): JSX.Element {
         threshold,
         removedColor: diffColors.removed,
         addedColor: diffColors.added,
+        // بكسلات المناطق تخرج من البسط والمقام والقناع معًا — القرار للمحرّك لا للواجهة.
+        exclude: sessionZones.map((zone) => zone.rect),
       })
       .then((outcome) => {
         if (!alive) return
@@ -201,7 +211,7 @@ export function ComparePage(): JSX.Element {
     return () => {
       alive = false
     }
-  }, [loadedA, loadedB, threshold])
+  }, [loadedA, loadedB, threshold, sessionZones])
 
   // ── الوميض التلقائي ───────────────────────────────────────────
   useEffect(() => {
@@ -214,6 +224,16 @@ export function ComparePage(): JSX.Element {
     () => (diffOutcome ? buildRegionItems(diffOutcome.regions) : []),
     [diffOutcome],
   )
+
+  const onAddZone = useCallback((rect: DeviceRect) => {
+    setSessionZones((zones) => addZone(zones, rect))
+    setDrawingZone(false)
+  }, [])
+  const onRemoveZone = useCallback((id: number) => {
+    setSessionZones((zones) => removeZone(zones, id))
+  }, [])
+  const onToggleDrawing = useCallback(() => setDrawingZone((v) => !v), [])
+  const onCancelDrawing = useCallback(() => setDrawingZone(false), [])
 
   const onSelectRegion = useCallback((index: number) => setSelectedRegionIndex(index), [])
   const onPrevRegion = useCallback(() => {
@@ -291,6 +311,10 @@ export function ComparePage(): JSX.Element {
             regionItems={regionItems}
             selectedRegionIndex={selectedRegionIndex}
             onSelectRegion={onSelectRegion}
+            zones={sessionZones}
+            drawing={drawingZone}
+            onAddZone={onAddZone}
+            onCancelDrawing={onCancelDrawing}
           />
         </div>
         <Sidebar
@@ -310,6 +334,11 @@ export function ComparePage(): JSX.Element {
           sizeA={loadedA.capture.record}
           sizeB={loadedB.capture.record}
           computed={diffOutcome !== null}
+          zones={sessionZones}
+          excludedPixels={diffOutcome?.excludedPixels ?? 0}
+          drawing={drawingZone}
+          onToggleDrawing={onToggleDrawing}
+          onRemoveZone={onRemoveZone}
         />
       </div>
     </div>

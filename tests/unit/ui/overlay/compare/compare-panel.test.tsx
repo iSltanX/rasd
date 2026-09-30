@@ -282,3 +282,101 @@ describe('CompareIdle — يُصيَّر بلا رمي', () => {
     expect(zone.getAttribute('data-drag-over')).toBe('false')
   })
 })
+
+/**
+ * «مناطق مستثناة» — `compare / exclusions` (`391:1989`) و`exclusions-empty` (`391:2640`) و`exclusion-fallback`
+ * (`391:3022`) و`diff-masked` (`391:2819`)، ADR 0034.
+ */
+describe('ComparePanel — المناطق المستثناة', () => {
+  const zones = [
+    { id: 'a', kind: 'rect' as const, name: '196 × 40', fallback: false },
+    { id: 'b', kind: 'element' as const, name: 'div.feature-card', fallback: false },
+  ]
+
+  it('لا قسم بلا `onDrawZone` — لا زرّ بلا محرّك', () => {
+    const el = mount(<ComparePanel {...panelProps({ zones })} />)
+    expect(el.querySelector('[data-rasd-ov="compare-zones"]')).toBeNull()
+  })
+
+  it('فارغًا: يقول إن كل البكسلات تدخل الفرق، والزرّان حاضران', () => {
+    const el = mount(<ComparePanel {...panelProps({ onDrawZone: vi.fn(), onPickZone: vi.fn() })} />)
+    const section = el.querySelector('[data-rasd-ov="compare-zones"]')
+    expect(section?.textContent).toContain('لا مناطق مستثناة — كل البكسلات تدخل الفرق.')
+    expect(section?.textContent).toContain('ارسم مستطيلًا')
+    expect(section?.textContent).toContain('اختر عنصرًا')
+  })
+
+  it('القائمة بأرقام هندية ونوع كلٍّ، والحذف يُبلِّغ بمعرّف منطقته', async () => {
+    const onRemoveZone = vi.fn()
+    const el = mount(<ComparePanel {...panelProps({ zones, onDrawZone: vi.fn(), onRemoveZone })} />)
+    const rows = el.querySelectorAll('[data-rasd-ov="compare-zone"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.querySelector('.rasd-ov-cmp-zone-n')?.textContent).toBe('١')
+    expect(rows[0]?.querySelector('.rasd-ov-cmp-zone-kind')?.textContent).toBe('مستطيل')
+    expect(rows[1]?.querySelector('.rasd-ov-cmp-zone-kind')?.textContent).toBe('عنصر')
+    const del = el.querySelector<HTMLButtonElement>('[aria-label="احذف المنطقة ٢"]')
+    await act(() => del?.click())
+    expect(onRemoveZone).toHaveBeenCalledWith('b')
+  })
+
+  it('الزرّ النشط `aria-pressed`، والنقر يُبلِّغ', async () => {
+    const onDrawZone = vi.fn()
+    const el = mount(
+      <ComparePanel {...panelProps({ onDrawZone, onPickZone: vi.fn(), zoneTool: 'draw' })} />,
+    )
+    const [draw, pick] = el.querySelectorAll<HTMLButtonElement>('.rasd-ov-cmp-zones-actions button')
+    expect(draw?.getAttribute('aria-pressed')).toBe('true')
+    expect(pick?.getAttribute('aria-pressed')).toBe('false')
+    await act(() => draw?.click())
+    expect(onDrawZone).toHaveBeenCalledOnce()
+  })
+
+  it('العنصر الغائب يُسمّى بمحدِّده ويُعلَن سقوطه إلى مستطيله — لا يُبتلَع', () => {
+    const el = mount(
+      <ComparePanel
+        {...panelProps({
+          zones: [{ ...zones[1]!, fallback: true }],
+          onDrawZone: vi.fn(),
+        })}
+      />,
+    )
+    expect(el.querySelector('[data-fallback="true"] .rasd-ov-cmp-zone-kind')?.textContent).toBe(
+      'مستطيل احتياطي',
+    )
+    const warn = el.querySelector('.rasd-ov-cmp-zone-warn')
+    expect(warn?.getAttribute('role')).toBe('status')
+    expect(warn?.textContent).toContain('div.feature-card')
+    expect(warn?.textContent).toContain('فاستُعمل مستطيله المحفوظ')
+  })
+
+  it('مقترحات المقاسات الأخرى تُعرض بعددها وتُضاف بنقرة', async () => {
+    const onAddSuggested = vi.fn()
+    const el = mount(
+      <ComparePanel {...panelProps({ onDrawZone: vi.fn(), suggestedZones: 2, onAddSuggested })} />,
+    )
+    expect(el.textContent).toContain('منطقتا عنصر من مقاسات أخرى')
+    await act(() => el.querySelector<HTMLButtonElement>('.rasd-ov-cmp-link')?.click())
+    expect(onAddSuggested).toHaveBeenCalledOnce()
+  })
+
+  it('النسبة على المناطق المهمّة تُسمّى كذلك، ومعها ما استُثني', () => {
+    const el = mount(
+      <ComparePanel
+        {...panelProps({
+          diff: liveDiff({ excludedZones: 2, comparedPixels: 930, excludedPixels: 70 }),
+          onCaptureDiff: vi.fn(),
+        })}
+      />,
+    )
+    expect(el.textContent).toContain('فرق البكسلات · على المناطق المهمّة')
+    expect(el.querySelector('[data-rasd-ov="compare-excluded"]')?.textContent).toContain(
+      'منطقتان · 7% من الصفحة',
+    )
+  })
+
+  it('وبلا مناطق لا يتغيّر شيء: «فرق البكسلات» وحدها ولا صفّ استثناء', () => {
+    const el = mount(<ComparePanel {...panelProps({ diff: liveDiff(), onCaptureDiff: vi.fn() })} />)
+    expect(el.textContent).not.toContain('على المناطق المهمّة')
+    expect(el.querySelector('[data-rasd-ov="compare-excluded"]')).toBeNull()
+  })
+})

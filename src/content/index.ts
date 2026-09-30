@@ -68,7 +68,8 @@ import { createIssues, type IssuesController } from './tools/issues'
 import { createMeasure, type MeasureTool } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
-import type { LiveDiff } from '@/shared/messaging/contract'
+import type { ExclusionZone } from '@/shared/exclusion-schema'
+import type { LiveDiff, ReferencePayload } from '@/shared/messaging/contract'
 import type { Viewport } from '@/shared/storage/schema'
 import type { ViewportGalleryCard } from '@/ui/overlay'
 
@@ -459,6 +460,9 @@ async function bootOverlay(
       modes.busy.value = busy
     },
     onInvalidate: () => sync.invalidate('pointer'),
+    skip: host.hostEl,
+    space: () => spaceSignal.peek(),
+    onZonesChange: (zones, previous) => saveZones(zones, previous),
   })
 
   elementTool = element
@@ -566,7 +570,8 @@ async function bootOverlay(
     liveDiffError.value = null
     void (async () => {
       try {
-        const measured = await send('compare/diff', { viewport })
+        // مناطق العنصر بموضعها الحيّ الآن — الخلفية تبني القناع من السجلّ وتقبل منها هذا وحده (ADR 0034).
+        const measured = await send('compare/diff', { viewport, live: compare.liveRects() })
         if (!measured.ok) {
           liveDiffAt.value = null
           liveDiffError.value = measured.error.message
@@ -610,11 +615,45 @@ async function bootOverlay(
       img.src = url
     })
 
+  /**
+   * جيل حفظ المناطق — ردٌّ أقدم من آخر حفظ لا يُطبَّق فوقه. حذفٌ سريع بعد إضافة يرسل قائمتين، وقد يصل ردّ
+   * الأولى بعد الثانية.
+   */
+  let zonesSave = 0
+
+  /**
+   * يحفظ قائمة المناطق مع مرجع هذه الصفحة (ADR 0034). الأداة عرضت القائمة الجديدة فورًا؛ والردّ يضع ما كُتب
+   * فعلًا، والفشل يعيد القائمة السابقة ويُعلَن — منطقةٌ تظهر ولم تُحفظ كذبةٌ صامتة.
+   */
+  const saveZones = (zones: readonly ExclusionZone[], previous: readonly ExclusionZone[]): void => {
+    // النسبة المعروضة حُسبت على المناطق السابقة — تسقط كما تسقط مع مرجعٍ جديد.
+    clearLiveDiff()
+    const viewport = currentViewport()
+    const myEpoch = referenceEpoch
+    const mySave = ++zonesSave
+    void (async () => {
+      const written = await send('reference/exclusions', { viewport, exclusions: zones })
+      if (referenceEpoch !== myEpoch || zonesSave !== mySave) return
+      const suggested = compare.state.suggested.peek()
+      if (written.ok) {
+        compare.setZones(written.value.exclusions, suggested)
+        return
+      }
+      compare.setZones(previous, suggested)
+      notices.show(saveFailed('المناطق المستثناة', written.error.message))
+    })()
+  }
+
   /** يُحمِّل صورة مرجع في الأداة ويحرِّر عنوان الكائن السابق — لا تسريب عبر استبدالات متتالية. */
-  const setCompareReference = (image: ReferenceImage | null): void => {
+  const setCompareReference = (
+    image: ReferenceImage | null,
+    payload: ReferencePayload | null = null,
+  ): void => {
     const previous = referenceObjectUrl
     referenceObjectUrl = image?.url ?? null
     compare.setReference(image)
+    // المناطق مع مرجعها لا بعده: لا يُرسم مرجعٌ بلا مناطقه ولا يُقاس بدونها.
+    if (image && payload) compare.setZones(payload.exclusions, payload.suggested)
     // مرجعٌ جديد يُبطل نسبة المرجع السابق — هذا هو الشقّ الذي لا يمسكه
     // حسابُ `compareDiff` (المرجع لا أثر له في `spaceSignal`).
     clearLiveDiff()
@@ -644,7 +683,7 @@ async function bootOverlay(
           URL.revokeObjectURL(image.url)
           return
         }
-        setCompareReference(image)
+        setCompareReference(image, found.value)
       } catch (e) {
         console.warn(`[رصد] ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -686,7 +725,7 @@ async function bootOverlay(
           URL.revokeObjectURL(image.url)
           return
         }
-        setCompareReference(image)
+        setCompareReference(image, written.value)
       } catch (e) {
         console.warn(`[رصد] ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -804,7 +843,7 @@ async function bootOverlay(
         viewportGallery.value = existing.map((c) =>
           c.viewport === viewport ? { viewport, image, diffRatio: null } : c,
         )
-        if (viewport === currentViewport()) setCompareReference(image)
+        if (viewport === currentViewport()) setCompareReference(image, written.value)
       } catch (e) {
         console.warn(`[رصد] ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -1276,6 +1315,9 @@ async function bootOverlay(
           if (issues.state.form.peek()) {
             // `Esc` في النموذج يُغلقه وحده ويبقي الأداة ولوحتها.
             issues.closeForm()
+          } else if (compare.state.zoneTool.peek()) {
+            // وفي رسم منطقة أو اختيار عنصرها يُلغي الإعداد وحده ويبقي المقارنة (`391:2217` · `391:2422`).
+            compare.setZoneTool(null)
           } else if (hasFullPageSession()) {
             // الإلغاء يمرّ من الخلفية: هي التي تملك الحلقة و`AbortController`.
             void send('fullpage/cancel', undefined)
