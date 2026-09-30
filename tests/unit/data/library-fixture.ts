@@ -82,8 +82,20 @@ export function libraryFixture(): LibraryRecords {
       },
     ],
     projects: [
-      { id: 'p1', name: 'منصّة ٢٠', color: 'tool/capture/solid', createdAt: at, updatedAt: at + 10 },
-      { id: 'p2', name: 'Design System', color: 'tool/inspect/solid', createdAt: at + 1, updatedAt: at + 1 },
+      {
+        id: 'p1',
+        name: 'منصّة ٢٠',
+        color: 'tool/capture/solid',
+        createdAt: at,
+        updatedAt: at + 10,
+      },
+      {
+        id: 'p2',
+        name: 'Design System',
+        color: 'tool/inspect/solid',
+        createdAt: at + 1,
+        updatedAt: at + 1,
+      },
     ],
     colors: [
       {
@@ -108,7 +120,13 @@ export function libraryFixture(): LibraryRecords {
       },
     ],
     palettes: [
-      { id: 'pal1', name: 'لوحة الهبوط', colors: ['#1f6feb', '#0b0d10'], projectId: 'p1', createdAt: at },
+      {
+        id: 'pal1',
+        name: 'لوحة الهبوط',
+        colors: ['#1f6feb', '#0b0d10'],
+        projectId: 'p1',
+        createdAt: at,
+      },
       { id: 'pal2', name: 'Empty', colors: [], projectId: null, createdAt: at + 1 },
     ],
     references: [
@@ -125,7 +143,10 @@ export function libraryFixture(): LibraryRecords {
             id: 'z1',
             label: 'الساعة',
             createdAt: at,
-            anchor: { kind: 'rect', rect: { space: 'device', x: 10, y: 20, width: 120, height: 40 } },
+            anchor: {
+              kind: 'rect',
+              rect: { space: 'device', x: 10, y: 20, width: 120, height: 40 },
+            },
           },
           {
             id: 'z2',
