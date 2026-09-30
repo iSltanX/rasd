@@ -11,6 +11,7 @@
  */
 
 import { formatDimensions } from '@/shared/bidi'
+import { isolate } from '@/shared/bidi/isolate'
 import {
   countText,
   formatHuman,
@@ -21,7 +22,7 @@ import {
 
 import { formatCaptureTime } from '../editor/page-meta'
 
-import { diffMethodSummary, pixelCountSummary } from './region-format'
+import { pixelCountSummary } from './region-format'
 
 import type { SessionZone } from './session-zones'
 import type { DiffResult } from '@/modules/compare/diff'
@@ -78,9 +79,21 @@ export const REGION_FORMS: CountForms = {
  */
 export const MAX_LISTED_REGIONS = 200
 
-/** موضع مستطيلٍ ومقاسه — قياسٌ غربي. */
+/**
+ * موضع مستطيلٍ ومقاسه — قياسٌ غربي، **كلُّ قيمةٍ معزولة**.
+ *
+ * الورقة تُرسم على قماشٍ بخوارزمية الاتجاه نفسها، و`900, 40` بين كلمتين عربيتين تصير `40 ,900`: رقمان يفصلهما
+ * فاصلٌ ومسافة جولتان منفصلتان في سطرٍ يميني. العزل (LRI…PDI) يُبقي كل قيمة كما تُكتب — رآه الفحص البصري
+ * على الورقة المرسومة لا الاختبار.
+ */
 export function rectText(rect: DeviceRect): string {
-  return `${formatDimensions(rect.width, rect.height)} عند ${formatMeasure(rect.x)}, ${formatMeasure(rect.y)}`
+  const at = `${formatMeasure(rect.x)}, ${formatMeasure(rect.y)}`
+  return `${isolate(formatDimensions(rect.width, rect.height))} عند ${isolate(at)}`
+}
+
+/** طريقة الحساب للورقة — العتبة معزولة: `%10` بلا عزل في سطرٍ يميني. */
+export function methodText(threshold: number): string {
+  return `فرق إدراكي بفضاء ${isolate('YIQ (pixelmatch)')} — عتبة التجاهل ${isolate(formatPercent(threshold))}`
 }
 
 /** عنوانا اللقطتين كما يُكتبان — أو بديلاهما مع الحذف. */
@@ -129,7 +142,7 @@ export function reportBlocks(input: ReportInput): DocBlock[] {
           value: formatDimensions(outcome.overlap.width, outcome.overlap.height),
           mono: true,
         },
-        { label: 'طريقة الحساب', value: diffMethodSummary(input.threshold), mono: false },
+        { label: 'طريقة الحساب', value: methodText(input.threshold), mono: false },
       ],
     },
   ]
@@ -139,7 +152,7 @@ export function reportBlocks(input: ReportInput): DocBlock[] {
       { kind: 'heading', text: `المناطق المستثناة · ${formatHuman(zones.length)}` },
       {
         kind: 'text',
-        text: `لا تدخل في النسبة ولا في المناطق المختلفة — ${formatMeasure(outcome.excludedPixels)} بكسل. ومخطّطةٌ في صورة الفرق بأرقامها.`,
+        text: `لا تدخل في النسبة ولا في المناطق المختلفة — ${isolate(formatMeasure(outcome.excludedPixels))} بكسل. ومخطّطةٌ في صورة الفرق بأرقامها.`,
       },
       {
         kind: 'items',
@@ -165,7 +178,7 @@ export function reportBlocks(input: ReportInput): DocBlock[] {
           chip: null,
           lines: [
             {
-              text: `${rectText(region.rect)} · ${formatMeasure(region.pixels)} بكسل مختلف`,
+              text: `${rectText(region.rect)} · ${isolate(formatMeasure(region.pixels))} بكسل مختلف`,
               mono: false,
             },
           ],

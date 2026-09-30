@@ -11,6 +11,7 @@ import {
   type ReportInput,
   type ReportOutcome,
 } from '@/pages/compare/report'
+import { stripIsolates } from '@/shared/bidi/isolate'
 import { formatPercent } from '@/shared/bidi/numerals'
 import { deviceRect } from '@/shared/geometry'
 
@@ -112,7 +113,9 @@ describe('النسبة المقنَّعة', () => {
     expect(heading).toBeDefined()
     const items = blocks.flatMap((b) => (b.kind === 'items' ? [...b.items] : []))
     const named = items.find((i) => i.title === 'منطقة مستثناة ١')
-    expect(named?.lines[0]?.text).toContain('40 × 30 عند 10, 10')
+    expect(stripIsolates(named?.lines[0]?.text ?? '')).toContain('40 × 30 عند 10, 10')
+    // وكل قيمة معزولة الاتجاه — `10, 10` لا تنقلب في السطر اليميني.
+    expect(named?.lines[0]?.text).not.toBe(stripIsolates(named?.lines[0]?.text ?? ''))
     const note = blocks.find((b) => b.kind === 'text')
     expect(note && note.kind === 'text' ? note.text : '').toContain(String(CLOCK.w * CLOCK.h))
   })
