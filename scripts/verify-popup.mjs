@@ -43,22 +43,16 @@
  *      التحقّق البصري المباشر من الحالتين يقع بدلًا من ذلك عبر جولة يدوية
  *      بمتصفح Claude — انظر `Docs/Phases/Phase_07.md`.
  *
+ * الإقلاع والاتصال والتحميل والارتباط والمهلة الصلبة والتنظيف في النواة المشتركة
+ * (`scripts/lib/cdp.mjs`، `STAGES/17`)؛ وأحكام هذا الملفّ هنا كما كانت.
+ *
  * يُشغَّل في CI وفي جهاز التطوير بالأمر نفسه:
  *   pnpm verify:popup
  */
-import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { fileURLToPath, URL } from 'node:url'
-
 import { PAGE_PATHS } from '../src/shared/page-paths.ts'
 
-import { ensureFixturesServer } from './lib/live-fixtures.mjs'
-import { waitForExtensionContext } from './lib/live-sw.mjs'
+import { findAndAttach as findTarget, startGuard, waitForExtensionContext } from './lib/cdp.mjs'
 
-const root = fileURLToPath(new URL('..', import.meta.url))
-const dist = join(root, 'dist')
 const PORT = 9377
 
 /** ميزانية فتح النافذة — معيار إتمام المرحلة 7 حرفيًا. */
@@ -67,187 +61,44 @@ const OPEN_BUDGET_MS = 100
 const TRIALS = 5
 const HARD_TIMEOUT_MS = 60_000
 
+// الحزمة نفسها لا نسخة فحص: لا صلاحية مضيف تُضاف.
+const g = await startGuard({
+  prefix: 'popup',
+  port: PORT,
+  title: 'فحص نافذة الإضافة في Chrome:',
+  fixtures: true,
+  stage: false,
+  serviceWorker: true,
+  hardTimeoutMs: HARD_TIMEOUT_MS,
+})
+const { ok, fail, lines } = g
+
 /**
  * صفحة "عادية" محلّية — `scripts/fixtures-serve.mjs` (المرحلة 2) بدل موقع
  * حقيقي: بيئة التشغيل لا تملك بالضرورة وصولًا شبكيًا خارجيًا، وموقع حقيقي
  * يعني فحصًا يتذبذب بتذبذب الشبكة لا بسلوك الإضافة. الخادم صامت شبكيًا
  * ويُضمَن هنا عبر `live-fixtures.mjs` لا يُشترَط مُشغَّلًا سلفًا.
  */
-const FIXTURES_PORT = Number(process.env.RASD_FIXTURES_PORT ?? 5399)
-const NORMAL_URL = `http://127.0.0.1:${FIXTURES_PORT}/rtl-ar/`
+const NORMAL_URL = `${g.base}/rtl-ar/`
 
-const CANDIDATES = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-]
-const chromePath = process.env.CHROME_PATH ?? CANDIDATES.find((p) => existsSync(p))
-
-if (!existsSync(dist)) {
-  console.error('dist/ غير موجود — شغّل `pnpm build` أولًا.')
-  process.exit(1)
-}
-if (!chromePath) {
-  console.error('لم يُعثر على Chrome. مرّر المسار عبر CHROME_PATH.')
-  process.exit(1)
-}
-
-// خادم العيّنات يُضمَن بعد الخروجَين المبكرَين لا قبلهما — وإلا بقي
-// مولودًا يتيمًا حين يخرج الفحص لغياب `dist/` أو Chrome.
-const fixtures = await ensureFixturesServer({ port: FIXTURES_PORT })
-
-const profile = mkdtempSync(join(tmpdir(), 'rasd-popup-'))
-const proc = spawn(
-  chromePath,
-  [
-    '--headless=new',
-    `--remote-debugging-port=${PORT}`,
-    `--user-data-dir=${profile}`,
-    '--enable-unsafe-extension-debugging',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-gpu',
-    'about:blank',
-  ],
-  { stdio: ['ignore', 'pipe', 'pipe'] },
-)
-proc.stderr.on('data', () => undefined)
-
-const errors = []
-const lines = []
-const ok = (m) => lines.push(`  ✓ ${m}`)
-const fail = (m) => {
-  errors.push(m)
-  lines.push(`  ✗ ${m}`)
-}
-
-function finish(code) {
-  fixtures.stop()
-  try {
-    proc.kill('SIGKILL')
-  } catch {
-    /* أُغلق أصلًا */
-  }
-  try {
-    rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
-  } catch {
-    /* Chrome ما يزال يكتب — لا نُفشل الفحص بسبب التنظيف */
-  }
-  console.log('\nفحص نافذة الإضافة في Chrome:')
-  console.log(lines.join('\n'))
-  if (code !== 0 || errors.length > 0) {
-    console.error(`\n✗ فشل الفحص — ${errors.length || 1} مشكلة.\n`)
-    process.exit(1)
-  }
-  console.log('\n✓ الاختصارات الأربعة مسجَّلة فعلًا عند Chrome، وزمن أول عرض ضمن الميزانية.\n')
-  process.exit(0)
-}
-
-const guard = setTimeout(() => {
-  fail(`تجاوز الفحص الحدّ الأقصى ${HARD_TIMEOUT_MS / 1000} ثانية`)
-  finish(1)
-}, HARD_TIMEOUT_MS)
-guard.unref?.()
-
-// ── الاتصال ببروتوكول DevTools ────────────────────────────────────
-let wsUrl = null
-// **ميزانية انتظار DevTools — ستّون ثانية لا عشر.** قِيس: كروم يُقلع على
-// عدّاء بنواتين تحت ضغط فلا يفتح منفذ التنقيح خلال 10s، فيخرج الحارس
-// «تعذّر الاتصال بـDevTools» — وهو إخفاق بيئة لا حكمٌ على المنتَج. والسقف
-// الحقيقي مهلةُ الخطوة (6 دقائق)، فانتظارٌ أطول يميّز «بطيء» من «ميّت».
-for (let i = 0; i < 240 && !wsUrl; i++) {
-  try {
-    const res = await fetch(`http://127.0.0.1:${PORT}/json/version`)
-    if (res.ok) wsUrl = (await res.json()).webSocketDebuggerUrl
-  } catch {
-    /* المتصفح لم يجهز بعد */
-  }
-  if (!wsUrl) await new Promise((r) => setTimeout(r, 250))
-}
-if (!wsUrl) {
-  fail('تعذّر الاتصال ببروتوكول DevTools')
-  finish(1)
-}
-
-const sock = new WebSocket(wsUrl)
-await new Promise((resolve, reject) => {
-  sock.addEventListener('open', resolve, { once: true })
-  sock.addEventListener('error', reject, { once: true })
-})
-
-let nextId = 1
-const send = (method, params = {}, sessionId) =>
-  new Promise((resolve, reject) => {
-    const id = nextId++
-    const onMsg = (ev) => {
-      const msg = JSON.parse(ev.data)
-      if (msg.id !== id) return
-      sock.removeEventListener('message', onMsg)
-      msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result)
-    }
-    sock.addEventListener('message', onMsg)
-    sock.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }))
-  })
-
-const evaluatorFor = (sessionId) => async (expression) => {
-  const res = await send(
-    'Runtime.evaluate',
-    { expression, awaitPromise: true, returnByValue: true },
-    sessionId,
-  )
-  if (res.exceptionDetails) {
-    const d = res.exceptionDetails
-    const detail = d.exception?.description ?? d.exception?.value ?? d.text ?? JSON.stringify(d)
-    throw new Error(String(detail).split('\n')[0])
-  }
-  return res.result.value
-}
-
+/** يبحث عن الهدف ويتّصل به في المحاولة نفسها — يعيد مُقيِّمه ومعرّفه. */
 async function findAndAttach(predicate, tries = 40, intervalMs = 150) {
-  for (let i = 0; i < tries; i++) {
-    const { targetInfos } = await send('Target.getTargets')
-    const found = targetInfos.find(predicate)
-    if (found) {
-      try {
-        const { sessionId } = await send('Target.attachToTarget', {
-          targetId: found.targetId,
-          flatten: true,
-        })
-        await send('Runtime.enable', {}, sessionId)
-        return { evaluate: evaluatorFor(sessionId), targetId: found.targetId }
-      } catch {
-        /* الهدف اختفى بين الاكتشاف والاتصال — نعيد الكرّة */
-      }
-    }
-    await new Promise((r) => setTimeout(r, intervalMs))
-  }
-  return null
+  const found = await findTarget(g.send, predicate, { tries, intervalMs })
+  return found ? { evaluate: g.evaluate(found.sessionId), targetId: found.target.targetId } : null
 }
 
 // ── تحميل الحزمة ──────────────────────────────────────────────────
-let extensionId = null
-try {
-  extensionId = (await send('Extensions.loadUnpacked', { path: dist })).id
-  ok(`الحزمة محمَّلة — ${extensionId}`)
-} catch (e) {
-  fail(`Chrome رفض الحزمة: ${e.message}`)
-  finish(1)
-}
-const ownOrigin = `chrome-extension://${extensionId}/`
+// رفض Chrome للحزمة سجّلته النواة: «Chrome رفض الحزمة: …».
+if (!g.extId) await g.abort()
+ok(`الحزمة محمَّلة — ${g.extId}`)
+const ownOrigin = `chrome-extension://${g.extId}/`
 
-const sw = await findAndAttach(
-  (t) => t.type === 'service_worker' && String(t.url).startsWith(ownOrigin),
-)
-if (!sw) {
-  fail('لم يستيقظ الـservice worker')
-  finish(1)
-}
+if (!g.sw) await g.abort('لم يستيقظ الـservice worker')
+const sw = g.sw
 ok('الـservice worker يعمل')
 
 // الارتباط ليس جهوزًا — انظر ترويسة `live-sw.mjs`.
-await waitForExtensionContext((e) => sw.evaluate(e))
+await waitForExtensionContext(sw.evaluate)
 
 // ── 1) الاختصارات الأربعة مسجَّلة فعلًا عند Chrome ─────────────────
 try {
@@ -483,5 +334,6 @@ if (!sender) {
   await sw.evaluate(`chrome.tabs.remove([${senderTab.id}])`)
 }
 
-sock.close()
-finish(0)
+await g.finish({
+  success: '✓ الاختصارات الأربعة مسجَّلة فعلًا عند Chrome، وزمن أول عرض ضمن الميزانية.',
+})

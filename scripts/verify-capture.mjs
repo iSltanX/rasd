@@ -24,51 +24,22 @@
  * بإيماءة. والفحص يقرأ بيان `dist/` **الأصلي** ويثبت أنه بلا صلاحية مضيف —
  * فلا يُخفي التصريحُ ما جاء ليثبته.
  *
+ * الإقلاع والاتصال والتحميل والارتباط والمهلة الصلبة والتنظيف في النواة المشتركة
+ * (`scripts/lib/cdp.mjs`، `STAGES/17`)؛ وأحكام هذا الملفّ هنا كما كانت.
+ *
  * يُشغَّل في CI وفي جهاز التطوير بالأمر نفسه — خادم العيّنات يُضمَن لا يُشترَط:
  *   pnpm verify:capture
  */
-import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath, URL } from 'node:url'
 
-import { ensureFixturesServer } from './lib/live-fixtures.mjs'
-import { waitForExtensionContext } from './lib/live-sw.mjs'
+import { DIST as dist, findAndAttach, startGuard, waitForExtensionContext } from './lib/cdp.mjs'
 
-const root = fileURLToPath(new URL('..', import.meta.url))
-const dist = join(root, 'dist')
 const PORT = 9366
 const HARD_TIMEOUT_MS = 120_000
 
-const FIXTURES_PORT = Number(process.env.RASD_FIXTURES_PORT ?? 5399)
-const PAGE_URL = `http://127.0.0.1:${FIXTURES_PORT}/rtl-ar/`
-
-const CANDIDATES = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-]
-const chromePath = process.env.CHROME_PATH ?? CANDIDATES.find((p) => existsSync(p))
-
-if (!existsSync(dist)) {
-  console.error('dist/ غير موجود — شغّل `pnpm build` أولًا.')
-  process.exit(1)
-}
-if (!chromePath) {
-  console.error('لم يُعثر على Chrome. مرّر المسار عبر CHROME_PATH.')
-  process.exit(1)
-}
-
-// خادم العيّنات يُضمَن هنا ولا يُشترَط مُشغَّلًا سلفًا: اشتراطُه كان يعني
-// **صفرًا في كل جولات CI** — لا خطوة تشغّله هناك، فيخرج الحارس 1 قبل أن
-// يفحص شيئًا. انظر ترويسة `live-fixtures.mjs`.
-const fixtures = await ensureFixturesServer({ port: FIXTURES_PORT })
-
 /*
- * نسخة الفحص: `dist/` كما هي + `<all_urls>` في `host_permissions`.
+ * نسخة الفحص: `dist/` كما هي + `<all_urls>` في `host_permissions` (تصنعها النواة).
  *
  * **ولماذا `<all_urls>` تحديدًا لا نمطًا ضيّقًا؟** لأن `captureVisibleTab`
  * يطلبها بالاسم: نمط `http://127.0.0.1/*` جُرِّب أوّلًا فردّ Chrome حرفيًا
@@ -80,167 +51,37 @@ const fixtures = await ensureFixturesServer({ port: FIXTURES_PORT })
  * بياناتك». `<all_urls>` هنا محصورة في نسخة مؤقّتة تُحذَف بعد الفحص،
  * والحزمة المشحونة تبقى بلا أي صلاحية مضيف — يُتحقَّق منها أعلاه من الملفّ.
  */
-const stage = mkdtempSync(join(tmpdir(), 'rasd-capture-ext-'))
-cpSync(dist, stage, { recursive: true })
-const stagedManifest = join(stage, 'manifest.json')
-const staged = JSON.parse(readFileSync(stagedManifest, 'utf8'))
-staged.host_permissions = ['<all_urls>']
-writeFileSync(stagedManifest, JSON.stringify(staged, null, 2))
-
-const profile = mkdtempSync(join(tmpdir(), 'rasd-capture-'))
-const proc = spawn(
-  chromePath,
-  [
-    '--headless=new',
-    `--remote-debugging-port=${PORT}`,
-    `--user-data-dir=${profile}`,
-    '--enable-unsafe-extension-debugging',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-gpu',
-    '--window-size=1280,720',
-    'about:blank',
-  ],
-  { stdio: ['ignore', 'pipe', 'pipe'] },
-)
-proc.stderr.on('data', () => undefined)
-
-const errors = []
-const lines = []
-const ok = (m) => lines.push(`  ✓ ${m}`)
-const fail = (m) => {
-  errors.push(m)
-  lines.push(`  ✗ ${m}`)
-}
-const note = (m) => lines.push(`  · ${m}`)
-
-function finish(code) {
-  fixtures.stop()
-  try {
-    proc.kill('SIGKILL')
-  } catch {
-    /* أُغلق أصلًا */
-  }
-  for (const dir of [profile, stage]) {
-    try {
-      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
-    } catch {
-      /* Chrome ما يزال يكتب */
-    }
-  }
-  console.log('\nفحص محرّك الالتقاط في Chrome:')
-  console.log(lines.join('\n'))
-  if (code !== 0 || errors.length > 0) {
-    console.error(`\n✗ فشل الفحص — ${errors.length || 1} مشكلة.\n`)
-    process.exit(1)
-  }
-  console.log('\n✓ الالتقاط والقصّ والحفظ تعمل بـactiveTab وحدها.\n')
-  process.exit(0)
-}
-
-const guard = setTimeout(() => {
-  fail(`تجاوز الفحص الحدّ الأقصى ${HARD_TIMEOUT_MS / 1000} ثانية`)
-  finish(1)
-}, HARD_TIMEOUT_MS)
-guard.unref?.()
-
-// ── الاتصال ببروتوكول DevTools ────────────────────────────────────
-let wsUrl = null
-// **ميزانية انتظار DevTools — ستّون ثانية لا عشر.** قِيس: كروم يُقلع على
-// عدّاء بنواتين تحت ضغط فلا يفتح منفذ التنقيح خلال 10s، فيخرج الحارس
-// «تعذّر الاتصال بـDevTools» — وهو إخفاق بيئة لا حكمٌ على المنتَج. والسقف
-// الحقيقي مهلةُ الخطوة (6 دقائق)، فانتظارٌ أطول يميّز «بطيء» من «ميّت».
-for (let i = 0; i < 240 && !wsUrl; i++) {
-  try {
-    const res = await fetch(`http://127.0.0.1:${PORT}/json/version`)
-    if (res.ok) wsUrl = (await res.json()).webSocketDebuggerUrl
-  } catch {
-    /* لم يجهز */
-  }
-  if (!wsUrl) await new Promise((r) => setTimeout(r, 250))
-}
-if (!wsUrl) {
-  fail('تعذّر الاتصال ببروتوكول DevTools')
-  finish(1)
-}
-
-const sock = new WebSocket(wsUrl)
-await new Promise((resolve, reject) => {
-  sock.addEventListener('open', resolve, { once: true })
-  sock.addEventListener('error', reject, { once: true })
+// خادم العيّنات تضمنه النواة ولا يُشترَط مُشغَّلًا سلفًا — انظر ترويسة `live-fixtures.mjs`.
+const g = await startGuard({
+  prefix: 'capture',
+  port: PORT,
+  title: 'فحص محرّك الالتقاط في Chrome:',
+  fixtures: true,
+  stage: { hostPermissions: ['<all_urls>'] },
+  serviceWorker: true,
+  args: ['--window-size=1280,720'],
+  hardTimeoutMs: HARD_TIMEOUT_MS,
 })
+const { ok, fail, note } = g
+const PAGE_URL = `${g.base}/rtl-ar/`
 
-let nextId = 1
-const send = (method, params = {}, sessionId) =>
-  new Promise((resolve, reject) => {
-    const id = nextId++
-    const onMsg = (ev) => {
-      const msg = JSON.parse(ev.data)
-      if (msg.id !== id) return
-      sock.removeEventListener('message', onMsg)
-      msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result)
-    }
-    sock.addEventListener('message', onMsg)
-    sock.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }))
-  })
-
-const evaluatorFor = (sessionId) => async (expression) => {
-  const res = await send(
-    'Runtime.evaluate',
-    { expression, awaitPromise: true, returnByValue: true },
-    sessionId,
-  )
-  if (res.exceptionDetails) {
-    const d = res.exceptionDetails
-    const detail = d.exception?.description ?? d.exception?.value ?? d.text ?? JSON.stringify(d)
-    throw new Error(String(detail).split('\n')[0])
-  }
-  return res.result.value
-}
-
-async function findAndAttach(predicate, tries = 60, intervalMs = 200) {
-  for (let i = 0; i < tries; i++) {
-    const { targetInfos } = await send('Target.getTargets')
-    const found = targetInfos.find(predicate)
-    if (found) {
-      try {
-        const { sessionId } = await send('Target.attachToTarget', {
-          targetId: found.targetId,
-          flatten: true,
-        })
-        await send('Runtime.enable', {}, sessionId)
-        return evaluatorFor(sessionId)
-      } catch {
-        /* اختفى بين الاكتشاف والاتصال */
-      }
-    }
-    await new Promise((r) => setTimeout(r, intervalMs))
-  }
-  return null
+const attach = async (predicate) => {
+  const found = await findAndAttach(g.send, predicate)
+  return found ? g.evaluate(found.sessionId) : null
 }
 
 // ── تحميل الحزمة ──────────────────────────────────────────────────
-let extensionId = null
-try {
-  extensionId = (await send('Extensions.loadUnpacked', { path: stage })).id
-  ok(`الحزمة محمَّلة — ${extensionId}`)
-} catch (e) {
-  fail(`Chrome رفض الحزمة: ${e.message}`)
-  finish(1)
-}
-const ownOrigin = `chrome-extension://${extensionId}/`
+// رفض Chrome للحزمة سجّلته النواة: «Chrome رفض الحزمة: …».
+if (!g.extId) await g.abort()
+ok(`الحزمة محمَّلة — ${g.extId}`)
+const ownOrigin = `chrome-extension://${g.extId}/`
 
-const sw = await findAndAttach(
-  (t) => t.type === 'service_worker' && String(t.url).startsWith(ownOrigin),
-)
-if (!sw) {
-  fail('لم يستيقظ الـservice worker')
-  finish(1)
-}
+if (!g.sw) await g.abort('لم يستيقظ الـservice worker')
+const sw = g.sw.evaluate
 ok('الـservice worker يعمل')
 
 // الارتباط ليس جهوزًا — انظر ترويسة `live-sw.mjs`.
-await waitForExtensionContext((e) => sw.evaluate(e))
+await waitForExtensionContext(sw)
 
 // ── الحزمة المشحونة بلا صلاحية مضيف ───────────────────────────────
 // تُقرأ من `dist/` الأصلي لا من نسخة الفحص المُرقَّعة: التصريح لا يجوز أن
@@ -295,7 +136,7 @@ try {
   )
   ok('الطبقة محقونة عبر chrome.scripting — نفس النداء الذي تستعمله activateTool')
 
-  const page = await findAndAttach((t) => t.type === 'page' && String(t.url).startsWith(PAGE_URL))
+  const page = await attach((t) => t.type === 'page' && String(t.url).startsWith(PAGE_URL))
   if (!page) throw new Error('لم يُعثر على صفحة الهدف')
 
   const dpr = await page('window.devicePixelRatio')
@@ -315,7 +156,7 @@ try {
   await sw(
     `chrome.tabs.create({ url: chrome.runtime.getURL('src/pages/library/index.html'), windowId: ${tab.windowId}, active: false })`,
   )
-  const extPage = await findAndAttach(
+  const extPage = await attach(
     (t) => t.type === 'page' && String(t.url).startsWith(ownOrigin + 'src/pages/library/'),
   )
   if (!extPage) throw new Error('لم تُفتح صفحة الإضافة')
@@ -397,7 +238,7 @@ try {
 
 // ── 4) مُنظِّم الإيقاع تحت ضغط حقيقي ──────────────────────────────
 try {
-  const extPage = await findAndAttach(
+  const extPage = await attach(
     (t) => t.type === 'page' && String(t.url).startsWith(ownOrigin + 'src/pages/library/'),
   )
   if (!extPage) throw new Error('لم يُعثر على صفحة الإضافة')
@@ -429,6 +270,4 @@ try {
 } catch (e) {
   fail(`فحص مُنظِّم الإيقاع فشل: ${e.message}`)
 }
-
-sock.close()
-finish(0)
+await g.finish({ success: '✓ الالتقاط والقصّ والحفظ تعمل بـactiveTab وحدها.' })

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة التمرير اللانهائي</title>
+    <!--
+      المصفوفة #4 (`infinite/`): تمرير لانهائي — تُلحَق دفعة من 10 عناصر كلما تقاطع عنصر الحارس
+      (`IntersectionObserver`)، وتتوقّف عند 20 دفعة (200 عنصر) ليُنتهى. يختبر أن الالتقاط الكامل
+      يضع سقفًا ويُبلغ به بدل المطاردة بلا نهاية. لا شبكة؛ الإلحاق متزامن داخل رجع المراقب.
+      المسارات البرمجية: `window.__batches()` عدد الدفعات الملحقة · `window.__items()` عدد العناصر ·
+      `window.__infiniteDone()` هل بلغت السقف.
+    -->
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      .item {
+        block-size: 120px;
+        margin-block-end: 12px;
+        padding: 12px;
+        background: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+      }
+      #sentinel {
+        block-size: 40px;
+        text-align: center;
+        color: #64748b;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="feed"></main>
+    <div id="sentinel">جارٍ التحميل…</div>
+    <script>
+      const PER_BATCH = 10
+      const MAX_BATCHES = 20
+      const feed = document.getElementById('feed')
+      const sentinel = document.getElementById('sentinel')
+      let batches = 0
+      function appendBatch() {
+        for (let i = 0; i < PER_BATCH; i++) {
+          const n = batches * PER_BATCH + i + 1
+          const el = document.createElement('article')
+          el.className = 'item'
+          el.dataset.testid = `item-${n}`
+          el.innerHTML = `<h3>عنصر ${n}</h3><p>محتوى ثابت للعنصر رقم ${n}.</p>`
+          feed.append(el)
+        }
+        batches++
+        if (batches >= MAX_BATCHES) {
+          io.disconnect()
+          sentinel.textContent = 'انتهى المحتوى'
+        }
+      }
+      const io = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting) && batches < MAX_BATCHES) appendBatch()
+      })
+      appendBatch()
+      io.observe(sentinel)
+      window.__batches = () => batches
+      window.__items = () => feed.children.length
+      window.__infiniteDone = () => batches >= MAX_BATCHES
+    </script>
+  </body>
+</html>

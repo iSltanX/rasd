@@ -57,11 +57,19 @@
  * حدثُها خارجه **ولم تُصدر فيها وظيفة حارس حكمًا** تُستبعَد؛ ودفعٌ قديم جرت فيه الحرّاس
  * يُعدّ كما كان. والجولة اليدوية التي سقط بناؤها فتخطّت حرّاسها تبقى ثغرةً كما في
  * القرار 3: طُلبت الأدلّة ولم تُجمَع.
+ *
+ * **7. بصمة الحارس ملفّه وما يستورده من `scripts/`.** منذ النواة المشتركة (`STAGES/17`، ADR 0042)
+ * لا يحمل ملفّ الحارس إلا أحكامه، والإقلاع والاتصال والتحميل والارتباط في `scripts/lib/`. فبصمة
+ * الملفّ وحده كانت ستجعل النواة بابًا يغيّر الحرّاس كلّهم بلا أن تنكسر سلسلة واحدة — عين ما بُني
+ * القرار 2 لمنعه. فتُتبَع الواردات النسبية تعدّيًا ما دامت تحت `scripts/` (‏`guardDeps`)، والبصمة
+ * بصمةُ الملفّ وحده إن لم يستورد شيئًا — فيبقى كل سجلٍّ قديم صادقًا — وإلّا `sha1` لأزواج «مسار
+ * بصمة» مرتّبة (‏`fingerprintOf`). وشيفرة المنتَج التي يستوردها حارس (‏`src/`) خارجها: الحارس يحكم
+ * عليها، وتغيّرها لا يغيّره.
  */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, posix } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -160,7 +168,55 @@ export function blobId(path) {
   return createHash('sha1').update(`blob ${body.length}\0`).update(body).digest('hex')
 }
 
-const guardScript = (guard) => join(root, 'scripts', `verify-${guard}.mjs`)
+/**
+ * الواردات النسبية في ملفّ — `import … from './x'` و`export … from './x'` و`import './x'` — ومعها
+ * سكربتٌ يُشغَّل بمساره النسبي (`new URL('../fixtures-serve.mjs', import.meta.url)`): خادم العيّنات
+ * لا يُستورَد بل يُطلَق، وهو من البيئة التي يقيس فيها الحارس.
+ */
+const RELATIVE_IMPORT =
+  /^\s*(?:import|export)\b[^'"`;]*?\bfrom\s*['"](\.{1,2}\/[^'"]+)['"]|^\s*import\s*['"](\.{1,2}\/[^'"]+)['"]|new URL\(\s*['"](\.{1,2}\/[^'"]+\.m?js)['"]\s*,\s*import\.meta\.url/gmu
+
+/**
+ * ملفّ الحارس وكل ما يبلغه باستيرادٍ نسبي **تحت `scripts/`** — مسارات من جذر المستودع، مرتّبة.
+ * `read(path)` يعيد نصّ الملفّ أو `null` — من القرص في الفحص، ومن التزامٍ بعينه في الالتقاط.
+ */
+export function guardDeps(entry, read) {
+  const seen = new Set()
+  const queue = [entry]
+  while (queue.length > 0) {
+    const file = queue.pop()
+    if (seen.has(file)) continue
+    const text = read(file)
+    if (text === null) continue
+    seen.add(file)
+    for (const m of text.matchAll(RELATIVE_IMPORT)) {
+      const dep = posix.normalize(posix.join(posix.dirname(file), m[1] ?? m[2] ?? m[3]))
+      if (dep.startsWith('scripts/')) queue.push(dep)
+    }
+  }
+  return [...seen].sort()
+}
+
+/**
+ * بصمة الحارس من بصمات ملفّاته. ملفٌّ واحد ⇐ بصمته هو، فالسجلّات السابقة للقرار 7 تبقى مقروءة.
+ * `blobs` أزواج `[مسار, بصمة]`؛ وبصمةٌ غائبة تجعل البصمة كلّها غائبة — لا يُحكَم بنصف دليل.
+ */
+export function fingerprintOf(blobs) {
+  if (blobs.length === 0 || blobs.some(([, blob]) => !blob)) return null
+  if (blobs.length === 1) return blobs[0][1]
+  const lines = blobs.map(([path, blob]) => `${path} ${blob}\n`).join('')
+  return createHash('sha1').update(lines).digest('hex')
+}
+
+const guardEntry = (guard) => `scripts/verify-${guard}.mjs`
+
+/** بصمة الحارس اليوم، من القرص بلا `git`. */
+function guardFingerprint(guard) {
+  const read = (rel) => (existsSync(join(root, rel)) ? readFileSync(join(root, rel), 'utf8') : null)
+  return fingerprintOf(
+    guardDeps(guardEntry(guard), read).map((rel) => [rel, blobId(join(root, rel))]),
+  )
+}
 
 // ── الحساب ───────────────────────────────────────────────────────
 
@@ -183,17 +239,47 @@ export function streakOf(entry, currentBlob) {
 const gh = (args) =>
   execFileSync('gh', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
 
-/** بصمة ملفّ الحارس عند التزامٍ بعينه — تحتاج `git` وتاريخًا، والالتقاط يملكهما. */
-function blobAt(sha, guard) {
-  try {
-    return execFileSync('git', ['rev-parse', `${sha}:scripts/verify-${guard}.mjs`], {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-  } catch {
-    return null // التزامٌ غير موجود محليًّا، أو ملفّ لم يكن قد وُلد بعد
+/** ذاكرة لكل `git` — عشرون حارسًا يتشاركون النواة، فتُقرأ مرّة لكل التزام لا عشرين. */
+const gitCache = new Map()
+const git = (args) => {
+  const key = args.join('\0')
+  if (!gitCache.has(key)) {
+    try {
+      gitCache.set(
+        key,
+        execFileSync('git', args, {
+          cwd: root,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          maxBuffer: 16 * 1024 * 1024,
+        }),
+      )
+    } catch {
+      gitCache.set(key, null)
+    }
   }
+  const out = gitCache.get(key)
+  if (out === null) throw new Error(`git ${args.join(' ')}`)
+  return out
+}
+
+/** بصمة الحارس عند التزامٍ بعينه (القرار 7) — تحتاج `git` وتاريخًا، والالتقاط يملكهما. */
+function fingerprintAt(sha, guard) {
+  const read = (rel) => {
+    try {
+      return git(['show', `${sha}:${rel}`])
+    } catch {
+      return null // التزامٌ غير موجود محليًّا، أو ملفّ لم يكن قد وُلد بعد
+    }
+  }
+  const blobAt = (rel) => {
+    try {
+      return git(['rev-parse', `${sha}:${rel}`]).trim()
+    } catch {
+      return null
+    }
+  }
+  return fingerprintOf(guardDeps(guardEntry(guard), read).map((rel) => [rel, blobAt(rel)]))
 }
 
 async function capture() {
@@ -264,13 +350,13 @@ async function capture() {
     for (const { guard } of matrix) {
       const c = byGuard.get(guard)
       guards[guard].results.push(classify(c))
-      guards[guard].scripts.push(blobAt(run.headSha, guard))
+      guards[guard].scripts.push(fingerprintAt(run.headSha, guard))
     }
   }
 
   for (const { guard } of matrix) {
     const entry = guards[guard]
-    entry.streak = streakOf(entry, blobId(guardScript(guard)))
+    entry.streak = streakOf(entry, guardFingerprint(guard))
     entry.eligible = entry.streak >= PROMOTION_STREAK
   }
 
@@ -342,7 +428,7 @@ function check() {
     if (!entry) continue
     // السلسلة تُعاد حسابها ولا يُوثَق بالحقل المودَع: قيمةٌ محسوبة مودَعة بلا
     // إعادة حساب هي ختمُ أمانٍ زائف.
-    const streak = streakOf(entry, blobId(guardScript(guard)))
+    const streak = streakOf(entry, guardFingerprint(guard))
     if (streak !== entry.streak) {
       problems.push(`سلسلة «${guard}» في السجلّ ${entry.streak} والمحسوبة ${streak} — أعد الالتقاط`)
     }

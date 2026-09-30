@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة ورقة أنماط من أصل آخر</title>
+    <!--
+      المصفوفة #16 (`cross-origin-css/`): ورقة أنماط تُحمَّل من الأصل الثاني (المنفذ + 1 على الخادم نفسه)
+      بإدراج `<link>` من JS، إضافةً إلى ورقة مضمَّنة من الأصل نفسه. الطلب الوحيد خارج الأصل هو إلى
+      الأصل المحلّي الثاني. يختبر أن `cssRules` غير مقروءة للورقة الخارجية (SecurityError) فلا ينهار
+      الفاحص ولا يفترض قراءتها.
+      المسارات البرمجية: `window.__sheetAccess()` يرجع لكل ورقة `{ href, readable }` ·
+      `window.__sheetLoaded` وعدٌ يُحلّ عند تحميل الورقة الخارجية (أو فشلها).
+      `#remote-styled` يتلوّن بالورقة الخارجية (برتقالي #ea580c)، و`#local-styled` بالمضمَّنة (بنفسجي).
+    -->
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+        background: #fff;
+        color: #0f172a;
+      }
+      .box {
+        padding: 16px;
+        margin-block-end: 16px;
+        border: 1px solid #cbd5e1;
+      }
+      #local-styled {
+        background: #7c3aed;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="local-styled" class="box">مُنسَّق بورقة من الأصل نفسه</div>
+    <div id="remote-styled" class="box">مُنسَّق بورقة من أصل آخر</div>
+    <script>
+      const ALT = `http://127.0.0.1:${Number(location.port) + 1}`
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = `${ALT}/cross-origin-css/remote.css`
+      window.__sheetLoaded = new Promise((resolve) => {
+        link.addEventListener('load', () => resolve(true))
+        link.addEventListener('error', () => resolve(false))
+      })
+      document.head.append(link)
+      window.__sheetAccess = () =>
+        [...document.styleSheets].map((s) => {
+          let readable
+          try {
+            readable = s.cssRules.length >= 0
+          } catch {
+            readable = false
+          }
+          return { href: s.href, readable }
+        })
+    </script>
+  </body>
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة Shadow DOM</title>
+    <!--
+      المصفوفة #17 (`shadow-dom/`): جذر ظلّ مفتوح (#open-host) وجذر مغلق (#closed-host، مرجعه داخل
+      closure وحده) وجذر مفتوح داخل مفتوح (#outer-host ← #inner-host) وعنصر مُدرَج بـ`<slot>`
+      (#slot-host مع #slotted). لا شبكة ولا مؤقّتات.
+      المسارات البرمجية: `window.__closedHostText()` يقرأ نصّ الجذر المغلق عبر الـclosure ·
+      `window.__shadowInfo()` يرجع `{ openMode, closedRootVisible, nestedText, slotAssigned }`
+      حيث `closedRootVisible` هو `closed-host.shadowRoot !== null` (يُتوقَّع false).
+    -->
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      .host {
+        display: block;
+        margin-block-end: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="open-host" class="host"></div>
+    <div id="closed-host" class="host"></div>
+    <div id="outer-host" class="host"></div>
+    <div id="slot-host" class="host">
+      <span id="slotted" slot="body">نصّ مُدرَج في الفتحة</span>
+    </div>
+    <script>
+      const sheet = (bg) =>
+        `<style>.box{padding:12px;border:1px solid #94a3b8;background:${bg};border-radius:8px}</style>`
+
+      // 1) مفتوح
+      const openRoot = document.getElementById('open-host').attachShadow({ mode: 'open' })
+      openRoot.innerHTML = `${sheet('#dbeafe')}<div class="box" id="open-text">داخل جذر ظلّ مفتوح</div>`
+
+      // 2) مغلق — المرجع يبقى في closure فلا يصل إليه `host.shadowRoot`
+      const readClosed = (() => {
+        const closed = document.getElementById('closed-host').attachShadow({ mode: 'closed' })
+        closed.innerHTML = `${sheet('#fee2e2')}<div class="box" id="closed-text">داخل جذر ظلّ مغلق</div>`
+        return () => closed.getElementById('closed-text').textContent
+      })()
+
+      // 3) مفتوح داخل مفتوح
+      const outer = document.getElementById('outer-host').attachShadow({ mode: 'open' })
+      outer.innerHTML = `${sheet('#dcfce7')}<div class="box">الخارجي<div id="inner-host"></div></div>`
+      const inner = outer.getElementById('inner-host').attachShadow({ mode: 'open' })
+      inner.innerHTML = `${sheet('#fef9c3')}<div class="box" id="inner-text">الداخلي المتداخل</div>`
+
+      // 4) فتحة
+      const slotRoot = document.getElementById('slot-host').attachShadow({ mode: 'open' })
+      slotRoot.innerHTML = `${sheet('#f3e8ff')}<div class="box"><slot name="body">بديل</slot></div>`
+
+      window.__closedHostText = readClosed
+      window.__shadowInfo = () => ({
+        openMode: document.getElementById('open-host').shadowRoot?.mode ?? null,
+        closedRootVisible: document.getElementById('closed-host').shadowRoot !== null,
+        nestedText: inner.getElementById('inner-text').textContent,
+        slotAssigned: slotRoot.querySelector('slot').assignedNodes().length,
+      })
+    </script>
+  </body>
+</html>

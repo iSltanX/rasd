@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>إطار العيّنة</title>
+    <!-- محتوى الإطار للعيّنة #18 (`iframes/`): يُخدَّم من الأصل نفسه أو من الأصل الثاني. لا شبكة. -->
+    <style>
+      body {
+        margin: 0;
+        padding: 12px;
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+        background: #fef3c7;
+        color: #0f172a;
+      }
+    </style>
+  </head>
+  <body>
+    <p id="frame-text">محتوى الإطار</p>
+    <p id="frame-origin"></p>
+    <script>
+      document.getElementById('frame-origin').textContent = location.origin
+    </script>
+  </body>
+</html>

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة CSS المعقّد</title>
+    <!--
+      المصفوفة #14 (`complex-css/`): ستّ ميزات CSS في صناديق موسومة بمعرّفات ثابتة — `transform`
+      (#box-transform) و`filter` (#box-filter) و`mix-blend-mode` (#box-blend) و`clip-path` (#box-clip)
+      وContainer Query (#box-container) و`@layer` (#box-layer). لا شبكة ولا مؤقّتات.
+      المسار البرمجي: `window.__computed()` يرجع القيم المحسوبة لكل صندوق، ومنها
+      `container` = لون خلفية `#cq-child` بعد تطبيق `@container` (أخضر عند العرض ≥ 300px)،
+      و`layer` = لون `#box-layer` (أزرق لأن الطبقة المتأخّرة تفوز رغم خصوصية أقلّ).
+    -->
+    <style>
+      @layer base, theme;
+      @layer theme {
+        #box-layer {
+          background: #2563eb;
+          color: #fff;
+        }
+      }
+      @layer base {
+        div#box-layer.lay {
+          background: #dc2626;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 240px);
+        gap: 24px;
+      }
+      .cell {
+        padding: 12px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+      }
+      .cell > h2 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+      .demo {
+        block-size: 100px;
+        padding: 8px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: #7c3aed;
+      }
+      #box-transform .demo {
+        transform: rotate(8deg) scale(0.9) skewX(6deg);
+      }
+      #box-filter .demo {
+        filter: blur(1.5px) saturate(1.6) drop-shadow(4px 4px 0 #0f172a);
+      }
+      #box-blend .demo {
+        background: linear-gradient(90deg, #f43f5e, #3b82f6);
+        mix-blend-mode: multiply;
+      }
+      #box-blend .under {
+        position: absolute;
+        inset: 30px 12px auto;
+        block-size: 50px;
+        background: #facc15;
+      }
+      #box-blend .wrap {
+        position: relative;
+      }
+      #box-clip .demo {
+        clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+      }
+      #box-container .cq {
+        container-type: inline-size;
+        inline-size: 100%;
+      }
+      #cq-child {
+        block-size: 100px;
+        display: grid;
+        place-items: center;
+        background: #dc2626;
+        color: #fff;
+      }
+      @container (min-width: 200px) {
+        #cq-child {
+          background: #16a34a;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grid">
+      <section class="cell" id="box-transform">
+        <h2>transform</h2>
+        <div class="demo">مُحوَّل</div>
+      </section>
+      <section class="cell" id="box-filter">
+        <h2>filter</h2>
+        <div class="demo">مُرشَّح</div>
+      </section>
+      <section class="cell" id="box-blend">
+        <h2>mix-blend-mode</h2>
+        <div class="wrap">
+          <div class="under"></div>
+          <div class="demo">مزج</div>
+        </div>
+      </section>
+      <section class="cell" id="box-clip">
+        <h2>clip-path</h2>
+        <div class="demo">قصّ</div>
+      </section>
+      <section class="cell" id="box-container">
+        <h2>@container</h2>
+        <div class="cq"><div id="cq-child">حاوية</div></div>
+      </section>
+      <section class="cell">
+        <h2>@layer</h2>
+        <div id="box-layer" class="demo lay">طبقات</div>
+      </section>
+    </div>
+    <script>
+      window.__computed = () => {
+        const cs = (sel) => getComputedStyle(document.querySelector(sel))
+        return {
+          transform: cs('#box-transform .demo').transform,
+          filter: cs('#box-filter .demo').filter,
+          blend: cs('#box-blend .demo').mixBlendMode,
+          clip: cs('#box-clip .demo').clipPath,
+          container: cs('#cq-child').backgroundColor,
+          layer: cs('#box-layer').backgroundColor,
+        }
+      }
+    </script>
+  </body>
+</html>

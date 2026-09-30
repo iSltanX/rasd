@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة Canvas كثيف</title>
+    <!--
+      المصفوفة #19 (`canvas-heavy/`): ستّة عناصر `<canvas>` تُرسم بـJS حتميًّا — أشكال (#cv-shapes)
+      وتدرّج خطّي (#cv-linear) وتدرّج شعاعي (#cv-radial) ونصّ عربي بـ`fillText` (#cv-text)
+      وشبكة بكسلات (#cv-grid) وأقواس (#cv-arcs). لا شبكة ولا مؤقّتات ولا عشوائية.
+      المسار البرمجي: `window.__drawn()` عدد اللوحات التي اكتمل رسمها.
+    -->
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+        background: #f1f5f9;
+        color: #0f172a;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      canvas {
+        background: #fff;
+        border: 1px solid #94a3b8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <canvas id="cv-shapes" width="240" height="160"></canvas>
+      <canvas id="cv-linear" width="240" height="160"></canvas>
+      <canvas id="cv-radial" width="240" height="160"></canvas>
+      <canvas id="cv-text" width="240" height="160"></canvas>
+      <canvas id="cv-grid" width="240" height="160"></canvas>
+      <canvas id="cv-arcs" width="240" height="160"></canvas>
+    </div>
+    <script>
+      let drawn = 0
+      const ctx = (id) => document.getElementById(id).getContext('2d')
+      {
+        const c = ctx('cv-shapes')
+        c.fillStyle = '#ef4444'
+        c.fillRect(20, 20, 80, 60)
+        c.fillStyle = '#3b82f6'
+        c.beginPath()
+        c.moveTo(140, 20)
+        c.lineTo(220, 20)
+        c.lineTo(180, 90)
+        c.closePath()
+        c.fill()
+        c.strokeStyle = '#16a34a'
+        c.lineWidth = 4
+        c.strokeRect(30, 100, 180, 40)
+        drawn++
+      }
+      {
+        const c = ctx('cv-linear')
+        const g = c.createLinearGradient(0, 0, 240, 0)
+        g.addColorStop(0, '#f97316')
+        g.addColorStop(1, '#8b5cf6')
+        c.fillStyle = g
+        c.fillRect(0, 0, 240, 160)
+        drawn++
+      }
+      {
+        const c = ctx('cv-radial')
+        const g = c.createRadialGradient(120, 80, 10, 120, 80, 80)
+        g.addColorStop(0, '#fde047')
+        g.addColorStop(1, '#0f172a')
+        c.fillStyle = g
+        c.fillRect(0, 0, 240, 160)
+        drawn++
+      }
+      {
+        const c = ctx('cv-text')
+        c.direction = 'rtl'
+        c.textAlign = 'center'
+        c.fillStyle = '#0f172a'
+        c.font = '28px system-ui, sans-serif'
+        c.fillText('رصد — نصّ مرسوم', 120, 70)
+        c.font = '18px system-ui, sans-serif'
+        c.fillText('١٢٣٤٥٦٧٨٩٠', 120, 110)
+        drawn++
+      }
+      {
+        const c = ctx('cv-grid')
+        for (let y = 0; y < 8; y++)
+          for (let x = 0; x < 12; x++) {
+            c.fillStyle = `rgb(${x * 21},${y * 36},${(x + y) * 12})`
+            c.fillRect(x * 20, y * 20, 20, 20)
+          }
+        drawn++
+      }
+      {
+        const c = ctx('cv-arcs')
+        c.lineWidth = 6
+        ;['#ef4444', '#22c55e', '#3b82f6'].forEach((col, i) => {
+          c.strokeStyle = col
+          c.beginPath()
+          c.arc(120, 80, 20 + i * 18, 0, Math.PI * (1 + i * 0.4))
+          c.stroke()
+        })
+        drawn++
+      }
+      window.__drawn = () => drawn
+    </script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة الصفحة القصيرة</title>
+    <!--
+      المصفوفة #1 (`short/`): صفحة أقصر من النافذة بوضوح — بطاقة واحدة. يُتوقَّع أن يكون الالتقاط الكامل
+      لها لقطةً واحدة بلا تمرير ولا تجميع. لا شبكة ولا مؤقّتات.
+      المسار البرمجي: `window.__docHeight()` يرجع ارتفاع المستند بالبكسل (scrollHeight).
+    -->
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+        background: #f1f5f9;
+        color: #0f172a;
+      }
+      .card {
+        max-inline-size: 420px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+      p {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card" data-testid="card">
+      <h1>صفحة قصيرة</h1>
+      <p>بطاقة واحدة فقط، وارتفاع المستند أقلّ بكثير من ارتفاع النافذة.</p>
+    </main>
+    <script>
+      window.__docHeight = () => document.documentElement.scrollHeight
+    </script>
+  </body>
+</html>

@@ -285,7 +285,7 @@ export function sabotageList(env = process.env) {
  * نسخة الفحص: `dist/` كما هي في مجلّد مؤقّت، ومعها ما يطلبه الحارس في بيانها. الحزمة المشحونة لا
  * تُمسّ — `verify:dist` يحرسها. والتخريب المقصود يقع هنا وحده.
  */
-export function stageExtension({ prefix, hostPermissions, manifest, sabotage = [] }) {
+export function stageExtension({ prefix, hostPermissions, manifest, patch, sabotage = [] }) {
   const path = mkdtempSync(join(tmpdir(), `rasd-${prefix}-ext-`))
   cpSync(DIST, path, { recursive: true })
   if (hostPermissions || manifest) {
@@ -294,6 +294,14 @@ export function stageExtension({ prefix, hostPermissions, manifest, sabotage = [
     if (hostPermissions) m.host_permissions = hostPermissions
     manifest?.(m)
     writeFileSync(file, JSON.stringify(m, null, 2))
+  }
+  // ترقيع الحارس لسالبه المسمّى (`RASD_BREAK_*`) — قبل التحميل، فالعامل لا يعيد قراءة ملفّاته بعد
+  // إقلاعه. ويرمي بصوتٍ عالٍ إن لم يجد نمطه: ترقيعٌ صامت يُنتج حارسًا أخضر لأنه لم يكسر شيئًا.
+  try {
+    patch?.(path)
+  } catch (e) {
+    rmSync(path, { recursive: true, force: true })
+    throw e
   }
   for (const rel of sabotage) {
     const target = join(path, rel)
@@ -342,8 +350,9 @@ export const DEFAULT_HARD_TIMEOUT_MS = 300_000
  * @param {string} o.title               عنوان التقرير.
  * @param {string} [o.requires]          ملفٌّ في `dist/` يُشترط وجوده (`manifest.json` افتراضًا).
  * @param {boolean} [o.fixtures]         يضمن خادم العيّنات.
- * @param {false | { hostPermissions?: string[], manifest?: (m: any) => void }} [o.stage]
- *   نسخة فحص، أو `false` لتحميل `dist/` نفسها (ما لم يُطلب تخريب).
+ * @param {false | { hostPermissions?: string[], manifest?: (m: any) => void, patch?: (path: string) => void }} [o.stage]
+ *   نسخة فحص، أو `false` لتحميل `dist/` نفسها (ما لم يُطلب تخريب). و`patch` يرقّعها قبل التحميل،
+ *   ويرمي برسالةٍ تُطبع ويسقط بها الحارس.
  * @param {string[]} [o.args]            أعلام كروم الخاصّة (مقاس النافذة مثلًا).
  * @param {boolean} [o.serviceWorker]    يرتبط بالعامل الحيّ بعد التحميل.
  * @param {number} [o.hardTimeoutMs]
@@ -358,6 +367,23 @@ export async function startGuard(o) {
   const chrome = findChrome()
   if (!chrome) {
     console.error('لم يُعثر على Chrome. مرّر المسار عبر CHROME_PATH.')
+    process.exit(1)
+  }
+
+  /*
+   * **منفذ التنقيح يجب أن يكون خاليًا قبل الإقلاع.** كروم يتيم من جولة سابقة يبقى يجيب على المنفذ،
+   * فيتّصل الحارس به لا بكرومه ويفحص حزمةً أخرى — ساعة ضاعت في مطاردة هذا العَرَض في `verify:fullpage`
+   * قبل تشخيصه. كان الفحص فيه وحده، وصار هنا لكل حارس.
+   */
+  const busy = await fetch(`http://127.0.0.1:${o.port}/json/version`).then(
+    () => true,
+    () => false,
+  )
+  if (busy) {
+    console.error(
+      `المنفذ ${o.port} مشغول بنسخة Chrome سابقة. أغلقها أوّلًا:\n` +
+        `  pkill -f "remote-debugging-port=${o.port}"`,
+    )
     process.exit(1)
   }
 
@@ -396,11 +422,25 @@ export async function startGuard(o) {
   if (sabotage.length > 0) report.note(`تخريب مقصود لإثبات السالب: ${sabotage.join(' · ')}`)
 
   const fixtures = o.fixtures ? await ensureFixturesServer({ port: FIXTURES_PORT }) : null
-  if (fixtures) cleanups.push(() => fixtures.stop())
+  if (fixtures) {
+    cleanups.push(() => fixtures.stop())
+    // خادمٌ أطلقه الحارس لا يبقى بعده إن رمى استثناءً غير ملتقَط — `stop` متزامنة وتقتل مولودها وحده.
+    process.once('exit', () => fixtures.stop())
+  }
 
   const staged = o.stage !== false || sabotage.length > 0
-  const extPath = staged ? stageExtension({ prefix: o.prefix, ...(o.stage || {}), sabotage }) : DIST
-  if (staged) cleanups.push(() => rmSync(extPath, { recursive: true, force: true }))
+  let extPath = DIST
+  if (staged) {
+    try {
+      extPath = stageExtension({ prefix: o.prefix, ...(o.stage || {}), sabotage })
+    } catch (e) {
+      console.error(e.message)
+      await cleanup()
+      process.exit(1)
+    }
+    const staging = extPath
+    cleanups.push(() => rmSync(staging, { recursive: true, force: true }))
+  }
 
   const chromeRun = launchChrome({ chrome, port: o.port, prefix: o.prefix, args: o.args })
   // كروم لا يبقى يتيمًا على منفذه المشترك مهما خرج الحارس — استثناءٌ غير ملتقَط أو `exit` مبكّر.
@@ -467,9 +507,13 @@ export async function startGuard(o) {
     process.exit(0)
   }
 
-  /** خروجٌ مبكّر حين لا يبقى ما يُفحص: يطبع ما جُمع ويسقط. */
+  /**
+   * خروجٌ مبكّر حين لا يبقى ما يُفحص: يطبع ما جُمع ويسقط **دائمًا** — خروجٌ مبكّر بلا إخفاق مسجَّل
+   * كان سيُقرأ أخضر وهو لم يحكم بشيء.
+   */
   const abort = async (message) => {
     if (message) report.fail(message)
+    else if (report.errors.length === 0) report.fail('توقّف الفحص قبل أحكامه بلا سبب مسجَّل')
     await finish()
   }
 

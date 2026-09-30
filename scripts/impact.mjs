@@ -70,15 +70,15 @@ export const IMPACT = [
   { match: /^\.github\//u, scripts: [] },
   /*
    * الحرّاس أنفسهم. حارسا الحزمة والتوكنز يجريان في البوّابة A نفسها. وحارس كروم عُدّل ملفّه يلزمه
-   * هو — `scripts` هنا دالّة على نتيجة المطابقة. وما تتشاركه الحرّاس — نواتها المقبلة في
-   * `scripts/lib/` (`STAGES/17`)، وسكربتات `live-*`، وخادم العيّنات وعيّناته — لا يُعرف أيّ حارس يمسّ،
-   * فـ`scripts: null` يُعدّه خارج الجدول: الطقم كاملًا.
+   * هو — `scripts` هنا دالّة على نتيجة المطابقة. وما تتشاركه الحرّاس — نواتها في `scripts/lib/`
+   * (`STAGES/17`) ومعها `live-*`، ومقاييس `runtime-budgets.mjs`، وخادم العيّنات وعيّناته — لا يُعرف
+   * أيّ حارس يمسّ، فـ`scripts: null` يُعدّه خارج الجدول: الطقم كاملًا.
    */
   { match: /^scripts\/verify-(dist|tokens)\.mjs$/u, scripts: [] },
   { match: /^scripts\/verify-([a-z-]+)\.mjs$/u, scripts: (m) => [`verify:${m[1]}`] },
   {
     match:
-      /^(scripts\/lib\/|scripts\/live-[\w-]+\.mjs$|scripts\/fixtures-serve\.mjs$|tests\/fixtures\/sites\/)/u,
+      /^(scripts\/lib\/|scripts\/runtime-budgets\.mjs$|scripts\/fixtures-serve\.mjs$|tests\/fixtures\/sites\/)/u,
     scripts: null,
   },
   // توثيق وسكربتات وخطّة: لا أثر تشغيلي — تُستثنى صراحةً لا صمتًا.

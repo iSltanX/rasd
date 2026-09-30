@@ -24,7 +24,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
-import { attachLiveServiceWorker } from '../live-sw.mjs'
+import { attachLiveServiceWorker } from '../lib/live-sw.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))

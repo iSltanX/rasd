@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة العناصر اللاصقة</title>
+    <!--
+      المصفوفة #5 (`sticky/`): رأس `position: sticky` وشريط جانبي لاصق في تخطيط من عمودين ومحتوى طويل
+      (نحو 12 شاشة). يختبر ألّا يتكرّر الرأس في كل بلاطة ولا يُقصّ الشريط الجانبي. لا شبكة ولا مؤقّتات.
+      المسار البرمجي: `window.__stickyRects()` يرجع مستطيلَي الرأس (`#top`) والشريط (`#side`).
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          16px/1.7 system-ui,
+          sans-serif;
+        background: #fff;
+        color: #0f172a;
+      }
+      #top {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: 10;
+        block-size: 56px;
+        padding: 14px 20px;
+        background: #1e293b;
+        color: #fff;
+        font-weight: 700;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 24px;
+        padding: 24px;
+        align-items: start;
+      }
+      #side {
+        position: sticky;
+        inset-block-start: 72px;
+        padding: 16px;
+        background: #e0f2fe;
+        border: 1px solid #7dd3fc;
+        border-radius: 8px;
+      }
+      #side ul {
+        margin: 0;
+        padding-inline-start: 18px;
+      }
+      .block {
+        block-size: 500px;
+        margin-block-end: 16px;
+        padding: 16px;
+        background: #f1f5f9;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <header id="top">رأس لاصق — رصد</header>
+    <div class="layout">
+      <aside id="side">
+        <strong>الفهرس</strong>
+        <ul>
+          <li>المقدّمة</li>
+          <li>الفصل الأول</li>
+          <li>الفصل الثاني</li>
+        </ul>
+      </aside>
+      <main id="main"></main>
+    </div>
+    <script>
+      const main = document.getElementById('main')
+      for (let i = 1; i <= 12; i++) {
+        const b = document.createElement('section')
+        b.className = 'block'
+        b.dataset.testid = `block-${i}`
+        b.innerHTML = `<h2>الفقرة ${i}</h2><p>نصّ طويل ثابت لملء العمود الرئيسي.</p>`
+        main.append(b)
+      }
+      window.__stickyRects = () => {
+        const r = (id) => document.getElementById(id).getBoundingClientRect().toJSON()
+        return { top: r('top'), side: r('side') }
+      }
+    </script>
+  </body>
+</html>

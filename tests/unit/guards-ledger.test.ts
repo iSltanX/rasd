@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest'
 import {
   classify,
   DOCS_JOB,
+  fingerprintOf,
+  guardDeps,
   isDocsOnlyRun,
   isUnstartedRun,
   readGuardEvents,
@@ -247,5 +249,74 @@ describe('أحداث الحرّاس مقروءة من شرط وظيفتها في
     expect(() => {
       readGuardEvents('tests/fixtures/ci-ledger/odd-if-ci.yml')
     }).toThrow(/غير مفهوم/u)
+  })
+})
+
+/*
+ * القرار 7: البصمة ملفّ الحارس وما يستورده من `scripts/` — كي لا تصير النواة المشتركة بابًا يغيّر
+ * الحرّاس كلّهم بلا أن تنكسر سلسلة (`STAGES/17`، ADR 0042).
+ */
+describe('بصمة الحارس تشمل ما يستورده من scripts/', () => {
+  const tree: Record<string, string> = {
+    'scripts/verify-a.mjs': [
+      "import * as P from '../src/shared/policy.ts'",
+      "import { startGuard } from './lib/cdp.mjs'",
+      "import { judge } from './runtime-budgets.mjs'",
+    ].join('\n'),
+    'scripts/lib/cdp.mjs': [
+      "import { a } from './live-sw.mjs'",
+      "export { b } from './live-fixtures.mjs'",
+    ].join('\n'),
+    'scripts/lib/live-sw.mjs': "import { c } from './cdp.mjs'", // دورة
+    'scripts/lib/live-fixtures.mjs':
+      "const s = fileURLToPath(new URL('../fixtures-serve.mjs', import.meta.url))\nconst root = new URL('..', import.meta.url)",
+    'scripts/fixtures-serve.mjs': '',
+    'scripts/runtime-budgets.mjs': '',
+    'scripts/verify-b.mjs': "import { x } from 'node:fs'",
+  }
+  const read = (p: string): string | null => tree[p] ?? null
+
+  it('تتبع الواردات تعدّيًا وتنتهي على الدورة، والخادم المُطلَق بمساره معها', () => {
+    expect(guardDeps('scripts/verify-a.mjs', read)).toEqual([
+      'scripts/fixtures-serve.mjs',
+      'scripts/lib/cdp.mjs',
+      'scripts/lib/live-fixtures.mjs',
+      'scripts/lib/live-sw.mjs',
+      'scripts/runtime-budgets.mjs',
+      'scripts/verify-a.mjs',
+    ])
+  })
+
+  it('شيفرة المنتَج والحزم ومجلّد الجذر خارجها', () => {
+    const deps = guardDeps('scripts/verify-a.mjs', read)
+    expect(deps.some((d: string) => d.startsWith('src/'))).toBe(false)
+    expect(guardDeps('scripts/verify-b.mjs', read)).toEqual(['scripts/verify-b.mjs'])
+  })
+
+  it('ملفٌّ واحد ⇐ بصمته هو، فالسجلّات السابقة للقرار تبقى صادقة', () => {
+    expect(fingerprintOf([['scripts/verify-b.mjs', 'abc']])).toBe('abc')
+  })
+
+  it('تغيّر النواة وحدها يغيّر البصمة — وهذا ما يكسر السلسلة', () => {
+    const before = fingerprintOf([
+      ['scripts/lib/cdp.mjs', '111'],
+      ['scripts/verify-a.mjs', 'aaa'],
+    ])
+    const after = fingerprintOf([
+      ['scripts/lib/cdp.mjs', '222'],
+      ['scripts/verify-a.mjs', 'aaa'],
+    ])
+    expect(before).not.toBe(after)
+    expect(streakOf({ results: ['green', 'green'], scripts: [before, before] }, after)).toBe(0)
+    expect(streakOf({ results: ['green', 'green'], scripts: [after, before] }, after)).toBe(1)
+  })
+
+  it('بصمةٌ غائبة لأيّ ملفّ ⇐ البصمة كلّها غائبة', () => {
+    expect(
+      fingerprintOf([
+        ['scripts/lib/cdp.mjs', null],
+        ['scripts/verify-a.mjs', 'aaa'],
+      ]),
+    ).toBeNull()
   })
 })

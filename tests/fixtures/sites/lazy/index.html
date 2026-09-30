@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة التحميل الكسول</title>
+    <!--
+      المصفوفة #3 (`lazy/`): ثماني صور `loading="lazy"` (SVG مضمَّنة بألوان فريدة) وثمانية أقسام
+      يكشفها `IntersectionObserver` فيُدرَج محتواها عند التقاطعها فقط. يختبر أن الالتقاط الكامل
+      يمرّر فيُحفّز الكسول قبل اللقطة. لا شبكة.
+      المسارات البرمجية: `window.__revealed()` عدد الأقسام المكشوفة حتى الآن ·
+      `window.__lazyImages()` عدد الصور المحمَّلة فعلًا (complete وعرضها الطبيعي > 0).
+    -->
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+        background: #fff;
+        color: #0f172a;
+      }
+      .spacer {
+        block-size: 900px;
+        display: grid;
+        place-items: center;
+        background: #e2e8f0;
+        margin-block-end: 16px;
+      }
+      .pic {
+        display: block;
+        inline-size: 240px;
+        block-size: 160px;
+        margin-block-end: 640px;
+      }
+      .section {
+        min-block-size: 480px;
+        margin-block-end: 400px;
+        padding: 16px;
+        border: 2px dashed #94a3b8;
+      }
+      .section.done {
+        border-style: solid;
+        border-color: #16a34a;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="spacer">مرّر للأسفل</div>
+    <div id="pics"></div>
+    <div id="sections"></div>
+    <script>
+      const COLOURS = [
+        '#ef4444',
+        '#f97316',
+        '#eab308',
+        '#22c55e',
+        '#06b6d4',
+        '#3b82f6',
+        '#8b5cf6',
+        '#ec4899',
+      ]
+      const pics = document.getElementById('pics')
+      COLOURS.forEach((c, i) => {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160"><rect width="240" height="160" fill="${c}"/><text x="120" y="92" font-size="48" text-anchor="middle" fill="#fff">${i + 1}</text></svg>`
+        const img = document.createElement('img')
+        img.className = 'pic'
+        img.loading = 'lazy'
+        img.width = 240
+        img.height = 160
+        img.alt = `صورة ${i + 1}`
+        img.dataset.testid = `lazy-img-${i + 1}`
+        img.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
+        pics.append(img)
+      })
+
+      let revealed = 0
+      const host = document.getElementById('sections')
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue
+          const el = e.target
+          io.unobserve(el)
+          el.classList.add('done')
+          el.innerHTML = `<h2>قسم ${el.dataset.n}</h2><p>أُدرج هذا المحتوى عند ظهور القسم في النافذة.</p>`
+          revealed++
+        }
+      })
+      for (let n = 1; n <= 8; n++) {
+        const s = document.createElement('section')
+        s.className = 'section'
+        s.dataset.n = n
+        s.dataset.testid = `section-${n}`
+        host.append(s)
+        io.observe(s)
+      }
+      window.__revealed = () => revealed
+      window.__lazyImages = () =>
+        [...document.images].filter((i) => i.complete && i.naturalWidth > 0).length
+    </script>
+  </body>
+</html>
