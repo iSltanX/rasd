@@ -19,6 +19,9 @@ export interface IssueFormModel {
   readonly options: readonly FormOption[]
   /** `.cta-btn` أو `.ghost-btn · .cta-btn` للمسافة. */
   readonly subject: string
+  /** قيمٌ تُملأ مسبقًا ويعدّلها المستخدم — من تدقيق التباين: الحدّ بحجم النصّ، وعنوانٌ يسمّي العنصر. */
+  readonly expected?: string
+  readonly title?: string
 }
 
 export interface IssueFormValues {

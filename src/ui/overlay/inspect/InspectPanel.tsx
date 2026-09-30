@@ -241,7 +241,11 @@ export function InspectPanel({
  * بحرف بنمطين مختلفين (98:143 و98:144) — وهو عيب في الملفّ لا تصميم، فلا
  * يُنسخ التكرار إلى الشيفرة. والسطر الثاني يصف الحالة فعلًا.
  */
-export function InspectIdle(): JSX.Element {
+/**
+ * `onAudit`: مدخل تدقيق تباين الصفحة (`STAGES/14`) — `contrast-audit / idle` لوحةٌ فوق هذه في وضع الفحص،
+ * والإطار لا يرسم مدخلها، فزرٌّ ثانويّ هنا تحت المفاتيح.
+ */
+export function InspectIdle({ onAudit }: { readonly onAudit?: () => void } = {}): JSX.Element {
   return (
     <div class="rasd-ov-insp rasd-ov-insp-idle" role="status" data-rasd-ov="inspect-idle">
       <span class="rasd-ov-insp-badge" aria-hidden="true">
@@ -272,6 +276,12 @@ export function InspectIdle(): JSX.Element {
           </div>
         ))}
       </dl>
+      {onAudit ? (
+        <button type="button" class="rasd-ov-cp-btn" data-rasd-ov="audit-open" onClick={onAudit}>
+          <Icon name="contrast-check" size="sm" />
+          دقّق تباين الصفحة
+        </button>
+      ) : null}
     </div>
   )
 }

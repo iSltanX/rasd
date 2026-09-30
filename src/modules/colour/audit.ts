@@ -19,6 +19,8 @@
  * `modules/` منطق خالص: أرقام تدخل وأرقام تخرج.
  */
 
+import { countText, formatHuman, type CountForms } from '@/shared/bidi/numerals'
+
 import { WCAG_THRESHOLDS } from './contrast'
 
 import type { Layer } from './composite'
@@ -156,4 +158,98 @@ export function bySeverity(a: Rated, b: Rated): number {
 export function floorRatio(ratio: number): string {
   // `4.35 × 100` تعطي `434.99999…` في الحساب العشري — الهامش يعيدها 435 قبل القصّ.
   return (Math.floor(ratio * 100 + 1e-9) / 100).toFixed(2)
+}
+
+// ─────────────────────────────────────────────────────────────────
+// النتيجة ونصوصها — للوحة وللتقرير معًا، فلا يفترقان
+// ─────────────────────────────────────────────────────────────────
+
+/** نتيجةٌ واحدة في القائمة — بلا العنصر نفسه: تحفظه الطبقة بمعرّفه. */
+export interface AuditFinding extends Rated {
+  readonly id: number
+  readonly large: boolean
+  readonly unknown: UnknownReason | null
+  /** `.card-desc` · `h2` — `shortLabel`. */
+  readonly label: string
+  /** مطلع نصّ العنصر نفسه كما يُرى — يبقى في الصفحة ولا يُحفظ. */
+  readonly text: string
+}
+
+export const TEXT_FORMS: CountForms = {
+  one: 'نصّ واحد',
+  two: 'نصّان',
+  many: 'نصوص',
+  accusative: 'نصًّا',
+  singular: 'نصّ',
+}
+
+/** «٣٢٦ نصًّا» · «نصّان» — والصفر «لا نصّ». */
+export const textsCount = (n: number): string => (n ? countText(n, TEXT_FORMS) : 'لا نصّ')
+
+/** عنوان كل شريحة بحدّها — والنسبة معزولة كي لا يقلبها السياق العربي. */
+export const SEVERITY_TITLE: Readonly<Record<AuditSeverity, string>> = {
+  'below-3': 'دون ⁦3 : 1⁩',
+  'below-4.5': 'دون ⁦4.5 : 1⁩',
+  unknown: 'تعذّر الحساب',
+}
+
+export const UNKNOWN_TEXT: Readonly<Record<UnknownReason, string>> = {
+  image: 'الخلفية صورة، فلا لون واحد يُقاس عليه',
+  gradient: 'الخلفية تدرّج لوني',
+  overlap: 'تحته صورة أو طبقة ليست خلفيته',
+  unreadable: 'لون النصّ لا يُقرأ',
+}
+
+/** السطر الثاني تحت النتيجة: السبب، أو الحجم الذي حدّد العتبة. */
+export function noteOf(f: Pick<AuditFinding, 'unknown' | 'large'>): string {
+  if (f.unknown) return UNKNOWN_TEXT[f.unknown]
+  return f.large ? 'نصّ كبير، وحدّه ⁦3 : 1⁩' : 'نصّ عادي الحجم'
+}
+
+/** «١٣ دون الحدّ · نصّان بلا رقم» — ما كان صفرًا لا يُذكر. */
+export function findingsSummary(findings: readonly Pick<AuditFinding, 'severity'>[]): string {
+  const unknown = findings.filter((f) => f.severity === 'unknown').length
+  const failing = findings.length - unknown
+  return [
+    failing ? `${formatHuman(failing)} دون الحدّ` : '',
+    unknown ? `${textsCount(unknown)} بلا رقم` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+export interface AuditReportInput {
+  /** الرابط بلا جزء `#`. */
+  readonly page: string
+  readonly texts: number
+  readonly findings: readonly AuditFinding[]
+  /** توقّف عند حدّه الزمني: كم فُحص من كم. */
+  readonly partial: { readonly done: number; readonly total: number } | null
+}
+
+/** التقرير المنسوخ — نصٌّ عربي بالشرائح نفسها وترتيبها، والنسب بأرقامٍ غربية كما تُعرض. */
+export function auditReport(input: AuditReportInput): string {
+  const head = [
+    `تدقيق التباين — ${input.page}`,
+    [textsCount(input.texts), findingsSummary(input.findings)].filter(Boolean).join(' · '),
+    'تباين نصوص فقط بحدود WCAG 2.2 (AA)، لا تدقيق إتاحة كامل.',
+  ]
+  if (input.partial) {
+    head.push(
+      `توقّف عند حدّه الزمني: فُحص ${formatHuman(input.partial.done)} من ${formatHuman(input.partial.total)}.`,
+    )
+  }
+  const groups = SEVERITIES.flatMap((severity) => {
+    const list = input.findings.filter((f) => f.severity === severity)
+    if (!list.length) return []
+    return [
+      '',
+      `${SEVERITY_TITLE[severity]} — ${textsCount(list.length)}`,
+      ...list.map(
+        (f) =>
+          `• ${f.ratio === null ? 'بلا رقم' : `${floorRatio(f.ratio)} : 1`} — ${f.label} — «${f.text}» — ${noteOf(f)}`,
+      ),
+    ]
+  })
+  return [...head, ...groups].join('\n')
 }

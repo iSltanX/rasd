@@ -55,6 +55,7 @@ import { createColourPalette } from './tools/colour-palette'
 import { createColourScale } from './tools/colour-scale'
 import { createColourUsage, type ColourUsageTool } from './tools/colour-usage'
 import { createCompare, type CompareTool, type ReferenceImage } from './tools/compare'
+import { createContrastAudit, type ContrastAuditTool } from './tools/contrast-audit'
 import { createElementHover, type ElementHoverTool } from './tools/element-hover'
 import { createEyedropper, type EyedropperTool } from './tools/eyedropper'
 import {
@@ -193,6 +194,8 @@ async function bootOverlay(
       compareTool?.frame(reasons)
       // إطارات المشكلات تتبع عناصرها مع التمرير — في وضعها وحده، كالقطّارة.
       if (modes.mode.peek() === 'issues') issuesTool?.frame()
+      // وإطار نتيجة التدقيق المختارة في وضع الفحص وحده (`STAGES/14`).
+      if (modes.mode.peek() === 'inspect') auditTool?.frame()
       options.onFrame?.(space)
     },
   })
@@ -205,6 +208,7 @@ async function bootOverlay(
   let colourUsageTool: ColourUsageTool | null = null
   let compareTool: CompareTool | null = null
   let issuesTool: IssuesController | null = null
+  let auditTool: ContrastAuditTool | null = null
 
   const stopDpr = watchDpr(() => sync.invalidate('dpr'), win)
 
@@ -469,6 +473,18 @@ async function bootOverlay(
   compareTool = compare
 
   /**
+   * تدقيق تباين الصفحة (`STAGES/14`، ADR 0035) — لوحةٌ فوق وضع الفحص، ومسحٌ في شرائح يُلغى بين شريحتين.
+   * `skip` يستبعد طبقتنا كبقيّة أدوات المسح، والإبطال يعيد رسم الإطار بعد القفز إلى النتيجة.
+   */
+  const audit = createContrastAudit({
+    doc,
+    skip: host.hostEl,
+    notify: (notice) => notices.show(notice),
+    onInvalidate: () => sync.invalidate('manual'),
+  })
+  auditTool = audit
+
+  /**
    * المشكلات (`STAGES/32`) — نموذج «سجّل مشكلة» ولوحة «مشكلات هذه الصفحة».
    *
    * العنصر من الأداة التي فُتح منها النموذج: المثبَّت في الفحص، والمرجع والهدف المثبَّت في القياس، والعنصر
@@ -483,6 +499,12 @@ async function bootOverlay(
       colour: () => {
         const pinned = colour.state.pinned.peek()
         return pinned ? { el: pinned.element, hex: pinned.formats.hex } : null
+      },
+      contrast: () => {
+        const picked = audit.selection()
+        return picked
+          ? { el: picked.el, large: picked.finding.large, label: picked.finding.label }
+          : null
       },
     },
     space: () => spaceSignal.peek(),
@@ -1078,6 +1100,8 @@ async function bootOverlay(
     onCancelFullPage: () => void send('fullpage/cancel', undefined),
     issues,
     onLogIssue: (source) => issues.openForm(source),
+    audit,
+    onLogAuditIssue: () => issues.openForm('contrast'),
     // الإيماءة تُقرأ لحظة النقر: `click()` من سكربت الصفحة لا يمنحها، فلا تبدأ جولةٌ بلا مستخدم.
     onRecheckIssues: () => void issues.recheck(navigator.userActivation?.isActive ?? false),
     onOpenIssuesLibrary: () => openPage('library', { view: 'issues' }),
@@ -1130,7 +1154,11 @@ async function bootOverlay(
       pendingViewport.value = false
     }
     if (mode !== 'element') element.reset()
-    if (mode !== 'inspect') inspect.reset()
+    if (mode !== 'inspect') {
+      inspect.reset()
+      // التدقيق يعيش في وضع الفحص: مغادرته تُلغي الجولة وتُسقط نتائجها — لا تُخزَّن (ADR 0035).
+      audit.reset()
+    }
     if (mode !== 'measure') measure.reset()
     // دخول وضع اللون يطلب إطارًا فتُلتقط عيّنته عند الدخول لا عند أول حركة.
     if (mode === 'colour') sync.invalidate('manual')
@@ -1396,6 +1424,8 @@ async function bootOverlay(
     compare,
     /** المشكلات — يبلغها حارس `verify:issues` واختبار ربط النموذج (`STAGES/32`). */
     issues,
+    /** تدقيق التباين — يبلغه `verify:colour` (`STAGES/14`). */
+    audit,
     lastCapture: () => lastCapture,
     teardown,
   })

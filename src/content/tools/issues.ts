@@ -37,7 +37,8 @@ import type { OverlayNotice } from '@/ui/overlay/Notice'
 
 export type { FormOption, IssueFormModel, IssueFormValues }
 
-export type IssueSource = 'inspect' | 'measure' | 'colour'
+/** `contrast` نتيجةٌ مختارة في تدقيق التباين (`STAGES/14`). */
+export type IssueSource = 'inspect' | 'measure' | 'colour' | 'contrast'
 
 export type IssuesPhase = 'loading' | 'ready' | 'rechecking' | 'error'
 
@@ -63,6 +64,8 @@ export interface IssueTargets {
   inspect(): Element | null
   measure(): { readonly a: Element | null; readonly b: Element | null }
   colour(): { readonly el: Element | null; readonly hex: string } | null
+  /** النتيجة المختارة في التدقيق: عنصرها، وهل نصّه كبير (حدّه 3 لا 4.5)، واسمه المختصر. */
+  contrast?(): { readonly el: Element; readonly large: boolean; readonly label: string } | null
 }
 
 export interface IssuesOptions {
@@ -202,7 +205,18 @@ export function createIssues(options: IssuesOptions): IssuesController {
     let el: Element | null
     let pair: Element | null = null
     let list: FormOption[]
-    if (source === 'measure') {
+    let initial: Pick<IssueFormModel, 'expected' | 'title'> = {}
+    if (source === 'contrast') {
+      const picked = options.targets.contrast?.()
+      if (!picked) return
+      el = picked.el
+      list = read('contrast', [CONTRAST_PROPERTY], el, null)
+      // حدّ AA بحجم النصّ كما حكم التدقيق — يُعدَّل في الحقل.
+      initial = {
+        expected: picked.large ? '3' : '4.5',
+        title: `تباين دون الحدّ: ${picked.label}`,
+      }
+    } else if (source === 'measure') {
       ;({ a: el, b: pair } = options.targets.measure())
       if (!el || !pair) return
       list = read('spacing', GAP_SIDES, el, pair)
@@ -228,6 +242,7 @@ export function createIssues(options: IssuesOptions): IssuesController {
     pending = { el, pair, identity, pairIdentity, options: list }
     state.formError.value = null
     state.form.value = {
+      ...initial,
       options: list,
       subject: pairIdentity ? `${pairIdentity.selector} · ${identity.selector}` : identity.selector,
     }
