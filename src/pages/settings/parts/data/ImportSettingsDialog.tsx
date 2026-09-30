@@ -7,10 +7,16 @@
  */
 import { useState } from 'preact/hooks'
 
-import { Button, Chip } from '@/ui/components'
+import { Banner, Button, Chip } from '@/ui/components'
 import { cx } from '@/ui/cx'
 
-import { count, dropReasonText, settingLabel } from '../../data-context'
+import {
+  count,
+  dropReasonText,
+  importWarnings,
+  settingLabel,
+  settingValueText,
+} from '../../data-context'
 
 import styles from './data.module.css'
 import { DataDialog, Row, sheet } from './DataDialog'
@@ -29,6 +35,9 @@ export interface ImportSettingsDialogProps {
   readonly onSaved: (accepted: number) => void
 }
 
+/** ما يُرسم من «ما أُسقط» — ملفٌّ بآلاف المفاتيح المجهولة لا يرسم آلاف الصفوف (المراجعة المستقلّة). */
+const MAX_DROPPED_ROWS = 50
+
 const REFUSED: Record<SettingsFileFailure | 'unreadable', { title: string; text: string }> = {
   'not-json': {
     title: 'الملفّ ليس JSON صالحًا',
@@ -41,6 +50,10 @@ const REFUSED: Record<SettingsFileFailure | 'unreadable', { title: string; text:
   newer: {
     title: 'الملفّ من إصدارٍ أحدث من رصد',
     text: 'حدّث رصد ثمّ أعد المحاولة. الإعدادات كما هي.',
+  },
+  'too-large': {
+    title: 'الملفّ أكبر من ملفّ إعدادات',
+    text: 'ملفّ الإعدادات بضعة كيلوبايتات، وهذا أكبر بكثير — لم يُقرأ منه شيء، والإعدادات كما هي.',
   },
   unreadable: {
     title: 'تعذّرت قراءة الإعدادات الحالية',
@@ -92,6 +105,9 @@ export function ImportSettingsDialog({
   }
 
   const nothing = plan.accepted.length === 0
+  const warnings = importWarnings(plan.changes)
+  const shown = plan.dropped.slice(0, MAX_DROPPED_ROWS)
+  const hidden = plan.dropped.length - shown.length
   return (
     <DataDialog
       id="import-settings"
@@ -122,12 +138,29 @@ export function ImportSettingsDialog({
           <Row label="أُسقط">{count(plan.dropped.length, 'settings')}</Row>
         </div>
       </div>
+      {warnings.map((w) => (
+        <Banner tone={w.tone} key={w.text}>
+          {w.text}
+        </Banner>
+      ))}
+      {plan.changes.length > 0 ? (
+        <div class={sheet.group}>
+          <p class={cx(sheet.groupLabel, 't-arabic-label-s')}>ما سيتغيّر</p>
+          <div class={sheet.summary} data-import-changes={plan.changes.length}>
+            {plan.changes.map((c) => (
+              <Row label={settingLabel(c.path)} key={c.path}>
+                {`${settingValueText(c.path, c.from)} ← ${settingValueText(c.path, c.to)}`}
+              </Row>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {plan.dropped.length > 0 ? (
         <div class={sheet.group}>
           <p class={cx(sheet.groupLabel, 't-arabic-label-s')}>ما أُسقط ولماذا</p>
           <div class={sheet.summary} data-import-dropped={plan.dropped.length}>
-            {plan.dropped.map((d, i) => (
-              <div class={styles.dropped} key={`${d.path}-${i}`}>
+            {shown.map((d, i) => (
+              <div class={styles.dropped} key={`${d.path}-${i}`} data-dropped-row="">
                 <div class={styles.optionText}>
                   <p class={cx(styles.optionTitle, 't-arabic-ui-s-strong')}>
                     <bdi>{settingLabel(d.path)}</bdi>
@@ -138,9 +171,15 @@ export function ImportSettingsDialog({
               </div>
             ))}
           </div>
+          {hidden > 0 ? (
+            <p class={sheet.note}>{`وغيرها ${count(hidden, 'settings')} أُسقطت لأسبابٍ مثلها.`}</p>
+          ) : null}
         </div>
       ) : null}
       {nothing ? <p class={sheet.note}>لا شيء في الملفّ يُقبل — لن يتغيّر شيء.</p> : null}
+      {!nothing && plan.changes.length === 0 ? (
+        <p class={sheet.note}>ما قُبل يطابق إعداداتك الحالية — لن يتغيّر شيء.</p>
+      ) : null}
       {failed ? (
         <p class={sheet.error} role="alert">
           تعذّر حفظ الإعدادات. لم يتغيّر شيء، والقيم السابقة باقية.

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BackupDialog } from '@/pages/settings/parts/data/BackupDialog'
 import { ImportSettingsDialog } from '@/pages/settings/parts/data/ImportSettingsDialog'
 import { RestoreDialog } from '@/pages/settings/parts/data/RestoreDialog'
+import { stripIsolates } from '@/shared/bidi/isolate'
 import { defaultSettings } from '@/shared/settings'
 import { planSettingsImport } from '@/shared/settings/transfer'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
@@ -43,7 +44,7 @@ function mount(node: JSX.Element) {
   return container
 }
 
-const text = () => container?.textContent ?? ''
+const text = () => stripIsolates(container?.textContent ?? '')
 
 describe('نافذة النسخ', () => {
   it('مكتبةٌ فارغة: «لا شيء لتنسخه» ولا تنزيل', async () => {
@@ -62,7 +63,13 @@ describe('نافذة الاستعادة', () => {
     const restored = vi.fn()
     const file = new File(['this is not a zip'], 'notes.zip', { type: 'application/zip' })
     mount(
-      <RestoreDialog file={file} onClose={vi.fn()} onPickAnother={vi.fn()} onRestored={restored} />,
+      <RestoreDialog
+        file={file}
+        retention={0}
+        onClose={vi.fn()}
+        onPickAnother={vi.fn()}
+        onRestored={restored}
+      />,
     )
     await vi.waitFor(() => expect(text()).toContain('الملفّ ليس نسخة احتياطية صالحة'))
     expect(text()).toContain('لم يتغيّر شيء في مكتبتك')

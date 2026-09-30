@@ -280,3 +280,85 @@ describe('إعادة الضبط', () => {
     expect((await getSettings()).privacy.excludedSites).toContain('late.example')
   })
 })
+
+/*
+ * ما كشفته المراجعة المستقلّة (`STAGES/07`) — كُتبت قبل إصلاحاتها وسقطت عليها.
+ */
+describe('المراجعة: ما سيتغيّر يُعرض كلّه قبل الحفظ', () => {
+  it('كل ورقةٍ ستتغيّر بقيمتها الحالية والجديدة — ومنها مدّة الاحتفاظ التي تحذف نهائيًّا', () => {
+    const current = defaultSettings()
+    const p = plan(
+      fileWith({
+        privacy: { autoDeleteAfterDays: 7, excludedSites: ['*'] },
+        capture: { format: 'png' },
+      }),
+      current,
+    )
+    expect(p.changes).toEqual([
+      { path: 'privacy.excludedSites', from: [], to: ['*'] },
+      { path: 'privacy.autoDeleteAfterDays', from: 0, to: 7 },
+    ])
+  })
+
+  it('المفتاح القديم `blockIncognitoWrites` يُرحَّل ويُعرض تغييرًا في `incognito` — لا «مُسقَطًا» وهو يُطبَّق', () => {
+    const p = plan(fileWith({ privacy: { blockIncognitoWrites: false } }), defaultSettings())
+    expect(p.dropped).toEqual([])
+    expect(p.accepted).toContain('privacy.incognito')
+    expect(p.changes).toEqual([{ path: 'privacy.incognito', from: 'no-save', to: 'allow' }])
+  })
+})
+
+describe('المراجعة: ملفٌّ بشكلٍ لا يطابق المخطّط لا يعيد قسمًا إلى افتراضه', () => {
+  it('مصفوفةٌ مكان قسم: تُسقط بسببها، والقسم الحالي باقٍ كما هو', async () => {
+    const current = settingsFixture()
+    await fakeBrowser.storage.local.set({ [KEY]: current })
+    const p = plan(
+      fileWith({
+        privacy: [],
+        capture: [],
+        shortcuts: { toolKeys: [] },
+        appearance: { theme: 'light' },
+      }),
+      current,
+    )
+    expect(p.dropped).toEqual(
+      expect.arrayContaining([
+        { path: 'privacy', reason: 'type', received: [] },
+        { path: 'capture', reason: 'type', received: [] },
+        { path: 'shortcuts.toolKeys', reason: 'type', received: [] },
+      ]),
+    )
+    await applySettingsImport(p)
+    const s = await getSettings()
+    expect(s.capture).toEqual(current.capture)
+    expect(s.privacy).toEqual(current.privacy)
+    expect(s.shortcuts).toEqual(current.shortcuts)
+    expect(s.appearance.theme).toBe('light')
+  })
+})
+
+describe('المراجعة: ملفٌّ ضخم أو عميق لا يجمّد الصفحة ولا يرمي', () => {
+  it('ما فوق السقف يُرفض `too-large` قبل أن يُحلَّل', () => {
+    const huge = fileWith({
+      privacy: { excludedSites: Array.from({ length: 80_000 }, (_, i) => `s${i}.example`) },
+    })
+    expect(huge.length).toBeGreaterThan(1024 * 1024)
+    const r = planSettingsImport(huge, defaultSettings())
+    expect(!r.ok && r.error).toBe('too-large')
+  })
+
+  it('قائمةٌ طويلة تحت السقف تُدمج خطّيًّا لا تربيعيًّا', () => {
+    const sites = Array.from({ length: 30_000 }, (_, i) => `s${i}.example`)
+    const started = performance.now()
+    const p = plan(fileWith({ privacy: { excludedSites: sites } }), defaultSettings())
+    expect(performance.now() - started).toBeLessThan(3000)
+    expect(p.settings.privacy.excludedSites).toHaveLength(30_000)
+  })
+
+  it('تداخلٌ عميق لا يرمي', () => {
+    let deep = '1'
+    for (let i = 0; i < 20_000; i++) deep = `{"a":${deep}}`
+    const text = `{"format":"rasd.settings","version":1,"settings":{"appearance":${deep}}}`
+    expect(() => planSettingsImport(text, defaultSettings())).not.toThrow()
+  })
+})

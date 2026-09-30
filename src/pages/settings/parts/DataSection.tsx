@@ -24,6 +24,7 @@ import { hasPermission, requestPermission } from '@/shared/permissions'
 import { getSettingsResult, resetSettings, type Settings } from '@/shared/settings'
 import {
   applySettingsImport,
+  MAX_SETTINGS_FILE,
   planSettingsImport,
   settingsFile,
   settingsFilename,
@@ -180,7 +181,19 @@ export function DataSection({
       setDialog({ kind: 'import', fileName: file.name, plan: 'unreadable' })
       return
     }
-    const planned = planSettingsImport(await file.text(), current.value)
+    // الحجم قبل القراءة: ملفّ بمئات الميغابايتات لا يُحمَّل نصًّا ليُرفض بعدها.
+    if (file.size > MAX_SETTINGS_FILE * 4) {
+      setDialog({ kind: 'import', fileName: file.name, plan: 'too-large' })
+      return
+    }
+    let text: string
+    try {
+      text = await file.text()
+    } catch {
+      setDialog({ kind: 'import', fileName: file.name, plan: 'not-json' })
+      return
+    }
+    const planned = planSettingsImport(text, current.value)
     setDialog({
       kind: 'import',
       fileName: file.name,
@@ -353,7 +366,11 @@ export function DataSection({
         data-import-input=""
         onChange={(e) => {
           const file = e.currentTarget.files?.[0]
-          if (file) void importFile(file)
+          if (file) {
+            void importFile(file).catch(() =>
+              setDialog({ kind: 'import', fileName: file.name, plan: 'not-json' }),
+            )
+          }
         }}
       />
 
@@ -362,14 +379,15 @@ export function DataSection({
           route={dialog.route}
           note={dialog.note}
           onClose={closeDialog}
-          onDelivered={(at) =>
-            setOverview((current) => (current ? { ...current, lastBackup: at } : current))
+          onDelivered={(entry) =>
+            setOverview((current) => (current ? { ...current, lastBackup: entry } : current))
           }
         />
       ) : null}
       {dialog?.kind === 'restore' ? (
         <RestoreDialog
           file={dialog.file}
+          retention={settings.privacy.autoDeleteAfterDays}
           onClose={closeDialog}
           onPickAnother={() => pick(restoreInput.current)}
           onRestored={libraryChanged}

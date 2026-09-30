@@ -17,13 +17,14 @@ import {
   type BackupFailure,
   type RestorePlan,
 } from '@/modules/backup/backup'
+import { toRasdError } from '@/shared/result'
 import { requestPersistence } from '@/shared/storage/persistence'
 import { Banner, Button, ProgressBar, Spinner } from '@/ui/components'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
-import { backupDateText, count, pair } from '../../data-context'
+import { backupDateText, count, pair, restoreWarnings, settingValueText } from '../../data-context'
 
 import styles from './data.module.css'
 import { DataDialog, Row, sheet } from './DataDialog'
@@ -40,6 +41,8 @@ type Phase =
 
 export interface RestoreDialogProps {
   readonly file: File
+  /** مدّة الاحتفاظ الحالية بالأيّام — ما سيكنسه الحذف الدوري من لقطات الملفّ يُقال في المعاينة. */
+  readonly retention: number
   readonly onClose: () => void
   /** يفتح منتقي الملفّات ثانيةً — من نقرة «اختر ملفًّا آخر» نفسها. */
   readonly onPickAnother: () => void
@@ -65,8 +68,11 @@ const FAILURE: Record<BackupFailure['kind'], { readonly title: string; readonly 
   },
 }
 
+const retentionLabel = (days: number) => settingValueText('privacy.autoDeleteAfterDays', days)
+
 export function RestoreDialog({
   file,
+  retention,
   onClose,
   onPickAnother,
   onRestored,
@@ -84,12 +90,18 @@ export function RestoreDialog({
       onProgress: ({ done, total }) => {
         if (live) setPhase({ kind: 'checking', done, total })
       },
-    }).then((read) => {
-      if (!live) return
-      if (!read.ok) setPhase({ kind: 'failed', failure: read.error, plan: null })
-      else if (read.value === 'cancelled') onClose()
-      else setPhase({ kind: 'preview', plan: read.value })
     })
+      .then((read) => {
+        if (!live) return
+        if (!read.ok) setPhase({ kind: 'failed', failure: read.error, plan: null })
+        else if (read.value === 'cancelled') onClose()
+        else setPhase({ kind: 'preview', plan: read.value })
+      })
+      // `readBackup` لا يرمي؛ وحارسٌ هنا كي لا تبقى النافذة «يُفحص الملفّ» بلا مخرج إن رمى يومًا.
+      .catch(() => {
+        if (live)
+          setPhase({ kind: 'failed', failure: { kind: 'damaged', detail: 'read' }, plan: null })
+      })
     return () => {
       live = false
       abort.abort()
@@ -98,16 +110,24 @@ export function RestoreDialog({
 
   const restore = (plan: RestorePlan) => {
     setPhase({ kind: 'restoring' })
-    void restoreBackup(plan).then((written) => {
-      if (!written.ok) {
-        setPhase({ kind: 'failed', failure: written.error, plan })
-        return
-      }
-      // أوّل حفظٍ من صفحة: يُطلب التخزين الدائم إن لم يُمنح (`persistence.ts`).
-      void requestPersistence()
-      onRestored()
-      setPhase({ kind: 'done', report: written.value })
-    })
+    void restoreBackup(plan)
+      .then((written) => {
+        if (!written.ok) {
+          setPhase({ kind: 'failed', failure: written.error, plan })
+          return
+        }
+        // أوّل حفظٍ من صفحة: يُطلب التخزين الدائم إن لم يُمنح (`persistence.ts`).
+        void requestPersistence()
+        onRestored()
+        setPhase({ kind: 'done', report: written.value })
+      })
+      .catch((thrown: unknown) =>
+        setPhase({
+          kind: 'failed',
+          failure: { kind: 'storage', error: toRasdError(thrown) },
+          plan,
+        }),
+      )
   }
 
   const fileName = (
@@ -154,6 +174,7 @@ export function RestoreDialog({
 
   if (phase.kind === 'preview') {
     const { counts, manifest } = phase.plan
+    const swept = restoreWarnings(phase.plan, retention, Date.now())
     return (
       <DataDialog
         id="restore"
@@ -187,6 +208,16 @@ export function RestoreDialog({
         <Banner tone="info">
           تُضاف محتويات الملفّ إلى مكتبتك. اللقطة الموجودة في الاثنين لا تتكرّر.
         </Banner>
+        {swept.retention > 0 ? (
+          <Banner tone="danger">
+            {`مدّة الاحتفاظ في إعداداتك ${retentionLabel(retention)}: ${count(swept.retention, 'captures')} من الملفّ أقدم منها وغير مميّزة، فتُحذف نهائيًّا في الكنس التالي خلال ساعة. غيّر المدّة من «الخصوصية» قبل الاستعادة إن أردت إبقاءها.`}
+          </Banner>
+        ) : null}
+        {swept.trash > 0 ? (
+          <Banner tone="warning">
+            {`${count(swept.trash, 'captures')} من الملفّ في المهملات منذ أكثر من ثلاثين يومًا، فتُطهَّر عند أوّل فتحٍ للمكتبة.`}
+          </Banner>
+        ) : null}
       </DataDialog>
     )
   }

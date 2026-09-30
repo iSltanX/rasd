@@ -14,6 +14,7 @@ import {
 } from '@/pages/settings/data-context'
 import { confirmMatches } from '@/pages/settings/parts/data/DeleteDialog'
 import { DataSection } from '@/pages/settings/parts/DataSection'
+import { stripIsolates } from '@/shared/bidi/isolate'
 import { defaultSettings, getSettings, resetSettingsCache } from '@/shared/settings'
 import { closeDatabase, database, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { DB_NAME, STORE_NAMES } from '@/shared/storage/schema'
@@ -250,9 +251,9 @@ describe('نصوص قسم البيانات', () => {
   })
 
   it('سبب الإسقاط يقول القيمة والسبب', () => {
-    expect(dropReasonText({ path: 'capture.format', reason: 'option', received: 'svg' })).toBe(
-      'القيمة في الملفّ «svg»، وليست من خيارات رصد',
-    )
+    expect(
+      stripIsolates(dropReasonText({ path: 'capture.format', reason: 'option', received: 'svg' })),
+    ).toBe('القيمة في الملفّ «svg»، وليست من خيارات رصد')
     expect(dropReasonText({ path: 'x', reason: 'type', received: 7 })).toContain('رقم')
     expect(dropReasonText({ path: 'x', reason: 'unknown', received: true })).toContain('لا يعرفه')
   })
@@ -275,7 +276,11 @@ describe('نصوص قسم البيانات', () => {
   it('«آخر نسخة»: لم تُؤخذ، أو اليوم بالساعة، أو بالتاريخ', () => {
     const now = new Date(2026, 8, 30, 15, 0).getTime()
     expect(lastBackupText(null, now)).toBe('آخر نسخة: لم تُؤخذ نسخة بعد')
-    expect(lastBackupText(new Date(2026, 8, 30, 9, 5).getTime(), now)).toContain('اليوم')
-    expect(lastBackupText(new Date(2026, 8, 12).getTime(), now)).toContain('سبتمبر')
+    expect(
+      lastBackupText({ at: new Date(2026, 8, 30, 9, 5).getTime(), skipped: 0 }, now),
+    ).toContain('اليوم')
+    expect(lastBackupText({ at: new Date(2026, 8, 12).getTime(), skipped: 0 }, now)).toContain(
+      'سبتمبر',
+    )
   })
 })

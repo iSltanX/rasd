@@ -45,11 +45,17 @@ type Plain = Record<string, unknown>
 const isPlain = (value: unknown): value is Plain =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** مسارات الأوراق بالنقاط — والمصفوفة ورقةٌ واحدة. */
-function leafPaths(value: unknown, prefix = ''): string[] {
-  if (!isPlain(value)) return prefix ? [prefix] : []
+/**
+ * أعمق ما يُمشى إليه في الملفّ — أعمق ورقةٍ في المخطّط ثلاثة مستويات (`shortcuts.toolKeys.inspect`)، وما
+ * تحتها يُعدّ ورقةً واحدة. تداخلٌ بعشرين ألف مستوى كان يُفيض المكدّس (المراجعة المستقلّة، `STAGES/07`).
+ */
+const MAX_DEPTH = 6
+
+/** مسارات الأوراق بالنقاط — والمصفوفة ورقةٌ واحدة، وما تحت `MAX_DEPTH` ورقةٌ واحدة. */
+function leafPaths(value: unknown, prefix = '', depth = 0): string[] {
+  if (!isPlain(value) || depth >= MAX_DEPTH) return prefix ? [prefix] : []
   return Object.entries(value).flatMap(([key, child]) =>
-    leafPaths(child, prefix ? `${prefix}.${key}` : key),
+    leafPaths(child, prefix ? `${prefix}.${key}` : key, depth + 1),
   )
 }
 
@@ -106,10 +112,15 @@ export interface SettingsImportPlan {
   readonly dropped: readonly DroppedSetting[]
   /** ما قُبل من الملفّ خامًا — يُدمج ثانيةً وقت الكتابة على الحالة القائمة يومئذٍ. */
   readonly incoming: Plain
+  /** ما سيتغيّر فعلًا لو حُفظ الآن — كل ورقة بقيمتيها. */
+  readonly changes: readonly SettingChange[]
 }
 
-/** `not-json` ليس JSON · `not-settings` ليس ملفّ إعدادات رصد · `newer` من إصدارٍ أحدث. */
-export type SettingsFileFailure = 'not-json' | 'not-settings' | 'newer'
+/**
+ * `not-json` ليس JSON · `not-settings` ليس ملفّ إعدادات رصد · `newer` من إصدارٍ أحدث ·
+ * `too-large` فوق `MAX_SETTINGS_FILE` فلا يُحلَّل أصلًا.
+ */
+export type SettingsFileFailure = 'not-json' | 'not-settings' | 'newer' | 'too-large'
 
 function reasonFor(type: string): DropReason {
   if (type === 'picklist' || type === 'literal') return 'option'
@@ -144,17 +155,64 @@ function deepMerge(base: unknown, over: unknown): unknown {
   return out
 }
 
-/** الدمج نفسه وقت العرض ووقت الكتابة — والقائمة تُجمع بترتيبها: الحالية أوّلًا ثمّ الجديد من الملفّ. */
+/**
+ * يُسقط من الملفّ كل قيمةٍ ليست كائنًا حيث المخطّط كائن — **قبل** التحقّق.
+ *
+ * `v.object` في `valibot` يقبل المصفوفة كائنًا، فـ`"privacy": []` كان يمرّ بلا عطب ثمّ يستبدل قسم الحالة كلّه
+ * في الدمج ويعود افتراضيًّا — خلافًا لوعد «ما أُسقط يبقى على قيمته الحالية» (المراجعة المستقلّة، `STAGES/07`).
+ */
+function conform(raw: Plain, shape: Plain, prefix: string, dropped: DroppedSetting[]): Plain {
+  const out: Plain = {}
+  for (const [key, value] of Object.entries(raw)) {
+    const path = prefix ? `${prefix}.${key}` : key
+    const expected = shape[key]
+    if (isPlain(expected)) {
+      if (isPlain(value)) out[key] = conform(value, expected, path, dropped)
+      else dropped.push({ path, reason: 'type', received: value })
+    } else {
+      out[key] = value
+    }
+  }
+  return out
+}
+
+/**
+ * الدمج نفسه وقت العرض ووقت الكتابة — والقائمة تُجمع بترتيبها: الحالية أوّلًا ثمّ الجديد من الملفّ.
+ * بمجموعةٍ لا بـ`includes`: ثلاثون ألف موقع كانت تُدمج في تسع ثوانٍ تربيعيًّا.
+ */
 function mergeInto(current: Settings, incoming: Plain): Settings {
   const merged = deepMerge(current, incoming) as Plain
-  const sites = [...current.privacy.excludedSites]
+  const sites = new Set(current.privacy.excludedSites)
   const fromFile = valueAt(incoming, SITES_PATH)
-  for (const site of Array.isArray(fromFile) ? (fromFile as string[]) : []) {
-    if (!sites.includes(site)) sites.push(site)
-  }
-  const privacy = { ...(merged.privacy as Plain), excludedSites: sites }
+  for (const site of Array.isArray(fromFile) ? (fromFile as string[]) : []) sites.add(site)
+  const privacy = { ...(merged.privacy as Plain), excludedSites: [...sites] }
   return parseSettings({ ...merged, privacy }).settings
 }
+
+/** ورقةٌ ستتغيّر بالاستيراد: قيمتها الآن وقيمتها بعده — تُعرض كلّها قبل الحفظ. */
+export interface SettingChange {
+  readonly path: string
+  readonly from: unknown
+  readonly to: unknown
+}
+
+function changesBetween(current: Settings, next: Settings): SettingChange[] {
+  const changes: SettingChange[] = []
+  for (const path of TRANSFERABLE_LEAVES) {
+    const from = valueAt(current, path)
+    const to = valueAt(next, path)
+    if (JSON.stringify(from) !== JSON.stringify(to)) changes.push({ path, from, to })
+  }
+  return changes
+}
+
+/** المفاتيح القديمة التي يرحّلها `parseSettings` — تُقرأ ولا تُعدّ «مجهولة». */
+const LEGACY: Readonly<Record<string, string>> = {
+  'privacy.blockIncognitoWrites': 'privacy.incognito',
+}
+
+/** أكبر ملفّ إعدادات يُقرأ — ملفّ رصد الحقيقي بضعة كيلوبايتات، ومليون محرف فوقه بكثير. */
+export const MAX_SETTINGS_FILE = 1024 * 1024
 
 /**
  * يقرأ نصّ الملفّ ويبني الخطّة — **بلا كتابة**. ما لا يصلح يُسقط وحده ويُعدّ بسببه، والباقي يُقبل.
@@ -163,6 +221,7 @@ export function planSettingsImport(
   text: string,
   current: Settings,
 ): Result<SettingsImportPlan, SettingsFileFailure> {
+  if (text.length > MAX_SETTINGS_FILE) return err('too-large')
   let file: unknown
   try {
     file = JSON.parse(text)
@@ -177,9 +236,9 @@ export function planSettingsImport(
     return err('newer')
   }
 
-  const raw = file.settings
   const dropped: DroppedSetting[] = []
-  const detailed = parseSettingsDetailed(transferable(raw))
+  const raw = conform(transferable(file.settings), transferable(defaultSettings()), '', dropped)
+  const detailed = parseSettingsDetailed(raw)
   for (const issue of detailed.issues) {
     dropped.push({
       path: leafOf(issue.path),
@@ -189,31 +248,42 @@ export function planSettingsImport(
   }
   // الورقة التي سقطت كلّها — لا عنصرٌ منها.
   const fully = new Set(detailed.issues.filter((i) => leafOf(i.path) === i.path).map((i) => i.path))
+  const salvaged = isPlain(detailed.salvaged) ? transferable(detailed.salvaged) : {}
 
   // مفتاحٌ لا يعرفه المخطّط يحذفه `valibot` بلا عطب — فيُعدّ هنا كي لا يختفي من الشاشة كما يختفي من الحفظ.
+  // والمفتاح القديم الذي رُحِّل ليس مجهولًا: أثره في ورقته الجديدة، وتُعرض في «ما سيتغيّر».
   const known = new Set(TRANSFERABLE_LEAVES)
-  for (const path of leafPaths(raw)) {
+  for (const path of leafPaths(file.settings)) {
     if (path === 'schemaVersion' || known.has(path) || fully.has(path)) continue
     const [section] = path.split('.')
     if (section === 'onboarding' || section === 'whatsNew') continue
-    dropped.push({ path, reason: 'unknown', received: valueAt(raw, path) })
+    if (!(TRANSFERABLE as readonly string[]).includes(section ?? '')) {
+      dropped.push({ path, reason: 'unknown', received: valueAt(file.settings, path) })
+      continue
+    }
+    const legacy = LEGACY[path]
+    if (legacy && valueAt(salvaged, legacy) !== undefined && valueAt(raw, legacy) === undefined) {
+      continue
+    }
+    if (dropped.some((d) => d.path === path || path.startsWith(`${d.path}.`))) continue
+    dropped.push({ path, reason: 'unknown', received: valueAt(file.settings, path) })
   }
 
-  const incoming = isPlain(detailed.salvaged) ? transferable(detailed.salvaged) : {}
+  const incoming = salvaged
   const sites = valueAt(incoming, SITES_PATH)
   if (Array.isArray(sites)) {
-    const normalized: string[] = []
+    const normalized = new Set<string>()
     for (const site of sites as string[]) {
       const saved = savedSitePattern(site)
       if (saved === null) dropped.push({ path: SITES_PATH, reason: 'site', received: site })
-      else if (!normalized.includes(saved)) normalized.push(saved)
+      else normalized.add(saved)
     }
-    incoming.privacy = { ...(incoming.privacy as Plain), excludedSites: normalized }
+    incoming.privacy = { ...(incoming.privacy as Plain), excludedSites: [...normalized] }
   }
 
-  const accepted = leafPaths(transferable(raw)).filter((p) => known.has(p) && !fully.has(p))
-
-  return ok({ settings: mergeInto(current, incoming), accepted, dropped, incoming })
+  const accepted = leafPaths(incoming).filter((p) => known.has(p) && !fully.has(p))
+  const settings = mergeInto(current, incoming)
+  return ok({ settings, accepted, dropped, incoming, changes: changesBetween(current, settings) })
 }
 
 /** يحفظ ما قُبل — دمجًا على الحالة القائمة وقت الكتابة، في طابور الإعدادات. */

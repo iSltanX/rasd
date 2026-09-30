@@ -15,7 +15,7 @@ import { Banner, Button, Input, Spinner } from '@/ui/components'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
-import { count, lastBackupText, pair } from '../../data-context'
+import { count, lastBackupText, pair, type LastBackup } from '../../data-context'
 
 import styles from './data.module.css'
 import { DataDialog, Row, sheet } from './DataDialog'
@@ -43,7 +43,7 @@ type Step = 'review' | 'confirm' | 'erasing' | 'done' | 'failed'
 export interface DeleteDialogProps {
   /** `null` حين تعذّرت قراءة المكتبة — يُقال ذلك ولا تُعرض أصفار. */
   readonly counts: StoreCounts | null
-  readonly lastBackup: number | null
+  readonly lastBackup: LastBackup | null
   readonly onBackup: () => void
   readonly onClose: () => void
   /** اكتمل الحذف أو بعضه — تُقرأ الأعداد من جديد. */

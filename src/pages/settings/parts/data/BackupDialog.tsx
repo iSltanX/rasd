@@ -21,7 +21,7 @@ import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
 import { deliver, revealDownload, type Delivered } from '../../../export/deliver'
-import { count, pair, recordLastBackup } from '../../data-context'
+import { awaitDownload, count, pair, recordLastBackup, type LastBackup } from '../../data-context'
 
 import styles from './data.module.css'
 import { DataDialog, Row, sheet } from './DataDialog'
@@ -48,8 +48,8 @@ export interface BackupDialogProps {
   /** ما فقده التدهور إلى المرساة، أو `null`. */
   readonly note: string | null
   readonly onClose: () => void
-  /** سُلّم الملفّ — لتحديث «آخر نسخة» في القسم. */
-  readonly onDelivered: (at: number) => void
+  /** حُفظ الملفّ — لتحديث «آخر نسخة» في القسم. */
+  readonly onDelivered: (entry: LastBackup) => void
 }
 
 function failureText(failure: BackupFailure): string {
@@ -91,14 +91,27 @@ export function BackupDialog({
       if (url.current) URL.revokeObjectURL(url.current)
       url.current = URL.createObjectURL(outcome.blob)
       const delivered = await deliver({ route, url: url.current, filename: outcome.filename })
-      await recordLastBackup(now)
-      onDelivered(now)
+      /*
+       * **التنزيل المُدار يُنتظر حتى يُكتب:** نافذة «حفظ باسم» تُلغى، و`download` يُرجع مُعرِّفه قبلها — فلا
+       * «النسخة جاهزة» ولا «آخر نسخة» لملفٍّ لم يُحفظ. والمرساة لا تُخبر بشيء، فتُحسب محفوظة.
+       */
+      if (delivered.downloadId !== null) {
+        if (live) setPhase({ kind: 'working', done: 1, total: 1 })
+        if ((await awaitDownload(delivered.downloadId)) === 'interrupted') {
+          if (live) setPhase({ kind: 'cancelled' })
+          return
+        }
+      }
+      const skipped = STORE_NAMES.reduce((sum, n: StoreName) => sum + outcome.skipped[n], 0)
+      const entry = { at: now, skipped }
+      await recordLastBackup(entry)
+      onDelivered(entry)
       if (!live) return
       setPhase({
         kind: 'done',
         delivered,
         counts: outcome.counts,
-        skipped: STORE_NAMES.reduce((sum, n: StoreName) => sum + outcome.skipped[n], 0),
+        skipped,
         bytes: outcome.blob.size,
       })
     })()
