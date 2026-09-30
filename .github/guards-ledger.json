@@ -3,7 +3,7 @@
   "repo": "iSltanX/rasd",
   "promotionStreak": 10,
   "window": 20,
-  "capturedAt": "2026-09-30T17:53:27.537Z",
+  "capturedAt": "2026-09-30T18:11:23.693Z",
   "runs": [
     {
       "id": 36653482704,
@@ -316,8 +316,8 @@
         "cf5ab73b19432ae356849a64aa01c2f07559eb43",
         "cf5ab73b19432ae356849a64aa01c2f07559eb43"
       ],
-      "streak": 20,
-      "eligible": true
+      "streak": 0,
+      "eligible": false
     },
     "compare": {
       "results": [
@@ -556,8 +556,8 @@
         "b08329d5d9a205a96b3b2c33911f0f225af62945",
         "b08329d5d9a205a96b3b2c33911f0f225af62945"
       ],
-      "streak": 20,
-      "eligible": true
+      "streak": 0,
+      "eligible": false
     },
     "gate": {
       "results": [
@@ -652,8 +652,8 @@
         "fc64f9701a55fddfce9204aee236ac8c583b6b7a",
         "fc64f9701a55fddfce9204aee236ac8c583b6b7a"
       ],
-      "streak": 20,
-      "eligible": true
+      "streak": 0,
+      "eligible": false
     },
     "issues": {
       "results": [
@@ -940,8 +940,8 @@
         "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7",
         "a4b4e2a04be59d39f8e2b7a6b1ee8a99b40f39e7"
       ],
-      "streak": 20,
-      "eligible": true
+      "streak": 0,
+      "eligible": false
     },
     "palette": {
       "results": [
