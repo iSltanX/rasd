@@ -26,6 +26,7 @@
 import { computeDiff, type RasterImage } from '@/modules/compare/diff'
 import { groupDiffRegions } from '@/modules/compare/regions'
 import { withinCanvasLimits } from '@/shared/canvas-limits'
+import { dataUrlMime, dataUrlToBytes } from '@/shared/data-url'
 import { errText, ok, type Result } from '@/shared/result'
 
 import type { DeviceRect } from '@/shared/geometry'
@@ -41,7 +42,12 @@ import type { LiveDiff } from '@/shared/messaging/contract'
 async function decode(source: Blob | string): Promise<Result<RasterImage>> {
   let bitmap: ImageBitmap
   try {
-    const blob = typeof source === 'string' ? await (await fetch(source)).blob() : source
+    // لا `fetch(dataUrl)`: `connect-src 'self'` يرفضها داخل الإضافة وحدها — «Failed to fetch». فكان «التقط
+    // الفرق» يفشل دائمًا، ولم يمرّ به حارسٌ حتى `verify:compare` 8.7 (`STAGES/34`). علّة `shared/data-url.ts` نفسها.
+    const blob =
+      typeof source === 'string'
+        ? new Blob([dataUrlToBytes(source)], { type: dataUrlMime(source) })
+        : source
     bitmap = await createImageBitmap(blob)
   } catch (thrown) {
     return errText('invalid-data', 'تعذّر فكّ بايتات الصورة.', String(thrown))

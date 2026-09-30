@@ -11,6 +11,9 @@
  * من 30000، ومنطقتين حدودهما 30×20 تمامًا (بلا انتفاخ التزامًا بإصلاح
  * `regions.ts` في هذه المرحلة) — لا تخمينًا اتجاهيًّا كبقيّة فحوص هذا الملفّ.
  *
+ * **والمناطق المستثناة** (`STAGES/34`): لقطتان تختلفان في «ساعة» وحدها، ومنطقةٌ تُرسم حولها بسحبٍ حقيقي
+ * فتصير النسبة صفرًا — ولا تبقى بعد إعادة التحميل.
+ *
  * صفحة إضافة صرفة — بلا صلاحية مضيف ولا خادم عيّنات، خلافًا لـ
  * `verify-overlay.mjs`/`verify-capture.mjs` (نفس سبب `verify-library.mjs`).
  *
@@ -767,6 +770,174 @@ if (!cmpSession) {
       }
     } catch (e) {
       fail(`استثناء أثناء فحص اللقطة الطويلة: ${e.message ?? e}`)
+    }
+
+    /*
+     * ── المناطق المستثناة: ساعةٌ متغيّرة داخل منطقة ⟵ النسبة صفر (`STAGES/34`) ──────────
+     *
+     * لقطتان 300×200 متطابقتان إلا في «ساعة» — رقعةٌ 60×24 عند (200,20) بلونين. بلا منطقة تُحصى الساعة؛ ثمّ
+     * «ارسم مستطيلًا» وسحبٌ حقيقي حولها فوق المسرح ⟵ `0%` ولا مناطق، والنسبة «على المناطق المهمّة»، والمنطقة
+     * معلَنة «غير محفوظة». وإعادة تحميل الصفحة تُسقطها — مقارنة لقطتين بلا مرجع لا تحفظ شيئًا. وهذا القسم هو
+     * ما يسقط حين يُعطَّل القناع في المحرّك (سجلّ `STAGES/34`).
+     */
+    try {
+      const CLOCK_A = 'verify-clock-a'
+      const CLOCK_B = 'verify-clock-b'
+      const seededClock = JSON.parse(
+        await evalIn(
+          S,
+          `(async () => {
+          const db = await new Promise((res, rej) => {
+            const r = indexedDB.open('rasd')
+            r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error)
+          })
+          function page(clock) {
+            const c = new OffscreenCanvas(300, 200)
+            const ctx = c.getContext('2d')
+            ctx.fillStyle = 'rgb(100,100,100)'
+            ctx.fillRect(0, 0, 300, 200)
+            ctx.fillStyle = 'rgb(30,30,30)'
+            ctx.fillRect(20, 120, 120, 40)
+            ctx.fillStyle = clock
+            ctx.fillRect(200, 20, 60, 24)
+            return c.convertToBlob({ type: 'image/png' })
+          }
+          const blobA = await page('rgb(220,40,40)')
+          const blobB = await page('rgb(40,200,60)')
+          const now = Date.now()
+          const tx = db.transaction(['captures','blobs'], 'readwrite')
+          const rec = (id, title) => ({
+            id, createdAt: now, origin: 'https://example.com', url: 'https://example.com/clock',
+            title, kind: 'viewport', status: 'ready', projectId: null, tags: [],
+            width: 300, height: 200, devicePixelRatio: 1, favorite: false, archived: false, trashedAt: null,
+          })
+          tx.objectStore('captures').put(rec('${CLOCK_A}', 'ساعة أ'))
+          tx.objectStore('captures').put(rec('${CLOCK_B}', 'ساعة ب'))
+          tx.objectStore('blobs').put({ id: '${CLOCK_A}', blob: blobA, mime: 'image/png', bytes: blobA.size })
+          tx.objectStore('blobs').put({ id: '${CLOCK_B}', blob: blobB, mime: 'image/png', bytes: blobB.size })
+          await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error) })
+          db.close()
+          return JSON.stringify({ ok: true })
+        })().catch(e => JSON.stringify({ ok: false, error: String(e) }))`,
+        ),
+      )
+
+      /** نسبةٌ مستقرّة ثلاث قراءات متتالية على الصفحة الحالية — الحساب غير متزامن (خيط + عرض). */
+      async function stableRatio(timeoutMs = 10000) {
+        const start = Date.now()
+        let last = null
+        let same = 0
+        while (Date.now() - start < timeoutMs) {
+          const computed = await evalIn(S, comparedPixelsExpr).catch(() => null)
+          const text = computed
+            ? await evalIn(
+                S,
+                `document.querySelector('[class*="ratioValue"]')?.textContent ?? null`,
+              ).catch(() => null)
+            : null
+          if (text !== null && text === last) {
+            if (++same >= 3) return text
+          } else same = 0
+          last = text
+          await new Promise((r) => setTimeout(r, 150))
+        }
+        return null
+      }
+      const readPanel = () =>
+        evalIn(
+          S,
+          `JSON.stringify({
+            label: document.querySelector('[class*="ratioLabel"]')?.textContent ?? '',
+            detail: document.querySelector('[class*="ratioDetail"]')?.textContent ?? '',
+            regions: document.querySelectorAll('[class*="regionChips"] [class*="chip"]').length,
+            zonesSection: document.querySelector('[data-compare-zones]')?.textContent ?? '',
+            rows: document.querySelectorAll('[data-compare-zone]').length,
+            boxes: document.querySelectorAll('[data-compare-zone-box]').length,
+          })`,
+        ).then((t) => JSON.parse(t))
+
+      if (!seededClock.ok) {
+        fail(`تعذّر زرع لقطتَي الساعة: ${seededClock.error}`)
+      } else {
+        const clockUrl = `chrome-extension://${extId}/src/pages/compare/index.html?a=${CLOCK_A}&b=${CLOCK_B}`
+        await send('Page.navigate', { url: clockUrl }, S)
+        await new Promise((r) => setTimeout(r, 600))
+        const before = await stableRatio()
+        const beforePanel = await readPanel()
+        if (before && before.trim() !== '0%' && beforePanel.regions === 1) {
+          ok(`بلا منطقة: الساعة وحدها فرقٌ مقيس — ${before} ومنطقة واحدة`)
+        } else {
+          fail(`الساعة المتغيّرة لم تُحصَ بلا منطقة: ${before} · ${JSON.stringify(beforePanel)}`)
+        }
+
+        // ── رسمٌ حقيقي: الزرّ ثمّ سحب الفأرة فوق طبقة الالتقاط، بإحداثيات بكسل الصورة ──
+        await evalIn(S, `document.querySelector('[data-compare-zone-draw]')?.click()`)
+        await new Promise((r) => setTimeout(r, 200))
+        const layer = JSON.parse(
+          await evalIn(
+            S,
+            `(() => {
+              const el = document.querySelector('[data-compare-zone-layer]')
+              if (!el) return JSON.stringify(null)
+              const r = el.getBoundingClientRect()
+              return JSON.stringify({ x: r.left, y: r.top, w: r.width, h: r.height })
+            })()`,
+          ),
+        )
+        if (!layer) {
+          fail('«ارسم مستطيلًا» لم يُظهر طبقة الالتقاط')
+        } else {
+          // الساعة (200..260 × 20..44) وحولها هامش — بكسل الصورة إلى بكسل الشاشة بمقياس المسرح.
+          const k = layer.w / 300
+          const at = (x, y) => ({ x: layer.x + x * k, y: layer.y + y * k })
+          const from = at(192, 12)
+          const to = at(268, 52)
+          const mouse = (type, p) =>
+            send(
+              'Input.dispatchMouseEvent',
+              { type, x: p.x, y: p.y, button: 'left', clickCount: 1, pointerType: 'mouse' },
+              S,
+            )
+          await mouse('mousePressed', from)
+          await mouse('mouseMoved', at(230, 30))
+          await mouse('mouseMoved', to)
+          await mouse('mouseReleased', to)
+          await new Promise((r) => setTimeout(r, 400))
+
+          const after = await stableRatio()
+          const afterPanel = await readPanel()
+          if (
+            after?.trim() === '0%' &&
+            afterPanel.regions === 0 &&
+            afterPanel.label.includes('على المناطق المهمّة') &&
+            afterPanel.detail.includes('استُثني') &&
+            afterPanel.rows === 1 &&
+            afterPanel.boxes === 1 &&
+            afterPanel.zonesSection.includes('غير محفوظة')
+          ) {
+            ok(
+              `بمنطقةٍ مرسومة حول الساعة: ${after} ولا مناطق — «${afterPanel.label}» · «${afterPanel.detail}»`,
+            )
+          } else {
+            fail(`المنطقة المرسومة لم تُسقط الساعة: ${after} · ${JSON.stringify(afterPanel)}`)
+          }
+
+          // غير محفوظة: إعادة التحميل تُسقطها، والساعة تعود فرقًا.
+          await send('Page.reload', {}, S)
+          await new Promise((r) => setTimeout(r, 600))
+          const reloaded = await stableRatio()
+          const reloadedPanel = await readPanel()
+          if (reloaded?.trim() === before?.trim() && reloadedPanel.rows === 0) {
+            ok(`إعادة التحميل أسقطت منطقة الجلسة — ${reloaded} كما قبلها، ولا شيء حُفظ`)
+          } else {
+            fail(
+              `منطقة الجلسة بقيت بعد إعادة التحميل: ${reloaded} · ${JSON.stringify(reloadedPanel)}`,
+            )
+          }
+        }
+      }
+    } catch (e) {
+      fail(`استثناء أثناء فحص المناطق المستثناة: ${e.message ?? e}`)
     }
 
     /*

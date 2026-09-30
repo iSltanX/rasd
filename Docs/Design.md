@@ -617,18 +617,34 @@ return {
 
 | الإطار                         | الحالة | الداكن                                                                                  | الفاتح                                                                                    | منفَّذ                | مطابق |
 | ------------------------------ | ------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------- | ----- |
-| `compare / exclusions`         | أساسية | [`391:1989`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-1989) | [`395:60472`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60472) | [34](../STAGES/34.md) | —     |
-| `compare / exclusion-draw`     | أساسية | [`391:2217`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-2217) | [`395:60575`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60575) | [34](../STAGES/34.md) | —     |
-| `compare / exclusion-pick`     | أساسية | [`391:2422`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-2422) | [`395:60665`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60665) | [34](../STAGES/34.md) | —     |
-| `compare / exclusions-empty`   | فراغ   | [`391:2640`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-2640) | [`395:60766`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60766) | [34](../STAGES/34.md) | —     |
-| `compare / diff-masked`        | أساسية | [`391:2819`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-2819) | [`395:60848`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60848) | [34](../STAGES/34.md) | —     |
-| `compare / session-zones`      | أساسية | [`393:2742`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=393-2742) | [`395:61044`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-61044) | [34](../STAGES/34.md) | —     |
-| `compare / exclusion-fallback` | رفض    | [`391:3022`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-3022) | [`395:60938`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60938) | [34](../STAGES/34.md) | —     |
+| `compare / exclusions`         | أساسية | [`391:1989`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-1989) | [`395:60472`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60472) | [`ComparePanel.tsx`](../src/ui/overlay/compare/ComparePanel.tsx) · [`ZoneMarks.tsx`](../src/ui/overlay/compare/ZoneMarks.tsx) | —     |
+| `compare / exclusion-draw`     | أساسية | [`391:2217`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-2217) | [`395:60575`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60575) | [`ZoneMarks.tsx`](../src/ui/overlay/compare/ZoneMarks.tsx) · [`compare.ts`](../src/content/tools/compare.ts) | —     |
+| `compare / exclusion-pick`     | أساسية | [`391:2422`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-2422) | [`395:60665`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60665) | [`ZoneMarks.tsx`](../src/ui/overlay/compare/ZoneMarks.tsx) · [`compare.ts`](../src/content/tools/compare.ts) | —     |
+| `compare / exclusions-empty`   | فراغ   | [`391:2640`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-2640) | [`395:60766`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60766) | [`ComparePanel.tsx`](../src/ui/overlay/compare/ComparePanel.tsx) | —     |
+| `compare / diff-masked`        | أساسية | [`391:2819`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-2819) | [`395:60848`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60848) | [`ComparePanel.tsx`](../src/ui/overlay/compare/ComparePanel.tsx) | —     |
+| `compare / session-zones`      | أساسية | [`393:2742`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=393-2742) | [`395:61044`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-61044) | [`ZonesSection.tsx`](../src/pages/compare/parts/ZonesSection.tsx) · [`ZoneLayer.tsx`](../src/pages/compare/parts/ZoneLayer.tsx) | —     |
+| `compare / exclusion-fallback` | رفض    | [`391:3022`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=391-3022) | [`395:60938`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=395-60938) | [`ComparePanel.tsx`](../src/ui/overlay/compare/ComparePanel.tsx) · [`ZoneMarks.tsx`](../src/ui/overlay/compare/ZoneMarks.tsx) | —     |
 
 - **المنطقة المستثناة** قناع `overlay/mask` بحدّ متقطّع `tool/compare/fg` ورقمها في زاويتها، والفرق الذي يقع
   داخلها باهتٌ لا يُعدّ. والمنطقة الساقطة إلى مستطيلها بلون `status/warning`، ومعها سطر يسمّي المحدِّد الغائب.
 - **نسبة الفرق تُسمّى «على المناطق المهمّة»** متى وُجدت منطقة، ومعها ما استُثني منها.
 - **مقارنة لقطتين بلا مرجع** مستطيلات وحدها — لا DOM يُختار منه عنصر — ومعلَنة «غير محفوظة» في اللوحة وعلى المنطقة.
+
+**اختلافاتٌ مقصودة في التنفيذ** ([34](../STAGES/34.md)، [ADR 0034](ADR/0034-comparison-exclusions.md)):
+
+- **القسم مبسوطٌ دائمًا** — القائمة وزرّا الإعداد — لا مطويًّا بعدد و«عدّل» كما في `diff-masked`. حالةٌ ثانية للقسم
+  تكلّف `content.js` ما لا يشتريه شيء: التعديل بنقرة في الحالتين، وسقف المرحلة 4KB مضغوطة.
+- **الاسم المعروض** اسمُ المستخدم إن وُجد، وإلا المحدِّد لمنطقة العنصر أو المقاس لمنطقة المستطيل. الإطارات تُري أسماءً
+  كتبها مستخدم («الشارة المتجدّدة»)، ولا واجهة تسمية في النطاق؛ الحقل `label` محفوظ لها.
+- **سطر السقوط يقول «في الصفحة» لا «في المرجع»**: العنصر يُبحث عنه في الصفحة الحيّة ساعة القياس، لا في صورة
+  المرجع.
+- **اقتراح مناطق العنصر من المقاسات الأخرى** («منطقتا عنصر من مقاسات أخرى لهذه الصفحة. أضفها») بلا إطار: سطرٌ
+  بأجزاء اللوحة القائمة يحمل ما تقرّره ADR 0034 §3، ويظهر حين يوجد مقترحٌ عنصره في الصفحة الآن وحده.
+- **وسم المنطقة داخل ركنها** لا فوق حدّها — فوق المرجع وفي المسرح معًا: مسرح صفحة المقارنة يقصّ ما يخرج عنه،
+  فوسمٌ فوق منطقةٍ عند حافّته العليا يختفي.
+- **تلميح الرسم والاختيار** بشريط التلميحات القائم (`اسحب` ارسم منطقة · `esc` إلغاء) لا بجملة الإطار الواحدة.
+- **صفّ «مستثنى»** يقول نصيب المستثنى من مساحة التقاطع («منطقتان · 7% من الصفحة»)، وسطر صفحة المقارنة يُلحق
+  بعدد البكسلات «· استُثني N» بعد «من N» كما هو.
 
 ### التأهيل — الصفحة `27 — Onboarding`
 

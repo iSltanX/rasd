@@ -6,9 +6,9 @@
  * `computeDiff` صحيحة — لها اختباراتها — بل أن **الوصل** بينها وبين ما
  * تعرضه الطبقة صحيح: الاتّجاه، والمقام، ومصدر عدّ المناطق.
  */
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { summariseDiff } from '@/background/compare-diff-service'
+import { measureLiveDiff, summariseDiff } from '@/background/compare-diff-service'
 import { deviceRect } from '@/shared/geometry'
 
 import type { RasterImage } from '@/modules/compare/diff'
@@ -134,5 +134,62 @@ describe('summariseDiff — المناطق المستثناة (ADR 0034)', () =>
     expect(out.regionCount).toBe(1)
     expect(out.excludedPixels).toBe(0)
     expect(out.excludedZones).toBe(0)
+  })
+})
+
+/**
+ * فكّ لقطة الصفحة الحيّة **بلا `fetch`** — عطلٌ كشفه `verify:compare` (القسم 8.7، `STAGES/34`).
+ *
+ * `captureVisibleTab` يُرجع عنوان بيانات، و`connect-src 'self'` في بيان رصد يمنع `fetch(data:…)` داخل
+ * الـservice worker: «TypeError: Failed to fetch». فكان «التقط الفرق» يفشل دائمًا بـ«تعذّر فكّ بايتات الصورة»
+ * — ولم يمرّ به حارسٌ قبل هذه المرحلة. `shared/data-url.ts` وُجد لهذه العلّة نفسها؛ وهنا يُثبَت أن المسار
+ * يستعمله: `fetch` مرفوضة كما يرفضها البيان، و`createImageBitmap` و`OffscreenCanvas` بدائل تقرأ البايتات.
+ */
+describe('measureLiveDiff — اللقطة الحيّة تُفكّ بلا fetch', () => {
+  const PNG_1x1 =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
+    )
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn((blob: Blob) => {
+        // البايتات وصلت فعلًا — لا Blob فارغ يُقاس على أنه صورة.
+        expect(blob.size).toBeGreaterThan(0)
+        return Promise.resolve({ width: 2, height: 2, close: vi.fn() })
+      }),
+    )
+    vi.stubGlobal(
+      'OffscreenCanvas',
+      class {
+        constructor(
+          readonly width: number,
+          readonly height: number,
+        ) {}
+        getContext() {
+          return {
+            drawImage: vi.fn(),
+            getImageData: (_x: number, _y: number, w: number, h: number) => ({
+              data: new Uint8ClampedArray(w * h * 4).fill(255),
+              width: w,
+              height: h,
+            }),
+          }
+        }
+      },
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('المرجع Blob واللقطة عنوان بيانات ⟵ قياسٌ لا «تعذّر فكّ البايتات»', async () => {
+    const measured = await measureLiveDiff(new Blob([new Uint8Array([137, 80, 78, 71])]), PNG_1x1)
+    expect(measured.ok && measured.value.diffRatio).toBe(0)
+    expect(fetch).not.toHaveBeenCalled()
   })
 })
