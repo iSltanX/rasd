@@ -111,7 +111,7 @@ function sceneOf(nodes: readonly SceneNode[], pinStart = 1): Scene {
 }
 
 /** يطبّق ثم يعكس — والنتيجة يجب أن تطابق الأصل حقلًا بحقل. */
-function roundTrips(scene: Scene, patches: Parameters<typeof applyPatches>[1][]): void {
+function roundTrips(scene: Scene, patches: Parameters<typeof applyPatches>[1]): void {
   const after = applyPatches(scene, patches)
   expect(applyPatches(after, invertPatches(patches))).toEqual(scene)
 }

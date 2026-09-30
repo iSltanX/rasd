@@ -92,7 +92,14 @@ function scene(opts: SceneOptions = {}): Scene {
   const body = document.createElement('body')
   html.append(body)
 
-  plant(html, geoOf(opts.rootScroll ?? 0, { overflowY: opts.htmlOverflowY }), overflows)
+  plant(
+    html,
+    geoOf(
+      opts.rootScroll ?? 0,
+      opts.htmlOverflowY === undefined ? {} : { overflowY: opts.htmlOverflowY },
+    ),
+    overflows,
+  )
   plant(body, geoOf(0, opts.bodyGeo), overflows)
 
   const win = {

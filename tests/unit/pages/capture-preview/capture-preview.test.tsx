@@ -12,7 +12,7 @@ let container: HTMLDivElement | null = null
 
 afterEach(() => {
   if (container) {
-    act(() => render(null, container!))
+    void act(() => render(null, container!))
     container.remove()
     container = null
   }
@@ -26,7 +26,7 @@ describe('CapturePreview — الحالات الأربع', () => {
   beforeEach(() => {
     container = document.createElement('div')
     document.body.appendChild(container)
-    act(() => render(<CapturePreview />, container!))
+    void act(() => render(<CapturePreview />, container!))
   })
 
   it('أربعة مسارح بعناوينها: التحديد القائم والسحب وما قبل السحب والعدّاد', () => {

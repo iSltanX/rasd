@@ -222,7 +222,7 @@ describe('sendToTab', () => {
 
   it('المهلة تنتهي بـtimeout ولا تعلّق', async () => {
     vi.useFakeTimers()
-    vi.spyOn(chrome.tabs, 'sendMessage').mockReturnValue(new Promise<never>(() => {}))
+    vi.spyOn(chrome.tabs, 'sendMessage').mockReturnValue(new Promise<never>(() => {}) as never)
 
     const pending = sendToTab({ tabId: 1 }, 'diagnostics/ping', undefined, { timeoutMs: 40 })
     await vi.advanceTimersByTimeAsync(40)

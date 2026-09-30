@@ -19,13 +19,13 @@ function mount(node: preact.ComponentChild): HTMLDivElement {
   container = document.createElement('div')
   container.id = 'root'
   document.body.appendChild(container)
-  act(() => render(node, container!))
+  void act(() => render(node, container!))
   return container
 }
 
 afterEach(() => {
   if (container) {
-    act(() => render(null, container!))
+    void act(() => render(null, container!))
     container.remove()
     container = null
   }
@@ -81,23 +81,23 @@ describe('Gallery — مفتاحا السمة والاتجاه', () => {
 
   it('الفاتح يكتب data-theme على الجذر ويحدّد الخيار الثاني', () => {
     const root = mount(<Gallery />)
-    act(() => radio(root, 'الوضع', 'فاتح').click())
+    void act(() => radio(root, 'الوضع', 'فاتح').click())
 
     expect(document.documentElement.getAttribute('data-theme')).toBe('light')
     expect(radio(root, 'الوضع', 'فاتح').getAttribute('aria-checked')).toBe('true')
 
-    act(() => radio(root, 'الوضع', 'داكن').click())
+    void act(() => radio(root, 'الوضع', 'داكن').click())
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
   })
 
   it('LTR يقلب dir وlang معًا، والعودة إلى RTL تعيدهما', () => {
     const root = mount(<Gallery />)
-    act(() => radio(root, 'الاتجاه', 'LTR').click())
+    void act(() => radio(root, 'الاتجاه', 'LTR').click())
 
     expect(document.documentElement.getAttribute('dir')).toBe('ltr')
     expect(document.documentElement.getAttribute('lang')).toBe('en')
 
-    act(() => radio(root, 'الاتجاه', 'RTL').click())
+    void act(() => radio(root, 'الاتجاه', 'RTL').click())
     expect(document.documentElement.getAttribute('dir')).toBe('rtl')
     expect(document.documentElement.getAttribute('lang')).toBe('ar')
   })

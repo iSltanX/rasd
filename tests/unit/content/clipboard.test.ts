@@ -4,7 +4,7 @@
  * العقد الذي يُثبَّت هنا: الدالّة **لا ترمي أبدًا**، وكل فشل يعود `Result` برسالة عربية،
  * وصفحة غير مركَّزة لا تُعدّ فشلًا نهائيًّا بل تؤجِّل النسخ إلى أوّل تركيز أو نقرة — مرّة واحدة.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 
 import { copyCaptureToClipboard } from '@/content/clipboard'
 
@@ -23,6 +23,8 @@ function blobReply(overrides: Partial<{ base64: string; mime: string; bytes: num
 }
 
 let write: ReturnType<typeof vi.fn<WriteFn>>
+// مرجع محفوظ بدل `chrome.runtime.sendMessage` صريحًا: اللنت يمنع النداء الخام خارج طبقة الرسائل.
+let sendMessage: MockInstance
 const originalSecure = Object.getOwnPropertyDescriptor(window, 'isSecureContext')
 
 function setSecure(value: boolean) {
@@ -38,7 +40,7 @@ beforeEach(() => {
   vi.stubGlobal('ClipboardItem', FakeClipboardItem)
   setClipboard({ write })
   setSecure(true)
-  vi.spyOn(chrome.runtime, 'sendMessage').mockResolvedValue(blobReply() as never)
+  sendMessage = vi.spyOn(chrome.runtime, 'sendMessage').mockResolvedValue(blobReply() as never)
 })
 
 afterEach(() => {
@@ -59,7 +61,7 @@ describe('copyCaptureToClipboard — الصفحة لا تسمح بالكتابة
 
     expect(result).toMatchObject({ ok: false, error: { code: 'permission-denied' } })
     expect(!result.ok && result.error.message).toContain('محفوظة في المكتبة')
-    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled()
+    expect(sendMessage).not.toHaveBeenCalled()
   })
 
   it('بلا navigator.clipboard.write: يرفض', async () => {
@@ -67,7 +69,7 @@ describe('copyCaptureToClipboard — الصفحة لا تسمح بالكتابة
     const result = await copyCaptureToClipboard('shot-1')
 
     expect(result).toMatchObject({ ok: false, error: { code: 'permission-denied' } })
-    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled()
+    expect(sendMessage).not.toHaveBeenCalled()
   })
 
   it('سياق غير آمن (http): يرفض حتى مع وجود الواجهة', async () => {
@@ -124,7 +126,7 @@ describe('copyCaptureToClipboard — الكتابة', () => {
 
   it('يطلب البايتات بمعرّف اللقطة المعطى', async () => {
     await copyCaptureToClipboard('shot-42')
-    const envelope = vi.mocked(chrome.runtime.sendMessage).mock.calls[0]![0] as {
+    const envelope = sendMessage.mock.calls[0]![0] as unknown as {
       type: string
       payload: unknown
     }

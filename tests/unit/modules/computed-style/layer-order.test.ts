@@ -210,7 +210,7 @@ describe('LayerOrder.qualify — مسار الطبقة بالمشي على paren
     const loop = { name: 'x', parentRule: null as unknown }
     loop.parentRule = loop
 
-    const path = order.qualify(loop as CSSRule)
+    const path = order.qualify(loop as unknown as CSSRule)
     expect(path.split('.')).toHaveLength(64)
   })
 })

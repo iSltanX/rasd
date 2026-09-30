@@ -2,7 +2,7 @@ import { vi } from 'vitest'
 
 type Transaction = (
   this: IDBDatabase,
-  stores: string | string[],
+  stores: string | Iterable<string>,
   mode?: IDBTransactionMode,
   options?: IDBTransactionOptions,
 ) => IDBTransaction
@@ -23,7 +23,7 @@ export function failCaptureDeleteAt(nth: number): void {
   let deletes = 0
   vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementation(function (
     this: IDBDatabase,
-    stores: string | string[],
+    stores: string | Iterable<string>,
     mode?: IDBTransactionMode,
     options?: IDBTransactionOptions,
   ) {

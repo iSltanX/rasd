@@ -586,7 +586,9 @@ describe('الجودة والصيغة المُنتَجة', () => {
         convertToBlob: (options) => {
           seen.push(options)
           // بايتات السطح نفسها، بالنوع المُملى إن وُجد وإلّا المطلوب.
-          return Promise.resolve(new Blob([surface.pixels], { type: type ?? options.type }))
+          return Promise.resolve(
+            new Blob([new Uint8Array(surface.pixels)], { type: type ?? options.type }),
+          )
         },
       },
     }
