@@ -45,14 +45,15 @@ describe('الخطّة الحقيقية', () => {
     expect(checkPlan(readPlan(), stages)).toEqual([])
   })
 
-  it('تغطّي كل مرحلة متبقّية مرّة واحدة، والمكتملة خارجها', () => {
+  it('تغطّي كل مرحلة متبقّية مرّة واحدة، والمكتملة قبلها خارجها', () => {
     const plan = readPlan()
     const planned = plan.waves.flatMap((wave: { stages: number[] }) => wave.stages).sort()
-    const remaining = stages
-      .filter((stage) => stage.status !== 'done')
+    // المكتملة في موجةٍ أُغلقت تبقى في صفّها وترويستها تحمل `wave`؛ والمكتملة قبل الخطّة بلا `wave`.
+    const inPlan = stages
+      .filter((stage) => stage.status !== 'done' || stage.wave !== null)
       .map((stage) => stage.id)
       .sort()
-    expect(planned).toEqual(remaining)
+    expect(planned).toEqual(inPlan)
     expect(planned).not.toContain(4)
   })
 
@@ -131,7 +132,11 @@ describe('كل قاعدة تسقط على مخالفتها', () => {
   })
 
   it('اعتمادية في الموجة نفسها', () => {
-    expect(checkPlan(readPlan(), withHeader(15, { depends: [19] })).join('\n')).toContain(
+    // 19 غير مكتملة هنا أيًّا كانت ترويستها اليوم: الاعتمادية على المكتملة لا تُحسب.
+    const pending = withHeader(15, { depends: [19] }).map((stage) =>
+      stage.id === 19 ? { ...stage, status: 'active' } : stage,
+    )
+    expect(checkPlan(readPlan(), pending).join('\n')).toContain(
       'المرحلة 15 (الموجة 1) تعتمد على 19 (1)',
     )
   })
