@@ -2,7 +2,7 @@
 
 مولَّدة بـ`pnpm verify:library`. **تُقرأ بالعين ولا تُقارَن آليًّا**.
 
-العناصر التفاعلية: 88 · بلا اسم: 0
+العناصر التفاعلية: 90 · بلا اسم: 0
 
 ```
 a — رصد — المكتبة
@@ -39,58 +39,60 @@ radio — المهملات
 select — ترتيب حسب
 list — لقطات المكتبة
 listitem — منطقةلقطة 0example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 0example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة الفحصexample.com · مشروع الفحص
-button — منطقةلقطة الفحصexample.com · مشروع الفحص
 input — تحديد اللقطة
+button — منطقةلقطة الفحصexample.com · مشروع الفحص
 img — مفضَّلة
 listitem — منطقةلقطة 1example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 1example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 2example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 2example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 3example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 3example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 4example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 4example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 5example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 5example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 6example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 6example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 7example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 7example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 8example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 8example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 9example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 9example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 10example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 10example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 11example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 11example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 12example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 12example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 13example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 13example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 14example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 14example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 15example.comالآن
+input — تحديد اللقطة
 button — منطقةلقطة 15example.comالآن
-input — تحديد اللقطة
 listitem — منطقةلقطة 16example.comالآن
-button — منطقةلقطة 16example.comالآن
 input — تحديد اللقطة
+button — منطقةلقطة 16example.comالآن
+status — حُذف نهائيًا: لون واحد
+button — إغلاق
 ```
