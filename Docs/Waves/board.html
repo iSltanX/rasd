@@ -78,12 +78,12 @@ footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
 <body>
 <main>
   <h1>خطّة تنفيذ رصد بالتوازي</h1>
-  <p class="sub">مشتقّة من <code dir="ltr">Docs/Waves.md</code> وترويسات <code dir="ltr">STAGES/</code> ووسوم الأساس — ليست مصدر حالة. وُلّدت على <code dir="ltr">e2a4a09</code> في <span dir="ltr">2026-09-30 18:19</span> UTC.</p>
+  <p class="sub">مشتقّة من <code dir="ltr">Docs/Waves.md</code> وترويسات <code dir="ltr">STAGES/</code> ووسوم الأساس — ليست مصدر حالة. وُلّدت على <code dir="ltr">3c4c05c</code> في <span dir="ltr">2026-09-30 20:43</span> UTC.</p>
   <div class="summary">
-    <div><b>٢٠</b><span>مرحلة متبقّية</span></div>
+    <div><b>١٨</b><span>مرحلة متبقّية</span></div>
     <div><b>١٤</b><span>موجة</span></div>
     <div><b>٤</b><span>أقصى توازٍ</span></div>
-    <div><b>الموجة <span dir="ltr">4</span> — مفتوحة</b><span>الموجة الحالية</span></div>
+    <div><b>الموجة <span dir="ltr">5</span> — مفتوحة</b><span>الموجة الحالية</span></div>
   </div>
   <div class="legend">
     <span><i style="background:var(--ready)"></i>جاهزة</span>
@@ -381,19 +381,19 @@ Markdown يقرؤه المطوّر ويُلصق في مساعد برمجة كم�
           <p class="command"><code dir="ltr">/wave-merge 03</code></p>
     </section>
     <div class="arrow" aria-hidden="true">↓</div>
-    <section class="wave open current" id="wave-04">
+    <section class="wave closed" id="wave-04">
       <header>
-        <h2>الموجة <span dir="ltr">4</span> — ٢ مراحل بالتوازي</h2>
-        <span class="pill wave-pill">مفتوحة</span>
+        <h2>✓ الموجة <span dir="ltr">4</span> — ٢ مراحل بالتوازي</h2>
+        <span class="pill wave-pill">مغلقة</span>
       </header>
       <p class="meta">الأساس: <code dir="ltr">wave-04/base</code> · <code dir="ltr">e2a4a09</code> · الفحص: <code dir="ltr">all</code> · ترحيل التخزين: <span class="num">07</span> · الجولة اليدوية: —</p>
       <p class="why">05 على المسار الحرج، و07 تفتح 08. 07 أوّلًا: تملك التخزين والإعدادات وتسبق 05 في <code dir="ltr">contract.ts</code></p>
       <div class="stages">
-      <details class="stage state-ready" data-stage="07">
+      <details class="stage state-merged" data-stage="07">
         <summary>
           <span class="num">07</span>
           <span class="title">إدارة البيانات: النسخ الاحتياطي والاستيراد والحذف الكامل</span>
-          <span class="pill">جاهزة</span>
+          <span class="pill">مدمجة</span>
           <span class="pill local" hidden>تمّت (محلّيًّا)</span>
         </summary>
         <div class="body">
@@ -410,11 +410,11 @@ Markdown يقرؤه المطوّر ويُلصق في مساعد برمجة كم�
           <p class="command"><code dir="ltr">/stage 07</code></p>
         </div>
       </details>
-      <details class="stage state-ready" data-stage="05">
+      <details class="stage state-merged" data-stage="05">
         <summary>
           <span class="num">05</span>
           <span class="title">تصدير PDF وتقرير المقارنة</span>
-          <span class="pill">جاهزة</span>
+          <span class="pill">مدمجة</span>
           <span class="pill local" hidden>تمّت (محلّيًّا)</span>
         </summary>
         <div class="body">
@@ -433,9 +433,9 @@ Markdown يقرؤه المطوّر ويُلصق في مساعد برمجة كم�
       </details></div>
     </section>
     <div class="arrow" aria-hidden="true">↓</div>
-    <section class="merge ">
-      <h3>الدمج <span dir="ltr">4</span> — بعد اكتمال جميع المراحل</h3>
-      <ul class="checklist"><li data-check="07" class=""><span class="num">07</span> إدارة البيانات: النسخ الاحتياطي والاستيراد والحذف الكامل</li><li data-check="05" class=""><span class="num">05</span> تصدير PDF وتقرير المقارنة</li></ul>
+    <section class="merge closed">
+      <h3>✓ الدمج <span dir="ltr">4</span> — بعد اكتمال جميع المراحل</h3>
+      <ul class="checklist"><li data-check="07" class="ok"><span class="num">07</span> إدارة البيانات: النسخ الاحتياطي والاستيراد والحذف الكامل</li><li data-check="05" class="ok"><span class="num">05</span> تصدير PDF وتقرير المقارنة</li></ul>
       <p class="recipe">جلسة جديدة ← المجلّد rasd ← <strong>بلا</strong> worktree ← Opus 5.5 ← الصق</p>
           <div class="actions">
             <button type="button" class="btn primary" data-copy="w-04-short">نسخ الأمر المختصر</button>
@@ -445,19 +445,19 @@ Markdown يقرؤه المطوّر ويُلصق في مساعد برمجة كم�
           <p class="command"><code dir="ltr">/wave-merge 04</code></p>
     </section>
     <div class="arrow" aria-hidden="true">↓</div>
-    <section class="wave upcoming" id="wave-05">
+    <section class="wave open current" id="wave-05">
       <header>
         <h2>الموجة <span dir="ltr">5</span> — ٢ مراحل بالتوازي</h2>
-        <span class="pill wave-pill">قادمة</span>
+        <span class="pill wave-pill">مفتوحة</span>
       </header>
-      <p class="meta">الأساس: يُحسم عند فتح الموجة · الفحص: <code dir="ltr">all</code> · ترحيل التخزين: <span class="num">06</span> · الجولة اليدوية: مستحقّة</p>
+      <p class="meta">الأساس: <code dir="ltr">wave-05/base</code> · <code dir="ltr">3c4c05c</code> · الفحص: <code dir="ltr">all</code> · ترحيل التخزين: <span class="num">06</span> · الجولة اليدوية: مستحقّة</p>
       <p class="why">17 تعيد كتابة الحرّاس كلّها، فلا يجاورها من يعدّل حارسًا — و06 لا تعدّل حارسًا</p>
       <div class="stages">
-      <details class="stage state-waiting" data-stage="06">
+      <details class="stage state-ready" data-stage="06">
         <summary>
           <span class="num">06</span>
           <span class="title">دليل الخطوات بصيغه الأربع وقوالب التصدير</span>
-          <span class="pill">موجتها لم تُفتح</span>
+          <span class="pill">جاهزة</span>
           <span class="pill local" hidden>تمّت (محلّيًّا)</span>
         </summary>
         <div class="body">
@@ -474,11 +474,11 @@ Markdown يقرؤه المطوّر ويُلصق في مساعد برمجة كم�
           <p class="command"><code dir="ltr">/stage 06</code></p>
         </div>
       </details>
-      <details class="stage state-waiting" data-stage="17">
+      <details class="stage state-ready" data-stage="17">
         <summary>
           <span class="num">17</span>
           <span class="title">نواة CDP المشتركة ومصفوفة العيّنات</span>
-          <span class="pill">موجتها لم تُفتح</span>
+          <span class="pill">جاهزة</span>
           <span class="pill local" hidden>تمّت (محلّيًّا)</span>
         </summary>
         <div class="body">
