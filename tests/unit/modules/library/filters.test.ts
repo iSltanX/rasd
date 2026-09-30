@@ -52,6 +52,54 @@ describe('matchesFilters', () => {
   })
 })
 
+describe('matchesFilters — الأصل والمشروع والمدى الزمني', () => {
+  it('الأصل يُطابَق بالتساوي التامّ', () => {
+    const record = capture('a', { origin: 'https://example.com' })
+    expect(matchesFilters(record, { origin: 'https://example.com' })).toBe(true)
+    // نطاق فرعي أصلٌ آخر — لا مطابقة جزئية.
+    expect(matchesFilters(record, { origin: 'https://shop.example.com' })).toBe(false)
+  })
+
+  it('`projectId: null` يعني «بلا مشروع» لا «أي مشروع»', () => {
+    const inProject = capture('a', { projectId: 'p1' })
+    const loose = capture('b', { projectId: null })
+    expect(matchesFilters(loose, { projectId: null })).toBe(true)
+    expect(matchesFilters(inProject, { projectId: null })).toBe(false)
+    // غير المُمرَّر لا يقيّد أيًّا منهما.
+    expect(matchesFilters(inProject, {})).toBe(true)
+    expect(matchesFilters(loose, {})).toBe(true)
+  })
+
+  it('الحدّ الأدنى للتاريخ شاملٌ ويُقصي الأقدم', () => {
+    const at = capture('a', { createdAt: 1000 })
+    const before = capture('b', { createdAt: 999 })
+    expect(matchesFilters(at, { dateFrom: 1000 })).toBe(true)
+    expect(matchesFilters(before, { dateFrom: 1000 })).toBe(false)
+  })
+
+  it('الحدّ الأعلى للتاريخ شاملٌ ويُقصي الأحدث', () => {
+    const at = capture('a', { createdAt: 2000 })
+    const after = capture('b', { createdAt: 2001 })
+    expect(matchesFilters(at, { dateTo: 2000 })).toBe(true)
+    expect(matchesFilters(after, { dateTo: 2000 })).toBe(false)
+  })
+
+  it('المدى الزمني بحدّيه يُبقي ما بينهما وحده', () => {
+    const records = [
+      capture('قبل', { createdAt: 999 }),
+      capture('عند البداية', { createdAt: 1000 }),
+      capture('وسط', { createdAt: 1500 }),
+      capture('عند النهاية', { createdAt: 2000 }),
+      capture('بعد', { createdAt: 2001 }),
+    ]
+    expect(filterRecords(records, { dateFrom: 1000, dateTo: 2000 }).map((r) => r.id)).toEqual([
+      'عند البداية',
+      'وسط',
+      'عند النهاية',
+    ])
+  })
+})
+
 describe('filterRecords — تجميع تقاطعًا لا اتحادًا', () => {
   const records = [
     capture('a', { projectId: 'p1', favorite: true, kind: 'area' }),

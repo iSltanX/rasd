@@ -12,8 +12,12 @@ import {
   snapToPixel,
 } from '@/modules/editor/render-plan'
 import {
+  artboardRect,
+  disposeLayer,
+  fullImageRect,
   paintAnnotations,
   paintBase,
+  paintCrop,
   paintSelection,
   type BaseSource,
   type Frame,
@@ -27,8 +31,10 @@ import {
   type RedactNode,
   type Scene,
   type SceneNode,
+  type TextNode,
 } from '@/modules/editor/scene'
 import { emptyScene } from '@/modules/editor/scene-schema'
+import { createTextLayoutCache } from '@/modules/editor/text-layout'
 import { deviceRect, devicePoint } from '@/shared/geometry'
 
 import { createRecordingCtx, type RecordingCtx } from '../../../helpers/recording-ctx'
@@ -384,5 +390,183 @@ describe('التحديد', () => {
       frameOf(scene, { selection: new Set([asNodeId('a')]), camera: { zoom: 4, tx: 0, ty: 0 } }),
     )
     expect(ctx.assigned('lineWidth')).toContain(1.5 / 4)
+  })
+})
+
+describe('التحديد — العقد غير المحدَّدة', () => {
+  it('**لا يُرسم إطار ولا مقابض إلّا للمحدَّد** وإن وُجدت عقدٌ أخرى في المشهد', () => {
+    const ctx = createRecordingCtx()
+    const scene = sceneWith([rect('a'), rect('b', deviceRect(300, 300, 40, 40))])
+    paintSelection(layerOf(ctx), frameOf(scene, { selection: new Set([asNodeId('b')]) }))
+
+    // إطارٌ واحد لـ`b` وحده، وثمانية مقابض لأن المحدَّد واحد.
+    expect(ctx.calls.filter((c) => c.name === 'stroke')).toHaveLength(1)
+    expect(ctx.calls.filter((c) => c.name === 'fillRect')).toHaveLength(8)
+    // الإطار على صندوق `b` (40×40 عند 300,300) لا على `a` — بعد توسعة السمك.
+    const frameBox = ctx.calls.find((c) => c.name === 'rect')?.args as number[]
+    expect(frameBox[0]).toBeGreaterThan(290)
+  })
+
+  it('ومعرّفٌ لا يقابل عقدة في المشهد لا يرسم شيئًا سوى إعداد السياق', () => {
+    const ctx = createRecordingCtx()
+    paintSelection(
+      layerOf(ctx),
+      frameOf(sceneWith([rect('a')]), { selection: new Set([asNodeId('ghost')]) }),
+    )
+    expect(ctx.calls.filter((c) => c.name === 'stroke')).toHaveLength(0)
+    expect(ctx.calls.filter((c) => c.name === 'fillRect')).toHaveLength(0)
+    // ويُستعاد السياق رغم ذلك.
+    expect(ctx.names().at(-1)).toBe('restore')
+  })
+})
+
+describe('طبقة التعليقات — ما يُمرَّر إلى الرسّامين', () => {
+  const textNode = (): TextNode => ({
+    kind: 'text',
+    id: asNodeId('t'),
+    locked: false,
+    rotation: 0,
+    hidden: false,
+    stroke,
+    at: devicePoint(10, 10),
+    text: 'مرحبا',
+    font: { family: 'Cairo', sizePx: 16, weight: 400, letterSpacingPx: 0 },
+    maxWidthPx: 0,
+    align: 'start',
+    dir: 'auto',
+  })
+
+  it('**بلا ذاكرة تخطيط تُتخطّى العقد النصّية** ومعها تُرسم', () => {
+    const scene = sceneWith([textNode()])
+    const plan = planFrame({ scene, camera: identityCamera, stage })
+
+    const without = createRecordingCtx()
+    paintAnnotations(layerOf(without), plan, frameOf(scene))
+    expect(without.names()).not.toContain('fillText')
+
+    const withLayout = createRecordingCtx()
+    const layout = createTextLayoutCache((line) => line.length * 10)
+    paintAnnotations(layerOf(withLayout), plan, frameOf(scene, { layout }))
+    expect(withLayout.calls.filter((c) => c.name === 'fillText')).toHaveLength(1)
+  })
+
+  it('**والطمس بلا رقعة يُرسم تغطيةً معتمة، ومعها تُرسم الرقعة** لا التغطية', () => {
+    const blur: RedactNode = { ...redact('r'), mode: 'blur', strength: 6 }
+    const scene = sceneWith([blur])
+    const plan = planFrame({ scene, camera: identityCamera, stage })
+
+    const without = createRecordingCtx()
+    paintAnnotations(layerOf(without), plan, frameOf(scene))
+    expect(without.calls.filter((c) => c.name === 'fillRect')).toHaveLength(1)
+    expect(without.names()).not.toContain('drawImage')
+
+    const patchImage = {} as unknown as CanvasImageSource
+    const withPatch = createRecordingCtx()
+    paintAnnotations(
+      layerOf(withPatch),
+      plan,
+      frameOf(scene, {
+        redactPatch: () => ({ image: patchImage, plan: { dest: { x: 1, y: 2, w: 3, h: 4 } } }),
+      }),
+    )
+    expect(withPatch.calls.find((c) => c.name === 'drawImage')?.args[0]).toBe(patchImage)
+    expect(withPatch.names()).not.toContain('fillRect')
+  })
+})
+
+// ═════════════════════════ الاقتصاص والأدوات المساعدة ═════════════════════════
+
+describe('تحرير الطبقة', () => {
+  it('**`width = 0` و`height = 0` يُسقطان مخزن الرسم** فورًا', () => {
+    const canvas = { width: 4000, height: 3000 }
+    disposeLayer(canvas)
+    expect(canvas).toEqual({ width: 0, height: 0 })
+  })
+})
+
+describe('مستطيلات الصورة', () => {
+  it('مستطيل الصورة كاملةً يبدأ من الأصل بأبعاد المصدر', () => {
+    expect(fullImageRect(src)).toEqual(deviceRect(0, 0, 1000, 800))
+  })
+
+  it('**ومستطيل اللوحة الفنية بفضاء المسرح** — تكبيرٌ ثمّ إزاحة', () => {
+    const camera: Camera = { zoom: 0.5, tx: 30, ty: 40 }
+    const box = artboardRect(src, camera)
+    expect(box.space).toBe('canvas')
+    expect([box.x, box.y, box.width, box.height]).toEqual([30, 40, 500, 400])
+  })
+})
+
+describe('حدود الاقتصاص', () => {
+  const cropped = (crop: Scene['meta']['crop']): Scene => {
+    const scene = sceneWith([])
+    return { ...scene, meta: { ...scene.meta, crop } }
+  }
+
+  it('**بلا وضع اقتصاص فعّال لا يُرسم شيء** ولو وُجد اقتصاص محفوظ', () => {
+    const ctx = createRecordingCtx()
+    paintCrop(layerOf(ctx), frameOf(cropped(deviceRect(10, 20, 100, 50))))
+    expect(ctx.calls).toHaveLength(0)
+  })
+
+  it('ووضعٌ فعّال بلا اقتصاص بعدُ لا يرسم شيئًا كذلك', () => {
+    const ctx = createRecordingCtx()
+    paintCrop(layerOf(ctx), frameOf(cropped(null), { cropActive: true }))
+    expect(ctx.calls).toHaveLength(0)
+  })
+
+  it('**لا يمسح الطبقة** — يُنادى بعد التعليقات فمسحُه يمحو كل ما رُسم', () => {
+    const ctx = createRecordingCtx()
+    paintCrop(layerOf(ctx), frameOf(cropped(deviceRect(10, 20, 100, 50)), { cropActive: true }))
+    expect(ctx.names()).not.toContain('clearRect')
+    // التحويل وحده: كاميرا الهوية × كثافة المخزن 2.
+    expect(ctx.calls.find((c) => c.name === 'setTransform')?.args).toEqual([2, 0, 0, 2, 0, 0])
+    expect(ctx.names()[0]).toBe('save')
+    expect(ctx.names().at(-1)).toBe('restore')
+  })
+
+  it('الإطار على حدّ الاقتصاص، ثمّ أثلاثٌ خفيفة بنصف شفافية', () => {
+    const ctx = createRecordingCtx()
+    paintCrop(layerOf(ctx), frameOf(cropped(deviceRect(30, 60, 90, 60)), { cropActive: true }))
+
+    const rects = ctx.calls.filter((c) => c.name === 'rect').map((c) => c.args)
+    expect(rects[0]).toEqual([30, 60, 90, 60])
+
+    // خطّان رأسيان وخطّان أفقيان عند الثلث والثلثين.
+    const moves = ctx.calls.filter((c) => c.name === 'moveTo').map((c) => c.args)
+    expect(moves).toEqual([
+      [60, 60],
+      [30, 80],
+      [90, 60],
+      [30, 100],
+    ])
+    expect(ctx.assigned('globalAlpha')).toEqual([1, 0.35, 1])
+    expect(ctx.assigned('filter')).toEqual(['none'])
+  })
+
+  it('**ثمانية مقابض بمقاس ثابت على الشاشة** — يُقسَم على التكبير', () => {
+    const ctx = createRecordingCtx()
+    const camera: Camera = { zoom: 3, tx: 0, ty: 0 }
+    paintCrop(
+      layerOf(ctx),
+      frameOf(cropped(deviceRect(30, 60, 90, 60)), { cropActive: true, camera }),
+    )
+
+    // الإطار + مقبضٌ لكل واحد من ثمانية.
+    const rects = ctx.calls.filter((c) => c.name === 'rect').map((c) => c.args as number[])
+    expect(rects).toHaveLength(1 + 8)
+    const size = 9 / 3
+    for (const handle of rects.slice(1)) expect(handle[2]).toBe(size)
+    // مقبض الركن الشمالي الغربي مركزه على الركن.
+    expect(rects[1]).toEqual([30 - size / 2, 60 - size / 2, size, size])
+    expect(ctx.calls.filter((c) => c.name === 'fill')).toHaveLength(8)
+    // والسمك الرفيع 1 ÷ 3، والإطار الأوّل ضعفه.
+    expect(ctx.assigned('lineWidth')).toEqual([2 / 3, 1 / 3, 1 / 3])
+  })
+
+  it('والاقتصاص المسحوب عكسيًّا يُسوّى قبل رسم الحدّ', () => {
+    const ctx = createRecordingCtx()
+    paintCrop(layerOf(ctx), frameOf(cropped(deviceRect(120, 120, -90, -60)), { cropActive: true }))
+    expect(ctx.calls.find((c) => c.name === 'rect')?.args).toEqual([30, 60, 90, 60])
   })
 })

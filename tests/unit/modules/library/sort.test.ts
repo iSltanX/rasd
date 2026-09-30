@@ -70,6 +70,38 @@ describe('sortRecords', () => {
     expect(sortRecords(records, 'kind', 'asc', lookup).map((r) => r.id)).toEqual(['b', 'c', 'a'])
   })
 
+  it('يرتِّب بالأصل (الموقع) أبجديًّا تصاعديًا وتنازليًا', () => {
+    const records = [
+      capture('b', { origin: 'https://b.example' }),
+      capture('c', { origin: 'https://c.example' }),
+      capture('a', { origin: 'https://a.example' }),
+    ]
+    expect(sortRecords(records, 'origin', 'asc', lookup).map((r) => r.id)).toEqual(['a', 'b', 'c'])
+    expect(sortRecords(records, 'origin', 'desc', lookup).map((r) => r.id)).toEqual(['c', 'b', 'a'])
+  })
+
+  /**
+   * لقطتان بلا مشروع متساويتان في الترتيب — لا تُبدَّل إحداهما بالأخرى. الترتيب
+   * ثابت (stable)، فيبقى ترتيبهما الأصلي في الاتجاهين، ومعهما «لا مشروع» أخيرًا.
+   */
+  it('لقطات بلا مشروع تحفظ ترتيبها النسبي في الاتجاهين وتبقى أخيرًا', () => {
+    const records = [
+      capture('n1', { projectId: null }),
+      capture('p', { projectId: 'p1' }),
+      capture('n2', { projectId: null }),
+    ]
+    expect(sortRecords(records, 'project', 'asc', lookup).map((r) => r.id)).toEqual([
+      'p',
+      'n1',
+      'n2',
+    ])
+    expect(sortRecords(records, 'project', 'desc', lookup).map((r) => r.id)).toEqual([
+      'p',
+      'n1',
+      'n2',
+    ])
+  })
+
   it('الترتيب الافتراضي: الأحدث أولًا', () => {
     const records = [capture('a', { createdAt: 100 }), capture('b', { createdAt: 200 })]
     expect(

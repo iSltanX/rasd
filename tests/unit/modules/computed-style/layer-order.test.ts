@@ -79,6 +79,140 @@ describe('LayerOrder — شجرة لا قائمة', () => {
   it('المسار الفارغ يعني «خارج الطبقات»', () => {
     expect(new LayerOrder().key('')).toBeNull()
   })
+
+  it('تسجيل المسار الفارغ لا يحجز موضعًا في الترتيب', () => {
+    // «خارج الطبقات» غياب طبقة لا طبقة أولى: تسجيلها لا يُزيح ما بعدها.
+    const order = new LayerOrder()
+    order.register('')
+    order.register('first')
+    expect(order.key('first')).toEqual([0, Number.POSITIVE_INFINITY])
+  })
+
+  it('المفتاح مسار أعداد الآباء ثم اللانهاية', () => {
+    const order = new LayerOrder()
+    order.register('outer')
+    order.register('outer.inner')
+    order.register('other')
+
+    expect(order.key('outer')).toEqual([0, Number.POSITIVE_INFINITY])
+    expect(order.key('outer.inner')).toEqual([0, 0, Number.POSITIVE_INFINITY])
+    expect(order.key('other')).toEqual([1, Number.POSITIVE_INFINITY])
+  })
+
+  it('السؤال عن مفتاح مسار جديد يسجّله بأوّل ذكر', () => {
+    const order = new LayerOrder()
+    order.register('a')
+    const b = order.key('b')
+    // `b` لم تُسجَّل صراحةً، ومع ذلك أخذت موضعها بعد `a` وثبت.
+    expect(b).toEqual([1, Number.POSITIVE_INFINITY])
+    expect(order.key('b')).toEqual(b)
+  })
+})
+
+/** قاعدة مزيَّفة بما يقرؤه `qualify`: اسم الطبقة إن كانت كتلة طبقة، وأبوها. */
+const fakeRule = (
+  props: { name?: unknown; layerName?: unknown },
+  parentRule: CSSRule | null = null,
+): CSSRule => ({ ...props, parentRule }) as unknown as CSSRule
+
+describe('LayerOrder.qualify — مسار الطبقة بالمشي على parentRule', () => {
+  it('قاعدة خارج كل طبقة مسارها فارغ ولا تُسجَّل شيئًا', () => {
+    const order = new LayerOrder()
+    const style = fakeRule({})
+    expect(order.qualify(style)).toBe('')
+    // لم تُحجَز طبقة: أوّل طبقة تُسجَّل بعدها تأخذ الموضع صفرًا.
+    expect(order.key('later')).toEqual([0, Number.POSITIVE_INFINITY])
+  })
+
+  it('قاعدة داخل طبقة واحدة', () => {
+    const order = new LayerOrder()
+    const layer = fakeRule({ name: 'base' })
+    expect(order.qualify(fakeRule({}, layer))).toBe('base')
+  })
+
+  it('الطبقات المتداخلة تُضمّ من الأبعد إلى الأقرب وتُسجَّل بآبائها', () => {
+    const order = new LayerOrder()
+    const outer = fakeRule({ name: 'outer' })
+    const inner = fakeRule({ name: 'inner' }, outer)
+    const style = fakeRule({}, inner)
+
+    expect(order.qualify(style)).toBe('outer.inner')
+    // التسجيل جرى فعلًا: الأب سابق لابنه في الترتيب.
+    expect(order.key('outer.inner')).toEqual([0, 0, Number.POSITIVE_INFINITY])
+  })
+
+  it('الطبقة تُلتقط من جدٍّ لا من الأب المباشر وحده', () => {
+    // `@layer base { @media (…) { .x {} } }` — الأب المباشر `@media` بلا اسم.
+    const order = new LayerOrder()
+    const layer = fakeRule({ name: 'base' })
+    const media = fakeRule({}, layer)
+    expect(order.qualify(fakeRule({}, media))).toBe('base')
+  })
+
+  it('يقرأ الاسم من layerName حين لا name', () => {
+    // احتياط لبيئة تعرض الخاصّية بالاسم القديم.
+    const order = new LayerOrder()
+    expect(order.qualify(fakeRule({}, fakeRule({ layerName: 'legacy' })))).toBe('legacy')
+  })
+
+  it('name يتقدّم على layerName إن وُجدا', () => {
+    const order = new LayerOrder()
+    const layer = fakeRule({ name: 'current', layerName: 'legacy' })
+    expect(order.qualify(fakeRule({}, layer))).toBe('current')
+  })
+
+  it('اسم غير نصّي لا يُعدّ طبقة', () => {
+    // `@keyframes` وأشباهه قد يحمل `name` نصًّا، أمّا ما ليس نصًّا فلا يُقرأ طبقة.
+    const order = new LayerOrder()
+    const notLayer = fakeRule({ name: 42 })
+    expect(order.qualify(fakeRule({}, notLayer))).toBe('')
+  })
+
+  it('الطبقة المجهولة فريدة لكل قاعدة، ثابتة للقاعدة نفسها', () => {
+    /*
+     * `@layer { … }` بلا اسم طبقة فعلًا، لكن اثنتين منها ليستا واحدة. فتُعطى
+     * كل كتلة اسمًا فريدًا يتذكّره التالي إن سُئل عنها ثانيةً.
+     */
+    const order = new LayerOrder()
+    const first = fakeRule({ name: '' })
+    const second = fakeRule({ name: '' })
+
+    const a = order.qualify(fakeRule({}, first))
+    const b = order.qualify(fakeRule({}, second))
+    expect(a).not.toBe(b)
+    expect(order.qualify(fakeRule({}, first))).toBe(a)
+    // ولا يلتبس اسمها المولَّد باسم يكتبه المؤلِّف.
+    expect(a).toMatch(/^ anon\d+$/)
+  })
+
+  it('المجهولة تُرتَّب بظهورها ويتقدّم اللاحقُ السابقَ', () => {
+    const order = new LayerOrder()
+    const first = fakeRule({ name: '' })
+    const second = fakeRule({ name: '' })
+    const a = order.qualify(fakeRule({}, first))
+    const b = order.qualify(fakeRule({}, second))
+    expect(compareLayer(order.key(b), order.key(a))).toBeGreaterThan(0)
+  })
+
+  it('المجهولة داخل مسمّاة تُلحَق بمسار أبيها', () => {
+    const order = new LayerOrder()
+    const outer = fakeRule({ name: 'theme' })
+    const anon = fakeRule({ name: '' }, outer)
+    expect(order.qualify(fakeRule({}, anon))).toMatch(/^theme\. anon\d+$/)
+  })
+
+  it('سلسلة آباء دائرية تنتهي بحدّ العمق لا بالتعليق', () => {
+    /*
+     * `parentRule` من الصفحة عبر الواجهة لا من بنائنا؛ وحلقة فيه كانت تُعلّق
+     * الفحص كلّه. فالمشي محدود بأربعة وستّين جدًّا.
+     */
+    const order = new LayerOrder()
+    const loop = { name: 'x', parentRule: null as unknown }
+    loop.parentRule = loop
+
+    const path = order.qualify(loop as CSSRule)
+    expect(path.split('.')).toHaveLength(64)
+  })
 })
 
 describe('compareLayer', () => {
@@ -97,6 +231,23 @@ describe('compareLayer', () => {
     const order = new LayerOrder()
     order.register('p.q')
     expect(compareLayer(order.key('p'), order.key('p.q'))).toBeGreaterThan(0)
+  })
+
+  it('مفتاحان بمسار واحد متساويان', () => {
+    const order = new LayerOrder()
+    order.register('a.b')
+    expect(compareLayer(order.key('a.b'), order.key('a.b'))).toBe(0)
+  })
+
+  it('الموضع الغائب في المفتاح الأقصر يُعدّ أدنى من أي موضع فعليّ', () => {
+    /*
+     * مفاتيح `LayerOrder` تنتهي دائمًا بلانهاية فلا يكون أحدها بادئةً صرفة لآخر،
+     * لكن الدالّة مصدَّرة ونوعها يقبل أي مصفوفة. والتعريف: ما لا موضع له قبل
+     * كل ما له موضع.
+     */
+    expect(compareLayer([0], [0, 0])).toBeLessThan(0)
+    // والموضع الفعلي الصفر يفوق الغائب — الغائب ليس «صفرًا» وإلا تساويا.
+    expect(compareLayer([0, 0], [0])).toBeGreaterThan(0)
   })
 })
 

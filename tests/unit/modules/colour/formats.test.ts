@@ -231,3 +231,16 @@ describe('fromOklch — البناء من إحداثيات محسوبة', () => 
     expect(fromOklch(0.5, 0.1, 200, -1).alpha).toBe(0)
   })
 })
+
+describe('formatsOf — ما ليس لونًا', () => {
+  it('نصّ لا يُقرأ لونًا يعطي null لا كائنًا بقيم فارغة', () => {
+    // `none` و`currentcolor` و`background-image` شائعة — والفشل قيمةٌ لا استثناء.
+    expect(formatsOf('none')).toBeNull()
+    expect(formatsOf('not-a-colour')).toBeNull()
+    expect(formatsOf('')).toBeNull()
+  })
+
+  it('الفراغات حول اللون الصالح لا تمنع قراءته', () => {
+    expect(formatsOf('  #3b82f6  ')?.hex).toBe('#3b82f6')
+  })
+})

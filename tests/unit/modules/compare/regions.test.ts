@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { groupDiffRegions } from '@/modules/compare/regions'
+import { DEFAULT_REGION_OPTIONS, groupDiffRegions } from '@/modules/compare/regions'
 
 const W = 20
 const H = 20
@@ -328,5 +328,57 @@ describe('groupDiffRegions — الحدّيات: بكسل واحد، وقناع 
       rect: { space: 'device', x: 0, y: 0, width: 1, height: 1 },
       pixels: 1,
     })
+  })
+})
+
+/**
+ * الخيارات الافتراضية تُطبَّق حين لا يُمرَّر شيء، وتُدمَج **جزئيًّا** حين يُمرَّر
+ * بعضها. الحالات القائمة كلّها تعطي الخيارين معًا فلا تكشف أيًّا من الأمرين —
+ * وهما ما يتّصل به الاستدعاء الحقيقي (الخلفية والعامل يستدعيان بلا خيارات).
+ */
+describe('groupDiffRegions — الخيارات الافتراضية والدمج الجزئي', () => {
+  const N = 24
+
+  it('الافتراضيّان مقيسان: نصف قطر 4 وأدنى 4 بكسلات', () => {
+    expect(DEFAULT_REGION_OPTIONS).toEqual({ dilate: 4, minPixels: 4 })
+  })
+
+  it('بلا خيارات: مجموعة من 3 بكسلات ضجيج ومن 4 منطقة — الحدّ شاملٌ لا صارم', () => {
+    const mask = blank(N, N)
+    paint(mask, N, 2, 2, 3, 1) // 3 بكسلات
+    paint(mask, N, 15, 15, 2, 2) // 4 بكسلات بالضبط
+
+    const regions = groupDiffRegions(mask, N, N)
+
+    expect(regions).toHaveLength(1)
+    expect(regions[0]).toMatchObject({
+      id: 1,
+      rect: { space: 'device', x: 15, y: 15, width: 2, height: 2 },
+      pixels: 4,
+    })
+  })
+
+  it('تمرير الانتفاخ وحده يُبقي أدنى البكسلات الافتراضي (4)', () => {
+    const mask = blank(N, N)
+    paint(mask, N, 2, 2, 3, 1) // 3 بكسلات: دون الحدّ الافتراضي
+    paint(mask, N, 12, 12, 2, 2) // 4 بكسلات
+
+    const regions = groupDiffRegions(mask, N, N, { dilate: 0 })
+
+    expect(regions.map((r) => r.pixels)).toEqual([4])
+  })
+
+  it('تمرير أدنى البكسلات وحده يُبقي الانتفاخ الافتراضي (4)', () => {
+    // كتلتان تفصلهما 4 أعمدة فارغة: الانتفاخ 4 يدمجهما، والصفر يفصلهما.
+    const mask = blank(N, N)
+    paint(mask, N, 2, 2, 2, 2)
+    paint(mask, N, 8, 2, 2, 2)
+
+    const viaDefault = groupDiffRegions(mask, N, N, { minPixels: 1 })
+    const viaZero = groupDiffRegions(mask, N, N, { minPixels: 1, dilate: 0 })
+
+    expect(viaDefault).toHaveLength(1)
+    expect(viaDefault[0]?.rect).toEqual({ space: 'device', x: 2, y: 2, width: 8, height: 2 })
+    expect(viaZero).toHaveLength(2)
   })
 })

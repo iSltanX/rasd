@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   buildSelector,
@@ -22,6 +22,7 @@ let host: HTMLElement | null = null
 afterEach(() => {
   host?.remove()
   host = null
+  vi.unstubAllGlobals()
 })
 
 /** يبني شجرة ويُرجع جذرها. */
@@ -406,5 +407,134 @@ describe('الاسم المختصر للبطاقة', () => {
     expect(shortLabel(root.querySelector('em')!)).toBe('em')
     // صنف مولَّد لا يُعرَض — الوسم أصدق منه.
     expect(shortLabel(root.querySelector('.css-1a2b3c')!)).toBe('div')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────
+
+describe('سمة الاختبار', () => {
+  it('سمة مكرَّرة على عنصرين لا تكفي — يُميَّز الهدف بصنفه', () => {
+    // السمة أقوى إشارة نيّة، لكن تفرّدها يُختبَر فعلًا: حين تتكرّر يُجرَّب
+    // ما بعدها بدل ادّعاء تفرّد باطل.
+    const root = mount(
+      '<button data-testid="action" class="first"></button><button data-testid="action" class="second"></button>',
+    )
+    const el = root.querySelector('.second')!
+    const result = buildSelector(el)
+
+    expect(result.selector).toBe('button.second')
+    expect(result.unique).toBe(true)
+    expectResolves(result.selector, el)
+  })
+
+  it('سمة الجدّ الفريدة تُستعمل في المسار حين لا يميّز العنصر شيءٌ بنفسه', () => {
+    const root = mount('<div data-testid="panel"><i></i></div><div class="other"><i></i></div>')
+    const el = root.querySelector('[data-testid="panel"] > i')!
+    const result = buildSelector(el)
+
+    expect(result.selector).toBe('[data-testid="panel"] i')
+    expect(result.positional).toBe(false)
+    expectResolves(result.selector, el)
+  })
+
+  it('قيمة تحوي علامة اقتباس تُهرَّب داخل المحدِّد', () => {
+    // النصّ الناتج يُقرأ من الاسم المختصر لأن محرّك المحدِّدات في happy-dom لا
+    // يقرأ الاقتباس المهرَّب داخل قيمة سمة (يرمي)، فلا يُقاس هنا أنه يُطابق —
+    // ما يُقاس أن العلامة لا تخرج من الاقتباس المحيط فتكسر المحدِّد.
+    const root = mount('<button data-testid=\'say "hi"\'>x</button>')
+    expect(shortLabel(root.querySelector('button')!)).toBe('[data-testid="say \\"hi\\""]')
+  })
+
+  it('الاسم المختصر يرجع إلى سمة الاختبار حين لا معرّف ولا صنف مستقرّ', () => {
+    const root = mount('<button class="css-1a2b3c" data-testid="go">x</button>')
+    expect(shortLabel(root.querySelector('button')!)).toBe('[data-testid="go"]')
+  })
+})
+
+describe('معرّف الجدّ', () => {
+  it('معرّف الجدّ المستقرّ يقصّر المسار ويجعله فريدًا', () => {
+    const root = mount('<div id="a"><p class="x"></p></div><div id="b"><p class="x"></p></div>')
+    const el = root.querySelector('#b > p')!
+    const result = buildSelector(el)
+
+    expect(result.selector).toBe('#b p.x')
+    expect(result.positional).toBe(false)
+    expectResolves(result.selector, el)
+  })
+
+  it('معرّف الجدّ المولَّد لا يدخل المحدِّد أبدًا', () => {
+    // `:r1:` يتغيّر مع كل تركيب — محدِّد يحمله يموت عند أوّل إعادة عرض.
+    const root = mount(
+      '<div id=":r1:"><p class="x"></p></div><div id="keep"><p class="x"></p></div>',
+    )
+    const el = root.querySelector('[id=":r1:"] > p')!
+    const result = buildSelector(el)
+
+    // التهريب يحوّل `:r1:` إلى `\:r1\:` فلا يكفي البحث عن النصّ الخام — يُبحَث عن الاسم نفسه.
+    expect(result.selector).not.toContain('r1')
+    expect(result.unique).toBe(true)
+    expectResolves(result.selector, el)
+  })
+
+  it('معرّف جدّ مستقرّ لا يكفي وحده يُتجاوَز إلى الموضع بلا ادّعاء تفرّد كاذب', () => {
+    // شقيقان متطابقان تحت الجدّ نفسه: `#list span.x` يطابق الاثنين.
+    const root = mount('<div id="list"><span class="x"></span><span class="x"></span></div>')
+    const el = root.querySelectorAll('span')[1]!
+    const result = buildSelector(el)
+
+    expect(result.positional).toBe(true)
+    expect(result.unique).toBe(true)
+    expectResolves(result.selector, el)
+  })
+})
+
+describe('المسار الموضعي', () => {
+  it('لا يحتسب الإخوة من وسوم أخرى في ترتيب `nth-of-type`', () => {
+    // `em` قبل `i` لا يزيح رقم الموضع: `nth-of-type` يعدّ الوسم نفسه فقط.
+    const root = mount('<div><em></em><i class="css-1a2b3"></i><i class="css-4c5d6"></i></div>')
+    const el = root.querySelectorAll('i')[1]!
+    const result = buildSelector(el)
+
+    expect(result.positional).toBe(true)
+    expect(result.selector.endsWith('i:nth-of-type(2)')).toBe(true)
+    expect(result.unique).toBe(true)
+    expectResolves(result.selector, el)
+  })
+
+  /**
+   * الوسم `unique` صادق دائمًا: يُقاس بتشغيل المحدِّد لا يُفترَض. أخوان
+   * متطابقان في أعلى جذر ظلّ لا أب لهما يصعد إليه المسار الموضعي، فلا موضع
+   * يُكتب لهما — والنتيجة ألّا يُدَّعى تفرّد لا يثبت.
+   */
+  it('الوسم `unique` يطابق ما يثبت فعلًا داخل جذر الظلّ', () => {
+    const root = mount('<div id="hostel"></div>')
+    const shadow = root.querySelector('#hostel')!.attachShadow({ mode: 'open' })
+    shadow.innerHTML = '<i></i><i></i>'
+    const el = shadow.querySelectorAll('i')[1]!
+
+    const result = buildSelector(el)
+
+    const found = shadow.querySelectorAll(result.selector)
+    expect(result.inShadow).toBe(true)
+    expect(result.positional).toBe(true)
+    expect(result.unique).toBe(found.length === 1 && found[0] === el)
+  })
+})
+
+describe('تهريب المعرّفات بلا CSS.escape', () => {
+  // بيئات قديمة بلا `CSS` أو بلا `CSS.escape`: الاحتياطي يغطّي الحالة الشائعة.
+  it.each([
+    ['CSS غائب', undefined],
+    ['CSS بلا escape', {}],
+  ] as const)('%s — صنف بنقطتين يُهرَّب ويبقى المحدِّد فريدًا', (_name, stub) => {
+    vi.stubGlobal('CSS', stub)
+    const root = mount('<div class="md:flex"></div>')
+    const el = root.querySelector('div')!
+
+    const result = buildSelector(el)
+
+    expect(result.selector).toBe('div.md\\:flex')
+    expect(result.unique).toBe(true)
+    expectResolves(result.selector, el)
   })
 })

@@ -277,3 +277,112 @@ describe('**الضباب — أرقام مقيسة لا موصوفة**', () => {
     expect(blurWorkBytes({ x: 0, y: 0, w: 472, h: 192 }, 18)).toBe(572 * 292 * 16)
   })
 })
+
+// ═════════════════════════ مناطق خارج المخزن ═════════════════════════
+
+/** لقطة من بايتات المخزن — لمقارنة «لم يُمَسّ» بعد عملية. */
+const snapshot = (b: PixelBuffer): Uint8ClampedArray => new Uint8ClampedArray(b.data)
+
+describe('**منطقةٌ خارج المخزن لا تمسّ بايتًا**', () => {
+  /** مخزن بنمط معلوم كي يكشف أي كتابة شاردة. */
+  const patterned = (): PixelBuffer => {
+    const b = buffer(6, 6)
+    for (let i = 0; i < b.data.length; i++) b.data[i] = (i * 13 + 7) % 256
+    return b
+  }
+  const outside = { x: 20, y: 20, w: 5, h: 5 }
+
+  it('التغطية', () => {
+    const b = patterned()
+    const before = snapshot(b)
+    coverRegion(b, outside, { r: 1, g: 2, b: 3, a: 255 })
+    expect(b.data).toEqual(before)
+  })
+
+  it('البكسلة', () => {
+    const b = patterned()
+    const before = snapshot(b)
+    pixelateRegion(b, outside, 4)
+    expect(b.data).toEqual(before)
+  })
+
+  it('الضباب', () => {
+    const b = patterned()
+    const before = snapshot(b)
+    blurRegion(b, outside, 3)
+    expect(b.data).toEqual(before)
+  })
+
+  it('**وأدوات الإثبات تُعيد صفرًا لا تنهار** — لا تباين ولا ألوان في العدم', () => {
+    const b = patterned()
+    expect(regionVariance(b, outside)).toBe(0)
+    expect(distinctColours(b, outside, 100)).toBe(0)
+  })
+})
+
+// ═════════════════════════ شفافية كاملة ═════════════════════════
+
+describe('المناطق الشفّافة تمامًا', () => {
+  /** لون ظاهر في القنوات وألفا صفر — قيمةٌ عشوائية لا يجوز أن تنجو. */
+  const invisibleRed = (w: number, h: number): PixelBuffer => {
+    const b = buffer(w, h)
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) setPx(b, x, y, [255, 0, 0, 0])
+    return b
+  }
+
+  it('**البكسلة تُخرج شفّافًا نقيًّا** — لا لون شبحيًّا من ألفا صفر', () => {
+    const b = invisibleRed(4, 4)
+    pixelateRegion(b, { x: 0, y: 0, w: 4, h: 4 }, 2)
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 4; x++) expect(px(b, x, y)).toEqual([0, 0, 0, 0])
+    }
+  })
+
+  it('**والضباب كذلك** — القسمة على ألفا صفر لا تُنتج `NaN` ولا لونًا', () => {
+    const b = invisibleRed(9, 9)
+    blurRegion(b, { x: 0, y: 0, w: 9, h: 9 }, 2)
+    for (let y = 0; y < 9; y++) {
+      for (let x = 0; x < 9; x++) expect(px(b, x, y)).toEqual([0, 0, 0, 0])
+    }
+  })
+})
+
+// ═════════════════════════ سقف الألوان والمطابقة ═════════════════════════
+
+describe('عدّ الألوان بسقف', () => {
+  it('**يتوقّف عند السقف ويُعيده** — لا يبني مجموعةً بحجم الصورة', () => {
+    const b = buffer(4, 4)
+    for (let i = 0; i < 16; i++) setPx(b, i % 4, Math.floor(i / 4), [i * 10, 0, 0, 255])
+    // ستّة عشر لونًا متميّزًا؛ السقف أربعة.
+    expect(distinctColours(b, { x: 0, y: 0, w: 4, h: 4 }, 4)).toBe(4)
+    // وبسقفٍ أعلى يُعدّ الكلّ.
+    expect(distinctColours(b, { x: 0, y: 0, w: 4, h: 4 }, 100)).toBe(16)
+  })
+})
+
+describe('المطابقة البايتية التامّة', () => {
+  it('مخزنان متطابقان ⇒ `true`، وبايتٌ واحد مختلف ⇒ `false`', () => {
+    const a = buffer(3, 3, 9)
+    const b = buffer(3, 3, 9)
+    expect(bytesEqual(a, b)).toBe(true)
+    b.data[35] = 10
+    expect(bytesEqual(a, b)).toBe(false)
+  })
+
+  it('**اختلاف الأبعاد يكفي للرفض** ولو تساوى عدد البايتات', () => {
+    // 2×3 و3×2 — كلاهما 24 بايتًا بمحتوًى متطابق.
+    const tall = buffer(2, 3, 5)
+    const wide = buffer(3, 2, 5)
+    expect(tall.data.length).toBe(wide.data.length)
+    expect(bytesEqual(tall, wide)).toBe(false)
+    expect(bytesEqual(buffer(2, 3), buffer(2, 4))).toBe(false)
+  })
+
+  it('ومخزنٌ بأبعادٍ معلنة متطابقة وبايتاتٍ أقصر يُرفَض قبل المقارنة', () => {
+    // مخزنٌ مبتور: أعلن 2×1 وحمل بايتات أقلّ — مقارنةُ الحلقة وحدها كانت ستقرأ خارجه.
+    const whole = buffer(2, 1, 7)
+    const truncated: PixelBuffer = { data: new Uint8ClampedArray(4).fill(7), width: 2, height: 1 }
+    expect(bytesEqual(whole, truncated)).toBe(false)
+    expect(bytesEqual(truncated, whole)).toBe(false)
+  })
+})

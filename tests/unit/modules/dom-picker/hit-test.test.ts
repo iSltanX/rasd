@@ -144,6 +144,50 @@ describe('descend — اختراق الظلّ', () => {
   })
 })
 
+describe('descend — جذر بلا elementsFromPoint', () => {
+  /**
+   * بيئة قديمة قد لا يوفّر جذر الظلّ فيها الجمع، فيُرجَع إلى المفردة
+   * `elementFromPoint` — لكن **بالفحص نفسه**: لا نستهدف مضيفنا ولا عنصرًا
+   * من خارج هذا الجذر، فالمفردة أضعف في هذين الاحتمالين لا أقوى.
+   */
+  function shadowRootWith(pick: (inner: Element) => Element | null) {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const root = host.attachShadow({ mode: 'open' })
+    const inner = document.createElement('span')
+    root.append(inner)
+    Object.defineProperty(root, 'elementFromPoint', {
+      value: () => pick(inner),
+      configurable: true,
+    })
+    return { host, inner }
+  }
+
+  it('ينزل إلى العنصر الذي تعيده المفردة إن كان من هذا الجذر', () => {
+    const { host, inner } = shadowRootWith((el) => el)
+    expect(descend(host, 5, 5)).toBe(inner)
+  })
+
+  it('يتوقّف عند المضيف حين تعيد المفردة مضيفنا نحن', () => {
+    const rasd = document.createElement('x-rasd')
+    document.body.append(rasd)
+    const { host } = shadowRootWith(() => rasd)
+    expect(descend(host, 5, 5, rasd)).toBe(host)
+  })
+
+  it('يتوقّف عند المضيف حين تعيد المفردة عنصرًا من خارج الجذر', () => {
+    const outsider = document.createElement('p')
+    document.body.append(outsider)
+    const { host } = shadowRootWith(() => outsider)
+    expect(descend(host, 5, 5, null)).toBe(host)
+  })
+
+  it('يتوقّف عند المضيف حين لا تعيد المفردة شيئًا', () => {
+    const { host } = shadowRootWith(() => null)
+    expect(descend(host, 5, 5)).toBe(host)
+  })
+})
+
 describe('toFrameSpace — إزاحة الإطار', () => {
   it('يطرح أصل صندوق المحتوى لا مستطيل الحدود', () => {
     const frame = document.createElement('iframe')
@@ -180,6 +224,27 @@ describe('toFrameSpace — إزاحة الإطار', () => {
     setRect(frame, 0, 0, 100, 100)
     const style = fakeStyle({}, 'not-a-matrix')
     expect(toFrameSpace(frame, 10, 20, style)).toEqual({ x: 10, y: 20 })
+  })
+})
+
+describe('toFrameSpace — تحويل منهار', () => {
+  /**
+   * `scale(0)` أو مصفوفة صفرية تعطي مقياسًا صفرًا؛ القسمة عليه تنتج `Infinity`
+   * فتطير نقطة الاستهداف. المقياس الصفري يُعامَل كأنه 1 على محوره وحده.
+   */
+  it.each([
+    // المصفوفة كلّها صفر: لا مقياس على أي محور.
+    ['matrix(0, 0, 0, 0, 0, 0)', 30, 110],
+    // المحور الأفقي منهار والرأسي مقياسه 2.
+    ['matrix(0, 0, 0, 2, 0, 0)', 30, 55],
+    // المحور الرأسي منهار والأفقي مقياسه 3.
+    ['matrix(3, 0, 0, 0, 0, 0)', 10, 110],
+  ] as const)('%s', (transform, x, y) => {
+    const frame = document.createElement('iframe')
+    setRect(frame, 100, 50, 300, 200)
+    const local = toFrameSpace(frame, 130, 160, fakeStyle({}, transform))
+    expect(local).toEqual({ x, y })
+    expect(Number.isFinite(local.x) && Number.isFinite(local.y)).toBe(true)
   })
 })
 
@@ -265,6 +330,74 @@ describe('pickAt — الاستهداف الكامل', () => {
   it('يُرجع null حين لا شيء صالح', () => {
     const doc = { elementsFromPoint: () => [] } as unknown as Document
     expect(pickAt(doc, 0, 0, null)).toBeNull()
+  })
+
+  /** إطار مطابق للأصل يحوي `innerDoc` ونافذةً تعطي نمطًا بلا حدّ ولا حشو. */
+  function sameOriginFrame(
+    innerDoc: Document,
+    view: Window | null = openView(),
+  ): HTMLIFrameElement {
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    setRect(frame, 0, 0, 300, 200)
+    Object.defineProperty(frame, 'contentDocument', { value: innerDoc, configurable: true })
+    Object.defineProperty(frame, 'ownerDocument', {
+      value: { defaultView: view },
+      configurable: true,
+    })
+    return frame
+  }
+
+  function openView(): Window {
+    return {
+      getComputedStyle: () =>
+        fakeStyle({
+          'border-left-width': '0px',
+          'border-top-width': '0px',
+          'padding-left': '0px',
+          'padding-top': '0px',
+        }),
+    } as unknown as Window
+  }
+
+  it('إطار مطابق للأصل بلا نافذة يُستهدَف هو نفسه — لا ترجمة إحداثيات ممكنة', () => {
+    // مستند الإطار موجود لكن نافذة الأب غائبة (مستند منفصل): لا نمط لنقرأ منه
+    // الحدّ والمقياس، فلا نجازف بإحداثيات مخترَعة داخل الإطار.
+    const innerEl = document.createElement('span')
+    setRect(innerEl, 0, 0, 40, 10)
+    const innerDoc = { elementsFromPoint: () => [innerEl] } as unknown as Document
+    const frame = sameOriginFrame(innerDoc, null)
+    const doc = { elementsFromPoint: () => [frame] } as unknown as Document
+
+    expect(pickAt(doc, 10, 10, null)).toEqual({ el: frame, frames: [], opaqueFrame: false })
+  })
+
+  it('إطار مطابق للأصل لا يعطي داخله شيئًا صالحًا يُستهدَف هو نفسه', () => {
+    // داخله فارغ (صفحة لم تُرسَم بعد)، والإطار ذو مساحة — هو الهدف الصحيح.
+    const innerDoc = { elementsFromPoint: () => [] } as unknown as Document
+    const frame = sameOriginFrame(innerDoc)
+    const doc = { elementsFromPoint: () => [frame] } as unknown as Document
+
+    expect(pickAt(doc, 10, 10, null)).toEqual({ el: frame, frames: [], opaqueFrame: false })
+  })
+
+  it('إطار يحوي نفسه لا يدور بلا نهاية — يتوقّف عند ثمانية إطارات', () => {
+    // صفحة عدائية تعشّش إطارًا داخل إطار بلا حدّ: الحلقة في المسار الساخن.
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    setRect(frame, 0, 0, 300, 200)
+    const selfDoc = { elementsFromPoint: () => [frame] } as unknown as Document
+    Object.defineProperty(frame, 'contentDocument', { value: selfDoc, configurable: true })
+    Object.defineProperty(frame, 'ownerDocument', {
+      value: { defaultView: openView() },
+      configurable: true,
+    })
+
+    const hit = pickAt(selfDoc, 10, 10, null)
+
+    expect(hit?.el).toBe(frame)
+    expect(hit?.opaqueFrame).toBe(false)
+    expect(hit?.frames).toHaveLength(8)
   })
 })
 

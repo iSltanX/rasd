@@ -1,5 +1,5 @@
 import { fakeBrowser } from '@webext-core/fake-browser'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   defaultSettings,
@@ -14,6 +14,10 @@ import {
 beforeEach(() => {
   fakeBrowser.reset()
   resetSettingsCache()
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('القيم الافتراضية', () => {
@@ -126,6 +130,52 @@ describe('القراءة والكتابة', () => {
     expect((await getSettings()).capture.format).toBe('png')
   })
 
+  it('فشل القراءة يُعطي المستدعي الافتراضيات هذه المرّة وحدها ولا يُثبَّت في الذاكرة', async () => {
+    await fakeBrowser.storage.local.set({
+      'rasd:settings': { appearance: { theme: 'dark' } },
+    })
+    const get = vi
+      .spyOn(chrome.storage.local, 'get')
+      .mockRejectedValueOnce(new Error('storage down'))
+
+    const failed = await getSettings()
+    // الافتراضيات هنا جهلٌ لا قرار مستخدم — فلا تُخزَّن فتحجب القرص عن القراءة التالية.
+    const recovered = await getSettings()
+
+    expect(failed).toEqual(defaultSettings())
+    expect(recovered.appearance.theme, 'ورثت القراءة التالية جهلًا مُثبَّتًا').toBe('dark')
+    expect(get).toHaveBeenCalledTimes(2)
+  })
+
+  it('patchSettings تستبدل القيمة المفردة والمصفوفة ولا تدمجهما، وتدمج الكائن مستوًى واحدًا', async () => {
+    await patchSettings({
+      privacy: { localOnly: false, excludedSites: ['a.com', 'b.com'] },
+    } as never)
+    await patchSettings({ schemaVersion: 2, privacy: { excludedSites: ['c.com'] } } as never)
+
+    const s = await getSettings()
+    expect(s.schemaVersion).toBe(2)
+    // المصفوفة استُبدلت لا أُلحقت.
+    expect(s.privacy.excludedSites).toEqual(['c.com'])
+    // والمفتاح المجاور في الكائن نفسه بقي — الدمج على مستوى القسم.
+    expect(s.privacy.localOnly).toBe(false)
+  })
+
+  it('إعادة الضبط تُخفق بلا كتابة: تُبلَّغ الخطأ وتبقى الذاكرة على ما كان', async () => {
+    await patchSettings({ capture: { format: 'webp' } } as never)
+    const set = vi.spyOn(chrome.storage.local, 'set').mockRejectedValueOnce(new Error('disk full'))
+
+    const result = await resetSettings()
+
+    expect(result.ok).toBe(false)
+    expect(result.ok === false && result.error.detail).toBe('disk full')
+    // لا «إعادة ضبط» ظاهرة في الذاكرة وقد فشلت على القرص.
+    expect((await getSettings()).capture.format).toBe('webp')
+    resetSettingsCache()
+    expect((await getSettings()).capture.format).toBe('webp')
+    expect(set).toHaveBeenCalledTimes(1)
+  })
+
   it('القيمة التالفة في التخزين تُصحَّح ولا تُسقط شيئًا', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     await fakeBrowser.storage.local.set({ 'rasd:settings': { capture: { format: 'gif' } } })
@@ -143,6 +193,57 @@ describe('البثّ', () => {
     watchSettings((s) => seen.push(s.capture.format))
     await vi.waitFor(() => expect(seen.length).toBeGreaterThan(0))
     expect(seen[0]).toBe('png')
+  })
+
+  it('تغيّر يكتبه سياقٌ آخر يصل المشترك مُحلَّلًا ويجدّد الذاكرة', async () => {
+    const seen: string[] = []
+    watchSettings((s) => seen.push(s.appearance.theme))
+    await vi.waitFor(() => expect(seen).toEqual(['system']))
+
+    await fakeBrowser.storage.local.set({ 'rasd:settings': { appearance: { theme: 'dark' } } })
+
+    expect(seen.at(-1)).toBe('dark')
+    expect((await getSettings()).appearance.theme).toBe('dark')
+  })
+
+  it('مشتركان يتقاسمان مستمع تغيّرٍ واحدًا ويصلهما كلاهما', async () => {
+    const add = vi.spyOn(chrome.storage.onChanged, 'addListener')
+    const first: string[] = []
+    const second: string[] = []
+    watchSettings((s) => first.push(s.appearance.theme))
+    watchSettings((s) => second.push(s.appearance.theme))
+    await vi.waitFor(() => expect(first.length + second.length).toBe(2))
+
+    await fakeBrowser.storage.local.set({ 'rasd:settings': { appearance: { theme: 'light' } } })
+
+    // مستمع لكل مشترك كان سيُحلِّل التغيّر مرّتين ويزيد الجيل مرّتين بلا داعٍ.
+    expect(add).toHaveBeenCalledTimes(1)
+    expect(first.at(-1)).toBe('light')
+    expect(second.at(-1)).toBe('light')
+  })
+
+  it('حذف المفتاح من التخزين يُبلَّغ افتراضيات لا قيمةً معلَّقة', async () => {
+    await patchSettings({ appearance: { theme: 'dark' } } as never)
+    const seen: string[] = []
+    watchSettings((s) => seen.push(s.appearance.theme))
+    await vi.waitFor(() => expect(seen).toEqual(['dark']))
+
+    await fakeBrowser.storage.local.remove('rasd:settings')
+
+    expect(seen.at(-1)).toBe('system')
+  })
+
+  it('تغيّر مفتاحٍ آخر أو منطقةٍ أخرى لا يُوقظ المشتركين', async () => {
+    const listener = vi.fn()
+    watchSettings(listener)
+    await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(1))
+    listener.mockClear()
+
+    await fakeBrowser.storage.local.set({ 'rasd:other': { appearance: { theme: 'dark' } } })
+    // المنطقة `session` بالمفتاح نفسه ليست إعدادات دائمة.
+    await fakeBrowser.storage.session.set({ 'rasd:settings': { appearance: { theme: 'dark' } } })
+
+    expect(listener).not.toHaveBeenCalled()
   })
 
   it('إلغاء الاشتراك يوقف الاستدعاء', async () => {
