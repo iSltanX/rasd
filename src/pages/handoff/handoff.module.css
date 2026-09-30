@@ -42,10 +42,14 @@
  *
  * `unicode-bidi: plaintext` يحسم اتجاه كل سطر من أوّل حرفٍ قويّ فيه: سطرٌ عربي يُقرأ من اليمين، وكتلة CSS من
  * اليسار — في `pre` واحد، بلا إعادة صياغة للنصّ.
+ *
+ * **وارتفاعه ثابت (نحو ستّة أسطر كالإطار) و`flex: none`:** حاوية تمريرٍ داخل جسمٍ مرن حدّها الأدنى صفر، فكان
+ * الجسم الممتلئ يعصرها إلى سطرٍ واحد — قِيس في كروم على حزمة عشرين مشكلة.
  */
 .preview {
+  flex: none;
   margin: 0;
-  max-block-size: calc(var(--rasd-space-48) * 4);
+  block-size: calc(var(--rasd-space-24) * 5);
   overflow: auto;
   padding-block: var(--rasd-space-12);
   padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
