@@ -1,10 +1,13 @@
 import 'fake-indexeddb/auto'
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { retentionSweep } from '@/modules/library/retention'
+import { errWith } from '@/shared/result'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { blobs, captures, guides } from '@/shared/storage/repository'
+
+import { failCaptureDeleteAt } from '../../../helpers/fail-capture-delete'
 
 import type { CaptureRecord } from '@/shared/storage/schema'
 
@@ -37,6 +40,10 @@ beforeEach(async () => {
   await closeDatabase()
   indexedDB.deleteDatabase('rasd')
   await new Promise((r) => setTimeout(r, 0))
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('retentionSweep — «حذف السجلّ تلقائيًا بعد مدّة» (§11)', () => {
@@ -118,5 +125,49 @@ describe('retentionSweep — «حذف السجلّ تلقائيًا بعد مد�
 
     const guide = await guides.get('دليل')
     expect(guide.ok && guide.value.captureIds).toEqual(['باقية'])
+  })
+})
+
+describe('retentionSweep — مسارات الفشل', () => {
+  it('فشل قراءة المستحقّ يُرجَع كما هو ولا يُحذف شيء', async () => {
+    await captures.put(capture('قديمة', { createdAt: NOW - 40 * DAY }))
+    vi.spyOn(captures, 'byIndex').mockResolvedValueOnce(errWith('unknown', 'تعذّرت القراءة'))
+
+    const swept = await retentionSweep(NOW, 30)
+
+    expect(!swept.ok && swept.error.detail).toBe('تعذّرت القراءة')
+    expect((await captures.get('قديمة')).ok).toBe(true)
+  })
+
+  /**
+   * الحذف هنا نهائيّ، فحالة ما بعد الفشل يجب أن تكون معلومة: ما سبق الفاشلة
+   * حُذف، والفاشلة باقية، وما بعدها لم يُمَسّ — والنتيجة الفشل لا عدد ما نجح.
+   */
+  it('يتوقّف عند أوّل حذف فاشل فلا يحاول ما بعده ويُرجع الفشل', async () => {
+    // الفهرس يرتّب بـ`createdAt` تصاعديًا: الأقدم أوّلًا.
+    await captures.put(capture('أقدم', { createdAt: NOW - 90 * DAY }))
+    await captures.put(capture('أوسط', { createdAt: NOW - 80 * DAY }))
+    await captures.put(capture('أحدث', { createdAt: NOW - 70 * DAY }))
+    failCaptureDeleteAt(2)
+
+    const swept = await retentionSweep(NOW, 30)
+
+    expect(swept.ok).toBe(false)
+    expect((await captures.get('أقدم')).ok, 'الأولى قبل الفشل حُذفت').toBe(false)
+    expect((await captures.get('أوسط')).ok, 'الفاشلة باقية').toBe(true)
+    expect((await captures.get('أحدث')).ok, 'ما بعد الفشل لم يُحاوَل').toBe(true)
+  })
+
+  it('المميَّزة لا تُحتسب محاولةَ حذف فلا تزحزح موضع الفشل', async () => {
+    await captures.put(capture('مميّزة', { createdAt: NOW - 90 * DAY, favorite: true }))
+    await captures.put(capture('عادية', { createdAt: NOW - 80 * DAY }))
+    failCaptureDeleteAt(1)
+
+    const swept = await retentionSweep(NOW, 30)
+
+    // أوّل حذف فعليّ هو «عادية» لا «مميّزة» — فهي التي تفشل، والمميَّزة سليمة.
+    expect(swept.ok).toBe(false)
+    expect((await captures.get('مميّزة')).ok).toBe(true)
+    expect((await captures.get('عادية')).ok).toBe(true)
   })
 })

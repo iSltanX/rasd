@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   assignCaptureAsReference,
@@ -8,6 +8,7 @@ import {
   findReferenceForPage,
   type PageKey,
 } from '@/modules/compare/reference'
+import { errWith } from '@/shared/result'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { blobs, captures, references } from '@/shared/storage/repository'
 
@@ -44,6 +45,17 @@ beforeEach(async () => {
   indexedDB.deleteDatabase('rasd')
   await new Promise((r) => setTimeout(r, 0))
 })
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  Object.assign(globalThis.chrome, { extension: { inIncognitoContext: false } })
+})
+
+/** يفعّل منع الكتابة كما في التصفّح الخاص — القراءة تبقى تعمل. */
+function blockWrites() {
+  Object.assign(globalThis.chrome, { extension: { inIncognitoContext: true } })
+  setIncognitoWritePolicy(true)
+}
 
 describe('findReferenceForPage', () => {
   it('لا مرجع بعد ⇒ null', async () => {
@@ -170,5 +182,82 @@ describe('assignImageAsReference', () => {
 
     const all = await references.getAll()
     expect(all.ok && all.value).toHaveLength(1)
+  })
+})
+
+/**
+ * مسارات الفشل: كل خطوة تُرجع `Result` ويُمرَّر فشلها كما هو، فلا يبقى مرجعٌ
+ * نصف مكتوب (سجلّ بلا بايتات أو العكس) ولا يُبتلع سبب الفشل عن المستدعي.
+ */
+describe('مسارات الفشل', () => {
+  it('findReferenceForPage يُمرّر فشل قراءة الفهرس كما هو', async () => {
+    vi.spyOn(references, 'byIndex').mockResolvedValueOnce(errWith('unknown', 'تعذّرت قراءة الفهرس'))
+
+    const found = await findReferenceForPage(KEY)
+
+    expect(found.ok).toBe(false)
+    expect(!found.ok && found.error.detail).toBe('تعذّرت قراءة الفهرس')
+  })
+
+  it('لقطة بلا بايتات تفشل بـnot-found ولا يُكتب مرجع', async () => {
+    // وصف اللقطة موجود لكن بلوبها غاب: تلف بيانات يجب أن يظهر لا أن يُخفى بمرجع فارغ.
+    await captures.put(capture('cap1'))
+
+    const assigned = await assignCaptureAsReference('cap1', KEY, null, NOW)
+
+    expect(!assigned.ok && assigned.error.code).toBe('not-found')
+    const all = await references.getAll()
+    expect(all.ok && all.value).toHaveLength(0)
+  })
+
+  it('فشل إيجاد المرجع القائم يوقف تعيين اللقطة قبل أي كتابة', async () => {
+    await captures.put(capture('cap1'))
+    await blobs.put({ id: 'cap1', blob: new Blob(['x']), mime: 'image/png', bytes: 1 })
+    vi.spyOn(references, 'byIndex').mockResolvedValueOnce(errWith('unknown', 'فهرس معطوب'))
+
+    const assigned = await assignCaptureAsReference('cap1', KEY, null, NOW)
+
+    expect(!assigned.ok && assigned.error.detail).toBe('فهرس معطوب')
+    // لا مرجع كُتب، ولا نسخة بايتات تحت معرِّف جديد — البلوب الوحيد هو الأصل.
+    const all = await references.getAll()
+    const stored = await blobs.getAll()
+    expect(all.ok && all.value).toHaveLength(0)
+    expect(stored.ok && stored.value.map((b) => b.id)).toEqual(['cap1'])
+  })
+
+  it('منع الكتابة يُرجَع كما هو من تعيين اللقطة ولا يُبقي أثرًا', async () => {
+    await captures.put(capture('cap1'))
+    await blobs.put({ id: 'cap1', blob: new Blob(['x']), mime: 'image/png', bytes: 1 })
+    blockWrites()
+
+    const assigned = await assignCaptureAsReference('cap1', KEY, null, NOW)
+
+    expect(!assigned.ok && assigned.error.code).toBe('incognito-blocked')
+    const all = await references.getAll()
+    const stored = await blobs.getAll()
+    expect(all.ok && all.value).toHaveLength(0)
+    expect(stored.ok && stored.value).toHaveLength(1)
+  })
+
+  it('فشل إيجاد المرجع القائم يوقف تعيين الصورة قبل أي كتابة', async () => {
+    vi.spyOn(references, 'byIndex').mockResolvedValueOnce(errWith('unknown', 'فهرس معطوب'))
+
+    const assigned = await assignImageAsReference(new Blob(['png']), KEY, null, NOW)
+
+    expect(!assigned.ok && assigned.error.detail).toBe('فهرس معطوب')
+    const all = await references.getAll()
+    const stored = await blobs.getAll()
+    expect(all.ok && all.value).toHaveLength(0)
+    expect(stored.ok && stored.value).toHaveLength(0)
+  })
+
+  it('منع الكتابة يُرجَع كما هو من تعيين الصورة ولا يُبقي أثرًا', async () => {
+    blockWrites()
+
+    const assigned = await assignImageAsReference(new Blob(['png']), KEY, null, NOW)
+
+    expect(!assigned.ok && assigned.error.code).toBe('incognito-blocked')
+    const found = await findReferenceForPage(KEY)
+    expect(found.ok && found.value).toBeNull()
   })
 })

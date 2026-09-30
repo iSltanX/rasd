@@ -1,8 +1,9 @@
 import 'fake-indexeddb/auto'
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ensureThumbnail, fitDimensions, type ThumbnailEncoder } from '@/modules/library/thumbnail'
+import { errWith } from '@/shared/result'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { blobs, thumbnails } from '@/shared/storage/repository'
 
@@ -11,6 +12,11 @@ beforeEach(async () => {
   await closeDatabase()
   indexedDB.deleteDatabase('rasd')
   await new Promise((r) => setTimeout(r, 0))
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  Object.assign(globalThis.chrome, { extension: { inIncognitoContext: false } })
 })
 
 describe('fitDimensions', () => {
@@ -97,5 +103,44 @@ describe('ensureThumbnail', () => {
     }
     const result = await ensureThumbnail('لا-وجود', encoder)
     expect(result.ok).toBe(false)
+  })
+})
+
+describe('ensureThumbnail — مسارات الفشل', () => {
+  /** مُرمِّز يعدّ نداءاته ويُنتج مصغَّرة صالحة. */
+  function countingEncoder() {
+    const encode = vi.fn(() =>
+      Promise.resolve({ blob: new Blob(['thumb']), width: 80, height: 60 }),
+    )
+    return { encode } satisfies ThumbnailEncoder
+  }
+
+  /**
+   * «غير موجود» وحده يعني «ولِّد». أي خطأ آخر في قراءة المصغَّرة (تلف، مخزن
+   * تعذّر فتحه) لا يُعامَل كغياب — وإلا وُلِّدت فوق سجلّ لا نعرف حاله.
+   */
+  it('خطأ في قراءة المصغَّرة غير «غير موجود» يُرجَع ولا يُولَّد شيء', async () => {
+    await blobs.put({ id: 'c1', blob: new Blob(['abc']), mime: 'image/png', bytes: 3 })
+    vi.spyOn(thumbnails, 'get').mockResolvedValueOnce(errWith('unknown', 'قراءة معطوبة'))
+    const encoder = countingEncoder()
+
+    const result = await ensureThumbnail('c1', encoder)
+
+    expect(!result.ok && result.error.detail).toBe('قراءة معطوبة')
+    expect(encoder.encode).not.toHaveBeenCalled()
+  })
+
+  it('فشل حفظ المصغَّرة المولَّدة يُرجَع كما هو ولا يبقى سجلّ', async () => {
+    await blobs.put({ id: 'c1', blob: new Blob(['abc']), mime: 'image/png', bytes: 3 })
+    Object.assign(globalThis.chrome, { extension: { inIncognitoContext: true } })
+    setIncognitoWritePolicy(true)
+    const encoder = countingEncoder()
+
+    const result = await ensureThumbnail('c1', encoder)
+
+    // الترميز جرى فعلًا — الفشل في الكتابة لا في التوليد.
+    expect(encoder.encode).toHaveBeenCalledTimes(1)
+    expect(!result.ok && result.error.code).toBe('incognito-blocked')
+    expect((await thumbnails.get('c1')).ok).toBe(false)
   })
 })

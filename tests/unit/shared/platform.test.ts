@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { isMacPlatform } from '@/shared/platform'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('isMacPlatform', () => {
   it('يقرأ userAgentData.platform أوّلًا', () => {
@@ -15,5 +19,23 @@ describe('isMacPlatform', () => {
 
   it('بلا أي مصدر يُعامَل غير-ماك', () => {
     expect(isMacPlatform({})).toBe(false)
+  })
+
+  it('userAgentData بلا platform يعود إلى navigator.platform لا إلى نصّ فارغ', () => {
+    expect(isMacPlatform({ userAgentData: {}, platform: 'MacIntel' })).toBe(true)
+  })
+
+  it('بلا وسيط يقرأ `navigator` العامّ', () => {
+    vi.stubGlobal('navigator', { platform: 'MacIntel' })
+    expect(isMacPlatform()).toBe(true)
+
+    vi.stubGlobal('navigator', { platform: 'Win32' })
+    expect(isMacPlatform()).toBe(false)
+  })
+
+  it('بيئة بلا `navigator` أصلًا تُعامَل غير-ماك ولا ترمي', () => {
+    // بيئة تشغيل بلا كائن عامّ (Node مثلًا): `navigator` غائب لا كائنًا فارغًا.
+    vi.stubGlobal('navigator', undefined)
+    expect(isMacPlatform()).toBe(false)
   })
 })

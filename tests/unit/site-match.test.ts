@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { evaluateGate } from '@/shared/injection-gate'
-import { normalizeSitePattern } from '@/shared/site-match'
+import { isSiteExcluded, matchesSitePattern, normalizeSitePattern } from '@/shared/site-match'
 
 /**
  * مُطابِق المواقع المستثناة — أربعة وستون متجهًا مُولَّدة بفريق أحمر.
@@ -286,7 +286,7 @@ describe('عدسة: حدود localOnly', () => {
  * وليس» — أي العطل الذي بُني هذا الملفّ كلّه لمنعه.
  */
 describe('normalizeSitePattern — ما يُرفَض وقت الحفظ', () => {
-  it.each(['', '   ', '.', '*.', 'chrome://settings', 'file:///x', '\u200f\u200e'])(
+  it.each(['', '   ', '.', '*.', 'chrome://settings', 'file:///x', '\u200f\u200e', 'http://.'])(
     'يرفض %j',
     (raw) => {
       expect(normalizeSitePattern(raw)).toBeNull()
@@ -387,5 +387,78 @@ describe('القائمة كاملةً', () => {
 
   it('قائمة فارغة لا تمنع شيئًا', () => {
     expect(evaluateGate('https://example.com/', []).allowed).toBe(true)
+  })
+})
+
+/**
+ * المنفذ جزء من هوية الموقع: `bank.com:8443` خدمةٌ غير `bank.com`. والمنفذ
+ * الضمني للمخطّط يُقارَن بقيمته لا بغيابه، وإلّا سقط النمط الصريح على عنوانٍ
+ * لا يكتب منفذه.
+ */
+describe('المنفذ في النمط', () => {
+  it('منفذٌ صريح في العنوان يطابق النمط الذي يسمّيه', () => {
+    expect(isSiteExcluded('https://bank.com:8443/login', ['bank.com:8443'])).toBe(true)
+  })
+
+  it('منفذٌ صريح مغاير لا يطابق — الاستثناء لخدمةٍ بعينها لا للمضيف كلّه', () => {
+    expect(isSiteExcluded('https://bank.com:8443/login', ['bank.com:9000'])).toBe(false)
+  })
+
+  it('العنوان بلا منفذ يُقارَن بالمنفذ الضمني لمخطّطه', () => {
+    // 80 ضمنيّ لـhttp: فيطابق النمط `:80`، ولا يطابقه عنوان https الذي منفذه الضمني 443.
+    expect(isSiteExcluded('http://bank.com/x', ['bank.com:80'])).toBe(true)
+    expect(isSiteExcluded('https://bank.com/x', ['bank.com:80'])).toBe(false)
+  })
+
+  it('مخطّط بلا منفذ ضمني معروف لا يطابق نمطًا بمنفذ صريح', () => {
+    // `ftp:` خارج جدول المنافذ الضمنية (http/https وحدهما) فمنفذه «غير معلوم»، لا مطابقٌ لأيّ رقم.
+    // ولا أثر عمليّ: بوّابة الحقن تصدّ هذه المخطّطات قبل بلوغ المُطابِق.
+    expect(isSiteExcluded('ftp://bank.com/', ['bank.com:21'])).toBe(false)
+  })
+
+  it('النمط بلا منفذ يطابق أيّ منفذ', () => {
+    expect(isSiteExcluded('https://bank.com:8443/', ['bank.com'])).toBe(true)
+    expect(isSiteExcluded('http://bank.com:3000/', ['bank.com'])).toBe(true)
+  })
+})
+
+/**
+ * `matchesSitePattern` تُمرّر مضيف العنوان من أنبوب النمط نفسه — التماثل شرط لا
+ * تجميل. و`new URL` الحقيقي يُخرج مضيفًا نظيفًا دائمًا، فلا يصل إليها مضيفٌ
+ * ملوَّث إلّا من كائنٍ شبيه بـ`URL` يُمرَّر إليها مباشرةً — وهو ما تُظهره هذه
+ * الحالات، لأنها الصنف الذي يفلت لو لم يُنقَّ الطرفان بالأداة نفسها.
+ */
+describe('تنقية مضيف العنوان قبل المقارنة', () => {
+  const urlLike = (hostname: string) =>
+    ({ hostname, port: '', protocol: 'https:', pathname: '/' }) as unknown as URL
+
+  it('علامة اتجاه في المضيف لا تُفلِت الموقع المستثنى', () => {
+    const pattern = normalizeSitePattern('bank.com')!
+
+    expect(matchesSitePattern(urlLike('bank\u200f.com'), pattern)).toBe(true)
+  })
+
+  it('ومعها نقطة جذر تُنزَع كذلك بعد التنقية', () => {
+    const pattern = normalizeSitePattern('bank.com')!
+
+    expect(matchesSitePattern(urlLike('bank\u200b.com.'), pattern)).toBe(true)
+  })
+
+  it('مضيفٌ ملوَّث لا يصلح مضيفًا بعد التنقية يُقارَن كما وصل — فلا يطابق خطأً', () => {
+    const pattern = normalizeSitePattern('bank.com')!
+
+    // بعد حذف العلامة يبقى فراغٌ داخل الاسم فيرفضه المحلِّل: يُرجَع إلى الأصل ولا يطابق.
+    expect(matchesSitePattern(urlLike('bank\u200f .com'), pattern)).toBe(false)
+  })
+})
+
+describe('isSiteExcluded — الحدود', () => {
+  it('عنوانٌ لا يُحلَّل لا يُعدّ مستثنى ولا يرمي', () => {
+    expect(isSiteExcluded('ليس عنوانًا', ['bank.com'])).toBe(false)
+  })
+
+  it('لا أنماط → لا استثناء حتى لعنوانٍ لا يُحلَّل', () => {
+    expect(isSiteExcluded('https://bank.com/', [])).toBe(false)
+    expect(isSiteExcluded('ليس عنوانًا', [])).toBe(false)
   })
 })

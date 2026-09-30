@@ -22,6 +22,8 @@ import {
   type IndexedRule,
 } from '@/modules/computed-style/selector-index'
 
+import type { SheetSource } from '@/modules/computed-style/sheets'
+
 /** يبني ورقة أنماط حقيقية في المستند ويُرجع قواعدها. */
 function sheet(css: string): CSSStyleRule[] {
   const el = document.createElement('style')
@@ -262,5 +264,233 @@ describe('collectCandidates', () => {
     document.body.append(el)
 
     expect(collectCandidates(el, 'color', indexOf(rules), plainCtx)).toHaveLength(1)
+  })
+})
+
+/**
+ * قاعدة مزيَّفة بما يقرؤه الحلّ منها فقط: `selectorText` و`style`. تُبنى حين
+ * لا تُنتج ورقة حقيقية الحالة المطلوبة — تداخل، أو قاعدة بلا نمط.
+ */
+function fakeRule(selectorText: string | undefined, decls: Record<string, string>): CSSStyleRule {
+  return {
+    selectorText,
+    style: {
+      getPropertyValue: (name: string) => decls[name] ?? '',
+      getPropertyPriority: () => '',
+    },
+  } as unknown as CSSStyleRule
+}
+
+/** عنصر من فضاء أسماء غريب: لا يعرض `style`، كما هو `Element` المجرَّد. */
+function elementWithoutStyle(localName: string): Element {
+  const el = document.createElementNS('http://example.com/ns', localName)
+  document.body.append(el)
+  return el
+}
+
+describe('عنصر بلا نمط سطري', () => {
+  it('لا يُخترع له مرشّح سطري ولا يُرمى', () => {
+    // `Element` المجرَّد لا يعلن `style`؛ الحلّ يستمرّ بقواعد الأوراق وحدها.
+    const rules = sheet('foo { color: red }')
+    const el = elementWithoutStyle('foo')
+    expect((el as unknown as { style?: unknown }).style).toBeUndefined()
+
+    const candidates = collectCandidates(el, 'color', indexOf(rules), plainCtx)
+    expect(candidates).toHaveLength(1)
+    expect(candidates[0]!.inline).toBe(false)
+    expect(resolveProperty(el, 'color', indexOf(rules), plainCtx)?.declared).toBe('red')
+  })
+
+  it('resolveAll يُكمل بالقواعد أيضًا', () => {
+    const rules = sheet('foo { color: red }')
+    const el = elementWithoutStyle('foo')
+
+    const all = resolveAll(el, ['color', 'width'], indexOf(rules), plainCtx)
+    expect(all.get('color')?.declared).toBe('red')
+    expect(all.get('color')?.inline).toBe(false)
+    expect(all.get('width')).toBeNull()
+  })
+
+  it('نمط ليس كائنًا لا يُعدّ نمطًا سطريًّا', () => {
+    const rules = sheet('.a { color: blue }')
+    const el = document.createElement('div')
+    el.className = 'a'
+    document.body.append(el)
+    Object.defineProperty(el, 'style', { value: 'color: red', configurable: true })
+
+    expect(resolveProperty(el, 'color', indexOf(rules), plainCtx)?.inline).toBe(false)
+  })
+})
+
+describe('قاعدة رشّحها الفهرس ولا يطابقها العنصر', () => {
+  it('دلو الصنف قد يحمل قاعدة أضيق — المطابقة الفعلية تحسم', () => {
+    // `.a.b` تدخل دلو `.a` فتُرشَّح لعنصر صنفه `a` وحده، ثم تُسقطها `matches()`.
+    const rules = sheet('.a.b { color: red } .a { color: blue }')
+    const el = document.createElement('div')
+    el.className = 'a'
+    document.body.append(el)
+    const index = indexOf(rules)
+
+    const candidates = collectCandidates(el, 'color', index, plainCtx)
+    expect(candidates.map((c) => c.declared)).toEqual(['blue'])
+    expect(resolveProperty(el, 'color', index, plainCtx)?.declared).toBe('blue')
+    expect(resolveAll(el, ['color'], index, plainCtx).get('color')?.declared).toBe('blue')
+  })
+
+  it('محدِّد يرمي عند المطابقة يعني «لا نعرف» لا «يطابق»', () => {
+    /*
+     * `matches()` يرمي على ما لا يفهمه. لو حُسب الرمي مطابقةً لنُسبت للعنصر
+     * قاعدة لا نعرف أتصيبه، ولو ترك الرمي يصعد لسقط الفحص كلّه.
+     */
+    const el = document.createElement('div')
+    el.className = 'a'
+    document.body.append(el)
+    const broken = fakeRule('!!!', { color: 'red' })
+    const good = fakeRule('.a', { color: 'blue' })
+    const index = indexRules([
+      { rule: broken, selector: '!!!', order: 0 },
+      { rule: good, selector: '.a', order: 1 },
+    ])
+
+    expect(() => resolveProperty(el, 'color', index, plainCtx)).not.toThrow()
+    expect(resolveProperty(el, 'color', index, plainCtx)?.declared).toBe('blue')
+    expect(collectCandidates(el, 'color', index, plainCtx)).toHaveLength(1)
+    expect(resolveAll(el, ['color'], index, plainCtx).get('color')?.declared).toBe('blue')
+  })
+})
+
+describe('قاعدة بلا كتلة أنماط', () => {
+  it('تُتخطّى ولا تُسقط الحلّ', () => {
+    const el = document.createElement('div')
+    el.className = 'a'
+    document.body.append(el)
+    const noStyle = { selectorText: '.a' } as unknown as CSSStyleRule
+    const good = fakeRule('.a', { color: 'blue' })
+    const index = indexRules([
+      { rule: noStyle, selector: '.a', order: 0 },
+      { rule: good, selector: '.a', order: 1 },
+    ])
+
+    expect(collectCandidates(el, 'color', index, plainCtx)).toHaveLength(1)
+    expect(resolveProperty(el, 'color', index, plainCtx)?.declared).toBe('blue')
+    expect(resolveAll(el, ['color'], index, plainCtx).get('color')?.declared).toBe('blue')
+  })
+})
+
+describe('resolveAll — نفس القواعد كما في resolveProperty', () => {
+  it('قاعدة أضعف متأخّرة لا تُزيح الأقوى', () => {
+    // `.card` لاحقة في المستند لكن أولويتها أدنى من `#hero` — فيبقى `#hero`.
+    const rules = sheet('#hero { color: green } .card { color: blue }')
+    const el = document.createElement('div')
+    el.id = 'hero'
+    el.className = 'card'
+    document.body.append(el)
+
+    const win = resolveAll(el, ['color'], indexOf(rules), plainCtx).get('color')
+    expect(win?.declared).toBe('green')
+    expect(win?.selector).toBe('#hero')
+  })
+
+  it('قاعدة مُهمّة تغلب النمط السطري العادي', () => {
+    const rules = sheet('#x { color: blue !important }')
+    const el = document.createElement('div')
+    el.id = 'x'
+    el.setAttribute('style', 'color: purple')
+    document.body.append(el)
+
+    const win = resolveAll(el, ['color'], indexOf(rules), plainCtx).get('color')
+    expect(win?.inline).toBe(false)
+    expect(win?.important).toBe(true)
+  })
+
+  it('قاعدة شرطها غير مطابق لا تُحتسَب', () => {
+    const rules = sheet('.a { color: blue } .a { color: red }')
+    const el = document.createElement('div')
+    el.className = 'a'
+    document.body.append(el)
+    const ctx: RuleContext = {
+      ...plainCtx,
+      conditionsMatch: (rule) => (rule as CSSStyleRule).style.getPropertyValue('color') !== 'red',
+    }
+
+    expect(resolveAll(el, ['color'], indexOf(rules), ctx).get('color')?.declared).toBe('blue')
+  })
+
+  it('شرط تُسأل عنه القاعدة مرّة واحدة مهما كثرت الخصائص', () => {
+    // فائدة المرور الواحد: كلفة الشروط تُدفَع للقاعدة لا لكل (قاعدة × خاصّية).
+    const rules = sheet('.a { color: blue; width: 1px; height: 2px }')
+    const el = document.createElement('div')
+    el.className = 'a'
+    document.body.append(el)
+    let asked = 0
+    const ctx: RuleContext = {
+      ...plainCtx,
+      conditionsMatch: () => {
+        asked += 1
+        return true
+      },
+    }
+
+    resolveAll(el, ['color', 'width', 'height'], indexOf(rules), ctx)
+    expect(asked).toBe(1)
+  })
+})
+
+describe('شكل القاعدة الفائزة', () => {
+  const link: SheetSource = { kind: 'link', href: 'https://example.com/a.css' }
+
+  it('يحمل المحدِّد المكتوب والفعّال والمصدر والطبقة والأولوية والتصريح', () => {
+    // تداخل: كُتب `& .x` وفُكّ إلى `.p .x`، والأولوية تُحسب من المفكوك.
+    document.body.innerHTML = '<div class="p"><div class="x" id="t"></div></div>'
+    const t = document.getElementById('t')!
+    const rule = fakeRule('& .x', { color: 'var(--c)' })
+    const index = indexRules([{ rule, selector: '.p .x', order: 3 }])
+    const ctx: RuleContext = {
+      ...plainCtx,
+      layerPath: () => 'base.theme',
+      source: () => link,
+    }
+
+    const expected = {
+      selector: '& .x',
+      effectiveSelector: '.p .x',
+      source: link,
+      layer: 'base.theme',
+      spec: [0, 2, 0],
+      important: false,
+      inline: false,
+      declared: 'var(--c)',
+    }
+
+    expect(resolveProperty(t, 'color', index, ctx)).toEqual(expected)
+    expect(resolveAll(t, ['color'], index, ctx).get('color')).toEqual(expected)
+  })
+
+  it('المحدِّد الفعّال هو المكتوب حين لا selectorText', () => {
+    document.body.innerHTML = '<div class="a" id="t"></div>'
+    const t = document.getElementById('t')!
+    const rule = fakeRule(undefined, { color: 'red' })
+    const index = indexRules([{ rule, selector: '.a', order: 0 }])
+
+    expect(collectCandidates(t, 'color', index, plainCtx)[0]!.selector).toBe('.a')
+    expect(resolveAll(t, ['color'], index, plainCtx).get('color')?.selector).toBe('.a')
+  })
+
+  it('النمط السطري له مدخله المميَّز', () => {
+    const el = document.createElement('div')
+    el.setAttribute('style', 'color: red !important')
+    document.body.append(el)
+
+    const expected = {
+      selector: 'style=""',
+      effectiveSelector: 'style=""',
+      source: null,
+      layer: null,
+      spec: [0, 0, 0],
+      important: true,
+      inline: true,
+    }
+    expect(resolveProperty(el, 'color', indexOf([]), plainCtx)).toMatchObject(expected)
+    expect(resolveAll(el, ['color'], indexOf([]), plainCtx).get('color')).toMatchObject(expected)
   })
 })

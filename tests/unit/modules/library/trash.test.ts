@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   daysRemaining,
@@ -12,8 +12,11 @@ import {
   TRASH_RETENTION_DAYS,
   TRASH_RETENTION_MS,
 } from '@/modules/library/trash'
+import { errWith } from '@/shared/result'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { annotations, blobs, captures } from '@/shared/storage/repository'
+
+import { failCaptureDeleteAt } from '../../../helpers/fail-capture-delete'
 
 import type { CaptureRecord } from '@/shared/storage/schema'
 
@@ -47,6 +50,17 @@ beforeEach(async () => {
   indexedDB.deleteDatabase('rasd')
   await new Promise((r) => setTimeout(r, 0))
 })
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  Object.assign(globalThis.chrome, { extension: { inIncognitoContext: false } })
+})
+
+/** يفعّل منع الكتابة كما في التصفّح الخاص — القراءة تبقى تعمل. */
+function blockWrites() {
+  Object.assign(globalThis.chrome, { extension: { inIncognitoContext: true } })
+  setIncognitoWritePolicy(true)
+}
 
 describe('isExpired / daysRemaining — منطق محض', () => {
   it('لا تنتهي الصلاحية قبل 30 يومًا بالضبط', () => {
@@ -91,6 +105,38 @@ describe('moveToTrash / restoreFromTrash', () => {
   })
 })
 
+describe('مسارات الفشل في النقل والاستعادة', () => {
+  it('منع الكتابة يوقف النقل إلى المهملات ويبقي اللقطة حيّة', async () => {
+    await captures.put(capture('a'))
+    blockWrites()
+
+    const moved = await moveToTrash('a', NOW)
+
+    expect(!moved.ok && moved.error.code).toBe('incognito-blocked')
+    const found = await captures.get('a')
+    expect(found.ok && found.value.trashedAt).toBeNull()
+  })
+
+  it('استعادة معرِّف غير موجود تفشل — لا تُكتب لقطة وهمية', async () => {
+    const restored = await restoreFromTrash('لا-وجود')
+
+    expect(!restored.ok && restored.error.code).toBe('not-found')
+    const count = await captures.count()
+    expect(count.ok && count.value).toBe(0)
+  })
+
+  it('منع الكتابة يوقف الاستعادة وتبقى اللقطة في المهملات', async () => {
+    await captures.put(capture('a', { trashedAt: NOW }))
+    blockWrites()
+
+    const restored = await restoreFromTrash('a')
+
+    expect(!restored.ok && restored.error.code).toBe('incognito-blocked')
+    const found = await captures.get('a')
+    expect(found.ok && found.value.trashedAt).toBe(NOW)
+  })
+})
+
 describe('purgeCapture — حذف نهائي', () => {
   it('يحذف اللقطة والبايتات والمشهد معًا', async () => {
     await captures.put(capture('a', { trashedAt: NOW }))
@@ -124,5 +170,35 @@ describe('purgeExpired', () => {
     await captures.put(capture('live', { trashedAt: null }))
     const purged = await purgeExpired(NOW)
     expect(purged.ok && purged.value).toBe(0)
+  })
+})
+
+describe('purgeExpired — مسارات الفشل', () => {
+  it('فشل قراءة المخزن يُرجَع كما هو ولا يُحذف شيء', async () => {
+    await captures.put(capture('expired', { trashedAt: NOW - TRASH_RETENTION_MS }))
+    vi.spyOn(captures, 'getAll').mockResolvedValueOnce(errWith('unknown', 'تعذّرت القراءة'))
+
+    const purged = await purgeExpired(NOW)
+
+    expect(!purged.ok && purged.error.detail).toBe('تعذّرت القراءة')
+    expect((await captures.get('expired')).ok).toBe(true)
+  })
+
+  /**
+   * التسلسل لا يتوازى كي يكون الحال بعد الفشل معلومًا: ما قبل الفاشلة حُذف،
+   * والفاشلة باقية، وما بعدها لم يُحاوَل — والنتيجة **الفشل** لا عدد ما نجح.
+   */
+  it('يتوقّف عند أوّل حذف فاشل فلا يحاول ما بعده ويُرجع الفشل', async () => {
+    for (const id of ['a', 'b', 'c']) {
+      await captures.put(capture(id, { trashedAt: NOW - TRASH_RETENTION_MS - 1 }))
+    }
+    failCaptureDeleteAt(2)
+
+    const purged = await purgeExpired(NOW)
+
+    expect(purged.ok).toBe(false)
+    expect((await captures.get('a')).ok, 'الأولى قبل الفشل حُذفت').toBe(false)
+    expect((await captures.get('b')).ok, 'الفاشلة باقية').toBe(true)
+    expect((await captures.get('c')).ok, 'ما بعد الفشل لم يُحاوَل').toBe(true)
   })
 })

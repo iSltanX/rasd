@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   FORBIDDEN_PERMISSIONS,
+  grantedOrigins,
   hasHostPermission,
   hasPermission,
   OPTIONAL_HOST_PERMISSIONS,
@@ -14,6 +15,7 @@ import {
   requestPermission,
   revokeHostPermission,
   revokePermission,
+  watchPermissions,
 } from '@/shared/permissions'
 
 /**
@@ -27,10 +29,20 @@ type PermissionsApi = {
   request: ReturnType<typeof vi.fn>
   contains: ReturnType<typeof vi.fn>
   remove: ReturnType<typeof vi.fn>
+  getAll: ReturnType<typeof vi.fn>
+  onAdded: { addListener: ReturnType<typeof vi.fn>; removeListener: ReturnType<typeof vi.fn> }
+  onRemoved: { addListener: ReturnType<typeof vi.fn>; removeListener: ReturnType<typeof vi.fn> }
 }
 
 function installPermissionsApi(): PermissionsApi {
-  const api: PermissionsApi = { request: vi.fn(), contains: vi.fn(), remove: vi.fn() }
+  const api: PermissionsApi = {
+    request: vi.fn(),
+    contains: vi.fn(),
+    remove: vi.fn(),
+    getAll: vi.fn(),
+    onAdded: { addListener: vi.fn(), removeListener: vi.fn() },
+    onRemoved: { addListener: vi.fn(), removeListener: vi.fn() },
+  }
   Object.assign(globalThis.chrome, { permissions: api })
   return api
 }
@@ -92,6 +104,25 @@ describe('requestPermission · hasPermission · revokePermission', () => {
     await expect(hasPermission(['tabs'])).resolves.toBe(true)
   })
 
+  it('رفض الصلاحية الاختيارية → denied لا granted', async () => {
+    api.request.mockResolvedValue(false)
+    await expect(requestPermission(['downloads'])).resolves.toBe('denied')
+  })
+
+  it('الرمي خارج إيماءة المستخدم عند طلب صلاحية اختيارية → error لا استثناء', async () => {
+    api.request.mockRejectedValue(new Error('must be called during a user gesture'))
+    await expect(requestPermission(['downloads'])).resolves.toBe('error')
+  })
+
+  it('يفحص صلاحية المضيف بأصلها ويُرجع نتيجة الفحص كما هي', async () => {
+    api.contains.mockResolvedValue(true)
+    await expect(hasHostPermission('https://x.com/*')).resolves.toBe(true)
+    expect(api.contains).toHaveBeenCalledWith({ origins: ['https://x.com/*'] })
+
+    api.contains.mockResolvedValue(false)
+    await expect(hasHostPermission('https://x.com/*')).resolves.toBe(false)
+  })
+
   /*
    * النتيجة `'revoked'` لا `'granted'`: الدالّة كانت تُرجع `'granted'` عند
    * **نجاح** السحب — «نجحت العملية» تُقرأ «الصلاحية ممنوحة» (‏`§6` صفّ 124).
@@ -110,6 +141,77 @@ describe('requestPermission · hasPermission · revokePermission', () => {
     api.remove.mockResolvedValue(true)
     await expect(revokeHostPermission(['https://x.com/*'])).resolves.toBe('revoked')
     expect(api.remove).toHaveBeenCalledWith({ origins: ['https://x.com/*'] })
+  })
+
+  it('سحب المضيف الذي لم يقع يُقرأ «باقية» كذلك', async () => {
+    api.remove.mockResolvedValue(false)
+    await expect(revokeHostPermission(['https://x.com/*'])).resolves.toBe('kept')
+  })
+
+  it('رمي السحب يعود error في الصلاحية الاختيارية وصلاحية المضيف معًا', async () => {
+    api.remove.mockRejectedValue(new Error('boom'))
+    await expect(revokePermission(['desktopCapture'])).resolves.toBe('error')
+    await expect(revokeHostPermission(['https://x.com/*'])).resolves.toBe('error')
+  })
+})
+
+describe('grantedOrigins — ما مُنح فعلًا لا ما يُسأل عنه', () => {
+  it('يُرجع الأصول الممنوحة كما تبلّغ بها المتصفّح', async () => {
+    // مستخدمٌ منح موقعًا واحدًا من النافذة: `<all_urls>` ليست ممنوحة لكنّ إذنًا قائم.
+    api.getAll.mockResolvedValue({ origins: ['https://bank.com/*'], permissions: [] })
+
+    await expect(grantedOrigins()).resolves.toEqual(['https://bank.com/*'])
+  })
+
+  it('لا أصول في الردّ (الحقل غائب) → قائمة فارغة لا undefined', async () => {
+    api.getAll.mockResolvedValue({ permissions: ['tabs'] })
+
+    await expect(grantedOrigins()).resolves.toEqual([])
+  })
+
+  it('رمي الاستعلام → قائمة فارغة لا استثناء', async () => {
+    api.getAll.mockRejectedValue(new Error('boom'))
+
+    await expect(grantedOrigins()).resolves.toEqual([])
+  })
+})
+
+describe('watchPermissions', () => {
+  it('يُستدعى فورًا مرّة واحدة ويشترك في الإضافة والسحب معًا', () => {
+    const listener = vi.fn()
+
+    watchPermissions(listener)
+
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(api.onAdded.addListener).toHaveBeenCalledTimes(1)
+    expect(api.onRemoved.addListener).toHaveBeenCalledTimes(1)
+  })
+
+  it('كل تغيّر خارجي — منحًا أو سحبًا — يستدعي المستمع بلا وسائط', () => {
+    const listener = vi.fn()
+    watchPermissions(listener)
+    listener.mockClear()
+
+    const onAdded = api.onAdded.addListener.mock.calls[0]![0] as (p: unknown) => void
+    const onRemoved = api.onRemoved.addListener.mock.calls[0]![0] as (p: unknown) => void
+    // المتصفّح يمرّر الصلاحيات المتغيّرة، والمستمع لا يهتمّ بها فيُعيد القراءة.
+    onAdded({ permissions: ['tabs'] })
+    onRemoved({ origins: ['https://x.com/*'] })
+
+    expect(listener).toHaveBeenCalledTimes(2)
+    expect(listener).toHaveBeenNthCalledWith(1)
+    expect(listener).toHaveBeenNthCalledWith(2)
+  })
+
+  it('إلغاء الاشتراك يزيل المعالج نفسه من الحدثين', () => {
+    const off = watchPermissions(vi.fn())
+    const added = api.onAdded.addListener.mock.calls[0]![0]
+    const removed = api.onRemoved.addListener.mock.calls[0]![0]
+
+    off()
+
+    expect(api.onAdded.removeListener).toHaveBeenCalledWith(added)
+    expect(api.onRemoved.removeListener).toHaveBeenCalledWith(removed)
   })
 })
 

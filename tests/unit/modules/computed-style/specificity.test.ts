@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  clearSpecificityCache,
   compareSpecificity,
   scanEscape,
   specificity,
@@ -139,6 +140,78 @@ describe('السمات ذات القيم الشائكة', () => {
   })
 })
 
+describe('تهريب في أوضاع شاذّة', () => {
+  it('scanEscape يتقدّم محرفين على شرطة مائلة بلا ما بعدها', () => {
+    // لا شيء يُهرَّب: النمط لا يطابق فيُقفَز الحرف نفسه وما بعده — لا حلقة.
+    expect(scanEscape('\\', 0)).toBe(2)
+    expect(scanEscape('a\\', 1)).toBe(3)
+  })
+
+  it('شرطة مائلة أخيرة في محدِّد لا تُعلّق الحساب', () => {
+    expect(spec('.a\\')).toEqual([0, 1, 0])
+  })
+
+  it('محدِّد يبدأ بتهريب يُحسب وسمًا واحدًا', () => {
+    // `\:x` اسم وسم واحد هو `:x` — لا صنف زائف ولا وسمان.
+    expect(spec('\\:x')).toEqual([0, 0, 1])
+  })
+
+  it('تهريب داخل السمة لا يُنهي أقواسها', () => {
+    /*
+     * `\]` داخل `[a\]b]` جزء من اسم السمة لا إغلاقها. ولو أُنهي عنده لبقيت
+     * `b]` فقُرئت `b` وسمًا زائدًا.
+     */
+    expect(spec('[a\\]b].c')).toEqual([0, 2, 0])
+  })
+
+  it('علامة اقتباس مهرَّبة داخل قيمة السمة لا تُنهي القيمة', () => {
+    // القيمة `say "hi"`؛ ولو انتهت عند أوّل `\"` لقُرئ ما بعدها وسومًا.
+    expect(spec('[title="say \\"hi\\""] .c')).toEqual([0, 2, 0])
+  })
+})
+
+describe('سلاسل نصّية خارج السمات', () => {
+  it('محتوى السلسلة لا يُحسب وسومًا', () => {
+    // لو قُرئ `b c` لصارت الوسوم أربعة.
+    expect(spec('a"b c"d')).toEqual([0, 0, 2])
+  })
+
+  it('علامة اقتباس مهرَّبة لا تُنهي السلسلة', () => {
+    expect(spec('a"x\\"y z"d')).toEqual([0, 0, 2])
+  })
+
+  it('سلسلة بلا إغلاق تمتدّ إلى النهاية ولا تُعلّق', () => {
+    expect(spec('a"b c')).toEqual([0, 0, 1])
+  })
+
+  it('علامة الاقتباس المفردة كالمزدوجة', () => {
+    expect(spec("a'b c'd")).toEqual([0, 0, 2])
+  })
+})
+
+describe('محدِّدات مبتورة وما لا يُحسب', () => {
+  it('سمة بلا إغلاق تُحسب سمة واحدة ولا ترمي', () => {
+    expect(spec('[data-x')).toEqual([0, 1, 0])
+  })
+
+  it('صنف زائف وظيفي بلا إغلاق لا يرمي', () => {
+    expect(() => spec(':is(.a')).not.toThrow()
+    expect(spec(':is(.a')).toEqual([0, 1, 0])
+  })
+
+  it('محارف لا معنى لها في محدِّد تُتجاهَل', () => {
+    // الأرقام والرموز الشاردة ليست وسمًا ولا صنفًا.
+    expect(spec('.a % 5 .b')).toEqual([0, 2, 0])
+    expect(spec('!!!')).toEqual([0, 0, 0])
+  })
+
+  it('وسائط العنصر الزائف الوظيفي لا تُحسب', () => {
+    // `label` هنا اسم جزء لا وسم.
+    expect(spec('div::part(label)')).toEqual([0, 0, 2])
+    expect(spec('::highlight(search) .x')).toEqual([0, 1, 1])
+  })
+})
+
 describe('compareSpecificity', () => {
   it('يرتّب بالخانات بالترتيب', () => {
     expect(compareSpecificity([1, 0, 0], [0, 99, 99])).toBeGreaterThan(0)
@@ -153,5 +226,17 @@ describe('الذاكرة لا تُفسد النتيجة', () => {
     const b = spec('.x #y :where(.z)')
     expect(a).toEqual(b)
     expect(a).toEqual([1, 1, 0])
+  })
+
+  it('تفريغ الذاكرة يُسقط المحفوظ ويبقي الحساب نفسه', () => {
+    // الإصابة تُرجع المصفوفة عينها؛ وبعد التفريغ تُحسب من جديد فتُرجع أخرى بالقيمة ذاتها.
+    const before = spec('.m .n')
+    expect(spec('.m .n')).toBe(before)
+
+    clearSpecificityCache()
+
+    const after = spec('.m .n')
+    expect(after).not.toBe(before)
+    expect(after).toEqual(before)
   })
 })

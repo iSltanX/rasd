@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   searchCaptures,
@@ -9,9 +9,11 @@ import {
   searchPalettes,
   searchReferences,
   searchTab,
+  type LibraryTab,
 } from '@/modules/library/search'
+import { errWith, type Err, type RasdError } from '@/shared/result'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
-import { captures, colors } from '@/shared/storage/repository'
+import { captures, colors, guides, palettes, references } from '@/shared/storage/repository'
 
 import type {
   CaptureRecord,
@@ -157,6 +159,36 @@ describe('searchTab — الطبقة المتّصلة بالمخازن', () => {
       if (result.ok) expect(result.value).toEqual([])
     }
   })
+})
+
+describe('searchTab — فشل قراءة المخزن يُمرَّر لا يُبتلع', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  /**
+   * كل تبويب يقرأ مخزنه ويبحث فيه. فشل القراءة يجب أن يصل الواجهة فشلًا، لا
+   * قائمةً فارغة تُقرأ «لا نتائج» — فالمستخدم يظنّ مكتبته خالية وهي سليمة.
+   */
+  const failingRead: Record<LibraryTab, (failure: Err<RasdError>) => unknown> = {
+    captures: (failure) => vi.spyOn(captures, 'getAll').mockResolvedValueOnce(failure),
+    colors: (failure) => vi.spyOn(colors, 'getAll').mockResolvedValueOnce(failure),
+    palettes: (failure) => vi.spyOn(palettes, 'getAll').mockResolvedValueOnce(failure),
+    references: (failure) => vi.spyOn(references, 'getAll').mockResolvedValueOnce(failure),
+    guides: (failure) => vi.spyOn(guides, 'getAll').mockResolvedValueOnce(failure),
+  }
+
+  it.each(['captures', 'colors', 'palettes', 'references', 'guides'] as const)(
+    'تبويب %s يُرجع الخطأ نفسه',
+    async (tab) => {
+      failingRead[tab](errWith('unknown', `تعذّرت قراءة ${tab}`))
+
+      const result = await searchTab(tab, 'أي شيء')
+
+      expect(result.ok).toBe(false)
+      expect(!result.ok && result.error.detail).toBe(`تعذّرت قراءة ${tab}`)
+    },
+  )
 })
 
 describe('أداء: البحث في 5000 سجلّ يستجيب في ≤150ms', () => {

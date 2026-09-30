@@ -172,6 +172,21 @@ describe('APCA — الخصائص البنيوية', () => {
     expect(apcaLc(rgb('#b6b6b6'), rgb('#c8c8c8'))).toBeCloseTo(7.675045, 5)
   })
 
+  it('`loClip` في القطبية المعكوسة انقطاع أيضًا — بايت واحد يقفز من صفر إلى -7.5', () => {
+    // نصّ أفتح من خلفيته: الفرع الثاني من الخوارزمية بعتبته الخاصّة.
+    expect(apcaLc(rgb('#575757'), rgb('#404040'))).toBe(0)
+    expect(apcaLc(rgb('#585858'), rgb('#404040'))).toBeCloseTo(-7.514964, 5)
+  })
+
+  it('قناة خارج 0..255 تُجاوز المدى فيعطي التباين صفرًا لا رقمًا كاذبًا', () => {
+    // Y للقناة 300 يساوي ≈1.48 — فوق سقف 1.1 الذي يقبل الأبيض نفسه (1.0000001).
+    const beyond = { r: 300, g: 300, b: 300 }
+    expect(apcaLc(beyond, rgb('#ffffff'))).toBe(0)
+    expect(apcaLc(rgb('#000000'), beyond)).toBe(0)
+    // والأبيض الفعلي لا يقع في الفرع نفسه: ما زال يعطي تباينه الكامل.
+    expect(apcaLc(rgb('#000000'), rgb('#ffffff'))).toBeGreaterThan(100)
+  })
+
   it('الحدود القصوى دون ±127', () => {
     expect(apcaLc(rgb('#000000'), rgb('#ffffff'))).toBeCloseTo(106.040673212688617, 8)
     expect(apcaLc(rgb('#ffffff'), rgb('#000000'))).toBeCloseTo(-107.884733183098476, 8)

@@ -184,3 +184,76 @@ describe('extractPalette — الحدود', () => {
     expect(strided.countedPixels).toBe(40_000)
   })
 })
+
+describe('extractPalette — الشفافية وحدّها', () => {
+  it('ألفا عند العتبة بالضبط تُحسَب، ودونها بواحد تُهمَل', () => {
+    // العتبة الافتراضية 128: «دون» تعني `<` لا `<=`.
+    const at = extractPalette(
+      image(4, 4, () => [220, 30, 30, 128]),
+      { count: 1 },
+    )
+    expect(at.countedPixels).toBe(16)
+
+    const below = extractPalette(
+      image(4, 4, () => [220, 30, 30, 127]),
+      { count: 1 },
+    )
+    expect(below.entries).toEqual([])
+    expect(below.countedPixels).toBe(0)
+  })
+
+  it('`minAlpha` مخصَّصة تغيّر ما يُحسَب', () => {
+    // نصف الصورة بألفا 200: تُقبل عند عتبة 100 وتُرفض عند 220.
+    const src = image(10, 2, (x) => (x < 5 ? RED : [40, 70, 210, 200]))
+    expect(extractPalette(src, { count: 2, minAlpha: 100 }).countedPixels).toBe(20)
+    expect(extractPalette(src, { count: 2, minAlpha: 220 }).countedPixels).toBe(10)
+  })
+})
+
+describe('extractPalette — مدخل ناقص وعناقيد متكرّرة المركز', () => {
+  it('مخزن بيانات أقصر من الأبعاد لا يرمي ولا يعدّ بكسلًا لا بيانات له', () => {
+    // الأبعاد تدّعي أربعة بكسلات والمخزن يحمل ثلاثة — فالرابع ألفاه غائبة أي شفّاف.
+    const data = new Uint8ClampedArray([...RED, ...RED, ...BLUE])
+    const result = extractPalette({ data, width: 4, height: 1 }, { count: 2 })
+    expect(result.countedPixels).toBe(3)
+    expect(result.sampledPixels).toBe(3)
+    expect(result.entries.reduce((n, e) => n + e.count, 0)).toBe(3)
+  })
+
+  it('عنقودان بمركز واحد لا يُنتجان مدخلًا فارغًا ثانيًا', () => {
+    /*
+     * أزرقان وأحمر يُطلَب لهم ثلاثة ألوان: الفرز على محور الإضاءة يضع الأزرقين
+     * أوّلًا، فتنتج القسمة صندوقين بأزرق واحد لكل منهما ومركزاهما متطابقان.
+     * البكسل الأزرق يذهب إلى أوّلهما (الأقرب بالأسبقية)، والثاني يبقى بلا بكسل
+     * فيُسقَط — لا يظهر في اللوحة بعدد صفر.
+     */
+    const src = image(3, 1, (x) => (x < 2 ? BLUE : RED))
+    const result = extractPalette(src, { count: 3 })
+    expect(result.entries).toHaveLength(2)
+    expect(result.entries.every((e) => e.count > 0)).toBe(true)
+    expect(result.entries.map((e) => e.count)).toEqual([2, 1])
+    // الأكثر حصّةً أوّلًا: الأزرق (بكسلان) ثم الأحمر (بكسل).
+    expect(result.entries[0]?.colour.rgb.b).toBeGreaterThan(result.entries[0]!.colour.rgb.r)
+    expect(result.entries[1]?.colour.rgb.r).toBeGreaterThan(result.entries[1]!.colour.rgb.b)
+    expect(result.entries.reduce((s, e) => s + e.share, 0)).toBeCloseTo(1, 10)
+  })
+})
+
+describe('extractPalette — الحياديات بلا إسقاط', () => {
+  it('بلا `dropNeutrals` تبقى الحياديات موسومةً ولا يُعدّ شيء مُسقَطًا', () => {
+    const src = stripes(60, 10, [RED, GREY, BLUE])
+    const result = extractPalette(src, { count: 3, dropNeutrals: false })
+    expect(result.droppedNeutrals).toBe(0)
+    expect(result.entries).toHaveLength(3)
+    expect(result.entries.filter((e) => e.neutral)).toHaveLength(1)
+  })
+
+  it('الحصص بعد الإسقاط تبقى نسبةً من كل البكسلات المحسوبة لا من الباقي', () => {
+    // الثلث الرمادي يُسقَط، فيبقى لكل من الباقيين ثلث لا نصف — والمُسقَط يُعلَن.
+    const src = stripes(60, 10, [RED, GREY, BLUE])
+    const result = extractPalette(src, { count: 3, dropNeutrals: true })
+    expect(result.droppedNeutrals).toBe(1)
+    expect(result.entries).toHaveLength(2)
+    for (const e of result.entries) expect(e.share).toBeCloseTo(1 / 3, 2)
+  })
+})

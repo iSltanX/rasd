@@ -19,6 +19,7 @@ import {
 import {
   distancePointPolyline,
   distancePointSegment,
+  distanceToEllipseEdge,
   handleAt,
   hitHandle,
   hitNode,
@@ -28,6 +29,7 @@ import {
   insideEllipse,
   insideRoundedRect,
   normaliseBox,
+  pointerToImage,
   unrotate,
 } from '@/modules/editor/hit-test'
 import {
@@ -35,10 +37,14 @@ import {
   type EllipseNode,
   type FreehandNode,
   type LineNode,
+  type MeasureNode,
+  type NoteNode,
   type PinNode,
   type RectNode,
+  type RedactNode,
   type Scene,
   type SceneNode,
+  type TextNode,
 } from '@/modules/editor/scene'
 import { emptyScene } from '@/modules/editor/scene-schema'
 import { canvasPoint, deviceRect, devicePoint } from '@/shared/geometry'
@@ -431,5 +437,291 @@ describe('صندوق الإحاطة يشمل السمك', () => {
   it('التذكير يُعيد المرجع نفسه للعقدة نفسها', () => {
     const node = rectNode()
     expect(nodeBounds(node)).toBe(nodeBounds(node))
+  })
+})
+
+// ═════════════════════ حالات حدّية للبدائيّات ═════════════════════
+
+describe('البدائيّات — الحالات الحدّية', () => {
+  it('خطٌّ متعدّد بنقطة واحدة مسافته عن تلك النقطة، وبأقلّ منها لا نهاية', () => {
+    expect(distancePointPolyline(3, 4, [0, 0])).toBe(5)
+    // إحداثيٌّ يتيم لا يُشكّل نقطة.
+    expect(distancePointPolyline(3, 4, [7])).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it('**قطعٌ ناقص بنصف قطر غير موجب لا يحتوي شيئًا ولا حافّة له**', () => {
+    expect(insideEllipse(0, 0, 0, 0, 0, 5)).toBe(false)
+    expect(insideEllipse(0, 0, 0, 0, 5, -1)).toBe(false)
+    expect(distanceToEllipseEdge(1, 1, 0, 0, 0, 5)).toBe(Number.POSITIVE_INFINITY)
+    expect(distanceToEllipseEdge(1, 1, 0, 0, 5, 0)).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it('مسافة نقطة عن حافّة الدائرة هي فرقها عن نصف القطر، ومن المركز أقصر نصف قطر', () => {
+    expect(distanceToEllipseEdge(13, 0, 0, 0, 10, 10)).toBeCloseTo(3, 9)
+    expect(distanceToEllipseEdge(0, 0, 0, 0, 10, 4)).toBe(4)
+  })
+
+  it('**أركان المستطيل المستدير تُستبعَد على الجهات الأربع** لا على الشمال الغربي وحده', () => {
+    const box = deviceRect(0, 0, 100, 100)
+    // (99,99) في ركن الجنوب الشرقي المقصوص، و(1,99) و(99,1) في الجنوب الغربي والشمال الشرقي.
+    expect(insideRoundedRect(99, 99, box, 20)).toBe(false)
+    expect(insideRoundedRect(1, 99, box, 20)).toBe(false)
+    expect(insideRoundedRect(99, 1, box, 20)).toBe(false)
+    // وقرب الحافّة في منتصفها ما زال داخلًا: الفحص الدائري على الركن وحده.
+    expect(insideRoundedRect(99, 50, box, 20)).toBe(true)
+    expect(insideRoundedRect(50, 99, box, 20)).toBe(true)
+    // وداخل القوس نفسه: (90,90) على بعد ‎14.1‎ من مركز قوس الركن.
+    expect(insideRoundedRect(90, 90, box, 20)).toBe(true)
+    expect(insideRoundedRect(100.5, 50, box, 20)).toBe(false)
+  })
+
+  it('**نصف القطر يُحصَر بنصف أصغر ضلع** — لا يبتلع مستطيلًا رفيعًا', () => {
+    // ارتفاع 10 ⇒ نصف القطر الفعلي 5 لا 50، فمنتصف المستطيل داخل.
+    expect(insideRoundedRect(50, 5, deviceRect(0, 0, 100, 10), 50)).toBe(true)
+  })
+
+  it('مؤشِّر الشاشة يُحوَّل إلى فضاء الصورة بعكس الكاميرا', () => {
+    const p = pointerToImage(30, 60, { zoom: 2, tx: 10, ty: 20 })
+    expect(p).toEqual(devicePoint(10, 20))
+    expect(p.space).toBe('device')
+  })
+})
+
+// ═════════════════════ الإصابة على الحجب والقطع المملوء ═════════════════════
+
+describe('الإصابة — الحجب والقطع المملوء', () => {
+  const TOL = 6
+
+  const redactNode = (over: Partial<RedactNode> = {}): RedactNode => ({
+    kind: 'redact',
+    id: asNodeId('x'),
+    locked: false,
+    rotation: 0,
+    stroke,
+    rect: deviceRect(100, 100, 200, 100),
+    mode: 'cover',
+    strength: 0,
+    coverToken: 'status/danger/solid',
+    ...over,
+  })
+
+  it('**الحجب يُصاب من داخله** كالمملوء — لا من حافّته وحدها', () => {
+    const node = redactNode()
+    expect(hitNode(node, devicePoint(200, 150), TOL)).toBe(true)
+    // وبتسامح الحافّة خارجه، لا أبعد.
+    expect(hitNode(node, devicePoint(303, 150), TOL)).toBe(true)
+    expect(hitNode(node, devicePoint(320, 150), TOL)).toBe(false)
+  })
+
+  it('وأركانه حادّة: لا نصف قطر له، بخلاف المستطيل المستدير', () => {
+    const cover = redactNode()
+    const rounded = rectNode({ fill: 'solid', radiusPx: 40 })
+    // نقطة قرب الركن (100,100): داخل الحجب، وخارج المستطيل المستدير.
+    expect(hitNode(cover, devicePoint(102, 102), TOL)).toBe(true)
+    expect(hitNode(rounded, devicePoint(102, 102), TOL)).toBe(false)
+  })
+
+  it('**والحجب المدوَّر يُصاب في موضعه المدوَّر**', () => {
+    const node = redactNode({ rotation: Math.PI / 2 })
+    // 200×100 حول (200,150) ⇒ بعد ربع دورة 100×200: (200,240) داخل و(290,150) خارج.
+    expect(hitNode(node, devicePoint(200, 240), TOL)).toBe(true)
+    expect(hitNode(node, devicePoint(290, 150), TOL)).toBe(false)
+  })
+
+  it('**القطع الناقص المملوء يُصاب من مركزه**، والمفرَّغ لا', () => {
+    expect(hitNode(ellipseNode({ fill: 'solid' }), devicePoint(200, 150), TOL)).toBe(true)
+    expect(hitNode(ellipseNode({ fill: 'none' }), devicePoint(200, 150), TOL)).toBe(false)
+  })
+
+  it('والمملوء يمتدّ بالتسامح خارج حافّته ولا يتجاوزه', () => {
+    const node = ellipseNode({ fill: 'solid' })
+    // الحافّة اليمنى عند x=300.
+    expect(hitNode(node, devicePoint(304, 150), TOL)).toBe(true)
+    expect(hitNode(node, devicePoint(310, 150), TOL)).toBe(false)
+  })
+
+  it('والحجب يُلتقَط في `hitTest` وقد تحته عقدة، ويسبقها لأنه الأعلى', () => {
+    const under = rectNode({ id: asNodeId('under'), fill: 'solid' })
+    const scene = sceneWith([under, redactNode()])
+    expect(hitTest(scene, devicePoint(200, 150), at1)).toBe('x')
+  })
+
+  it('لكن الحجب المقفول لا يُلتقَط', () => {
+    const scene = sceneWith([redactNode({ locked: true })])
+    expect(hitTest(scene, devicePoint(200, 150), at1)).toBeNull()
+  })
+})
+
+// ═════════════════════ الإصابة على النصّ والملاحظة والقياس ═════════════════════
+
+describe('الإصابة — العقد المقيسة', () => {
+  const TOL = 6
+
+  const textNode = (over: Partial<TextNode> = {}): TextNode => ({
+    kind: 'text',
+    id: asNodeId('t'),
+    locked: false,
+    rotation: 0,
+    hidden: false,
+    stroke: { ...stroke, widthPx: 0 },
+    at: devicePoint(100, 100),
+    text: 'مرحبا',
+    font: { family: 'Cairo', sizePx: 16, weight: 400, letterSpacingPx: 0 },
+    maxWidthPx: 0,
+    align: 'start',
+    dir: 'auto',
+    ...over,
+  })
+
+  const noteNode = (over: Partial<NoteNode> = {}): NoteNode => ({
+    kind: 'note',
+    id: asNodeId('n'),
+    locked: false,
+    rotation: 0,
+    hidden: false,
+    stroke: { ...stroke, widthPx: 0 },
+    at: devicePoint(100, 100),
+    widthPx: 200,
+    title: 'عنوان',
+    body: 'شرح',
+    tag: null,
+    font: { family: 'Cairo', sizePx: 16, weight: 400, letterSpacingPx: 0 },
+    paddingPx: 10,
+    pinId: null,
+    ...over,
+  })
+
+  const measureNode = (over: Partial<MeasureNode> = {}): MeasureNode => ({
+    kind: 'measure',
+    id: asNodeId('m'),
+    locked: false,
+    rotation: 0,
+    hidden: false,
+    stroke: { ...stroke, widthPx: 0 },
+    a: deviceRect(100, 100, 40, 20),
+    b: null,
+    show: 'size',
+    ...over,
+  })
+
+  describe('النصّ', () => {
+    // «مرحبا» خمسة محارف: تقدير بلا قياس = 5 × 16 × 0.5 = 40 عرضًا و22.4 ارتفاعًا.
+    it('**بلا قياس يُصاب على الصندوق المقدَّر** بتسامحه', () => {
+      const node = textNode()
+      expect(hitNode(node, devicePoint(120, 110), TOL)).toBe(true)
+      expect(hitNode(node, devicePoint(144, 110), TOL)).toBe(true)
+      expect(hitNode(node, devicePoint(200, 110), TOL)).toBe(false)
+    })
+
+    it('**ومع القياس يُصاب على الصندوق المقيس لا المقدَّر**', () => {
+      const node = textNode()
+      const measureBox = () => deviceRect(100, 100, 200, 50)
+      // (250,120) خارج التقدير (40 عرضًا) وداخل القياس (200).
+      expect(hitNode(node, devicePoint(250, 120), TOL)).toBe(false)
+      expect(
+        hitNode(node, devicePoint(250, 120), TOL, { camera: identityCamera, measureBox }),
+      ).toBe(true)
+    })
+
+    it('وقياسٌ يُرجع `null` يعود إلى التقدير — لا يُعطَّل الالتقاط', () => {
+      const node = textNode()
+      const options = { camera: identityCamera, measureBox: () => null }
+      expect(hitNode(node, devicePoint(120, 110), TOL, options)).toBe(true)
+      expect(hitNode(node, devicePoint(250, 120), TOL, options)).toBe(false)
+    })
+  })
+
+  describe('الملاحظة', () => {
+    // بلا قياس: سطران + ⌈4/40⌉ ⇒ 3 أسطر × 22.4 + حشوتان (20) = 87.2 ارتفاعًا.
+    it('بلا قياس تُصاب على بطاقتها المقدَّرة بعرضها المعلن', () => {
+      const node = noteNode()
+      expect(hitNode(node, devicePoint(250, 140), TOL)).toBe(true)
+      expect(hitNode(node, devicePoint(250, 300), TOL)).toBe(false)
+      expect(hitNode(node, devicePoint(400, 140), TOL)).toBe(false)
+    })
+
+    it('ومع القياس على بطاقتها المقيسة — ارتفاعٌ أطول يلتقط ما لم يلتقطه التقدير', () => {
+      const node = noteNode()
+      const measureBox = () => deviceRect(100, 100, 200, 300)
+      expect(hitNode(node, devicePoint(250, 350), TOL)).toBe(false)
+      expect(
+        hitNode(node, devicePoint(250, 350), TOL, { camera: identityCamera, measureBox }),
+      ).toBe(true)
+    })
+  })
+
+  describe('القياس', () => {
+    it('قياس المقاس يُصاب على مستطيله', () => {
+      const node = measureNode()
+      expect(hitNode(node, devicePoint(120, 110), TOL)).toBe(true)
+      expect(hitNode(node, devicePoint(200, 110), TOL)).toBe(false)
+    })
+
+    it('**وقياس الفجوة يُصاب على اتّحاد المستطيلين** — ما بينهما أيضًا', () => {
+      const node = measureNode({ b: deviceRect(200, 100, 40, 20), show: 'gap' })
+      // (170,110) في الفجوة بين (100..140) و(200..240).
+      expect(hitNode(node, devicePoint(170, 110), TOL)).toBe(true)
+      expect(hitNode(node, devicePoint(170, 200), TOL)).toBe(false)
+    })
+  })
+
+  it('**و`hitTest` يمرّر القياس إلى الترشيح العريض والدقيق معًا**', () => {
+    const scene = sceneWith([textNode()])
+    const measureBox = () => deviceRect(100, 100, 200, 50)
+    // بلا قياس: (250,120) بعيد عن الصندوق المقدَّر فيُرشَّح خارجًا.
+    expect(hitTest(scene, devicePoint(250, 120), at1)).toBeNull()
+    expect(hitTest(scene, devicePoint(250, 120), { camera: identityCamera, measureBox })).toBe('t')
+  })
+})
+
+// ═════════════════════ مستطيل التحديد ═════════════════════
+
+describe('مستطيل التحديد — الاستبعاد', () => {
+  it('**المخفيّ والمقفول لا يدخلان التحديد الجماعي** ولو وقعا تحته', () => {
+    const inside = deviceRect(0, 0, 50, 50)
+    const scene = sceneWith([
+      rectNode({ id: asNodeId('a'), rect: inside }),
+      rectNode({ id: asNodeId('hid'), rect: inside, hidden: true }),
+      rectNode({ id: asNodeId('lock'), rect: inside, locked: true }),
+    ])
+    expect(hitTestRect(scene, deviceRect(0, 0, 100, 100), at1)).toEqual(['a'])
+  })
+
+  it('**والحجب يدخل** لأنه بلا حقل إخفاء، إلّا إن قُفل', () => {
+    const redact = (id: string, locked: boolean): RedactNode => ({
+      kind: 'redact',
+      id: asNodeId(id),
+      locked,
+      rotation: 0,
+      stroke,
+      rect: deviceRect(0, 0, 50, 50),
+      mode: 'cover',
+      strength: 0,
+      coverToken: 'status/danger/solid',
+    })
+    const scene = sceneWith([redact('open', false), redact('shut', true)])
+    expect(hitTestRect(scene, deviceRect(0, 0, 100, 100), at1)).toEqual(['open'])
+  })
+
+  it('ومستطيل التحديد المسحوب عكسيًّا يُسوّى قبل المقارنة', () => {
+    const scene = sceneWith([rectNode({ id: asNodeId('a'), rect: deviceRect(0, 0, 50, 50) })])
+    expect(hitTestRect(scene, deviceRect(100, 100, -100, -100), at1)).toEqual(['a'])
+  })
+})
+
+describe('المقابض — التسامح محصور بثلث أصغر ضلع', () => {
+  it('**مركز مستطيل كبير لا يصير مقبضًا** عند تصغير شديد يتّسع فيه التسامح إلى 160', () => {
+    const box = deviceRect(0, 0, 300, 200)
+    // بلا الحصر: 160 يلتقط مقبض الشمال من المركز (على بعد 100) — وهو العطل المقيس.
+    expect(hitHandle(box, 0, devicePoint(150, 100), 160)).toBeNull()
+    // وقرب الركن يبقى مقبضًا.
+    expect(hitHandle(box, 0, devicePoint(10, 10), 160)).toBe('nw')
+  })
+
+  it('**والمقبض يدور مع العقدة**: النقطة تُدوَّر عكسيًّا قبل المقارنة', () => {
+    const box = deviceRect(100, 100, 200, 100)
+    // ربع دورة حول (200,150): الركن الشمالي الغربي (100,100) يصير عند (250,50).
+    expect(hitHandle(box, Math.PI / 2, devicePoint(250, 50), 8)).toBe('nw')
+    expect(hitHandle(box, Math.PI / 2, devicePoint(100, 100), 8)).toBeNull()
   })
 })

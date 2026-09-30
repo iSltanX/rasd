@@ -78,6 +78,52 @@ describe('إنقاذ القيم التالفة — بالمسار الكامل �
     expect(settings.privacy.localOnly).toBe(true)
   })
 
+  /*
+   * مسارا الأعطاب يُرتَّبان قبل الإسقاط، والترتيب يقارن مقاطع المسار: نصًّا حين
+   * تختلف الأقسام، ورقمًا حين تكون فهارس. أعطابٌ في أقسامٍ مختلفة تمرّ من الفرع
+   * النصّي، وفهارس بخانتين تمرّ من الرقميّ — والاختبار الثاني يفشل لو قورنت
+   * الفهارس نصًّا (`'10' < '9'`).
+   */
+  it('أعطابٌ في أقسام مختلفة تُنقَذ كلّها: كلّ مفتاحٍ تالف يعود لافتراضه وجيرانه باقون', () => {
+    const { settings, issues } = parseSettings({
+      appearance: { theme: 'neon', language: 'en' },
+      capture: { format: 'webp', quality: 'عالية' },
+      privacy: { excludedSites: ['bank.com'], autoDeleteAfterDays: 5 },
+    })
+
+    expect(settings.appearance).toMatchObject({ theme: 'system', language: 'en' })
+    expect(settings.capture).toMatchObject({ format: 'webp', quality: 0.92 })
+    expect(settings.privacy.excludedSites).toEqual(['bank.com'])
+    expect(settings.privacy.autoDeleteAfterDays).toBe(0)
+    // ثلاثة أعطاب بمساراتها الكاملة، لا أكثر — `language` و`format` سليمان.
+    expect(issues.map((i) => i.split(':')[0]).sort()).toEqual([
+      'appearance.theme',
+      'capture.quality',
+      'privacy.autoDeleteAfterDays',
+    ])
+  })
+
+  it('فهارس التالفة بخانتين (9 و10) تُرتَّب رقميًّا — حذف 9 قبل 10 لا يُطيّح السليم', () => {
+    const sites: unknown[] = Array.from({ length: 12 }, (_, i) => `site${i}.com`)
+    sites[2] = 2
+    sites[9] = 9
+    sites[10] = 10
+
+    const { settings } = parseSettings({ privacy: { excludedSites: sites } })
+
+    expect(settings.privacy.excludedSites).toEqual([
+      'site0.com',
+      'site1.com',
+      'site3.com',
+      'site4.com',
+      'site5.com',
+      'site6.com',
+      'site7.com',
+      'site8.com',
+      'site11.com',
+    ])
+  })
+
   it('وما لا يُنقَذ يعود إلى الافتراضي كاملًا بلا رمي', () => {
     const { settings, issues } = parseSettings('نصٌّ لا كائن')
     expect(settings).toEqual(defaultSettings())

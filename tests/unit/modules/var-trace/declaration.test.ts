@@ -8,14 +8,26 @@
  * **حدّ البيئة، مقيس**: happy-dom يحلّ الخصائص المخصَّصة على **العنصر
  * المصرِّح وحده** — بلا وراثة وبلا `computedStyleMap`. قِيس على شجرة
  * `:root → #m → #t`: القيمة على المصرِّح `blue`، ومن الأب `""`، ومن الجذر
- * `""`. فالصعود إلى المعرِّف والحالات الأربع لا يُختبَران هنا، ومقياسهما
- * `scripts/verify-inspect.mjs` في Chrome حقيقي. وما يُختبَر هنا هو ما
- * تستطيعه البيئة: التصنيف، والحرّاس، وقراءة السلسلة، والاعتراف بالجهل.
+ * `""`. فالصعود إلى المعرِّف والحالات الأربع لا يُختبَران فوق happy-dom نفسه،
+ * ومقياسهما في Chrome حقيقي `scripts/verify-inspect.mjs`. وما يُختبَر فوقه
+ * هو ما تستطيعه البيئة: التصنيف، والحرّاس، وقراءة السلسلة، والاعتراف بالجهل.
+ * أمّا منطق الصعود والحالات فيُختبَر في الأقسام الأخيرة بنافذة مزيَّفة تحاكي
+ * الوراثة (`tests/helpers/fake-computed-style.ts`).
  */
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import { type RuleContext } from '@/modules/computed-style/cascade'
+import { effectiveSelectors } from '@/modules/computed-style/nesting'
+import {
+  entriesForSelector,
+  indexRules,
+  type CssIndex,
+  type IndexedRule,
+} from '@/modules/computed-style/selector-index'
 import { findDeclaringElement, referencedVar, traceVariable } from '@/modules/var-trace/declaration'
 import { composedParent, customNames, readVar, usesFallback } from '@/modules/var-trace/value-state'
+
+import { EMPTY, FakeComputedStyle, INVALID } from '../../../helpers/fake-computed-style'
 
 function style(css: string): void {
   const el = document.createElement('style')
@@ -206,5 +218,359 @@ describe('customNames — الأسماء تعبر الحجب', () => {
     // happy-dom قد لا يعدّد الموروثة؛ ما يهمّ ألّا يرمي وأن يُرجع أسماء `--`.
     expect(Array.isArray(names)).toBe(true)
     expect(names.every((n) => n.startsWith('--'))).toBe(true)
+  })
+})
+
+/**
+ * ما لا تستطيعه happy-dom — الصعود بالوراثة والحالات الأربع — يُختبَر بنافذة
+ * مزيَّفة تحاكيها (`tests/helpers/fake-computed-style.ts`). والقواعد تبقى
+ * حقيقية: ورقة أنماط في المستند وفهرس مبنيّ منها، فالتصريح المقروء هو ما كُتب.
+ */
+
+/** سياق بلا طبقات وكل الشروط مطابقة. */
+const plainCtx: RuleContext = {
+  layer: () => null,
+  layerPath: () => null,
+  source: () => null,
+  conditionsMatch: () => true,
+}
+
+/** يبني ورقة أنماط حقيقية ويُرجع فهرسها بترتيب ظهور قواعدها. */
+function indexOfSheet(css: string): CssIndex {
+  const el = document.createElement('style')
+  el.textContent = css
+  document.head.append(el)
+  const rules = Array.from(el.sheet?.cssRules ?? []).filter(
+    (r): r is CSSStyleRule => typeof (r as CSSStyleRule).selectorText === 'string',
+  )
+  const entries: IndexedRule[] = []
+  rules.forEach((rule, i) => {
+    entries.push(...entriesForSelector(rule, effectiveSelectors(rule), i))
+  })
+  return indexRules(entries)
+}
+
+/** شجرة `body > #a > #b > #c` — والأخير أعمقها. */
+function nest(): { a: HTMLElement; b: HTMLElement; c: HTMLElement } {
+  document.body.innerHTML = '<div id="a"><div id="b"><div id="c"></div></div></div>'
+  return {
+    a: document.getElementById('a')!,
+    b: document.getElementById('b')!,
+    c: document.getElementById('c')!,
+  }
+}
+
+describe('findDeclaringElement — الصعود بالوراثة', () => {
+  it('يصعد من الابن إلى أوّل سلف تغيّرت عنده القيمة ويعدّ القفزات', () => {
+    const { a, c } = nest()
+    const win = new FakeComputedStyle().define(a, { '--brand': 'red' }).win
+
+    // c → b → a: قفزتان، والتغيّر عند `a` لأن أباه (body) لا يعرّفه.
+    expect(findDeclaringElement(c, '--brand', win)).toEqual({ at: a, hops: 2 })
+  })
+
+  it('أقرب تعريف يفوز: إعادة التعريف بقيمة أخرى في الوسط توقف الصعود', () => {
+    const { a, b, c } = nest()
+    const win = new FakeComputedStyle()
+      .define(a, { '--brand': 'red' })
+      .define(b, { '--brand': 'blue' }).win
+
+    expect(findDeclaringElement(c, '--brand', win)).toEqual({ at: b, hops: 1 })
+  })
+
+  it('إعادة التصريح بالقيمة نفسها لا تُميَّز — يُنسَب التعريف إلى الأعلى', () => {
+    // حدّ موثَّق للمعيار «تختلف قيمته عن أبيه»: `b` يكرّر `red` فلا فرق يُرى،
+    // فيصعد المسار إلى `a`. وهذا الاختبار يثبّت السلوك لا يدّعي صوابه المطلق.
+    const { a, b, c } = nest()
+    const win = new FakeComputedStyle()
+      .define(a, { '--brand': 'red' })
+      .define(b, { '--brand': 'red' }).win
+
+    expect(findDeclaringElement(c, '--brand', win)).toEqual({ at: a, hops: 2 })
+  })
+
+  it('يعبر حدّ الظلّ: المعرِّف مضيف الظلّ لا جذره', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const root = host.attachShadow({ mode: 'open' })
+    const inner = document.createElement('span')
+    root.append(inner)
+    const win = new FakeComputedStyle().define(host, { '--brand': 'red' }).win
+
+    expect(findDeclaringElement(inner, '--brand', win)).toEqual({ at: host, hops: 1 })
+  })
+
+  it('يبلغ قمّة الشجرة بلا تغيّر ⇒ القمّة هي المعرِّف', () => {
+    // شجرة منفصلة جذرها `top`: لا أب مركَّب فوقه. القيمة واحدة في كل مستوى،
+    // فالجذر هو المعرِّف — وهذه ليست «مجهول» بل «جذر».
+    const top = document.createElement('div')
+    const mid = document.createElement('div')
+    const leaf = document.createElement('div')
+    top.append(mid)
+    mid.append(leaf)
+    const win = new FakeComputedStyle().define(top, { '--brand': 'red' }).win
+
+    expect(findDeclaringElement(leaf, '--brand', win)).toEqual({ at: top, hops: 2 })
+  })
+
+  it('تساوي القيمة مع اختلاف الحالة يُعدّ تغيّرًا: فارغ فوق باطل', () => {
+    // كلاهما `""`، لكن الأب دورة (`invalid`) والابن `--x: ;` (`empty`). لو
+    // قورنت القيمة وحدها لصعد المسار وأعزى التعريف إلى الأب زورًا.
+    const { a, c } = nest()
+    const win = new FakeComputedStyle()
+      .define(a, { '--x': INVALID })
+      .define(c, { '--x': EMPTY }).win
+
+    expect(findDeclaringElement(c, '--x', win)).toEqual({ at: c, hops: 0 })
+  })
+
+  it('يستسلم بعد 128 قفزة: بعيد بـ127 يُوجَد، وبـ128 ⇒ null', () => {
+    // المعرِّف `d` قفزة فوق الورقة؛ المسح يفحص حتى القفزة 127 شاملة.
+    const build = (depth: number) => {
+      document.body.innerHTML = '<div id="declarer"></div>'
+      const declarer = document.getElementById('declarer')!
+      let leaf: Element = declarer
+      for (let i = 0; i < depth; i++) {
+        const next = document.createElement('div')
+        leaf.append(next)
+        leaf = next
+      }
+      return { declarer, leaf, win: new FakeComputedStyle().define(declarer, { '--x': '1' }).win }
+    }
+
+    const near = build(127)
+    expect(findDeclaringElement(near.leaf, '--x', near.win)).toEqual({
+      at: near.declarer,
+      hops: 127,
+    })
+
+    const far = build(128)
+    expect(findDeclaringElement(far.leaf, '--x', far.win)).toBeNull()
+  })
+})
+
+describe('traceVariable — السلسلة والمكان والقاعدة', () => {
+  it('يتبع var() من التصريح إلى المتغيّر الآخر ويُنهي بقاعدة الحلقة الأخيرة', () => {
+    style('#t { --brand: var(--base); --base: #3b82f6 }')
+    document.body.innerHTML = '<p id="t"></p>'
+    const t = document.getElementById('t')!
+    const index = indexOfSheet('#t { --brand: var(--base); --base: #3b82f6 }')
+
+    const trace = traceVariable(t, '--brand', { index, ctx: plainCtx })
+
+    expect(trace.chain.map((l) => l.name)).toEqual(['--brand', '--base'])
+    expect(trace.chain.every((l) => l.at === t && l.hops === 0)).toBe(true)
+    expect(trace.provenance.kind).toBe('declared')
+    if (trace.provenance.kind === 'declared') {
+      expect(trace.provenance.at).toBe(t)
+      // القاعدة قاعدة **الحلقة الأخيرة** `--base` لا الرأس.
+      expect(trace.provenance.rule?.declared).toBe('#3b82f6')
+      expect(trace.provenance.rule?.selector).toBe('#t')
+    }
+  })
+
+  it('بلا فهرس أو بلا سياق لا تُتبَع السلسلة ولا تُعرَف القاعدة', () => {
+    // كل واحد وحده لا يكفي: الفهرس يجيب «أي قاعدة»، والسياق يجيب «هل تنطبق».
+    style('#t { --brand: var(--base); --base: #3b82f6 }')
+    document.body.innerHTML = '<p id="t"></p>'
+    const t = document.getElementById('t')!
+    const index = indexOfSheet('#t { --brand: var(--base) }')
+
+    for (const options of [{ index }, { ctx: plainCtx }]) {
+      const trace = traceVariable(t, '--brand', options)
+      expect(trace.chain.map((l) => l.name)).toEqual(['--brand'])
+      expect(trace.provenance).toEqual({ kind: 'declared', at: t, hops: 0, rule: null })
+    }
+  })
+
+  it('فهرس بلا سياق: المكان معروف والقاعدة لا، فالحجب المُبلَّغ هو الجواب', () => {
+    style('#t { --brand: red }')
+    document.body.innerHTML = '<p id="t"></p>'
+    const t = document.getElementById('t')!
+    const blocked = { count: 2, origins: ['https://a.example', 'https://b.example'] }
+
+    const trace = traceVariable(t, '--brand', { index: indexOfSheet(''), blocked })
+
+    expect(trace.provenance).toEqual({
+      kind: 'opaque',
+      unreadableSheets: 2,
+      origins: ['https://a.example', 'https://b.example'],
+    })
+  })
+
+  it('يقف عند الدورة ولا يكرّر: --a → --b → --a', () => {
+    const css = '#t { --a: var(--b); --b: var(--a) }'
+    document.body.innerHTML = '<p id="t"></p>'
+    const t = document.getElementById('t')!
+    // الدورة باطلة في المتصفّح الحقيقي: الحالتان `invalid` ولا قيمة محسوبة.
+    const win = new FakeComputedStyle().define(t, { '--a': INVALID, '--b': INVALID }).win
+
+    const trace = traceVariable(t, '--a', { win, index: indexOfSheet(css), ctx: plainCtx })
+
+    expect(trace.chain.map((l) => l.name)).toEqual(['--a', '--b'])
+    expect(trace.chain.map((l) => l.value.state)).toEqual(['invalid', 'invalid'])
+    // الرأس معرَّف (باطل)، فالحالة ليست `none`.
+    expect(trace.provenance.kind).toBe('declared')
+  })
+
+  it('سلسلة أطول من 16 حلقة تُقطع عند السادسة عشرة', () => {
+    const N = 20
+    const css = `#t { ${Array.from({ length: N }, (_, i) => `--v${i}: var(--v${i + 1})`).join('; ')} }`
+    document.body.innerHTML = '<p id="t"></p>'
+    const t = document.getElementById('t')!
+    const defs = Object.fromEntries(Array.from({ length: N + 1 }, (_, i) => [`--v${i}`, 'x']))
+    const win = new FakeComputedStyle().define(t, defs).win
+
+    const trace = traceVariable(t, '--v0', { win, index: indexOfSheet(css), ctx: plainCtx })
+
+    expect(trace.chain).toHaveLength(16)
+    expect(trace.chain[15]?.name).toBe('--v15')
+    expect(trace.provenance.kind).toBe('declared')
+    if (trace.provenance.kind === 'declared') {
+      // القاعدة قاعدة آخر حلقة وصل إليها المسار.
+      expect(trace.provenance.rule?.declared).toBe('var(--v16)')
+    }
+  })
+
+  it('السلسلة تسجّل المعرِّف والقفزات لكل حلقة على حدة', () => {
+    const { a, b, c } = nest()
+    const css = '#a { --brand: var(--base) } #b { --base: green }'
+    const win = new FakeComputedStyle()
+      .define(a, { '--brand': 'green' })
+      .define(b, { '--base': 'green' }).win
+
+    const trace = traceVariable(c, '--brand', { win, index: indexOfSheet(css), ctx: plainCtx })
+
+    expect(trace.chain).toEqual([
+      { name: '--brand', value: { state: 'value', value: 'green' }, at: a, hops: 2 },
+      { name: '--base', value: { state: 'value', value: 'green' }, at: b, hops: 1 },
+    ])
+    if (trace.provenance.kind === 'declared') {
+      expect(trace.provenance.at).toBe(b)
+      expect(trace.provenance.hops).toBe(1)
+    } else {
+      expect.unreachable('يجب أن يكون declared')
+    }
+  })
+
+  it('الفهرس والسياق حاضران لكن لا قاعدة تصرّح: declared بقاعدة null', () => {
+    // التصريح جاء من ورقة لا يعرفها الفهرس (محجوبة مثلًا): المكان معروف
+    // والقاعدة لا.
+    document.body.innerHTML = '<p id="t"></p>'
+    const t = document.getElementById('t')!
+    const win = new FakeComputedStyle().define(t, { '--brand': 'red' }).win
+
+    const trace = traceVariable(t, '--brand', {
+      win,
+      index: indexOfSheet(''),
+      ctx: plainCtx,
+      blocked: { count: 3, origins: ['https://cdn.example'] },
+    })
+
+    // المكان معروف فالحجب لا يُبلَّغ `opaque` — الأولوية لـ`declared`.
+    expect(trace.provenance).toEqual({ kind: 'declared', at: t, hops: 0, rule: null })
+  })
+})
+
+describe('traceVariable — حين تنتهي السلسلة عند مجهول', () => {
+  /** رأس باطل يشير إلى `--gone` غير المعرَّف: السلسلة تنتهي بحلقة بلا مكان. */
+  function danglingReference() {
+    document.body.innerHTML = '<p id="t"></p>'
+    const t = document.getElementById('t')!
+    const win = new FakeComputedStyle().define(t, { '--head': INVALID }).win
+    const index = indexOfSheet('#t { --head: var(--gone) }')
+    return { t, win, index }
+  }
+
+  it('unverified: الرأس معرَّف لكن الحلقة الأخيرة لا مكان لها ولا حجب مُبلَّغ', () => {
+    const { t, win, index } = danglingReference()
+
+    const trace = traceVariable(t, '--head', { win, index, ctx: plainCtx })
+
+    expect(trace.chain.map((l) => [l.name, l.value.state, l.at === null])).toEqual([
+      ['--head', 'invalid', false],
+      ['--gone', 'undefined', true],
+    ])
+    expect(trace.provenance).toEqual({ kind: 'unverified' })
+  })
+
+  it('unverified أيضًا حين يكون عدّاد الحجب صفرًا', () => {
+    const { t, win, index } = danglingReference()
+
+    const trace = traceVariable(t, '--head', {
+      win,
+      index,
+      ctx: plainCtx,
+      blocked: { count: 0, origins: [] },
+    })
+
+    expect(trace.provenance).toEqual({ kind: 'unverified' })
+  })
+
+  it('opaque: الحجب المُبلَّغ هو الجواب حين لا مكان للحلقة الأخيرة', () => {
+    const { t, win, index } = danglingReference()
+
+    const trace = traceVariable(t, '--head', {
+      win,
+      index,
+      ctx: plainCtx,
+      blocked: { count: 6, origins: ['https://js.stripe.com'] },
+    })
+
+    expect(trace.provenance).toEqual({
+      kind: 'opaque',
+      unreadableSheets: 6,
+      origins: ['https://js.stripe.com'],
+    })
+  })
+
+  it('opaque بلا فهرس: المكان معروف لكن القاعدة لا، والحجب مُبلَّغ', () => {
+    style('#t { --brand: red }')
+    document.body.innerHTML = '<p id="t"></p>'
+    const t = document.getElementById('t')!
+
+    const trace = traceVariable(t, '--brand', {
+      blocked: { count: 6, origins: ['https://js.stripe.com'] },
+    })
+
+    expect(trace.provenance).toEqual({
+      kind: 'opaque',
+      unreadableSheets: 6,
+      origins: ['https://js.stripe.com'],
+    })
+    // والاسم والقيمة يعبران الحجب.
+    expect(trace.chain[0]?.value.state).toBe('value')
+  })
+
+  it('unverified: المعرِّف أبعد من حدّ الصعود ولا حجب مُبلَّغ', () => {
+    // الرأس معرَّف على قمّة بعيدة (129 قفزة): `findDeclaringElement` يستسلم
+    // فيبقى «المتغيّر موجود ولا نعرف أين» — لا `none` ولا `declared`.
+    document.body.innerHTML = '<div id="top"></div>'
+    const top = document.getElementById('top')!
+    let leaf: Element = top
+    for (let i = 0; i < 129; i++) {
+      const next = document.createElement('div')
+      leaf.append(next)
+      leaf = next
+    }
+    const win = new FakeComputedStyle().define(top, { '--x': '1' }).win
+
+    const trace = traceVariable(leaf, '--x', { win })
+
+    expect(trace.chain).toEqual([
+      { name: '--x', value: { state: 'value', value: '1' }, at: null, hops: 0 },
+    ])
+    expect(trace.provenance).toEqual({ kind: 'unverified' })
+  })
+
+  it('متغيّر معرَّف فارغًا ليس none: يُنسَب إلى مكانه بقاعدة مجهولة', () => {
+    document.body.innerHTML = '<p id="t"></p>'
+    const t = document.getElementById('t')!
+    const win = new FakeComputedStyle().define(t, { '--x': EMPTY }).win
+
+    const trace = traceVariable(t, '--x', { win })
+
+    expect(trace.chain[0]?.value.state).toBe('empty')
+    expect(trace.provenance).toEqual({ kind: 'declared', at: t, hops: 0, rule: null })
   })
 })

@@ -16,6 +16,8 @@ import {
   palettes,
   projects,
   putCaptureWithBlob,
+  putIfUnchanged,
+  putReferenceWithBlob,
   references,
   repository,
   tags,
@@ -155,6 +157,15 @@ describe('CRUD على كل مخزن', () => {
     const missing = await captures.get('nope')
     expect(missing.ok).toBe(false)
     expect(missing.ok === false && missing.error.code).toBe('not-found')
+  })
+
+  it('فشل القراءة نفسه (مفتاح لا يقبله IndexedDB) خطأ لا «غير موجود»', async () => {
+    // الفرق مهمّ للمستدعي: not-found حالة عرض متوقَّعة، أمّا العطل فيُبلَّغ ولا يُقرأ فراغًا.
+    const failed = await captures.get({} as never)
+
+    expect(failed.ok).toBe(false)
+    expect(failed.ok === false && failed.error.code).not.toBe('not-found')
+    expect(failed.ok === false && failed.error.detail).toBeTruthy()
   })
 
   it('الاستعلام بالفهرس يصفّي', async () => {
@@ -339,6 +350,68 @@ describe('التصفّح الخاص', () => {
     setIncognitoWritePolicy(false)
     expect((await captures.put(capture('allowed'))).ok).toBe(true)
     Object.assign(globalThis.chrome, { extension: { inIncognitoContext: false } })
+  })
+
+  /** يشغّل `fn` داخل نافذة خاصة تحجب الكتابة، ويُعيد البيئة ولو سقط الاختبار. */
+  async function inBlockedIncognito(fn: () => Promise<void>) {
+    Object.assign(globalThis.chrome, { extension: { inIncognitoContext: true } })
+    setIncognitoWritePolicy(true)
+    try {
+      await fn()
+    } finally {
+      Object.assign(globalThis.chrome, { extension: { inIncognitoContext: false } })
+    }
+  }
+
+  it('كل مسار كتابة يمرّ من الحارس نفسه: putMany لا تكتب شيئًا', async () => {
+    await inBlockedIncognito(async () => {
+      const blocked = await captures.putMany([capture('m1'), capture('m2')])
+
+      expect(blocked.ok === false && blocked.error.code).toBe('incognito-blocked')
+      const count = await captures.count()
+      expect(count.ok && count.value, 'كُتب سجلٌّ رغم الحجب').toBe(0)
+    })
+  })
+
+  it('putReferenceWithBlob مرفوضة ولا تترك سجلًّا ولا بايتات', async () => {
+    await inBlockedIncognito(async () => {
+      const blocked = await putReferenceWithBlob(
+        {
+          id: 'r1',
+          projectId: null,
+          origin: 'https://a.com',
+          path: '/',
+          viewport: 'desktop',
+          blobId: 'rb1',
+          createdAt: 1,
+        },
+        new Blob(['abc']),
+      )
+
+      expect(blocked.ok === false && blocked.error.code).toBe('incognito-blocked')
+      const refs = await references.count()
+      const bytes = await blobs.count()
+      expect(refs.ok && refs.value).toBe(0)
+      expect(bytes.ok && bytes.value).toBe(0)
+    })
+  })
+
+  it('putIfUnchanged المشروطة مرفوضة كذلك ولا تُبلَّغ «سبقني غيري»', async () => {
+    await inBlockedIncognito(async () => {
+      const blocked = await putIfUnchanged(
+        'captures',
+        'c-blocked',
+        capture('c-blocked'),
+        null,
+        (record) => record.createdAt,
+      )
+
+      // الحجب خطأ سياسة لا نتيجة تعارض: `ok:false` لا `{ written:false }`.
+      expect(blocked.ok).toBe(false)
+      expect(blocked.ok === false && blocked.error.code).toBe('incognito-blocked')
+      const count = await captures.count()
+      expect(count.ok && count.value).toBe(0)
+    })
   })
 
   it('القراءة غير متأثّرة بالسياسة', async () => {

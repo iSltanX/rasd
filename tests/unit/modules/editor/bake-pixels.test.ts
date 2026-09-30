@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { bake, planExport, type BakeRequest } from '@/modules/editor/bake'
+import { bake, planExport, type BakeRequest, type BakeTarget } from '@/modules/editor/bake'
 import { bytesEqual } from '@/modules/editor/pixel-ops'
 import { applyOps } from '@/modules/editor/redact'
 import {
@@ -12,9 +12,11 @@ import {
   type SceneNode,
 } from '@/modules/editor/scene'
 import { emptyScene } from '@/modules/editor/scene-schema'
+import { mimeFor } from '@/modules/export/format'
 import { deviceRect, devicePoint } from '@/shared/geometry'
 
 import { createFakeSurface, image, sliceOf, type FakeImage } from '../../../helpers/fake-surface'
+import { chunkTypes, parseWebp, riffSizeMatches } from '../../../helpers/webp-chunks'
 
 import type { RenderStyle } from '@/modules/editor/renderer'
 import type { TextLayoutCache } from '@/modules/editor/text-layout'
@@ -395,3 +397,359 @@ describe('حدود التصدير', () => {
 
 /** يُستعمل في اختبار الترتيب — نقطة صريحة كي لا يُحذَف الاستيراد. */
 export const originPoint = devicePoint(0, 0)
+
+// ═════════════════════ مسارات الفشل والإلغاء ═════════════════════
+
+/** يشغّل الخبز ويُعيد النتيجة الخام — للحالات التي يُختبَر فيها الفشل نفسه. */
+async function runBake(scene: Scene, over: Partial<BakeRequest> = {}) {
+  const decision = planExport(scene, over.scale ?? 1)
+  const surface = createFakeSurface(decision.width, decision.height)
+  const runPixels = vi.fn<NonNullable<BakeRequest['runPixels']>>((buffer, width, height, ops) => {
+    const data = new Uint8ClampedArray(buffer)
+    applyOps({ data, width, height }, ops)
+    return Promise.resolve(data.buffer)
+  })
+  const result = await bake({
+    scene,
+    scale: 1,
+    format: 'png',
+    surface: { create: () => surface },
+    style: STYLE,
+    paletteMode: 'dark',
+    layout: LAYOUT,
+    sliceSource: (r) => Promise.resolve(sliceOf(patterned(), r.x, r.y, r.width, r.height)),
+    runPixels,
+    ...over,
+  })
+  return { result, surface, runPixels }
+}
+
+/** مستطيل تعليق عاديّ — عقدةٌ متّجهة تُرسَم في المرور الواحد. */
+const plainRect = (): SceneNode => ({
+  kind: 'rect',
+  id: asNodeId('plain'),
+  locked: false,
+  rotation: 0,
+  hidden: false,
+  stroke: { colorToken: 'status/success/solid', widthPx: 1, dash: [], opacity: 1 },
+  rect: deviceRect(2, 2, 6, 6),
+  radiusPx: 0,
+  fill: 'solid',
+})
+
+describe('**الرفض قبل التخصيص**', () => {
+  it('صورةٌ تتجاوز حدّ المتصفّح تُرفَض بسببها المعروض ولا يُطلَب سطح', async () => {
+    const huge = emptyScene({ captureId: 'c', width: 2560, height: 28_672, dpr: 1 })
+    const create = vi.fn(() => null)
+    const { result } = await runBake(huge, { scale: 2, surface: { create } })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('invalid-data')
+      // السبب نفسه الذي تعرضه `planExport` — الواجهة تعرضه كما هو.
+      expect(result.error.message).toBe(planExport(huge, 2).reason)
+      expect(result.error.detail).toBe('area')
+    }
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('ومصنعُ سطحٍ يُرجع `null` يُبلَّغ عنه بسبب معروض لا يُترك ينهار', async () => {
+    const { result } = await runBake(sceneWith(), { surface: { create: () => null } })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('handler-failed')
+      expect(result.error.message).toContain('سطح التصدير')
+    }
+  })
+
+  it('وسطحٌ ميّت يحمل مقاسه المطلوب في التفصيل، ولا يُرمَّز', async () => {
+    const dead = { ...createFakeSurface(4, 4), alive: () => false }
+    const { result } = await runBake(sceneWith(), { surface: { create: () => dead } })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.detail).toBe(`${W}×${H}`)
+  })
+})
+
+describe('**الإلغاء في كل مرحلة لا يُنتج بايتات ويحرّر السطح**', () => {
+  it('أثناء المرور على العقد — قبل أن تُنفَّذ عقدة الحجب', async () => {
+    const signal = { aborted: false }
+    const { result, surface, runPixels } = await runBake(sceneWith(redactNode('cover')), {
+      signal,
+      // يُنادى بعد رسم الشريحة: الإلغاء يقع بين المصدر والعقد.
+      yieldToLoop: () => {
+        signal.aborted = true
+        return Promise.resolve()
+      },
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('cancelled')
+    expect(runPixels).not.toHaveBeenCalled()
+    expect(surface.encoded).toBe(0)
+    expect(surface.disposed).toBe(1)
+  })
+
+  it('**وبعد أن يعود منفّذ البكسل** — النتيجة تُهمَل ولا تُكتَب على السطح', async () => {
+    const signal = { aborted: false }
+    const scene = sceneWith(redactNode('cover'))
+    const decision = planExport(scene, 1)
+    const surface = createFakeSurface(decision.width, decision.height)
+    const put = vi.spyOn(surface, 'putImageData')
+
+    const { result } = await runBake(scene, {
+      surface: { create: () => surface },
+      signal,
+      runPixels: (buffer) => {
+        signal.aborted = true
+        return Promise.resolve(buffer)
+      },
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('cancelled')
+    expect(put).not.toHaveBeenCalled()
+    expect(surface.encoded).toBe(0)
+    expect(surface.disposed).toBe(1)
+  })
+
+  it('**وقبل الترميز مباشرةً** — الإلغاء بعد آخر عقدة يمنع الترميز', async () => {
+    const signal = { aborted: false }
+    // بلا عقد أصلًا: فحص الحلقة لا يقع، ولا يبقى إلّا الفحص الأخير قبل الترميز.
+    const { result, surface } = await runBake(sceneWith(), {
+      signal,
+      yieldToLoop: () => {
+        signal.aborted = true
+        return Promise.resolve()
+      },
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('cancelled')
+    expect(surface.encoded).toBe(0)
+    expect(surface.disposed).toBe(1)
+  })
+
+  it('وعقدٌ متّجهة بلا حجب: الإلغاء عند أوّلها لا يرسمها', async () => {
+    const signal = { aborted: false }
+    const { result, surface } = await runBake(sceneWith(plainRect()), {
+      signal,
+      yieldToLoop: () => {
+        signal.aborted = true
+        return Promise.resolve()
+      },
+    })
+    expect(result.ok).toBe(false)
+    // البكسل داخل المستطيل ما زال بكسل المصدر، لا أخضر التعليق.
+    const i = (3 * W + 3) * 4
+    expect([...surface.pixels.slice(i, i + 4)]).toEqual([(3 * 7) % 256, (3 * 11) % 256, 9, 255])
+  })
+})
+
+describe('**منطقة حجبٍ خارج السطح يصل إليها هامش الضباب**', () => {
+  it('لا تُعَدّ برهانًا ولا تغيّر بايتًا، وتُعلَن تحذيرًا', async () => {
+    // المستطيل يقع بعد الحافّة اليمنى (x=66 والعرض 64)، لكن هامش ضباب σ=10 يمدّ
+    // العيّنة إلى داخل السطح — فتُقرأ منطقةٌ ولا يُكتَب في المستطيل نفسه شيء.
+    const beyond: RedactNode = {
+      ...redactNode('blur', 10),
+      rect: deviceRect(W + 2, 10, 10, 10),
+    }
+    const withBlur = await runBake(sceneWith(beyond))
+    const baseline = await runBake(sceneWith())
+
+    expect(withBlur.runPixels).toHaveBeenCalledTimes(1)
+    expect(withBlur.result.ok).toBe(true)
+    if (!withBlur.result.ok) return
+    const { report } = withBlur.result.value
+    expect(report.obscured).toHaveLength(0)
+    expect(report.warnings.join(' ')).toContain('خارج نافذة التصدير')
+    expect(
+      bytesEqual(asBuffer(withBlur.surface.pixels, W, H), asBuffer(baseline.surface.pixels, W, H)),
+    ).toBe(true)
+  })
+})
+
+describe('الجودة والصيغة المُنتَجة', () => {
+  /** سطحٌ يسجّل ما يصل إلى المُرمِّج، ويُنتج ما يُملى عليه. */
+  function recordingTarget(surface: ReturnType<typeof createFakeSurface>, type?: string) {
+    const seen: { type: string; quality?: number }[] = []
+    const target: BakeTarget = {
+      ctx: surface.ctx,
+      getImageData: (x, y, w, h) => surface.getImageData(x, y, w, h),
+      putImageData: (d, x, y) => {
+        surface.putImageData(d, x, y)
+      },
+      alive: () => surface.alive(),
+      dispose: () => {
+        surface.dispose()
+      },
+      encodeTarget: {
+        convertToBlob: (options) => {
+          seen.push(options)
+          // بايتات السطح نفسها، بالنوع المُملى إن وُجد وإلّا المطلوب.
+          return Promise.resolve(
+            new Blob([new Uint8Array(surface.pixels)], { type: type ?? options.type }),
+          )
+        },
+      },
+    }
+    return { seen, target }
+  }
+
+  const bakeWith = async (over: Partial<BakeRequest>, type?: string) => {
+    const scene = sceneWith()
+    const decision = planExport(scene, 1)
+    const { seen, target } = recordingTarget(
+      createFakeSurface(decision.width, decision.height),
+      type,
+    )
+    const { result } = await runBake(scene, { surface: { create: () => target }, ...over })
+    return { seen, result }
+  }
+
+  it('**الجودة تُمرَّر حين تُطلَب وحدها**', async () => {
+    const { seen } = await bakeWith({ format: 'webp', quality: 0.8 })
+    expect(seen).toEqual([{ type: mimeFor('webp'), quality: 0.8 }])
+  })
+
+  it('**وغيابها أو `null` يحذف المفتاح كلّه** — `undefined` ليست كالحذف في كل مُرمِّج', async () => {
+    const omitted = await bakeWith({ format: 'webp' })
+    const nulled = await bakeWith({ format: 'webp', quality: null })
+    for (const { seen } of [omitted, nulled]) {
+      expect(seen).toHaveLength(1)
+      expect(seen[0]).toEqual({ type: mimeFor('webp') })
+      expect(Object.keys(seen[0]!)).not.toContain('quality')
+    }
+  })
+
+  it('ونوعٌ مُنتَج بلا اسم يُذكر في التفصيل صراحةً بدل سلسلة فارغة', async () => {
+    const { result } = await bakeWith({ format: 'webp' }, '')
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('handler-failed')
+      expect(result.error.detail).toContain('(بلا نوع)')
+      expect(result.error.detail).toContain(mimeFor('webp'))
+    }
+  })
+})
+
+describe('حذف بيانات WebP الوصفية', () => {
+  const u32le = (n: number): number[] => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >> 24) & 255]
+  const ascii = (t: string): number[] => [...t].map((c) => c.charCodeAt(0))
+  const chunk = (tag: string, data: readonly number[]): number[] => [
+    ...ascii(tag),
+    ...u32le(data.length),
+    ...data,
+    ...(data.length % 2 === 1 ? [0] : []),
+  ]
+  const riff = (chunks: readonly number[][]): Uint8Array<ArrayBuffer> => {
+    const body = chunks.flat()
+    return Uint8Array.from([...ascii('RIFF'), ...u32le(4 + body.length), ...ascii('WEBP'), ...body])
+  }
+
+  const VP8L = chunk('VP8L', [0x2f, 1, 2, 3, 4, 5])
+  const ICCP = chunk('ICCP', new Array<number>(8).fill(0xab))
+
+  /** سطحٌ يُنتج حاوية WebP مبنيّة يدويًّا بدل بكسلات السطح. */
+  const bakeToContainer = async (
+    bytes: Uint8Array<ArrayBuffer>,
+    over: Partial<BakeRequest>,
+    type = 'image/webp',
+  ) => {
+    const scene = sceneWith()
+    const decision = planExport(scene, 1)
+    const inner = createFakeSurface(decision.width, decision.height)
+    const target: BakeTarget = {
+      ctx: inner.ctx,
+      getImageData: (x, y, w, h) => inner.getImageData(x, y, w, h),
+      putImageData: (d, x, y) => {
+        inner.putImageData(d, x, y)
+      },
+      alive: () => inner.alive(),
+      dispose: () => {
+        inner.dispose()
+      },
+      encodeTarget: { convertToBlob: () => Promise.resolve(new Blob([bytes], { type })) },
+    }
+    const { result } = await runBake(scene, {
+      format: type === 'image/png' ? 'png' : 'webp',
+      surface: { create: () => target },
+      ...over,
+    })
+    if (!result.ok) throw new Error(`الخبز فشل: ${result.error.message}`)
+    return result.value
+  }
+
+  it('**بطلب صريح يُحذف `ICCP` فعلًا** والتقرير يقرأ ما حدث لا ما طُلب', async () => {
+    const { blob, report } = await bakeToContainer(riff([VP8L, ICCP]), { stripMetadata: true })
+
+    const out = new Uint8Array(await blob.arrayBuffer())
+    const info = parseWebp(out)
+    expect(chunkTypes(info)).toEqual(['VP8L'])
+    expect(riffSizeMatches(info)).toBe(true)
+    expect(report.metadataStripped).toBe(true)
+    // وحجم التقرير هو حجم البايتات المُسلَّمة بعد الحذف لا قبله.
+    expect(report.bytes).toBe(out.length)
+  })
+
+  it('وحاويةٌ بلا `ICCP` تبقى كما هي ويُعلَن أن شيئًا لم يُحذَف', async () => {
+    const original = riff([VP8L])
+    const { blob, report } = await bakeToContainer(original, { stripMetadata: true })
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(original)
+    expect(report.metadataStripped).toBe(false)
+  })
+
+  it('**وبلا طلب صريح لا يُمسّ الملفّ** ولو حمل `ICCP`', async () => {
+    const original = riff([VP8L, ICCP])
+    for (const over of [{}, { stripMetadata: false }]) {
+      const { blob, report } = await bakeToContainer(original, over)
+      expect(new Uint8Array(await blob.arrayBuffer())).toEqual(original)
+      expect(report.metadataStripped).toBe(false)
+    }
+  })
+
+  it('**وPNG لا يمرّ من المنظّف أصلًا** مهما طُلب — حجمه ما أنتجه المُرمِّج', async () => {
+    const png = Uint8Array.from([...ascii('RIFF'), ...u32le(4), ...ascii('WEBP')])
+    const { blob, report } = await bakeToContainer(png, { stripMetadata: true }, 'image/png')
+    expect(blob.size).toBe(png.length)
+    expect(report.format).toBe('png')
+    expect(report.metadataStripped).toBe(false)
+  })
+})
+
+describe('الأعطال غير المتوقَّعة', () => {
+  it('**خطأٌ من مصدر الشرائح يُترجَم إلى نتيجة**، ويُحرَّر السطح', async () => {
+    const { result, surface } = await runBake(sceneWith(), {
+      sliceSource: () => Promise.reject(new Error('انقطع القرص')),
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('handler-failed')
+      expect(result.error.detail).toBe('انقطع القرص')
+    }
+    expect(surface.encoded).toBe(0)
+    expect(surface.disposed).toBe(1)
+  })
+
+  it('ورفضٌ بقيمة ليست `Error` يُحوَّل إلى نصّ لا يضيع', async () => {
+    const { result } = await runBake(sceneWith(), {
+      // مصدرٌ يرفض بقيمة خام لا `Error`.
+      sliceSource: vi.fn().mockRejectedValue('سبب نصّي'),
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.detail).toBe('سبب نصّي')
+  })
+})
+
+describe('تقدّم الخبز', () => {
+  it('يصعد ولا ينزل، ويصل نصفه بعد المصدر وواحدًا عند الانتهاء', async () => {
+    const seen: number[] = []
+    const { result } = await runBake(sceneWith(redactNode('cover')), {
+      onProgress: (f) => seen.push(f),
+    })
+    expect(result.ok).toBe(true)
+    expect(seen[0]).toBe(0.5)
+    expect(seen.at(-1)).toBe(1)
+    expect([...seen].sort((a, b) => a - b)).toEqual(seen)
+  })
+})
