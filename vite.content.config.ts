@@ -11,6 +11,11 @@ import { defineConfig } from 'vite'
  *
  * ولا مدخل لها في البيان عمدًا: لا `content_scripts` في رصد، والحقن يدوي
  * بعد إيماءة المستخدم — [ADR 0005](Docs/ADR/0005-manual-injection.md).
+ *
+ * **والحزمة الأحادية قرارٌ لا اضطرار** — [ADR 0027](Docs/ADR/0027-content-bundle-shape.md):
+ * الأدوات كلّها في هذا الملفّ، و`import()` في مصدرها يُضمَّن فيه صامتًا ولا يقسم.
+ * وحجمه مضغوطًا ≤ 120,000 بايت يفرضه `verify:dist`. ومن أراد التقسيم فطريقه ADR
+ * يستبدل ذاك، لا تعديل هذا الملفّ وحده.
  */
 export default defineConfig(({ mode }) => ({
   // JSX عبر Preact لا React — كما في بقيّة المشروع.

@@ -5,6 +5,7 @@
  * تُشغَّل تلقائيًا في نهاية `pnpm build`. الفحوص مقسومة قسمين:
  *   • صحّة الحزمة (المرحلة 1) — بيان صالح، ملفات موجودة، أيقونات سليمة.
  *   • مطابقة السياسة (المرحلة 2) — الصلاحيات، الحقن، CSP، الاختصارات، اللغات.
+ *   • ميزانية الحزمة (`STAGES/19`) — المحتوى والنافذة مضغوطتين، بقرار ADR 0027.
  *
  * القوائم تُقرأ من `src/shared/` نفسها، فلا يمكن أن تفترق السياسة عن البيان.
  */
@@ -15,6 +16,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 import * as PAGES from '../src/shared/page-paths.ts'
 import * as PERMS from '../src/shared/permission-policy.ts'
+
+import { BUDGETS, fmt, gzipBytes, judge, pageGraph } from './bundle-budget.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
@@ -272,6 +275,50 @@ leaked.length === 0
 
 const totalBytes = files.reduce((n, f) => n + statSync(f).size, 0)
 ok(`حجم الحزمة: ${(totalBytes / 1024).toFixed(1)} KB عبر ${files.length} ملفًا`)
+
+// ═══ ميزانية الحزمة ════════════════════════════════════════════════
+group('ميزانية الحزمة (ADR 0027)')
+
+/**
+ * رقمان مطبوعان في كل بناء، وسقوطٌ عند تجاوز أيّهما. كانت الميزانية مكتوبةً منذ ADR 0002 ولا
+ * يقيسها شيء، والمحتوى بلغ نحو 80% منها بلا أن يراه أحد إلا بقياس يدوي (`STAGES/19`).
+ * والسقف لا يُرفع: من تجاوزه يسلك الروافع بترتيبها في ADR 0027.
+ */
+const verdict = (label, result, detail) => {
+  const line = `${label}: ${fmt(result.bytes)} بايت مضغوطة من ${fmt(result.budget)} (${(result.ratio * 100).toFixed(1)}%) — ${detail}`
+  result.ok
+    ? ok(line)
+    : fail(
+        `${line} — تتجاوز السقف بـ${fmt(result.over)} بايت؛ لا تُرفع الميزانية، والروافع في ADR 0027`,
+      )
+}
+
+const contentPath = join(dist, 'content.js')
+if (existsSync(contentPath)) {
+  const raw = readFileSync(contentPath)
+  verdict('content.js', judge(gzipBytes(raw), BUDGETS.content), `${fmt(raw.length)} بايت خامًا`)
+} else {
+  fail('content.js غير موجود — تعذّر قياس ميزانية المحتوى')
+}
+
+const popupHtml = PAGES.PAGE_PATHS.popup
+if (existsSync(join(dist, popupHtml))) {
+  const graph = pageGraph(dist, popupHtml)
+  for (const m of graph.missing) fail(`النافذة تحمّل ملفًّا غير موجود: ${m}`)
+  const sizeOf = (ext) =>
+    graph.files
+      .filter((f) => f.endsWith(ext))
+      .reduce((n, f) => n + gzipBytes(readFileSync(join(dist, f))), 0)
+  const js = sizeOf('.js')
+  const css = sizeOf('.css')
+  verdict(
+    'النافذة',
+    judge(js + css, BUDGETS.popup),
+    `${graph.files.length} ملفًّا عند الفتح: JS ${fmt(js)} · CSS ${fmt(css)}`,
+  )
+} else {
+  fail(`${popupHtml} غير موجود — تعذّر قياس ميزانية النافذة`)
+}
 
 // ═══ قدرات محظورة لكل حزمة ═════════════════════════════════════════
 group('قدرات محظورة لكل حزمة')
