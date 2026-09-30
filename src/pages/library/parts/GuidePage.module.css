@@ -1,0 +1,273 @@
+/*
+ * صفحة الدليل — `library / guide` (`128:697`) و`guide / editor` (`304:1506`).
+ *
+ * رأسٌ بالعنوان والعدّ في البداية ورقاقات الصيغ و«صدّر الدليل» في النهاية، ثمّ بطاقة لكل خطوة: مقبض السحب
+ * والرقم والنصّ في البداية، والمصغَّرة وأدوات الترتيب في النهاية. وكل قيمة من العقد — لا لون حرفي ولا `px`
+ * حرفية ولا خاصية فيزيائية.
+ */
+
+.page {
+  flex: 1;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-16);
+  padding-block: var(--rasd-space-20) var(--rasd-space-24);
+  padding-inline: var(--rasd-space-24);
+  overflow-y: auto;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rasd-space-12);
+  text-align: center;
+  flex: 1;
+}
+
+/* ── الرأس ────────────────────────────────────────────────── */
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rasd-space-16);
+  flex-wrap: wrap;
+  flex: none;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+  min-inline-size: 0;
+  flex: 1 1 18rem;
+}
+
+.back {
+  flex: none;
+  inline-size: var(--rasd-control-sm);
+  block-size: var(--rasd-control-sm);
+  display: grid;
+  place-items: center;
+  border: var(--rasd-stroke-thin) solid transparent;
+  border-radius: var(--rasd-radius-md);
+  background: transparent;
+  color: var(--rasd-icon-secondary);
+  cursor: pointer;
+}
+
+.back:hover {
+  background: var(--rasd-surface-hover);
+  color: var(--rasd-icon-primary);
+}
+
+.back:focus-visible,
+.titleInput:focus-visible,
+.stepTitle:focus-visible,
+.note:focus-visible,
+.chip:focus-visible {
+  outline: var(--rasd-focus-ring);
+  outline-offset: var(--rasd-focus-ring-offset);
+}
+
+/* العنوان حقلٌ بمظهر العنوان: لا حدّ حتى يُحرَّر. */
+.titleInput {
+  min-inline-size: 0;
+  flex: 1;
+  margin: 0;
+  padding-block: var(--rasd-space-2);
+  padding-inline: var(--rasd-space-6);
+  border: var(--rasd-stroke-thin) solid transparent;
+  border-radius: var(--rasd-radius-md);
+  background: transparent;
+  color: var(--rasd-text-primary);
+  text-overflow: ellipsis;
+}
+
+.titleInput:hover {
+  border-color: var(--rasd-border-subtle);
+}
+
+.count {
+  flex: none;
+  color: var(--rasd-text-tertiary);
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--rasd-space-12);
+  flex-wrap: wrap;
+}
+
+.chips {
+  display: flex;
+  gap: var(--rasd-space-6);
+}
+
+.chip {
+  block-size: var(--rasd-control-sm);
+  padding-inline: var(--rasd-space-12);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-raised);
+  color: var(--rasd-text-primary);
+  cursor: pointer;
+}
+
+.chip:hover:not(:disabled) {
+  background: var(--rasd-surface-hover);
+}
+
+.chip:disabled {
+  color: var(--rasd-text-disabled);
+  cursor: not-allowed;
+}
+
+.saveError {
+  margin: 0;
+  color: var(--rasd-status-danger-fg);
+}
+
+.emptyTitle {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+  max-inline-size: 28rem;
+}
+
+/* ── الخطوات ─────────────────────────────────────────────── */
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-12);
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rasd-space-12);
+  padding: var(--rasd-space-16);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  border-radius: var(--rasd-radius-lg);
+  background: var(--rasd-surface-raised);
+}
+
+.step:focus-within {
+  border-color: var(--rasd-border-brand);
+}
+
+.dragging {
+  opacity: 0.5;
+}
+
+.handle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: var(--rasd-control-xs);
+  block-size: var(--rasd-control-sm);
+  color: var(--rasd-icon-tertiary);
+  cursor: grab;
+}
+
+.badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: var(--rasd-control-xs);
+  block-size: var(--rasd-control-xs);
+  margin-block-start: var(--rasd-space-4);
+  border-radius: var(--rasd-radius-full);
+  background: var(--rasd-tool-annotate-solid);
+  color: var(--rasd-text-inverse);
+}
+
+.text {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-4);
+}
+
+.stepTitle,
+.note {
+  inline-size: 100%;
+  margin: 0;
+  padding-block: var(--rasd-space-4);
+  padding-inline: var(--rasd-space-6);
+  border: var(--rasd-stroke-thin) solid transparent;
+  border-radius: var(--rasd-radius-sm);
+  background: transparent;
+  font: inherit;
+}
+
+.stepTitle {
+  color: var(--rasd-text-primary);
+}
+
+.note {
+  color: var(--rasd-text-secondary);
+  resize: vertical;
+  field-sizing: content;
+  min-block-size: calc(var(--rasd-space-20) * 2);
+}
+
+.stepTitle:hover,
+.note:hover {
+  border-color: var(--rasd-border-subtle);
+}
+
+.stepTitle::placeholder,
+.note::placeholder {
+  color: var(--rasd-text-tertiary);
+}
+
+.lost {
+  margin: 0;
+  padding-inline: var(--rasd-space-6);
+  color: var(--rasd-status-warning-fg);
+}
+
+.thumb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: clamp(var(--rasd-space-96), 22%, calc(var(--rasd-space-40) * 4));
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-sunken);
+}
+
+.thumbImg {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.thumbFallback {
+  color: var(--rasd-icon-tertiary);
+}
+
+.tools {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-2);
+}

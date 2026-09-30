@@ -21,6 +21,8 @@ export type LibraryView =
   | { readonly kind: 'issues' }
   /** تفصيل مشكلة واحدة — `?issue=<id>` كما يحمل عرض المشروع `?project=`. */
   | { readonly kind: 'issue'; readonly id: string }
+  /** دليل خطوات واحد — `?guide=<id>` (`STAGES/06`). */
+  | { readonly kind: 'guide'; readonly id: string }
 
 const SIMPLE = [
   'all',
@@ -45,15 +47,18 @@ export function viewFromSearch(search: string): LibraryView {
   // التفصيل أخصّ العروض فيسبق: رابطٌ يحمل مشكلةً يفتحها ولو حمل معها مشروعًا.
   const issue = params.get('issue')
   if (issue) return { kind: 'issue', id: issue }
+  const guide = params.get('guide')
+  if (guide) return { kind: 'guide', id: guide }
   const project = params.get('project')
   if (project) return { kind: 'project', id: project }
   const view = params.get('view') ?? 'all'
   return isSimple(view) ? { kind: view } : { kind: 'all' }
 }
 
-/** معرّف العنصر في الشريط الجانبي. تفصيل المشكلة يُضيء «المشكلات» لا عنصرًا لا وجود له. */
+/** معرّف العنصر في الشريط الجانبي. التفصيل يُضيء مجموعته («المشكلات» · «أدلة الخطوات») لا عنصرًا لا وجود له. */
 export function viewId(view: LibraryView): string {
   if (view.kind === 'project') return `project:${view.id}`
+  if (view.kind === 'guide') return 'guides'
   return view.kind === 'issue' ? 'issues' : view.kind
 }
 
@@ -62,6 +67,7 @@ export function searchFor(view: LibraryView): string {
   if (view.kind === 'all') return ''
   if (view.kind === 'project') return `?project=${encodeURIComponent(view.id)}`
   if (view.kind === 'issue') return `?issue=${encodeURIComponent(view.id)}`
+  if (view.kind === 'guide') return `?guide=${encodeURIComponent(view.id)}`
   return `?view=${view.kind}`
 }
 

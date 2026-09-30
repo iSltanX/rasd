@@ -20,7 +20,14 @@ import { countText, formatHuman, type CountForms } from '@/shared/bidi/numerals'
 import { errText, ok, type Result } from '@/shared/result'
 
 import { filenameStem } from './filename'
-import { DOC_FONTS, DOC_MARGIN, layoutDocument, type DocBlock, type DocPage } from './pdf-document'
+import {
+  DOC_FONTS,
+  DOC_MARGIN,
+  layoutDocument,
+  type DocBlock,
+  type DocPage,
+  type MeasureDoc,
+} from './pdf-document'
 import {
   MAX_SCALE,
   PAGE_MARGIN,
@@ -31,7 +38,6 @@ import {
 } from './pdf-layout'
 import { writeZip } from './zip'
 
-import type { MeasureDoc } from './pdf-document'
 import type { GuideExportOptions, GuideFormat, GuideStep } from '@/shared/guide-schema'
 
 // ── النموذج ─────────────────────────────────────────────────────

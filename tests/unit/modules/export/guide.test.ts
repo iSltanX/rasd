@@ -352,7 +352,9 @@ describe('صفحات PDF', () => {
   })
 
   it('والقاطع يُحترم داخل نافذته ولا يُقبل خارجها', async () => {
-    const windows = await planStepWindows(1440, 12_000, A4, 120, async (earliest) => earliest - 500)
+    const windows = await planStepWindows(1440, 12_000, A4, 120, (earliest) =>
+      Promise.resolve(earliest - 500),
+    )
     for (const { window } of windows) expect(window.rows).toBeGreaterThan(0)
   })
 })

@@ -13,6 +13,7 @@
  * للاختبار بمصفوفة عادية بلا `fake-indexeddb`.
  */
 
+import { guideSteps } from '@/shared/guide-schema'
 import { ok, type Result } from '@/shared/result'
 import { captures, colors, guides, palettes, references } from '@/shared/storage/repository'
 
@@ -46,8 +47,9 @@ function referenceText(record: ReferenceRecord): string {
   return `${record.origin} ${record.path}`
 }
 
+/** العنوان وعناوين الخطوات وملاحظاتها — «الدفع» يجد الدليل الذي كُتبت فيه خطوةٌ عنه. */
 function guideText(record: GuideRecord): string {
-  return record.title
+  return [record.title, ...guideSteps(record).flatMap((s) => [s.title, s.note])].join(' ')
 }
 
 export function searchCaptures(records: readonly CaptureRecord[], query: string): CaptureRecord[] {
