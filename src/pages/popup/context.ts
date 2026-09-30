@@ -108,12 +108,10 @@ export const WITHHELD_LABEL = 'معلَّق عليها بحجب — افتح ا�
  * بين حارسٍ يعمل في كل مسار وحارسٍ غالٍ يُتخطّى.
  */
 export async function loadRecent(): Promise<RecentEntry[]> {
-  const list = await captures.byIndex('createdAt')
+  // مؤشّر عكسيّ يتوقّف عند لقطتين، لا قراءة المكتبة كلّها — زمن فتح النافذة لا ينمو بحجمها.
+  const list = await captures.latest('createdAt', 2, (r) => r.trashedAt === null)
   if (!list.ok) return []
   const latest = list.value
-    .filter((r) => r.trashedAt === null)
-    .slice(-2)
-    .reverse()
 
   return Promise.all(
     latest.map(async (record) => {

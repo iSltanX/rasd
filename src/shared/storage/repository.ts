@@ -24,6 +24,17 @@ export interface Repository<S extends StoreName> {
   count(): Promise<Result<number>>
   /** استعلام عبر فهرس — الطريق الوحيد للتصفية بلا مسح كامل. */
   byIndex(index: string, query?: IDBKeyRange | IDBValidKey): Promise<Result<RecordOf<S>[]>>
+  /**
+   * أحدث `count` سجلًّا يقبلها `accept`، من آخر الفهرس إلى أوّله — بمؤشّر عكسيّ يتوقّف عند العدد.
+   *
+   * `byIndex` ثمّ `slice(-n)` تقرأ المخزن كلّه لتُبقي سجلّين: قِيس في `STAGES/04` أن وصول بيانات
+   * النافذة يتأخّر 20ms على جهاز التطوير بخمسة آلاف لقطة، ويزيد بزيادتها.
+   */
+  latest(
+    index: string,
+    count: number,
+    accept?: (record: RecordOf<S>) => boolean,
+  ): Promise<Result<RecordOf<S>[]>>
 }
 
 export function repository<S extends StoreName>(store: S): Repository<S> {
@@ -79,6 +90,24 @@ export function repository<S extends StoreName>(store: S): Repository<S> {
         async (db) =>
           (await db.getAllFromIndex(store, index as never, query as never)) as RecordOf<S>[],
       )
+    },
+
+    async latest(index, count, accept = () => true) {
+      return withDb(async (db) => {
+        const found: RecordOf<S>[] = []
+        if (count <= 0) return found
+        let cursor = await db
+          .transaction(store)
+          .store.index(index as never)
+          .openCursor(null, 'prev')
+        while (cursor) {
+          const record = cursor.value as RecordOf<S>
+          if (accept(record)) found.push(record)
+          if (found.length >= count) break
+          cursor = await cursor.continue()
+        }
+        return found
+      })
     },
   }
 }

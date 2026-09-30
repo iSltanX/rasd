@@ -168,6 +168,54 @@ describe('CRUD على كل مخزن', () => {
   })
 })
 
+describe('latest — أحدث السجلّات بمؤشّر عكسيّ', () => {
+  const seed = async (n: number, trashedEvery = 0) => {
+    const values = Array.from({ length: n }, (_, i) =>
+      capture(`c${String(i).padStart(4, '0')}`, {
+        createdAt: 1_000 + i,
+        trashedAt: trashedEvery && i % trashedEvery === 0 ? 1 : null,
+      }),
+    )
+    expect((await captures.putMany(values)).ok).toBe(true)
+  }
+
+  it('يطابق byIndex ثمّ التصفية ثمّ آخر اثنين معكوسَين — الأحدث أوّلًا', async () => {
+    await seed(50, 3)
+    const accept = (r: { trashedAt: number | null }) => r.trashedAt === null
+    const all = await captures.byIndex('createdAt')
+    const latest = await captures.latest('createdAt', 2, accept)
+    if (!all.ok || !latest.ok) throw new Error('قراءة ساقطة')
+    const expected = all.value.filter(accept).slice(-2).reverse()
+    expect(latest.value.map((r) => r.id)).toEqual(expected.map((r) => r.id))
+    expect(latest.value.map((r) => r.id)).toEqual(['c0049', 'c0047'])
+  })
+
+  it('المفاتيح المتساوية بترتيب byIndex نفسه، والعدد صفر أو أكبر من المخزن', async () => {
+    const same = ['a', 'b', 'c'].map((id) => capture(id, { createdAt: 5 }))
+    expect((await captures.putMany(same)).ok).toBe(true)
+    const all = await captures.byIndex('createdAt')
+    const latest = await captures.latest('createdAt', 10)
+    if (!all.ok || !latest.ok) throw new Error('قراءة ساقطة')
+    expect(latest.value.map((r) => r.id)).toEqual(all.value.map((r) => r.id).reverse())
+    expect(await captures.latest('createdAt', 0)).toEqual({ ok: true, value: [] })
+  })
+
+  it('لا يقرأ الفهرس كلّه: لا getAll، ويتوقّف المؤشّر عند العدد', async () => {
+    await seed(300)
+    const getAll = vi.spyOn(IDBIndex.prototype, 'getAll')
+    const openCursor = vi.spyOn(IDBIndex.prototype, 'openCursor')
+    // عدد السجلّات التي بلغها المؤشّر — لا تجسّس على `IDBCursor.continue`: `idb` يعرف
+    // دوالّ التقدّم بمرجعها فيكسره الاستبدال.
+    const accept = vi.fn(() => true)
+    const latest = await captures.latest('createdAt', 2, accept)
+    expect(latest.ok && latest.value.map((r) => r.id)).toEqual(['c0299', 'c0298'])
+    expect(getAll).not.toHaveBeenCalled()
+    expect(openCursor).toHaveBeenCalledTimes(1)
+    expect(accept).toHaveBeenCalledTimes(2)
+    vi.restoreAllMocks()
+  })
+})
+
 describe('اللقطة وبايتاتها ذرّيًا', () => {
   it('يكتب السجلّ والـBlob معًا', async () => {
     const saved = await putCaptureWithBlob(capture('x1'), new Blob(['abc'], { type: 'image/png' }))

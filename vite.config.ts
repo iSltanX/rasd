@@ -4,6 +4,7 @@ import { crx } from '@crxjs/vite-plugin'
 import { defineConfig } from 'vite'
 
 import manifest from './manifest.config.ts'
+import { modulePreloadLinks } from './scripts/module-preload.ts'
 import { PAGE_PATHS } from './src/shared/page-paths.ts'
 
 export default defineConfig(({ mode }) => ({
@@ -18,7 +19,8 @@ export default defineConfig(({ mode }) => ({
     },
   },
 
-  plugins: [crx({ manifest })],
+  // `modulePreloadLinks` يعيد روابط التحميل المسبق إلى HTML وحده — انظر تعليق `modulePreload` أدناه.
+  plugins: [crx({ manifest }), modulePreloadLinks()],
 
   build: {
     outDir: 'dist',
@@ -36,8 +38,9 @@ export default defineConfig(({ mode }) => ({
      * قبل المرحلة 8: هي أوّل من يكتب في IndexedDB من الـservice worker في
      * متصفّح حقيقي. اكتشفه `pnpm verify:capture`.
      *
-     * الإيقاف بلا كلفة هنا: الإضافة تُحمَّل من القرص لا من الشبكة، فالتحميل
-     * المسبق لا يوفّر شيئًا أصلًا.
+     * **والإيقاف لم يكن بلا كلفة** كما قيل هنا («الإضافة تُحمَّل من القرص فالتحميل المسبق لا يوفّر
+     * شيئًا»): بلا روابطه تُجلب قطع الصفحة على جولات متتابعة، وقِيس ثمنها في زمن فتح النافذة على
+     * عدّاء CI (`STAGES/04`). فالروابط تعود إلى HTML عبر `modulePreloadLinks` بلا المساعد.
      */
     modulePreload: false,
     // خرائط المصدر للتطوير فقط — المرحلة 27 تحسم سياسة الإنتاج.

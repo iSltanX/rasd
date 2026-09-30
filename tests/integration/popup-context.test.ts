@@ -178,3 +178,37 @@ describe('loadPopupContext — permissionNeeded', () => {
     expect(partial.permissionNeeded).toBeNull()
   })
 })
+
+describe('loadRecent — أحدث لقطتين بلا قراءة المكتبة كلّها', () => {
+  it('الأحدث أوّلًا، والمحذوفة تُتخطّى، ولا getAll على الفهرس', async () => {
+    const { captures } = await import('@/shared/storage/repository')
+    const { loadRecent } = await import('@/pages/popup/context')
+    const base = {
+      origin: 'https://example.com',
+      url: 'https://example.com/',
+      title: 'لقطة',
+      kind: 'area' as const,
+      status: 'ready' as const,
+      projectId: null,
+      tags: [],
+      width: 10,
+      height: 10,
+      devicePixelRatio: 1,
+      favorite: false,
+      archived: false,
+    }
+    await captures.putMany(
+      Array.from({ length: 40 }, (_, i) => ({
+        ...base,
+        id: `c${String(i).padStart(2, '0')}`,
+        createdAt: 1_000 + i,
+        trashedAt: i === 39 ? 5 : null,
+      })),
+    )
+    const getAll = vi.spyOn(IDBIndex.prototype, 'getAll')
+    const recent = await loadRecent()
+    expect(recent.map((r) => r.record.id)).toEqual(['c38', 'c37'])
+    expect(getAll).not.toHaveBeenCalled()
+    getAll.mockRestore()
+  })
+})
