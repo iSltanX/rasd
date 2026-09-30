@@ -28,6 +28,7 @@ import { groupDiffRegions } from '@/modules/compare/regions'
 import { withinCanvasLimits } from '@/shared/canvas-limits'
 import { errText, ok, type Result } from '@/shared/result'
 
+import type { DeviceRect } from '@/shared/geometry'
 import type { LiveDiff } from '@/shared/messaging/contract'
 
 /**
@@ -84,8 +85,12 @@ async function decode(source: Blob | string): Promise<Result<RasterImage>> {
  * `overlap` وحدها، فتمرير مقاس المرجع كان سيُنتج طول قناعٍ مخالفًا فترفضه
  * `groupDiffRegions` صامتةً وتُرجع صفرًا — «لا شيء تحرّك» فوق صفحةٍ تغيّرت.
  */
-export function summariseDiff(reference: RasterImage, live: RasterImage): LiveDiff {
-  const result = computeDiff(reference, live)
+export function summariseDiff(
+  reference: RasterImage,
+  live: RasterImage,
+  exclude: readonly DeviceRect[] = [],
+): LiveDiff {
+  const result = computeDiff(reference, live, { exclude })
   const regions = groupDiffRegions(result.mask, result.overlap.width, result.overlap.height)
 
   return {
@@ -95,17 +100,25 @@ export function summariseDiff(reference: RasterImage, live: RasterImage): LiveDi
     overlapWidth: result.overlap.width,
     overlapHeight: result.overlap.height,
     sizeMismatch: reference.width !== live.width || reference.height !== live.height,
+    excludedPixels: result.excludedPixels,
+    excludedZones: exclude.length,
   }
 }
 
-/** يفكّ الطرفين ثم يختزلهما بـ`summariseDiff` — لا منطق قياس هنا. */
+/**
+ * يفكّ الطرفين ثم يختزلهما بـ`summariseDiff` — لا منطق قياس هنا.
+ *
+ * `exclude` مستطيلات مناطق المرجع ببكسل صورته (ADR 0034) — القناع نفسه الذي يطبّقه `computeDiff` في صفحة
+ * المقارنة، لا نسخةٌ منه.
+ */
 export async function measureLiveDiff(
   referenceBlob: Blob,
   liveDataUrl: string,
+  exclude: readonly DeviceRect[] = [],
 ): Promise<Result<LiveDiff>> {
   const reference = await decode(referenceBlob)
   if (!reference.ok) return reference
   const live = await decode(liveDataUrl)
   if (!live.ok) return live
-  return ok(summariseDiff(reference.value, live.value))
+  return ok(summariseDiff(reference.value, live.value, exclude))
 }

@@ -13,10 +13,14 @@
 
 import { captureTile, runCapture } from '@/background/capture-service'
 import { activateTool } from '@/background/commands'
+import { parseExclusions, parseLiveRects } from '@/modules/compare/exclusion-parse'
+import { exclusionRects } from '@/modules/compare/exclusions'
 import {
   assignCaptureAsReference,
   assignImageAsReference,
   findReferenceForPage,
+  setReferenceExclusions,
+  suggestedZonesForPage,
 } from '@/modules/compare/reference'
 import { retentionSweep } from '@/modules/library/retention'
 import { base64ToBlob, blobToBase64 } from '@/shared/base64'
@@ -47,7 +51,8 @@ import { extractFromCapture, extractFromViewport } from './palette-service'
 
 import type { PageKey } from '@/modules/compare/reference'
 import type { InspectSnapshot } from '@/shared/inspect-schema'
-import type { PaletteRecord, Viewport } from '@/shared/storage/schema'
+import type { ReferencePayload } from '@/shared/messaging/contract'
+import type { BlobRecord, PaletteRecord, ReferenceRecord, Viewport } from '@/shared/storage/schema'
 
 /** اسم منبّه الحارس. */
 const WATCHDOG_ALARM = 'rasd:watchdog'
@@ -105,6 +110,27 @@ async function pageKeyFromTab(tabId: number | undefined, viewport: Viewport): Pr
   if (!tab.url) throw new Error('تعذّرت قراءة عنوان التبويب — لا مفتاح موثوق للمرجع.')
   const url = new URL(tab.url)
   return { origin: url.origin, path: url.pathname, viewport }
+}
+
+/**
+ * بايتات المرجع ومناطقه ومقترحاته — الشكل الواحد لردّ `reference/load` و`reference/set` (ADR 0034).
+ *
+ * تعذّر قراءة المقترحات لا يُسقط المرجع: الاقتراح زيادةٌ، والمرجع ومناطقه هما ما تعرضه الطبقة.
+ */
+async function referencePayload(
+  key: PageKey,
+  record: ReferenceRecord,
+  blob: BlobRecord,
+): Promise<ReferencePayload> {
+  const exclusions = record.exclusions ?? []
+  const suggested = await suggestedZonesForPage(key, exclusions)
+  return {
+    base64: await blobToBase64(blob.blob),
+    mime: blob.mime,
+    bytes: blob.bytes,
+    exclusions,
+    suggested: suggested.ok ? suggested.value : [],
+  }
 }
 
 function registerRequestHandlers() {
@@ -342,8 +368,11 @@ function registerRequestHandlers() {
    * وغيابُ المرجع ليس خطأً بل حالة: `null` تُقرأ «لا شيء يُقارَن به» —
    * نفس تساهل `reference/load` مع السجلّ اليتيم، ولنفس السبب.
    */
-  onMessage('compare/diff', async ({ viewport }, { tabId }) => {
+  onMessage('compare/diff', async ({ viewport, live }, { tabId }) => {
     if (tabId === undefined) throw new Error('لا تبويب مستهدَف لقياس الفرق.')
+    // المستطيلات الحيّة تُتحقَّق قبل أي قراءة — ما يأتي من الصفحة ليس مستطيلًا حتى يُثبَت.
+    const liveRects = parseLiveRects(live)
+    if (!liveRects.ok) throw new RasdThrow(liveRects.error)
     const key = await pageKeyFromTab(tabId, viewport)
     const found = await findReferenceForPage(key)
     if (!found.ok) throw new RasdThrow(found.error)
@@ -354,7 +383,9 @@ function registerRequestHandlers() {
     const shot = await captureTile(tabId)
     if (!shot.ok) throw new RasdThrow(shot.error)
 
-    const measured = await measureLiveDiff(blob.value.blob, shot.value)
+    // القناع من السجلّ المخزَّن لا من الحمولة: الصفحة تُحدِّث موضع منطقة عنصرٍ محفوظة وحده (ADR 0034 §3).
+    const exclude = exclusionRects(found.value.exclusions ?? [], liveRects.value)
+    const measured = await measureLiveDiff(blob.value.blob, shot.value, exclude)
     if (!measured.ok) throw new RasdThrow(measured.error)
     return measured.value
   })
@@ -368,11 +399,7 @@ function registerRequestHandlers() {
     // سجلّ يتيم (مرجع بلا بايتات) يُقرأ «لا مرجع» لا خطأً — نفس تساهل
     // المسار السابق، فلا تُعطَّل الأداة بسبب سجلّ تالف واحد.
     if (!blob.ok) return null
-    return {
-      base64: await blobToBase64(blob.value.blob),
-      mime: blob.value.mime,
-      bytes: blob.value.bytes,
-    }
+    return referencePayload(key, found.value, blob.value)
   })
 
   /**
@@ -389,11 +416,20 @@ function registerRequestHandlers() {
 
     const blob = await blobs.get(written.value.blobId)
     if (!blob.ok) throw new RasdThrow(blob.error)
-    return {
-      base64: await blobToBase64(blob.value.blob),
-      mime: blob.value.mime,
-      bytes: blob.value.bytes,
-    }
+    return referencePayload(key, written.value, blob.value)
+  })
+
+  /**
+   * المناطق المستثناة — تكتبها الخلفية وحدها، بعد التحقّق (ADR 0034). والردّ القائمة كما كُتبت، فتعرض
+   * الطبقة ما حُفظ لا ما أرسلته.
+   */
+  onMessage('reference/exclusions', async ({ viewport, exclusions }, { tabId }) => {
+    const parsed = parseExclusions(exclusions)
+    if (!parsed.ok) throw new RasdThrow(parsed.error)
+    const key = await pageKeyFromTab(tabId, viewport)
+    const written = await setReferenceExclusions(key, parsed.value)
+    if (!written.ok) throw new RasdThrow(written.error)
+    return { exclusions: written.value.exclusions }
   })
 
   onMessage('page/open', async ({ page, active, params }) => {

@@ -118,6 +118,8 @@ function liveDiff(overrides: Partial<LiveDiff> = {}): LiveDiff {
     overlapWidth: 1440,
     overlapHeight: 900,
     sizeMismatch: false,
+    excludedPixels: 0,
+    excludedZones: 0,
     ...overrides,
   }
 }

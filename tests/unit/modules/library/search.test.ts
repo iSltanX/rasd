@@ -101,6 +101,7 @@ describe('دوال المطابقة المحضة — بلا تخزين', () => {
         path: '13:24',
         viewport: 'desktop',
         blobId: 'x',
+        exclusions: [],
         createdAt: 0,
       },
     ]

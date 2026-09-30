@@ -2,16 +2,21 @@ import 'fake-indexeddb/auto'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { newZone } from '@/modules/compare/exclusions'
 import {
   assignCaptureAsReference,
   assignImageAsReference,
   findReferenceForPage,
+  setReferenceExclusions,
+  suggestedZonesForPage,
   type PageKey,
 } from '@/modules/compare/reference'
+import { deviceRect } from '@/shared/geometry'
 import { errWith } from '@/shared/result'
 import { closeDatabase, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { blobs, captures, references } from '@/shared/storage/repository'
 
+import type { ElementAnchor } from '@/shared/exclusion-schema'
 import type { CaptureRecord } from '@/shared/storage/schema'
 
 const NOW = 1_700_000_000_000
@@ -71,6 +76,7 @@ describe('findReferenceForPage', () => {
       path: KEY.path,
       viewport: KEY.viewport,
       blobId: 'ref1',
+      exclusions: [],
       createdAt: NOW,
     })
     const found = await findReferenceForPage(KEY)
@@ -85,6 +91,7 @@ describe('findReferenceForPage', () => {
       path: '/other-page',
       viewport: KEY.viewport,
       blobId: 'ref1',
+      exclusions: [],
       createdAt: NOW,
     })
     const found = await findReferenceForPage(KEY)
@@ -99,6 +106,7 @@ describe('findReferenceForPage', () => {
       path: KEY.path,
       viewport: 'phone',
       blobId: 'ref1',
+      exclusions: [],
       createdAt: NOW,
     })
     const found = await findReferenceForPage(KEY)
@@ -182,6 +190,71 @@ describe('assignImageAsReference', () => {
 
     const all = await references.getAll()
     expect(all.ok && all.value).toHaveLength(1)
+  })
+})
+
+describe('المناطق المستثناة مع مرجعها (ADR 0034)', () => {
+  const clock = newZone({ kind: 'rect', rect: deviceRect(10, 10, 80, 20) }, 'z-clock', NOW)
+  const adAnchor = (selector: string): ElementAnchor => ({
+    kind: 'element',
+    selector,
+    hosts: [],
+    fingerprint: { tag: 'aside', attrs: [], textHash: '0a1b2c3d', textLength: 4 },
+    rect: deviceRect(0, 400, 300, 250),
+  })
+  const ad = newZone(adAnchor('aside.ad'), 'z-ad', NOW)
+
+  it('المرجع الجديد يولد بلا مناطق', async () => {
+    const assigned = await assignImageAsReference(new Blob(['a']), KEY, null, NOW)
+    expect(assigned.ok && assigned.value.exclusions).toEqual([])
+  })
+
+  it('تُكتب القائمة كلّها مع المرجع، وتُقرأ معه', async () => {
+    await assignImageAsReference(new Blob(['a']), KEY, null, NOW)
+    const written = await setReferenceExclusions(KEY, [clock, ad])
+    expect(written.ok && written.value.exclusions).toEqual([clock, ad])
+    const found = await findReferenceForPage(KEY)
+    expect(found.ok && found.value?.exclusions).toEqual([clock, ad])
+  })
+
+  it('واستبدال صورة المرجع يُبقي مناطقه — وصفٌ للصفحة لا للصورة', async () => {
+    await assignImageAsReference(new Blob(['a']), KEY, null, NOW)
+    await setReferenceExclusions(KEY, [clock])
+    const replaced = await assignImageAsReference(new Blob(['b']), KEY, null, NOW + 1)
+    expect(replaced.ok && replaced.value.exclusions).toEqual([clock])
+  })
+
+  it('لا مرجع ⇒ `not-found` ولا سجلّ يُنشأ لمناطق بلا صورة', async () => {
+    const written = await setReferenceExclusions(KEY, [clock])
+    expect(!written.ok && written.error.code).toBe('not-found')
+    const all = await references.getAll()
+    expect(all.ok && all.value).toHaveLength(0)
+  })
+
+  it('والتصفّح الخاص يرفض الكتابة ويُبقي القائمة السابقة', async () => {
+    await assignImageAsReference(new Blob(['a']), KEY, null, NOW)
+    await setReferenceExclusions(KEY, [clock])
+    blockWrites()
+    const written = await setReferenceExclusions(KEY, [])
+    expect(written.ok).toBe(false)
+    const found = await findReferenceForPage(KEY)
+    expect(found.ok && found.value?.exclusions).toEqual([clock])
+  })
+
+  it('مناطق العنصر من مقاسٍ آخر للصفحة نفسها تُقترح، لا من صفحةٍ أخرى ولا من المقاس نفسه', async () => {
+    const phone: PageKey = { ...KEY, viewport: 'phone' }
+    const other: PageKey = { ...KEY, path: '/other' }
+    await assignImageAsReference(new Blob(['p']), phone, null, NOW)
+    await setReferenceExclusions(phone, [clock, ad])
+    await assignImageAsReference(new Blob(['o']), other, null, NOW)
+    await setReferenceExclusions(other, [newZone(adAnchor('#x'), 'z-other', NOW)])
+
+    const suggested = await suggestedZonesForPage(KEY, [])
+    // `clock` مستطيلٌ يخصّ مقاس الهاتف فلا يُقترح؛ و`#x` في صفحةٍ أخرى.
+    expect(suggested.ok && suggested.value.map((z) => z.id)).toEqual(['z-ad'])
+    // وما في هذا المرجع بمحدِّده لا يُقترح ثانيةً.
+    const again = await suggestedZonesForPage(KEY, [{ ...ad, id: 'mine' }])
+    expect(again.ok && again.value).toEqual([])
   })
 })
 

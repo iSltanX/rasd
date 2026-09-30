@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { summariseDiff } from '@/background/compare-diff-service'
+import { deviceRect } from '@/shared/geometry'
 
 import type { RasterImage } from '@/modules/compare/diff'
 
@@ -110,5 +111,28 @@ describe('summariseDiff', () => {
     const out = summariseDiff(reference, live)
     expect(out.overlapWidth).toBe(80)
     expect(out.regionCount).toBe(1)
+  })
+})
+
+describe('summariseDiff — المناطق المستثناة (ADR 0034)', () => {
+  // مرجعٌ أبيض، والصفحة الحيّة فيها «ساعة» سوداء 20×10 عند (5,5) وحدها.
+  const reference = solid(60, 40, WHITE)
+  const live = paint(solid(60, 40, WHITE), 5, 5, 20, 10, BLACK)
+
+  it('ساعةٌ داخل منطقة مستثناة ⟵ النسبة صفر، ولا عناصر تحرّكت، والمستثنى معلَن', () => {
+    const out = summariseDiff(reference, live, [deviceRect(0, 0, 30, 20)])
+    expect(out.diffRatio).toBe(0)
+    expect(out.regionCount).toBe(0)
+    expect(out.excludedPixels).toBe(600)
+    expect(out.excludedZones).toBe(1)
+    expect(out.comparedPixels).toBe(2400 - 600)
+  })
+
+  it('والقناع نفسه معطَّلًا يعدّ الساعة — وهي الحالة التي يسقط عليها `verify:compare`', () => {
+    const out = summariseDiff(reference, live)
+    expect(out.diffRatio).toBeCloseTo(200 / 2400, 6)
+    expect(out.regionCount).toBe(1)
+    expect(out.excludedPixels).toBe(0)
+    expect(out.excludedZones).toBe(0)
   })
 })
