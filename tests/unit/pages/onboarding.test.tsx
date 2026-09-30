@@ -33,6 +33,7 @@ afterEach(() => {
     container = null
   }
   history.replaceState(null, '', '/')
+  Object.assign(chrome.tabs, { getCurrent: originalGetCurrent })
 })
 
 function mount(): HTMLDivElement {
@@ -40,6 +41,15 @@ function mount(): HTMLDivElement {
   document.body.appendChild(container)
   render(<Onboarding />, container)
   return container
+}
+
+/**
+ * `getCurrent` بتوقيعَيه (الوعد والنداء الراجع) لا يقبل وعدًا من `spyOn` في الأنواع — فيُستبدل بدالّة
+ * مزيّفة، ويُعاد الأصل بعد كل اختبار.
+ */
+const originalGetCurrent = chrome.tabs.getCurrent
+function currentTab(tab: chrome.tabs.Tab | undefined) {
+  Object.assign(chrome.tabs, { getCurrent: vi.fn().mockResolvedValue(tab) })
 }
 
 const visible = (root: HTMLElement) => root.querySelector('section:not([aria-hidden="true"])')!
@@ -104,7 +114,7 @@ describe('الخطوات الأربع', () => {
 describe('الإنهاء والتخطّي', () => {
   it('«تخطَّ» يكتب «شوهد» ثمّ يُغلق التبويب', async () => {
     const tab = await chrome.tabs.create({ url: 'chrome-extension://x/onboarding.html' })
-    vi.spyOn(chrome.tabs, 'getCurrent').mockResolvedValue(tab)
+    currentTab(tab)
     const remove = vi.spyOn(chrome.tabs, 'remove').mockResolvedValue(undefined)
     const root = mount()
     button(root, 'تخطَّ')!.click()
@@ -114,7 +124,7 @@ describe('الإنهاء والتخطّي', () => {
 
   it('تعذّر الإغلاق بعد الكتابة ⇐ الصفحة تقول إن الجولة انتهت، لا زرٌّ صامت', async () => {
     const tab = await chrome.tabs.create({ url: 'chrome-extension://x/onboarding.html' })
-    vi.spyOn(chrome.tabs, 'getCurrent').mockResolvedValue(tab)
+    currentTab(tab)
     vi.spyOn(chrome.tabs, 'remove').mockRejectedValue(new Error('gone'))
     const root = mount()
     button(root, 'تخطَّ')!.click()
@@ -125,7 +135,7 @@ describe('الإنهاء والتخطّي', () => {
 
   it('آخر تبويب في نافذته لا يُغلقها — يُفتح قبله تبويب جديد', async () => {
     const [only] = await chrome.tabs.query({})
-    vi.spyOn(chrome.tabs, 'getCurrent').mockResolvedValue(only)
+    currentTab(only)
     const create = vi.spyOn(chrome.tabs, 'create')
     vi.spyOn(chrome.tabs, 'remove').mockResolvedValue(undefined)
     const result = await finishOnboarding(42)

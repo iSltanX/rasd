@@ -104,7 +104,7 @@ describe('جولة التعريف — عند التثبيت وحده', () => {
 
   it('المستمع مسجَّل على onInstalled فعلًا', async () => {
     registerInstallFlow()
-    await fakeBrowser.runtime.onInstalled.trigger({ reason: 'install', temporary: false })
+    await fakeBrowser.runtime.onInstalled.trigger({ reason: 'install' })
     await vi.waitFor(async () => expect(await openTabs()).toEqual([onboardingUrl()]))
   })
 
