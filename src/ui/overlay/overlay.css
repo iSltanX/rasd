@@ -403,6 +403,40 @@
   color: var(--rasd-tool-inspect-fg);
 }
 
+/* غلاف بلا صندوق — يحمل وسم الحالة لعناصر مموضعة كلٌّ بنفسه. */
+.rasd-ov-contents {
+  display: contents;
+}
+
+/* مفتاح الصناديق تحت العنصر المفحوص (`62:2`) — زجاج الطبقة، ومربّع لون لكل صندوق باسمه. */
+.rasd-ov-box-legend {
+  display: flex;
+  gap: var(--rasd-space-12);
+  direction: rtl;
+  padding-block: var(--rasd-space-6);
+  padding-inline: var(--rasd-space-10);
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-overlay-glass);
+  backdrop-filter: blur(calc(var(--rasd-space-16) + var(--rasd-space-2)));
+  color: var(--rasd-text-secondary);
+  font-size: var(--rasd-font-size-2xs);
+  white-space: nowrap;
+}
+.rasd-ov-box-key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-4);
+}
+/* الصنف اللوني نفسه في `BoxModel` يلوّن المربّع — لكن بلا موضع الحلقة المطلق ولا امتدادها. */
+.rasd-ov-box-swatch {
+  position: static;
+  inset: auto;
+  inline-size: var(--rasd-space-10);
+  block-size: var(--rasd-space-10);
+  border-radius: var(--rasd-radius-xs);
+}
+
 /* ── Toolbar — شريط الأدوات العائم ───────────────────────────────── */
 
 /*
@@ -861,10 +895,6 @@
  * السماكة 2px هنا مقابل 1.5px في المنطقة — كذلك من الملفّ: الإبراز يتحرّك
  * مع كل حركة مؤشِّر، فيحتاج حضورًا أوضح من مستطيل ساكن.
  */
-.rasd-ov-elhl.rasd-ov-elhl-pinned {
-  background: var(--rasd-overlay-inspect-wash);
-  border-color: var(--rasd-tool-inspect-border);
-}
 .rasd-ov-elhl {
   inline-size: var(--rasd-ov-w);
   block-size: var(--rasd-ov-h);

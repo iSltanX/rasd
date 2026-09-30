@@ -17,12 +17,14 @@ import { useEffect } from 'preact/hooks'
 import { describeRatio, HANDLES, handlePoint } from '@/modules/capture/selection'
 import { formatColour } from '@/modules/colour/formats'
 import { NUDGE_STEP_FAST_PX, NUDGE_STEP_PX } from '@/modules/compare/overlay'
+import { marginRect } from '@/modules/dom-picker/inspect'
 import { pxToRem } from '@/modules/measure/units'
 import { formatDimensions, formatUnit } from '@/shared/bidi'
 import { viewportRect, viewportRectToDevice, type CoordSpace } from '@/shared/geometry'
 import { send } from '@/shared/messaging'
 import {
   AlignGuide,
+  BoxLegend,
   BoxModel,
   ComparePanel,
   CompareIdle,
@@ -64,7 +66,7 @@ import type { ColourUsageTool } from './tools/colour-usage'
 import type { CompareTool } from './tools/compare'
 import type { ElementHoverTool } from './tools/element-hover'
 import type { EyedropperTool } from './tools/eyedropper'
-import type { InspectTool } from './tools/inspect'
+import type { InspectDetail, InspectTool } from './tools/inspect'
 import type { MeasureTarget, MeasureTool } from './tools/measure'
 import type { PaletteFormat } from '@/modules/colour/export'
 import type { LiveDiff } from '@/shared/messaging/contract'
@@ -998,6 +1000,28 @@ function FullPageLayer({
  * يجعل `matches(':hover')` كاذبًا فيُعلن محرّك التتالي قاعدة `:hover` غير
  * فائزة وهي التي تفوز — أي أن الفاحص يكذب.
  */
+/** مسافة مفتاح الصناديق تحت الهامش. */
+const LEGEND_GAP_PX = 12
+
+function PinnedBox({ detail, space: s }: { detail: InspectDetail; space: CoordSpace }) {
+  const { rect } = detail.snapshot
+  const outer = marginRect(
+    viewportRect(rect.pageX - s.scrollX, rect.pageY - s.scrollY, rect.width, rect.height),
+    detail.edges.margin,
+  )
+  return (
+    <div class="rasd-ov-contents" data-rasd-ov="inspect-selected">
+      <BoxModel
+        rect={outer}
+        margin={detail.edges.margin}
+        border={detail.edges.border}
+        padding={detail.edges.padding}
+      />
+      <BoxLegend at={{ x: outer.x, y: outer.y + outer.height + LEGEND_GAP_PX }} />
+    </div>
+  )
+}
+
 function InspectLayer({
   inspect,
   space,
@@ -1022,23 +1046,11 @@ function InspectLayer({
       ) : null}
 
       {/*
-       * العنصر المثبَّت يبقى معلَّمًا بلون أداة الفحص كما في `inspect / element-selected`
-       * (`62:2`) — من موضعه في الصفحة لحظة التثبيت، فيتبع التمرير ويبقى على عنصره.
+       * العنصر المثبَّت بنموذج صندوقه ومفتاحه كما في `inspect / element-selected` (`62:2`) — من
+       * موضعه في الصفحة لحظة التثبيت، فيتبع التمرير ويبقى على عنصره. والجوانب فيزيائية محلولة من
+       * العنصر نفسه (`InspectDetail.edges`).
        */}
-      {detail ? (
-        <div
-          class="rasd-ov-place rasd-ov-elhl rasd-ov-elhl-pinned"
-          style={box(
-            viewportRect(
-              detail.snapshot.rect.pageX - s.scrollX,
-              detail.snapshot.rect.pageY - s.scrollY,
-              detail.snapshot.rect.width,
-              detail.snapshot.rect.height,
-            ),
-          )}
-          data-rasd-ov="inspect-selected"
-        />
-      ) : null}
+      {detail ? <PinnedBox detail={detail} space={s} /> : null}
 
       <div
         class="rasd-ov-place"

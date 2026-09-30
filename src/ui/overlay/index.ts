@@ -12,6 +12,7 @@ export { NodeLabel, type NodeLabelProps, type NodeLabelAnchor } from './NodeLabe
 export { ElementHover, type ElementHoverProps, type QuickAction } from './ElementHover'
 export { Dimension, type DimensionProps } from './Dimension'
 export { DimensionVertical, type DimensionVerticalProps } from './DimensionVertical'
+export { BoxLegend, type BoxLegendProps } from './BoxLegend'
 export { BoxModel, type BoxModelProps, type Edges } from './BoxModel'
 export { MeasureGap, type MeasureGapProps } from './MeasureGap'
 export { AlignGuide, type AlignGuideProps } from './AlignGuide'

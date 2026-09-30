@@ -25,6 +25,7 @@ import { signal, type Signal } from '@preact/signals'
 
 import { pageOffset, readInspectStyles, readState } from '@/modules/computed-style/read'
 import { pickAt } from '@/modules/dom-picker/hit-test'
+import { boxEdges, type BoxEdges } from '@/modules/dom-picker/inspect'
 import { buildSelector, shortLabel } from '@/modules/dom-picker/selector'
 import { traceVariable, type VarTrace } from '@/modules/var-trace/declaration'
 import { INSPECT_PROPS, type InspectSnapshot } from '@/shared/inspect-schema'
@@ -41,6 +42,11 @@ export interface InspectDetail {
   readonly rules: ReadonlyMap<string, WinningRule | null>
   /** تتبّع المتغيّر لكل خاصّية لونية تحمل واحدًا. */
   readonly vars: ReadonlyMap<string, VarTrace>
+  /**
+   * الهامش والحدّ والحشوة بجهاتها الفيزيائية، محلولةً من العنصر نفسه لحظة التثبيت — نموذج الصندوق
+   * فوقه (`62:2`). اللقطة تحمل الهوامش منطقية بلا اتجاه كتابة العنصر فلا تكفي للرسم، والعنصر هنا.
+   */
+  readonly edges: BoxEdges
 }
 
 export interface InspectState {
@@ -183,7 +189,7 @@ export function createInspect(options: InspectOptions = {}): InspectTool {
       },
     }
 
-    state.detail.value = { snapshot, rules, vars }
+    state.detail.value = { snapshot, rules, vars, edges: boxEdges(el, win) }
     options.onReport?.(snapshot)
   }
 
