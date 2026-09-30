@@ -322,27 +322,28 @@ function actions(props: AuditPanelProps): JSX.Element {
     case 'error':
       return (
         <>
-          <Action id="audit-close" label="أغلق" onClick={props.onClose} />
           <Action id="audit-restart" label="أعد المحاولة" onClick={props.onStart} />
+          <Action id="audit-close" label="أغلق" onClick={props.onClose} />
         </>
       )
     default:
       if (props.phase === 'timeout' && !props.partialShown)
         return (
           <>
+            {again}
             <Action
               id="audit-show-partial"
               label="اعرض النتائج"
               primary
               onClick={props.onShowPartial}
             />
-            {again}
           </>
         )
+      // بترتيب الإطار: الأوّل في DOM أقربها إلى المنتصف، والأخير عند الحافّة.
       return props.findings.length ? (
         <>
-          <Action id="audit-copy" label="انسخ التقرير" icon="copy" onClick={props.onCopy} />
           {again}
+          <Action id="audit-copy" label="انسخ التقرير" icon="copy" onClick={props.onCopy} />
         </>
       ) : (
         again

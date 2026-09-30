@@ -14,7 +14,8 @@
  *
  * **بلا إطار في هذه المجموعة** (لا محرّك أو في النافذة): `capture / error` · `capture / permission` ·
  * `capture / restricted` · `measure / copied` · `measure / error` · `measure / restricted` ·
- * `inspect / restricted` · `colors / restricted`. **وبلا مشغِّل حيّ:** `colors / replace`
+ * `inspect / restricted` · `colors / restricted` · `contrast-audit / restricted`. **وبلا مشغِّل حيّ:**
+ * `contrast-audit / timeout` (صفحةٌ يتجاوز مسحها خمس ثوانٍ) و`contrast-audit / error`، و`colors / replace`
  * (`onReplaceColour` غير مُمرَّرة، §6 الصفّ 92) و`inspect / error` (`FrameBlocked` لا تُركَّب في
  * `overlay-app.tsx`؛ ما يرسمها معرض الأدوات وحده).
  */
@@ -31,6 +32,9 @@ const only = (process.env.RASD_OVERLAY_ONLY ?? '').split(',').filter(Boolean)
 
 const RTL = '/rtl-ar/'
 const COLOUR = '/colour/'
+/** تدقيق التباين (`STAGES/14`): حالاتٌ معروفة، وعيّنةٌ كبيرة يطول مسحها فتُلتقط وهي تجري. */
+const AUDIT = '/contrast-5000/cases.html'
+const AUDIT_HUGE = '/contrast-5000/?n=300000'
 
 // ── النسخة المرحلية والمشغِّل ──────────────────────────────────────
 
@@ -389,6 +393,32 @@ async function hoverCard(o, selector) {
   return c
 }
 
+/** صفحةٌ نصوصها كلّها فوق حدّها — مصدر `contrast-audit / all-pass`. */
+const PASSING_PAGE = `document.body.innerHTML = '<h1 style="color:#111">عنوانٌ واضح</h1><p style="color:#333">نصٌّ يبلغ حدّه.</p>'`
+
+/** طور التدقيق — حارس اللقطة في العالم المعزول. */
+const auditPhase = (phase) => globalThis.__rasdShot.audit.state.phase.value === phase
+
+/** وضع الفحص ثمّ «دقّق تباين الصفحة» في لوحة خموله — المدخل الحقيقي. */
+async function openAudit(o) {
+  await o.mode('inspect')
+  await o.until(
+    'لوحة خمول الفحص',
+    () => !!globalThis.__rasdShot.host.layer.querySelector('[data-rasd-ov="audit-open"]'),
+  )
+  await o.press('دقّق تباين الصفحة', '[data-rasd-ov="audit-open"]', '', auditPhase, ['idle'])
+  await o.until('لوحة التدقيق', () => globalThis.__rasdShot.audit.state.open.value)
+}
+
+/** «ابدأ التدقيق» حتى يبلغ الطور ما يُنتظر — والمسح الجاري بعد أوّل شريحة، كي يُرى تقدّمه. */
+async function startAudit(o, phase) {
+  await o.press('ابدأ التدقيق', '[data-rasd-ov="audit-start"]', '', () => {
+    const s = globalThis.__rasdShot.audit.state
+    return s.phase.value !== 'idle' && (s.phase.value !== 'scanning' || s.done.value > 0)
+  })
+  await o.until('طور التدقيق', auditPhase, [phase], 60000)
+}
+
 /** يثبّت عنصرًا في الفحص وينتظر اللوحة: القاعدة الفائزة والتتالي تُبنيان بعد الإفلات. */
 async function pinInspect(o, selector) {
   await o.mode('inspect')
@@ -677,6 +707,65 @@ const SCENES = [
         await o.key('Escape', 'Escape', 27)
         await o.waitNotice('خرجت من الفحص')
         await o.shoot('inspect / cancelled', hasNotice, 'خرجت من الفحص')
+      }),
+  },
+
+  // ─ تدقيق التباين ─ (`timeout` و`error` بلا مشغِّل: انظر ترويسة الملفّ)
+  {
+    id: 'audit-idle',
+    run: (ctx, rig, mode) =>
+      scene(ctx, rig, mode, AUDIT, null, async (o) => {
+        await openAudit(o)
+        await o.shoot('contrast-audit / idle', auditPhase, 'idle')
+      }),
+  },
+  {
+    id: 'audit-scanning',
+    run: (ctx, rig, mode) =>
+      scene(ctx, rig, mode, AUDIT_HUGE, null, async (o) => {
+        await openAudit(o)
+        await startAudit(o, 'scanning')
+        await o.shoot('contrast-audit / scanning', auditPhase, 'scanning')
+      }),
+  },
+  {
+    id: 'audit-results',
+    run: (ctx, rig, mode) =>
+      scene(ctx, rig, mode, AUDIT, null, async (o) => {
+        await openAudit(o)
+        await startAudit(o, 'done')
+        await o.press('أوّل نتيجة', '[data-rasd-ov="audit-row"]', '', () => {
+          return globalThis.__rasdShot.audit.state.selected.value !== null
+        })
+        await o.shoot('contrast-audit / results', auditPhase, 'done')
+      }),
+  },
+  {
+    id: 'audit-all-pass',
+    run: (ctx, rig, mode) =>
+      scene(ctx, rig, mode, AUDIT, PASSING_PAGE, async (o) => {
+        await openAudit(o)
+        await startAudit(o, 'done')
+        await o.shoot('contrast-audit / all-pass', auditPhase, 'done')
+      }),
+  },
+  {
+    id: 'audit-empty',
+    run: (ctx, rig, mode) =>
+      scene(ctx, rig, mode, AUDIT, BLANK_PAGE, async (o) => {
+        await openAudit(o)
+        await startAudit(o, 'done')
+        await o.shoot('contrast-audit / empty', auditPhase, 'done')
+      }),
+  },
+  {
+    id: 'audit-cancelled',
+    run: (ctx, rig, mode) =>
+      scene(ctx, rig, mode, AUDIT_HUGE, null, async (o) => {
+        await openAudit(o)
+        await startAudit(o, 'scanning')
+        await o.press('ألغِ', '[data-rasd-ov="audit-cancel"]', '', auditPhase, ['cancelled'])
+        await o.shoot('contrast-audit / cancelled', auditPhase, 'cancelled')
       }),
   },
 

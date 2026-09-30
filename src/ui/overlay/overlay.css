@@ -3776,6 +3776,27 @@
  * وما يزيد هنا: البطاقات، والصفّ القابل للنقر، والشارة، والتنبيه.
  */
 
+/*
+ * الأسطر الثانوية وعناوين الشرائح بـ`text/secondary` كما في الإطار، لا `tertiary` الموروث من لوحتَي الفحص
+ * والمشكلات: ذاك يقصر عن AA على الأسطح الفاتحة (`Docs/Engineering.md §6` الصفّ 10) — ولوحةُ تدقيقِ تباينٍ
+ * تسقط تدقيقها لا تُشحن.
+ */
+.rasd-ov-au :is(.rasd-ov-iss-muted, .rasd-ov-insp-group-title) {
+  color: var(--rasd-text-secondary);
+}
+
+/* أزرارٌ مدمجة عند نهاية التذييل كما في الإطار (يسارًا في RTL)، لا ممتدّة بعرضه. */
+.rasd-ov-au .rasd-ov-insp-foot {
+  justify-content: flex-end;
+  padding: var(--rasd-space-12) var(--rasd-space-20);
+}
+
+.rasd-ov-au .rasd-ov-insp-foot .rasd-ov-cp-btn {
+  flex: none;
+  min-block-size: var(--rasd-control-lg);
+  padding-inline: var(--rasd-space-16);
+}
+
 [data-tone='neutral'] {
   --iss-fg: var(--rasd-text-secondary);
   --iss-bg: var(--rasd-surface-raised);
