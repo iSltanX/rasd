@@ -57,8 +57,8 @@ interface Failure {
   readonly kind: 'error' | 'cancelled'
   readonly title: string
   readonly message: string
-  /** الأداة التي تُعاد بـ«أعد المحاولة» أو «التقط من جديد». */
-  readonly retry: ToolName | null
+  /** ما يُعاد بـ«أعد المحاولة» أو «التقط من جديد»: أداة، أو إعادة فحص مشكلات الصفحة. */
+  readonly retry: ToolName | 'recheck-issues' | null
 }
 
 export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Element | null {
@@ -213,6 +213,36 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
     })
   }
 
+  /**
+   * «أعد الفحص» في قسم مشكلات الصفحة: الخلفية تحقن الطبقة وتطلب الفحص، والنتيجة تُعرض في لوحة الطبقة
+   * لا هنا — فتُغلق النافذة على البدء وحده. **والفشل يبقيها مفتوحة على شاشة الخطأ** كما في `runTool`.
+   */
+  const recheckIssues = () => {
+    setFailure(null)
+    void send('issue/recheck-tab', { tabId: loaded.tabId }).then((reply) => {
+      if (reply.ok && reply.value.started) {
+        window.close()
+        return
+      }
+      setFailure({
+        kind: 'error',
+        title: 'لم تبدأ إعادة الفحص',
+        message:
+          reply.ok && !reply.value.started && reply.value.reason === 'no-receiver'
+            ? 'تعذّر بدء الفحص — أعد تحميل الصفحة ثم حاول.'
+            : 'تعذّر إعادة فحص مشكلات هذه الصفحة.',
+        retry: 'recheck-issues',
+      })
+    })
+  }
+
+  /** يعيد ما فشل: أداةً أو فحص المشكلات، وبلا مرجع يعود إلى الحالة الافتراضية. */
+  const retryFailed = (retry: Failure['retry']) => {
+    if (retry === 'recheck-issues') recheckIssues()
+    else if (retry) runTool(retry)
+    else setFailure(null)
+  }
+
   const exitLiveMode = () => {
     void sendToTab({ tabId: loaded.tabId }, 'mode/set', { mode: 'idle' }).then(() => window.close())
   }
@@ -270,15 +300,12 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
   if (failure) {
     body =
       failure.kind === 'cancelled' ? (
-        <Cancelled
-          onRestart={() => (failure.retry ? runTool(failure.retry) : setFailure(null))}
-          onClose={() => window.close()}
-        />
+        <Cancelled onRestart={() => retryFailed(failure.retry)} onClose={() => window.close()} />
       ) : (
         <CaptureError
           title={failure.title}
           message={failure.message}
-          onRetry={() => (failure.retry ? runTool(failure.retry) : setFailure(null))}
+          onRetry={() => retryFailed(failure.retry)}
         />
       )
   } else if (success) {
@@ -316,6 +343,9 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
               recent={loaded.recent}
               onOpenRecent={openEditor}
               onOpenLibrary={() => openPage('library')}
+              pageIssues={loaded.pageIssues}
+              onShowIssues={() => runTool('issues')}
+              onRecheckIssues={recheckIssues}
             />
           )
         } else {
@@ -398,6 +428,9 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
             recent={loaded.recent}
             onOpenRecent={openEditor}
             onOpenLibrary={() => openPage('library')}
+            pageIssues={loaded.pageIssues}
+            onShowIssues={() => runTool('issues')}
+            onRecheckIssues={recheckIssues}
           />
         )
     }

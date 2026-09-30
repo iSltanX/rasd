@@ -17,23 +17,30 @@
 
 import { findReferenceForPage } from '@/modules/compare/reference'
 import { VIEWPORT_ORDER } from '@/modules/compare/viewport'
+import { countByStatus } from '@/modules/issues/status'
 import { evaluateGate, type GateDecision } from '@/shared/injection-gate'
 import { hasHostPermission, originPatternFor } from '@/shared/permissions'
 import { getSettingsResult } from '@/shared/settings'
-import { annotations, blobs, captures } from '@/shared/storage/repository'
+import { annotations, blobs, captures, issues } from '@/shared/storage/repository'
 import { getSession } from '@/shared/storage/session'
 
+import type { IssueStatus } from '@/shared/issue-schema'
 import type { PopupContext } from '@/shared/popup-state'
 import type { CaptureRecord } from '@/shared/storage/schema'
 import type { ActiveMode, SessionState } from '@/shared/storage/session'
 
-/** ما تحتاجه النافذة قبل أول عرض ذي معنى: التبويب المستهدَف وحالته وآخر لقطتين. */
+/** ما تحتاجه النافذة قبل أول عرض ذي معنى: التبويب المستهدَف وحالته وآخر لقطتين ومشكلات صفحته. */
 export interface PopupLoad {
   readonly tabId: number
   readonly context: PopupContext
   readonly origin: string
   readonly recent: RecentEntry[]
+  /** عدد مشكلات صفحة التبويب بحالاتها — `null` حين لا مشكلات لها أو تعذّرت القراءة. */
+  readonly pageIssues: PageIssueCounts | null
 }
+
+/** عدد المشكلات في كل حالة — الأعداد وحدها: النافذة لا تعرض المشكلات بل تدلّ عليها. */
+export type PageIssueCounts = Readonly<Record<IssueStatus, number>>
 
 /**
  * علامات زمن النافذة في جدول أداء الصفحة — يقرؤها `scripts/verify-popup.mjs`
@@ -65,9 +72,10 @@ export async function loadPopup(): Promise<PopupLoad | null> {
   const recentLoad = loadRecent()
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab?.id) return null
-  const [partial, recent] = await Promise.all([
+  const [partial, recent, pageIssues] = await Promise.all([
     loadPopupContext(tab.id, tab.url, tab.incognito, early),
     recentLoad,
+    loadPageIssues(tab.url),
   ])
   performance.mark(POPUP_MARKS.data)
   return {
@@ -75,6 +83,39 @@ export async function loadPopup(): Promise<PopupLoad | null> {
     context: { ...partial, online: navigator.onLine },
     origin: tab.url ?? '',
     recent,
+    pageIssues,
+  }
+}
+
+/**
+ * أعداد مشكلات الصفحة المفتوحة — أصلها ومسارها بلا الاستعلام والجزء `#`، كما تُسجَّل (`IssuePage`).
+ *
+ * الفهرس `origin` يحصر القراءة في مشكلات الموقع، ثمّ يُصفّى المسار محلّيًّا. **`null` لا تعني «صفر»
+ * وحدها**: تعني أيضًا تبويبًا بلا رابط http(s) وقراءةً تعذّرت — فالنافذة تعود إلى «الأخيرة» صامتةً، لأن
+ * القسم زيادةٌ على النافذة لا جوهرها. ولا يُستورد هنا `values` ولا `observe`: ميزانية الحزمة عند الفتح.
+ */
+export async function loadPageIssues(url: string | undefined): Promise<PageIssueCounts | null> {
+  const page = pageKeyOf(url)
+  if (!page) return null
+  try {
+    const found = await issues.byIndex('origin', page.origin)
+    if (!found.ok) return null
+    const here = found.value.filter((issue) => issue.page.path === page.path)
+    return here.length > 0 ? countByStatus(here) : null
+  } catch {
+    return null
+  }
+}
+
+/** الأصل والمسار من رابط http(s) — وغيره (`chrome://` · `file://` · غياب الرابط) لا مشكلات له. */
+function pageKeyOf(url: string | undefined): { origin: string; path: string } | null {
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    return { origin: parsed.origin, path: parsed.pathname }
+  } catch {
+    return null
   }
 }
 

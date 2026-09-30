@@ -326,6 +326,7 @@ export function Annotating(props: AnnotatingProps): JSX.Element {
                     selection={props.selection}
                     onSelect={(id) => props.onSelectionChange(new Set([id]))}
                     onChange={props.onChange}
+                    issues={props.context.noteIssues}
                   />
                 </div>
                 <Button

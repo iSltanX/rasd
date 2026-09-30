@@ -17,6 +17,8 @@ import { emptyScene, estimateSceneBytes, parseScene } from '@/modules/editor/sce
 import { errText, ok, type Result } from '@/shared/result'
 import { annotations, blobs, captures, putIfUnchanged } from '@/shared/storage/repository'
 
+import { loadNoteIssues, type NoteIssues } from './note-issues'
+
 import type { AnnotationRecord, CaptureRecord } from '@/shared/storage/schema'
 
 /** ما يحتاجه المحرر ليفتح — الصورة والوصف والمشهد. */
@@ -57,6 +59,13 @@ export interface EditorContext {
    * المحرر فارغًا، ويرسم المستخدم شيئًا، فيضيع كل ما كان — نهائيًّا.
    */
   readonly readOnly: boolean
+  /**
+   * مشكلات اللقطة المربوطة بملاحظاتها، بمعرّف الملاحظة (ADR 0030).
+   *
+   * تُقرأ **بالتوازي مع بقيّة القراءات** فلا تؤخّر فتح المحرر، ولا تفشله: تعذّرها يعطي خريطةً فارغة.
+   * والربط باتجاه واحد — الملاحظة لا تعرف مشكلتها، فالبحث من اللقطة.
+   */
+  readonly noteIssues: NoteIssues
 }
 
 /**
@@ -98,6 +107,9 @@ export async function loadEditorContext(
   captureId: string,
   urls: ObjectUrls = browserUrls,
 ): Promise<Result<EditorContext>> {
+  // تبدأ الآن وتُنتظَر آخرًا: لا ترتيب بينها وبين قراءات اللقطة، ولا تفشل (`loadNoteIssues`).
+  const noteIssues = loadNoteIssues(captureId)
+
   const record = await captures.get(captureId)
   if (!record.ok) {
     return errText('not-found', 'هذه اللقطة لم تعد موجودة.', `captures/${captureId}`)
@@ -141,6 +153,7 @@ export async function loadEditorContext(
     baseUpdatedAt,
     sceneError,
     readOnly: sceneError !== null,
+    noteIssues: await noteIssues,
   })
 }
 

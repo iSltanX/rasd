@@ -10,16 +10,21 @@ import {
 } from '@/modules/editor/scene'
 import { replaceNode, replaceNodes } from '@/modules/editor/scene-ops'
 import { isHistoryShortcut } from '@/modules/editor/typing'
+import { STATUS_LABEL, STATUS_TONE } from '@/modules/issues/labels'
 import { formatHuman } from '@/shared/bidi'
+import { send } from '@/shared/messaging'
+import { Chip } from '@/ui/components/Chip/Chip'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
+import { NO_NOTE_ISSUES, noteIssueSubject, type NoteIssues } from '../note-issues'
 import { countByTag, filterByTag, NOTE_TAG_HINT, NOTE_TAG_ORDER, orderedNotes } from '../notes'
 import { createTextEditSession, type EditableField } from '../text-editing'
 
 import styles from './NoteList.module.css'
 
 import type { History } from '@/modules/editor/history'
+import type { IssueRecord } from '@/shared/issue-schema'
 import type { JSX } from 'preact'
 
 export interface NoteListProps {
@@ -27,6 +32,39 @@ export interface NoteListProps {
   readonly selection: ReadonlySet<NodeId>
   readonly onSelect: (id: NodeId) => void
   readonly onChange: () => void
+  /**
+   * مشكلات اللقطة بمعرّف ملاحظتها — الملاحظة المربوطة تعرض حالة مشكلتها وموضوعها ورابطها،
+   * وغير المربوطة تُرسم كما كانت. الربط باتجاه واحد (ADR 0030)، فالمحرّر لا يكتب فيه شيئًا.
+   */
+  readonly issues?: NoteIssues
+}
+
+/**
+ * `editor / note-issue` (`378:1489`): رقاقة الحالة بلون حالتها نفسه في كل موضع، وموضوع المشكلة
+ * بخطّ القياس، ورابط يفتح تفصيلها في المكتبة. زرٌّ لا وصلة: الفتح رسالة إلى الخلفية.
+ * ولا يرسم شيئًا لملاحظةٍ بلا مشكلة.
+ */
+function NoteIssue({ issue }: { readonly issue: IssueRecord | undefined }): JSX.Element | null {
+  if (!issue) return null
+  return (
+    <div class={styles.issue} data-note-issue={issue.id} data-status={issue.status}>
+      <div class={styles.issueHead}>
+        <Chip tone={STATUS_TONE[issue.status]}>مشكلة · {STATUS_LABEL[issue.status]}</Chip>
+        <button
+          type="button"
+          class={cx(styles.issueLink, 't-arabic-ui-xs')}
+          data-note-issue-open={issue.id}
+          onClick={() => void send('page/open', { page: 'library', params: { issue: issue.id } })}
+        >
+          <Icon name="external" size="xs" />
+          افتح المشكلة
+        </button>
+      </div>
+      <p class={styles.issueSubject} data-note-issue-subject="">
+        <bdi dir="ltr">{noteIssueSubject(issue)}</bdi>
+      </p>
+    </div>
+  )
 }
 
 /**
@@ -50,6 +88,7 @@ export function NoteList(props: NoteListProps): JSX.Element {
   const all = orderedNotes(scene)
   const shown = filterByTag(all, filter)
   const counts = countByTag(all)
+  const linked = props.issues ?? NO_NOTE_ISSUES
 
   /** جلسة تحرير لكل (عقدة، حقل) — تُنشأ عند أوّل حرف وتُغلَق عند فقد التركيز. */
   const sessionFor = (
@@ -294,6 +333,8 @@ export function NoteList(props: NoteListProps): JSX.Element {
                     </button>
                   ))}
                 </div>
+
+                <NoteIssue issue={linked.get(note.id)} />
               </div>
             </li>
           ))}
