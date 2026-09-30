@@ -2,9 +2,9 @@
  * الشريط العلوي — يطابق إطار Figma المرجعي `127:196` («compare / two-captures»):
  * الأيقونة فالعنوان فالسطر الفرعي في البداية، والزرّان في النهاية و«التقط الفرق» أساسيّهما.
  *
- * **الزرّان معطَّلان عمدًا وسببهما في نصّهما — لا وظيفة مزيَّفة.** «تصدير التقرير» وحفظ
- * صورة الفرق (`compare / diff-saved`) يصلان مع تقرير المقارنة في `STAGES/05`. و«· قريبًا»
- * في الزرّ نفسه كما في النافذة والمحرّر، لا تلميحٌ لا يراه إلا من يمرّ فوقه.
+ * «تصدير التقرير» يفتح `compare / report`، و«التقط الفرق» يحفظ صورة الفرق لقطةً (`compare / diff-saved`).
+ * وكلاهما معطَّلٌ حتى يُحسب الفرق — لا تقرير ولا صورة بلا نتيجة، والسبب في `title` وفي نصّ الشريط الجانبي
+ * («جارٍ الحساب») معًا.
  */
 
 import { formatDimensions } from '@/shared/bidi'
@@ -21,9 +21,21 @@ export interface HeaderProps {
   readonly titleB: string
   readonly width: number
   readonly height: number
+  /** الفرق محسوب — الزرّان يعملان. */
+  readonly ready: boolean
+  readonly onReport: () => void
+  readonly onCaptureDiff: () => void
 }
 
-export function Header({ titleA, titleB, width, height }: HeaderProps): JSX.Element {
+export function Header({
+  titleA,
+  titleB,
+  width,
+  height,
+  ready,
+  onReport,
+  onCaptureDiff,
+}: HeaderProps): JSX.Element {
   return (
     <header class={styles.header}>
       <div class={styles.titleGroup}>
@@ -40,11 +52,25 @@ export function Header({ titleA, titleB, width, height }: HeaderProps): JSX.Elem
       </div>
 
       <div class={styles.actions}>
-        <Button variant="secondary" size="m" icon="download" state="disabled">
-          تصدير التقرير · قريبًا
+        <Button
+          variant="secondary"
+          size="m"
+          icon="download"
+          onClick={onReport}
+          data-compare-report=""
+          {...(ready ? {} : { state: 'disabled' as const })}
+        >
+          تصدير التقرير
         </Button>
-        <Button variant="primary" size="m" icon="capture-area" state="disabled">
-          التقط الفرق · قريبًا
+        <Button
+          variant="primary"
+          size="m"
+          icon="capture-area"
+          onClick={onCaptureDiff}
+          data-compare-capture-diff=""
+          {...(ready ? {} : { state: 'disabled' as const })}
+        >
+          التقط الفرق
         </Button>
       </div>
     </header>

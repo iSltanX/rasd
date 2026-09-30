@@ -40,8 +40,24 @@ import type { Scene } from '@/modules/editor/scene'
 import type { TextLayoutCache } from '@/modules/editor/text-layout'
 import type { DeviceRect } from '@/shared/geometry'
 
+export interface BakeSurfaceOptions {
+  /**
+   * سطحٌ بلا قناة شفافية — لمسار PDF.
+   *
+   * **مقيس** (Chrome 152.0.7977.130): السياق الافتراضي يُرمِّز PNG بنوع لون 6 (RGBA) ولو كان كلّه معتمًا،
+   * و`{ alpha: false }` يُرمِّزه بنوع 2 (RGB). والثاني وحده يدخل PDF بلا فكّ بكسل (`png-image.ts`). واللقطة
+   * معتمةٌ أصلًا، فلا يتغيّر بكسلٌ واحد — تتغيّر ترويسة الملفّ وحدها.
+   *
+   * **وبلا `willReadFrequently`** — والقياس نفسه أمسكه `verify:export` لا المراجعة: `{ alpha: false,
+   * willReadFrequently: true }` يعود RGBA، لأن القماش البرمجي الذي يطلبه المفتاح يتجاهل عتامة السياق عند
+   * الترميز. فالسطح المعتم يدفع قراءةً أبطأ في مناطق الحجب وحدها (`getImageData` لكل عقدة حجب) ثمنًا لملفٍّ
+   * يدخل PDF كما هو.
+   */
+  readonly opaque?: boolean
+}
+
 /** سطح الخبز الحقيقي — `OffscreenCanvas` بمقاس التصدير. */
-export function createBakeSurface(): BakeSurface {
+export function createBakeSurface(options: BakeSurfaceOptions = {}): BakeSurface {
   return {
     create(width, height) {
       if (typeof OffscreenCanvas === 'undefined') return null
@@ -51,7 +67,10 @@ export function createBakeSurface(): BakeSurface {
       } catch {
         return null
       }
-      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      const ctx = canvas.getContext(
+        '2d',
+        options.opaque ? { alpha: false } : { willReadFrequently: true },
+      )
       if (!ctx) return null
 
       return {

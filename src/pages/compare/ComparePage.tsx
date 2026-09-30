@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { DEFAULT_DIFF_OPTIONS, type RasterImage } from '@/modules/compare/diff'
+import { watchSettings } from '@/shared/settings'
 import { Banner } from '@/ui/components/Banner/Banner'
 import { Button } from '@/ui/components/Button/Button'
 import { Spinner } from '@/ui/components/Spinner/Spinner'
@@ -25,7 +26,9 @@ import styles from './ComparePage.module.css'
 import { readDiffColorsFromDocument } from './diff-colors'
 import { stageSize } from './layout'
 import { type LoadedCapture, loadCapture } from './load'
+import { DiffSavedDialog } from './parts/DiffSavedDialog'
 import { Header } from './parts/Header'
+import { ReportDialog } from './parts/ReportDialog'
 import { Sidebar } from './parts/Sidebar'
 import { Stage, type CompareMode } from './parts/Stage'
 import { parseCompareQuery } from './query'
@@ -65,6 +68,11 @@ export function ComparePage(): JSX.Element {
    */
   const [sessionZones, setSessionZones] = useState<readonly SessionZone[]>([])
   const [drawingZone, setDrawingZone] = useState(false)
+  /** نافذة فوق الصفحة: التقرير أو «التقط الفرق» — واحدةٌ في كل وقت. */
+  const [dialog, setDialog] = useState<'report' | 'diff' | null>(null)
+  /** `privacy.stripMetadataOnExport` حيًّا — يعطّل «رابط الصفحة» في التقرير ويحذف قاموس `Info`. */
+  const [strip, setStrip] = useState(false)
+  useEffect(() => watchSettings((settings) => setStrip(settings.privacy.stripMetadataOnExport)), [])
 
   const clientRef = useRef(createDiffClient())
   useEffect(() => () => clientRef.current.dispose(), [])
@@ -281,7 +289,31 @@ export function ComparePage(): JSX.Element {
         titleB={loadedB.capture.record.title}
         width={stage.width}
         height={stage.height}
+        ready={diffOutcome !== null}
+        onReport={() => setDialog('report')}
+        onCaptureDiff={() => setDialog('diff')}
       />
+      {dialog === 'report' && diffOutcome ? (
+        <ReportDialog
+          a={loadedA.capture.record}
+          b={loadedB.capture.record}
+          baseBlob={loadedB.capture.blob}
+          outcome={diffOutcome}
+          zones={sessionZones}
+          threshold={threshold}
+          strip={strip}
+          onClose={() => setDialog(null)}
+        />
+      ) : dialog === 'diff' && diffOutcome ? (
+        <DiffSavedDialog
+          a={loadedA.capture.record}
+          b={loadedB.capture.record}
+          baseBlob={loadedB.capture.blob}
+          outcome={diffOutcome}
+          zones={sessionZones}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
       <div class={styles.body}>
         {/*
          * المسرح أوّلًا والشريط بعده — ترتيب القراءة RTL في `127:196`: الصورة في البداية

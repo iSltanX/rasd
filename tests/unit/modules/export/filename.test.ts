@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { exportFilename, filenameStem } from '@/modules/export/filename'
+import {
+  exportFilename,
+  filenameStem,
+  pdfFilename,
+  reportFilename,
+} from '@/modules/export/filename'
 
 describe('اسم الملفّ المصدَّر', () => {
   it('الشكل من إطار Figma `129:1533`: الاسم ثمّ اللاحقة ثمّ الامتداد', () => {
@@ -52,5 +57,17 @@ describe('اسم الملفّ المصدَّر', () => {
     expect(filenameStem('')).toBe('لقطة')
     expect(filenameStem('///')).toBe('لقطة')
     expect(exportFilename('   ', 1, 'webp')).toBe('لقطة.webp')
+  })
+})
+
+describe('أسماء ملفّات PDF', () => {
+  it('اللقطة: الجذع والامتداد بلا لاحقة دقّة', () => {
+    expect(pdfFilename('الواجهة — سطح المكتب')).toBe('الواجهة-—-سطح-المكتب.pdf')
+    expect(pdfFilename('')).toBe('لقطة.pdf')
+  })
+
+  it('التقرير: باسم اللقطة الحالية، أو الاسم وحده حين لا يبقى منها شيء', () => {
+    expect(reportFilename('الدفع v2')).toBe('تقرير-المقارنة-الدفع-v2.pdf')
+    expect(reportFilename('///')).toBe('تقرير-المقارنة.pdf')
   })
 })

@@ -20,6 +20,7 @@ import { sendToTab } from '@/shared/messaging'
 import { errText, ok, type Result } from '@/shared/result'
 import { putCaptureWithBlob } from '@/shared/storage/repository'
 
+import { mirrorToDownloads } from './capture-mirror'
 import { canOperateOnTab } from './gate'
 import { cropCapture } from './image-ops'
 
@@ -264,6 +265,10 @@ export async function runCapture(input: CaptureInput): Promise<Result<CaptureOut
   const saved = await putCaptureWithBlob(shot.value.record, shot.value.blob)
   if (!saved.ok) return saved
 
+  // نسخة التنزيلات (`capture.saveLocation`): بعد نجاح الحفظ لا قبله، وبلا انتظار — الوعد لا
+  // يُرفَض بناءً، فلا ينتظره الالتقاط ولا يتأخّر ردّه ولا يفشل بسببه.
+  void mirrorToDownloads(shot.value.record, shot.value.blob)
+
   return ok({ id: shot.value.record.id, width: shot.value.width, height: shot.value.height })
 }
 
@@ -279,6 +284,9 @@ export interface ShotCapture {
  *
  * لقطة دليل المشكلة تُكتب مع المشكلة وملاحظتها في معاملة واحدة (`putIssueWithEvidence`)، فلا يجوز أن
  * يحفظها الالتقاط وحده قبلها — لقطةٌ بلا مشكلة إن فشل ما بعدها.
+ *
+ * ولذلك **لا تُنسخ هذه اللقطة إلى التنزيلات** (`capture-mirror.ts`): نسخة التنزيلات تتبع حفظ
+ * اللقطة في المكتبة، وهذا المسار لا يحفظها هنا. وإن أُريد دليل المشكلة نسخةً فله قرارٌ مستقلّ.
  */
 export async function shootCapture(input: CaptureInput): Promise<Result<ShotCapture>> {
   const guarded = await assertShootable(input.tabId)
@@ -322,6 +330,8 @@ export async function saveFullPage(
   const record = buildRecord('full-page', image, guarded.value, dpr)
   const saved = await putCaptureWithBlob(record, image.blob)
   if (!saved.ok) return saved
+  // كما في `runCapture`: نسخة التنزيلات بعد نجاح الحفظ وبلا انتظار.
+  void mirrorToDownloads(record, image.blob)
   return ok({ id: record.id })
 }
 

@@ -1,7 +1,14 @@
 import { useEffect, useRef } from 'preact/hooks'
 
+import {
+  ORIENTATION_LABEL,
+  PAGE_FORMS,
+  PAGE_SIZES,
+  type PageOrientation,
+  type PageSizeId,
+} from '@/modules/export/pdf-layout'
 import { formatDimensions, formatHuman } from '@/shared/bidi'
-import { formatStorage } from '@/shared/bidi/numerals'
+import { countText, formatStorage } from '@/shared/bidi/numerals'
 import { Button } from '@/ui/components'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
@@ -13,8 +20,20 @@ import type { BakeReport } from '@/modules/editor/bake'
 import type { ExportSignal } from '@/modules/export/signals'
 import type { JSX } from 'preact'
 
+/** ما تعرضه النتيجة عن ملفّ PDF — من الملفّ المُنتَج لا من التقدير. */
+export interface DocumentDone {
+  readonly pages: number
+  readonly size: PageSizeId
+  readonly orientation: PageOrientation
+  /** بايتات الملفّ نفسه لا الصورة المخبوزة داخله. */
+  readonly bytes: number
+  readonly metadataStripped: boolean
+}
+
 export interface ExportDoneProps {
   readonly report: BakeReport
+  /** نتيجة PDF — وغيابها يعني صورة (`report.format`). */
+  readonly document?: DocumentDone
   readonly scale: 1 | 2
   readonly filename: string
   /** المسار كما يعرضه المتصفّح، أو الاسم وحده على مسار المرساة. */
@@ -74,13 +93,18 @@ export function ExportDone(props: ExportDoneProps): JSX.Element {
   }, [props.onClose])
 
   const guaranteed = props.report.obscured.filter((o) => o.guaranteed).length
+  const doc = props.document
+  const format = doc ? 'PDF' : props.report.format.toUpperCase()
+  const bytes = doc ? doc.bytes : props.report.bytes
 
   return (
     <div
       class={styles.scrim}
       data-export-result=""
       data-export-blob={props.blobUrl}
-      data-export-bytes={props.report.bytes}
+      data-export-bytes={bytes}
+      data-export-kind={doc ? 'pdf' : props.report.format}
+      data-export-pages={doc ? doc.pages : undefined}
       role="dialog"
       aria-modal="true"
       aria-label="اكتمل التصدير"
@@ -101,7 +125,9 @@ export function ExportDone(props: ExportDoneProps): JSX.Element {
             <h2 class={cx(styles.title, 't-arabic-heading-s')}>اكتمل التصدير</h2>
             {/* غربية: قياسٌ لا عدٌّ بشري — §3.5. */}
             <TechnicalValue kind="dimension" variant="mono-xs">
-              {`${props.report.format.toUpperCase()} · ${formatDimensions(props.report.width, props.report.height)} · ${formatStorage(props.report.bytes)}`}
+              {doc
+                ? `PDF · ${PAGE_SIZES[doc.size].label} · ${formatStorage(doc.bytes)}`
+                : `${format} · ${formatDimensions(props.report.width, props.report.height)} · ${formatStorage(bytes)}`}
             </TechnicalValue>
           </div>
         </header>
@@ -117,15 +143,24 @@ export function ExportDone(props: ExportDoneProps): JSX.Element {
             <div class={styles.row}>
               <span class={styles.rowLabel}>الصيغة</span>
               <TechnicalValue kind="format" variant="mono-xs">
-                {props.report.format.toUpperCase()}
+                {format}
               </TechnicalValue>
             </div>
-            <div class={styles.row}>
-              <span class={styles.rowLabel}>الدقة</span>
-              <span class={styles.rowValue} data-export-scale-shown>
-                {props.scale === 2 ? '2× ريتينا' : '1×'}
-              </span>
-            </div>
+            {doc ? (
+              <div class={styles.row}>
+                <span class={styles.rowLabel}>الصفحات</span>
+                <span class={styles.rowValue} data-export-pages-shown={doc.pages}>
+                  {`${countText(doc.pages, PAGE_FORMS)} · ${PAGE_SIZES[doc.size].label} ${ORIENTATION_LABEL[doc.orientation]}`}
+                </span>
+              </div>
+            ) : (
+              <div class={styles.row}>
+                <span class={styles.rowLabel}>الدقة</span>
+                <span class={styles.rowValue} data-export-scale-shown>
+                  {props.scale === 2 ? '2× ريتينا' : '1×'}
+                </span>
+              </div>
+            )}
             <div class={styles.row}>
               <span class={styles.rowLabel}>التعليقات</span>
               <span class={styles.rowValue}>مدموجة</span>
@@ -147,14 +182,20 @@ export function ExportDone(props: ExportDoneProps): JSX.Element {
                */}
               <span
                 class={styles.rowValue}
-                data-export-metadata={props.report.format}
-                data-export-metadata-stripped={props.report.metadataStripped}
+                data-export-metadata={doc ? 'pdf' : props.report.format}
+                data-export-metadata-stripped={
+                  doc ? doc.metadataStripped : props.report.metadataStripped
+                }
               >
-                {props.report.format === 'png'
-                  ? 'لم تُكتَب — الملفّ بلا مقاطع نصّية'
-                  : props.report.metadataStripped
-                    ? 'أُزيل ملفّ الألوان المضمَّن — الملفّ بلا مقاطع ثانوية'
-                    : 'ملفّ ألوان مضمَّن — نحو 456 بايتًا.'}
+                {doc
+                  ? doc.metadataStripped
+                    ? 'محذوفة كاملًا — لا عنوان ولا رابط ولا مشروع في الملفّ'
+                    : 'العنوان والرابط والمشروع في خصائص الملفّ'
+                  : props.report.format === 'png'
+                    ? 'لم تُكتَب — الملفّ بلا مقاطع نصّية'
+                    : props.report.metadataStripped
+                      ? 'أُزيل ملفّ الألوان المضمَّن — الملفّ بلا مقاطع ثانوية'
+                      : 'ملفّ ألوان مضمَّن — نحو 456 بايتًا.'}
               </span>
             </div>
           </div>
@@ -189,9 +230,11 @@ export function ExportDone(props: ExportDoneProps): JSX.Element {
         </div>
 
         <footer class={styles.actions}>
-          <Button variant="secondary" size="l" icon="copy" onClick={props.onCopy}>
-            انسخ إلى الحافظة
-          </Button>
+          {doc ? null : (
+            <Button variant="secondary" size="l" icon="copy" onClick={props.onCopy}>
+              انسخ إلى الحافظة
+            </Button>
+          )}
           {props.downloadId === null ? null : (
             <Button variant="primary" size="l" icon="folder" onClick={props.onReveal}>
               افتح المجلّد
