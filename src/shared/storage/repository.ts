@@ -232,7 +232,7 @@ export async function updateReferenceFor(
  * فتُثبَّت الكتابات التي سبقته وحدها. الإجهاض الصريح يعيد «كلّها أو لا شيء» (المراجعة المستقلّة). والمعاملة
  * المنتهية أصلًا لا تُجهَض، فيُبتلع ذلك الرمي وحده.
  */
-function abortQuietly(tx: { abort(): void; done: Promise<void> }): void {
+export function abortQuietly(tx: { abort(): void; done: Promise<void> }): void {
   try {
     tx.abort()
   } catch {
@@ -429,7 +429,12 @@ export async function putIfUnchanged<S extends StoreName>(
   })
 }
 
-/** يمسح كل المخازن — يخدم «حذف كل البيانات» في المرحلة 20. */
+/**
+ * يمسح كل المخازن في معاملة واحدة — نصف مسار «احذف كل البيانات» (`erase.ts`).
+ *
+ * **بأسماء القاعدة المفتوحة لا بـ`STORE_NAMES`:** مخزنٌ أضافه ترحيلٌ ونُسي في القائمة يُمسح كذلك — والحذف
+ * الكامل أسوأ مكانٍ لإغفال مخزن.
+ */
 export async function clearAllStores(): Promise<Result<number>> {
   return withDb(async (db) => {
     const names = [...db.objectStoreNames]
