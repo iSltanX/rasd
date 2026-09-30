@@ -18,11 +18,11 @@ import { refind, type RefindVerdict } from '@/modules/dom-picker/identity'
 import { elementBounds } from '@/modules/dom-picker/inspect'
 import { fourWayGap } from '@/modules/measure/distance'
 
-import { compareValue, type CompareContext } from './values'
+import { compareValue, DEFAULT_CONTEXT, type CompareContext } from './values'
 
 import type {
   CheckKind,
-  CheckOutcome,
+  IssueObservation,
   IssueRecord,
   RecheckReason,
   RecheckResult,
@@ -111,7 +111,8 @@ export function contextOf(el: Element, win: Window): CompareContext {
 }
 
 type Located =
-  { readonly el: Element } | { readonly outcome: CheckOutcome; readonly reason: RecheckReason }
+  | { readonly el: Element }
+  | { readonly outcome: 'not-found' | 'changed'; readonly reason: RecheckReason }
 
 /** حكم إعادة العثور ⟵ عنصرٌ يُقرأ، أو نتيجةٌ بسببها. */
 function locate(verdict: RefindVerdict): Located {
@@ -130,22 +131,21 @@ function locate(verdict: RefindVerdict): Located {
 }
 
 /**
- * يفحص مشكلة واحدة على الصفحة الآن.
+ * يقرأ مشكلة واحدة على الصفحة الآن — **بلا حكم على القيمة**: ما يحتاج DOM وحده.
  *
  * `skip` مضيف الطبقة: عنصرٌ في DOM الصفحة لا يُعدّ مطابقًا ثانيًا.
  */
-export function observeIssue(
+export function readIssue(
   issue: Pick<IssueRecord, 'id' | 'element' | 'pair' | 'check'>,
   doc: Document,
   skip: Element | null = null,
-): RecheckResult {
+): IssueObservation {
   const win = doc.defaultView ?? globalThis.window
-  const miss = (outcome: CheckOutcome, reason: RecheckReason): RecheckResult => ({
-    id: issue.id,
-    outcome,
-    observed: null,
-    reason,
-  })
+  const miss = (
+    outcome: NonNullable<IssueObservation['outcome']>,
+    reason: RecheckReason,
+    observed: string | null = null,
+  ): IssueObservation => ({ id: issue.id, outcome, observed, reason, context: null })
 
   const first = locate(refind(issue.element, doc, skip))
   if (!('el' in first)) return miss(first.outcome, first.reason)
@@ -160,13 +160,37 @@ export function observeIssue(
 
   const reading = readValue(issue.check.kind, issue.check.property, first.el, pairEl, win)
   if (reading.value === null) return miss('unreliable', reading.reason ?? 'unreadable')
-  if (reading.reason) {
-    return { id: issue.id, outcome: 'unreliable', observed: reading.value, reason: reading.reason }
+  if (reading.reason) return miss('unreliable', reading.reason, reading.value)
+  return {
+    id: issue.id,
+    outcome: null,
+    observed: reading.value,
+    reason: null,
+    context: contextOf(first.el, win),
   }
+}
 
-  const verdict = compareValue(issue.check, reading.value, contextOf(first.el, win))
-  if (verdict === 'invalid') {
-    return { id: issue.id, outcome: 'unreliable', observed: reading.value, reason: 'unreadable' }
+/**
+ * يحكم على قراءة: ما حسمته الصفحة يبقى، والقيمة المرصودة تُقارَن بالمتوقَّعة. **منطق خالص** يجري في الخلفية
+ * على الفحص المخزَّن — فالمتوقَّعة لا تأتي من الصفحة، ولا تعلن صفحةٌ «مطابقة».
+ */
+export function judge(check: IssueRecord['check'], observation: IssueObservation): RecheckResult {
+  const { id, observed } = observation
+  if (observation.outcome) {
+    return { id, outcome: observation.outcome, observed, reason: observation.reason }
   }
-  return { id: issue.id, outcome: verdict, observed: reading.value, reason: null }
+  if (observed === null) return { id, outcome: 'unreliable', observed, reason: 'unreadable' }
+  const verdict = compareValue(check, observed, observation.context ?? DEFAULT_CONTEXT)
+  return verdict === 'invalid'
+    ? { id, outcome: 'unreliable', observed, reason: 'unreadable' }
+    : { id, outcome: verdict, observed, reason: null }
+}
+
+/** القراءة والحكم معًا — للاختبار ولأي مستهلك يملك DOM والفحص في مكان واحد. */
+export function observeIssue(
+  issue: Pick<IssueRecord, 'id' | 'element' | 'pair' | 'check'>,
+  doc: Document,
+  skip: Element | null = null,
+): RecheckResult {
+  return judge(issue.check, readIssue(issue, doc, skip))
 }

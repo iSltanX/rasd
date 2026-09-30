@@ -11,7 +11,7 @@
 import type { DeviceRect } from '../geometry'
 import type { GateReason } from '../injection-gate'
 import type { InspectSnapshot } from '../inspect-schema'
-import type { IssueDraft, IssueRecord, ProjectOption, RecheckResult } from '../issue-schema'
+import type { IssueDraftInput, IssueObservation, IssueRecord } from '../issue-schema'
 import type { PageName } from '../page-paths'
 import type { CaptureKind, ColorSource, Viewport } from '../storage/schema'
 import type { ActiveMode } from '../storage/session'
@@ -329,8 +329,7 @@ export interface RequestMap {
    */
   'page/open': { page: PageName; active?: boolean; params?: Record<string, string> }
   /**
-   * مشكلات هذه الصفحة ومشاريع المستخدم — للوحة «مشكلات هذه الصفحة» ولقائمة المشاريع في النموذج
-   * (ADR 0030). **من الخلفية**: المخزن في قاعدة الإضافة لا قاعدة الموقع، والأصل والمسار من التبويب لا
+   * مشكلات هذه الصفحة — للوحة «مشكلات هذه الصفحة» (ADR 0030). **من الخلفية**: المخزن في قاعدة الإضافة لا قاعدة الموقع، والأصل والمسار من التبويب لا
    * من الحمولة — نفس قاعدة `reference/load`.
    */
   'issue/page': void
@@ -339,12 +338,13 @@ export interface RequestMap {
    * معاملة واحدة. الحمولة من صفحةٍ قد تكون معادية فتُتحقَّق بمخطّطها (`parseDraft`)، والرابط والعنوان من
    * `sender.tab`. وإخفاء الطبقة قبل اللقطة على الخلفية كما في `capture/run`.
    */
-  'issue/create': IssueDraft
+  'issue/create': IssueDraftInput
   /**
-   * نتائج جولة فحص: النتيجة والقيمة المرصودة لكل مشكلة، **بلا حالة** — الخلفية تشتقّها بـ`statusFor`
-   * (ADR 0030 §2) ولا تكتب إلا مشكلاتٍ لصفحة المُرسِل نفسها.
+   * قراءات جولة فحص: ما رأته الصفحة لكل مشكلة، **بلا حكم على القيمة ولا حالة** — الخلفية تقارن المرصودة
+   * بالمتوقَّعة المخزَّنة (`judge`) وتشتقّ الحالة (`statusFor`، ADR 0030 §2)، ولا تكتب إلا مشكلاتٍ لصفحة
+   * المُرسِل نفسها.
    */
-  'issue/recheck-save': { results: readonly RecheckResult[] }
+  'issue/recheck-save': { observations: readonly IssueObservation[] }
   /**
    * «أعد الفحص» من النافذة: تحقن الطبقة بوضع `issues` ثمّ تطلب الجولة. **تُرفض من أي مُرسِلٍ له
    * تبويب** — سكربت المحتوى لا يطلب فحص تبويبٍ بلا إيماءة (ADR 0031 §4)؛ والنافذة لا تُفتح إلا بها.
@@ -413,9 +413,20 @@ export interface ResponseMap {
   'inspect/report': { ok: true }
   'inspect/get': { snapshot: InspectSnapshot | null }
   'page/open': { tabId: number }
-  'issue/page': { issues: readonly IssueRecord[]; projects: readonly ProjectOption[] }
+  /**
+   * `lines` سطر القيمتين أو السبب تحت كل مشكلة، و`checked` «آخر فحص قبل…» — تُبنى هنا لا في الطبقة، فلا
+   * تشحن `content.js` مفرداتها (ADR 0031 §3).
+   */
+  'issue/page': {
+    issues: readonly IssueRecord[]
+    lines: Readonly<Record<string, string>>
+    checked: string
+  }
   'issue/create': { id: string; captureId: string }
-  'issue/recheck-save': { issues: readonly IssueRecord[] }
+  'issue/recheck-save': {
+    issues: readonly IssueRecord[]
+    lines: Readonly<Record<string, string>>
+  }
   'issue/recheck-tab': { started: true } | { started: false; reason: ActivationFailure }
   /** عدد ما فُحص فعلًا — قد يقلّ عن مشكلات الصفحة إن بلغت الجولة حدّها. */
   'issue/run-recheck': { checked: number }

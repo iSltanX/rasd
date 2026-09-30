@@ -229,12 +229,34 @@ export interface IssueDraft {
   readonly viewport: { readonly width: number; readonly height: number }
 }
 
+/**
+ * ما ترسله الطبقة فعلًا: المسودّة بلا مستطيل اللقطة — الخلفية تحسبه من مستطيل العنصر والنافذة
+ * (`evidenceRect`)، فلا يُحمَّل `content.js` حسابه ولا تختار الصفحة ما يُلتقط حوله.
+ */
+export type IssueDraftInput = Omit<IssueDraft, 'shot'> & {
+  readonly shot: Omit<IssueDraft['shot'], 'rect'>
+}
+
 /** نتيجة فحص مشكلة واحدة كما تبلّغها الصفحة. الحالة ليست منها (ADR 0030 §2). */
 export interface RecheckResult {
   readonly id: string
   readonly outcome: CheckOutcome
   readonly observed: string | null
   readonly reason: RecheckReason | null
+}
+
+/**
+ * ما تبلّغه الصفحة عن مشكلة بعد قراءتها — **بلا حكم على القيمة** (ADR 0030 §2).
+ *
+ * `outcome` تحسمه الصفحة حين لا يُقرأ شيء يُقارَن: العنصر غاب أو تبدّل أو قراءته غير موثوقة. وإلا فهو `null`
+ * والقيمة المرصودة ومقاما `rem`/`em` معها، والخلفية تقارنها بالمتوقَّعة المخزَّنة — فلا تعلن صفحةٌ «مطابقة».
+ */
+export interface IssueObservation {
+  readonly id: string
+  readonly outcome: 'not-found' | 'changed' | 'unreliable' | null
+  readonly observed: string | null
+  readonly reason: RecheckReason | null
+  readonly context: { readonly rootFontPx: number; readonly fontPx: number } | null
 }
 
 /** مشروعٌ يعرضه النموذج في قائمته. */

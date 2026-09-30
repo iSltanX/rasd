@@ -162,11 +162,12 @@ describe('parseIssue', () => {
 })
 
 describe('parseDraft', () => {
-  it('يقبل المسودّة السليمة ولا يغيّر شيئًا منها', () => {
+  it('يقبل المسودّة السليمة ولا يغيّر شيئًا منها — إلا مستطيل اللقطة: تحسبه الخلفية لا الصفحة', () => {
     const draft = draftFixture()
     const parsed = parseDraft(draft)
     expect(parsed.ok).toBe(true)
-    expect(parsed.ok && parsed.value).toEqual(draft)
+    const { rect: _rect, ...shot } = draft.shot
+    expect(parsed.ok && parsed.value).toEqual({ ...draft, shot })
   })
 
   it('يقصّ العنوان من طرفيه', () => {
@@ -222,12 +223,11 @@ describe('parseDraft', () => {
     expect(parseDraft(draftFixture({ snapshot: { padding: long } })).ok).toBe(false)
   })
 
-  it('مستطيل اللقطة بفضاء `viewport` يُرفض — بفضاء الجهاز وحده', () => {
+  it('مستطيل العنصر بفضاء `viewport` يُرفض — بفضاء الجهاز وحده', () => {
     const shot = draftFixture().shot
     const rect = { space: 'viewport', x: 0, y: 0, width: 10, height: 10 }
-    const error = errorOf(parseDraft({ ...draftFixture(), shot: { ...shot, rect } }))
-    expect(error.detail).toContain('shot.rect.space')
-    expect(parseDraft({ ...draftFixture(), shot: { ...shot, element: rect } }).ok).toBe(false)
+    const error = errorOf(parseDraft({ ...draftFixture(), shot: { ...shot, element: rect } }))
+    expect(error.detail).toContain('shot.element.space')
   })
 
   it('كثافة اللقطة خارج (0.1 … 16] تُرفض', () => {

@@ -17,10 +17,11 @@ import {
   type Scene,
 } from '@/modules/editor/scene'
 import { emptyScene } from '@/modules/editor/scene-schema'
-import { devicePoint } from '@/shared/geometry'
+import { devicePoint, type DeviceRect } from '@/shared/geometry'
 import {
   ISSUE_SCHEMA_VERSION,
   type IssueDraft,
+  type IssueDraftInput,
   type IssuePage,
   type IssueRecord,
 } from '@/shared/issue-schema'
@@ -61,6 +62,41 @@ export interface BuildIds {
   readonly captureId: string
   /** `null` حين لم يُطلب إنشاء ملاحظة. */
   readonly noteId: string | null
+}
+
+/** هامش لقطة الدليل حول العنصر — «مقتطع حول العنصر» كما في `library / issue-detail`. */
+export const EVIDENCE_MARGIN_CSS = 24
+
+/**
+ * ما يُلتقط دليلًا: العنصر وحوله هامش، مقصوصًا إلى النافذة — بفضاء الجهاز.
+ *
+ * يُحسب في الخلفية لا في الصفحة: الطبقة تبلّغ مستطيل العنصر والنافذة، والخلفية تقرّر ما حولهما.
+ */
+export function evidenceRect(
+  element: DeviceRect,
+  viewport: { readonly width: number; readonly height: number },
+  dpr: number,
+): DeviceRect {
+  const margin = EVIDENCE_MARGIN_CSS * dpr
+  const x = Math.max(0, Math.floor(element.x - margin))
+  const y = Math.max(0, Math.floor(element.y - margin))
+  const right = Math.min(
+    Math.round(viewport.width * dpr),
+    Math.ceil(element.x + element.width + margin),
+  )
+  const bottom = Math.min(
+    Math.round(viewport.height * dpr),
+    Math.ceil(element.y + element.height + margin),
+  )
+  return { space: 'device', x, y, width: Math.max(1, right - x), height: Math.max(1, bottom - y) }
+}
+
+/** المسودّة كاملةً: ما أرسلته الطبقة ومستطيل اللقطة محسوبًا هنا. */
+export function completeDraft(input: IssueDraftInput): IssueDraft {
+  return {
+    ...input,
+    shot: { ...input.shot, rect: evidenceRect(input.shot.element, input.viewport, input.shot.dpr) },
+  }
 }
 
 /** موضع العنصر داخل لقطة الدليل ببكسل الصورة — ما ترسم المكتبة حوله إطارًا. */

@@ -156,7 +156,8 @@ describe('issue/create', () => {
     ['عنوانٌ فارغ', { title: '   ' }],
     ['عنوانٌ فوق حدّه', { title: 'أ'.repeat(201) }],
     ['مسافةٌ بلا عنصر ثانٍ', { check: { ...draftFixture().check, kind: 'spacing' as const } }],
-    ['لقطةٌ بفضاء النافذة', { shot: { ...draftFixture().shot, rect: { space: 'viewport' } } }],
+    ['عنصرٌ بفضاء النافذة', { shot: { ...draftFixture().shot, element: { space: 'viewport' } } }],
+    ['متوقَّعةٌ لا تُفهم لنوعها', { check: { ...draftFixture().check, kind: 'colour' as const } }],
   ])('مسودّة معادية (%s) تُرفض ولا يُلتقط ولا يُكتب شيء', async (_name, over) => {
     const reply = await call('issue/create', { ...draftFixture(), ...over })
     expect(reply).toMatchObject({ ok: false, error: { code: 'invalid-data' } })
@@ -182,7 +183,7 @@ describe('issue/create', () => {
 })
 
 describe('issue/page', () => {
-  it('مشكلات هذه الصفحة وحدها، الأقدم أوّلًا، ومعها المشاريع', async () => {
+  it('مشكلات هذه الصفحة وحدها، الأقدم أوّلًا، ومعها أسطر العرض', async () => {
     await issues.putMany([
       issueFixture({ id: 'b', createdAt: 20 }),
       issueFixture({ id: 'a', createdAt: 10 }),
@@ -195,22 +196,31 @@ describe('issue/page', () => {
         page: { ...issueFixture().page, origin: 'https://evil.example' },
       }),
     ])
-    await projects.put({ id: 'p1', name: 'منصّة', color: '#fff', createdAt: 1, updatedAt: 1 })
-
     const reply = await call('issue/page', undefined)
-    const value = reply.value as { issues: { id: string }[]; projects: unknown[] }
+    const value = reply.value as {
+      issues: { id: string }[]
+      lines: Record<string, string>
+      checked: string
+    }
     expect(value.issues.map((i) => i.id)).toEqual(['a', 'b'])
-    expect(value.projects).toEqual([{ id: 'p1', name: 'منصّة' }])
+    expect(value.lines.a).toBe('الآن 14px 24px · المتوقَّع 12px 24px')
+    expect(value.checked).toBe('لم تُفحص بعد')
   })
 })
 
 describe('issue/recheck-save', () => {
-  it('الحالة من النتيجة لا من الحمولة: «محلولة» المرسَلة لا تُكتب', async () => {
+  const seen = (id: string, observed: string) => ({
+    id,
+    outcome: null,
+    observed,
+    reason: null,
+    context: { rootFontPx: 16, fontPx: 16 },
+  })
+
+  it('الحكم في الخلفية على المتوقَّعة المخزَّنة: «محلولة» المرسَلة لا تُكتب', async () => {
     await issues.put(issueFixture({ id: 'a' }))
     const reply = await call('issue/recheck-save', {
-      results: [
-        { id: 'a', outcome: 'mismatch', observed: '16px 24px', reason: null, status: 'resolved' },
-      ],
+      observations: [{ ...seen('a', '16px 24px'), status: 'resolved' }],
     })
     expect(reply.ok).toBe(true)
     const stored = await issues.get('a')
@@ -218,13 +228,29 @@ describe('issue/recheck-save', () => {
     expect(stored.ok && stored.value.lastCheck?.observed).toBe('16px 24px')
   })
 
+  it('المرصودة تطابق المتوقَّعة ⟵ محلولة، وتعود أسطر العرض معها', async () => {
+    await issues.put(issueFixture({ id: 'a' }))
+    const reply = await call('issue/recheck-save', { observations: [seen('a', '12px 24px')] })
+    const value = reply.value as { issues: { status: string }[]; lines: Record<string, string> }
+    expect(value.issues[0]?.status).toBe('resolved')
+    expect(value.lines.a).toBe('الآن 12px 24px — يطابق المتوقَّع')
+  })
+
+  it('صفحةٌ تعلن «مطابقة» بنفسها تُرفض — النتائج التي تحسمها الصفحة ثلاث لا غير', async () => {
+    await issues.put(issueFixture({ id: 'a' }))
+    const reply = await call('issue/recheck-save', {
+      observations: [{ ...seen('a', '99px'), outcome: 'match' }],
+    })
+    expect(reply).toMatchObject({ ok: false, error: { code: 'invalid-data' } })
+    const stored = await issues.get('a')
+    expect(stored.ok && stored.value.lastCheck).toBeNull()
+  })
+
   it('مشكلةٌ لصفحةٍ أخرى لا تكتبها هذه الصفحة ولو عرفت معرّفها', async () => {
     await issues.put(
       issueFixture({ id: 'x', page: { ...issueFixture().page, origin: 'https://bank.example' } }),
     )
-    const reply = await call('issue/recheck-save', {
-      results: [{ id: 'x', outcome: 'match', observed: '12px 24px', reason: null }],
-    })
+    const reply = await call('issue/recheck-save', { observations: [seen('x', '12px 24px')] })
     expect(reply).toMatchObject({ ok: true, value: { issues: [] } })
     const stored = await issues.get('x')
     expect(stored.ok && stored.value.status).toBe('open')
@@ -234,7 +260,7 @@ describe('issue/recheck-save', () => {
   it('نتيجةٌ خارج المفردات تُرفض كلّها', async () => {
     await issues.put(issueFixture({ id: 'a' }))
     const reply = await call('issue/recheck-save', {
-      results: [{ id: 'a', outcome: 'fixed', observed: null, reason: null }],
+      observations: [{ ...seen('a', '1px'), outcome: 'fixed' }],
     })
     expect(reply).toMatchObject({ ok: false, error: { code: 'invalid-data' } })
   })

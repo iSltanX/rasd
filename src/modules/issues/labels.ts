@@ -7,6 +7,7 @@
  * `modules/` منطق خالص: لا DOM ولا `chrome.*`.
  */
 
+import { formatRelativeTime } from '@/shared/bidi/numerals'
 import {
   CONTRAST_PROPERTY,
   type CheckKind,
@@ -99,4 +100,34 @@ export function subjectLine(issue: Pick<IssueRecord, 'element' | 'check'>): stri
   const property =
     issue.check.kind === 'contrast' ? CONTRAST_PROPERTY.replace('/', ' · ') : issue.check.property
   return `${issue.element.selector} · ${issue.check.kind === 'spacing' ? 'gap' : property}`
+}
+
+/**
+ * السطر الثالث تحت كل مشكلة: القيمتان، أو سبب «تحتاج تحققًا».
+ *
+ * يُبنى في الخلفية ويُرسَل مع القائمة — الطبقة تعرضه ولا تشحن مفرداته (ميزانية `content.js`، ADR 0031 §3).
+ */
+export function valueLine(issue: Pick<IssueRecord, 'status' | 'check' | 'lastCheck'>): string {
+  const reason = issue.lastCheck?.reason
+  if (issue.status === 'needs-verification' && reason) return REASON_LABEL[reason]
+  const now = displayValue(
+    issue.check.kind,
+    issue.lastCheck ? issue.lastCheck.observed : issue.check.actual,
+  )
+  if (issue.status === 'resolved') return `الآن ${now} — يطابق المتوقَّع`
+  return `الآن ${now} · المتوقَّع ${displayExpected(issue.check)}`
+}
+
+/** «آخر فحص قبل ٣ دقائق» من أحدث فحصٍ محفوظ — أو «لم تُفحص بعد». */
+export function lastCheckedLabel(
+  list: readonly Pick<IssueRecord, 'lastCheck'>[],
+  now = Date.now(),
+): string {
+  const at = Math.max(0, ...list.map((i) => i.lastCheck?.at ?? 0))
+  return at ? `آخر فحص ${formatRelativeTime(at, now)}` : 'لم تُفحص بعد'
+}
+
+/** أسطر القيم لقائمة، بالمعرّف. */
+export function valueLines(list: readonly IssueRecord[]): Record<string, string> {
+  return Object.fromEntries(list.map((issue) => [issue.id, valueLine(issue)]))
 }

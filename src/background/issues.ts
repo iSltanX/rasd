@@ -7,9 +7,19 @@
  */
 
 import { SCENE_SCHEMA_VERSION } from '@/modules/editor/scene'
-import { buildIssue, noteScene, pageKeyOf, pageOf, type NoteStyle } from '@/modules/issues/build'
-import { parseDraft, parseIssue, parseRecheck } from '@/modules/issues/schema'
+import {
+  buildIssue,
+  completeDraft,
+  noteScene,
+  pageKeyOf,
+  pageOf,
+  type NoteStyle,
+} from '@/modules/issues/build'
+import { lastCheckedLabel, valueLines } from '@/modules/issues/labels'
+import { judge } from '@/modules/issues/observe'
+import { parseDraft, parseIssue, parseObservations } from '@/modules/issues/schema'
 import { applyCheck } from '@/modules/issues/status'
+import { isValidExpected } from '@/modules/issues/values'
 import { onMessage, sendToTab, type MessageContext } from '@/shared/messaging'
 import { RasdThrow } from '@/shared/result'
 import { getSettings } from '@/shared/settings'
@@ -18,7 +28,7 @@ import { issues, projects, putIssueWithEvidence, updateIssues } from '@/shared/s
 import { shootCapture } from './capture-service'
 import { activateTool } from './commands'
 
-import type { IssueRecord, ProjectOption, RecheckResult } from '@/shared/issue-schema'
+import type { IssueObservation, IssueRecord } from '@/shared/issue-schema'
 import type { AnnotationRecord } from '@/shared/storage/schema'
 
 /** مصدر المعرّفات — يُستبدَل في الاختبار. */
@@ -52,14 +62,6 @@ export async function issuesForPage(origin: string, path: string): Promise<Issue
   return out.sort((a, b) => a.createdAt - b.createdAt)
 }
 
-async function projectOptions(): Promise<ProjectOption[]> {
-  const all = await projects.getAll()
-  if (!all.ok) return []
-  return all.value
-    .map((p) => ({ id: p.id, name: p.name }))
-    .sort((a, b) => a.name.localeCompare(b.name, 'ar'))
-}
-
 async function noteStyle(): Promise<NoteStyle> {
   const { annotation } = await getSettings()
   return {
@@ -78,16 +80,22 @@ const fromExtensionPage = (context: MessageContext): boolean =>
 export function registerIssues(): void {
   onMessage('issue/page', async (_payload, context) => {
     const page = await senderPage(context)
-    const [list, options] = await Promise.all([
-      issuesForPage(page.origin, page.path),
-      projectOptions(),
-    ])
-    return { issues: list, projects: options }
+    const list = await issuesForPage(page.origin, page.path)
+    return { issues: list, lines: valueLines(list), checked: lastCheckedLabel(list) }
   })
 
   onMessage('issue/create', async (payload, context) => {
-    const draft = parseDraft(payload)
-    if (!draft.ok) throw new RasdThrow(draft.error)
+    const input = parseDraft(payload)
+    if (!input.ok) throw new RasdThrow(input.error)
+    const draft = { ok: true as const, value: completeDraft(input.value) }
+    // المتوقَّعة تُفهم هنا قبل اللقطة: قيمةٌ لا تُقارَن تجعل كل فحصٍ لاحق «تحتاج تحققًا» بلا سبب يراه المستخدم.
+    if (!isValidExpected(draft.value.check.kind, draft.value.check.expected)) {
+      throw new RasdThrow({
+        code: 'invalid-data',
+        message:
+          'القيمة المتوقَّعة غير مفهومة لهذا النوع — لونٌ للّون، وطولٌ للمسافة، ونسبةٌ للتباين.',
+      })
+    }
     const sender = await senderPage(context)
     const page = pageOf({ url: sender.tab.url ?? '', title: sender.tab.title ?? '' }, draft.value)
     if (!page) throw new Error('تعذّرت قراءة عنوان التبويب — لا صفحة موثوقة للمشكلة.')
@@ -139,16 +147,27 @@ export function registerIssues(): void {
       annotation,
       issue,
     )
-    if (!saved.ok) throw new RasdThrow(saved.error)
+    if (!saved.ok) {
+      // نصّ `issue / save-error` — الطبقة تضيف «ما كتبته باقٍ في النموذج».
+      throw new RasdThrow(
+        saved.error.code === 'quota-exceeded'
+          ? {
+              ...saved.error,
+              message:
+                'المساحة على هذا الجهاز لا تكفي لحفظ لقطة الدليل. احذف لقطات قديمة ثم أعد المحاولة —',
+            }
+          : saved.error,
+      )
+    }
     return { id: issue.id, captureId }
   })
 
-  onMessage('issue/recheck-save', async ({ results }, context) => {
-    const parsed = parseRecheck(results)
+  onMessage('issue/recheck-save', async ({ observations }, context) => {
+    const parsed = parseObservations(observations)
     if (!parsed.ok) throw new RasdThrow(parsed.error)
     const page = await senderPage(context)
 
-    const byId = new Map<string, RecheckResult>(parsed.value.map((r) => [r.id, r]))
+    const byId = new Map<string, IssueObservation>(parsed.value.map((r) => [r.id, r]))
     const at = Date.now()
     const written = await updateIssues([...byId.keys()], (issue) => {
       const result = byId.get(issue.id)
@@ -156,10 +175,11 @@ export function registerIssues(): void {
       if (!result || issue.page.origin !== page.origin || issue.page.path !== page.path) {
         return null
       }
-      return applyCheck(issue, result, at)
+      // الحكم هنا على الفحص المخزَّن: المتوقَّعة لا تأتي من الصفحة، ولا «مطابقة» تُعلَن منها.
+      return applyCheck(issue, judge(issue.check, result), at)
     })
     if (!written.ok) throw new RasdThrow(written.error)
-    return { issues: written.value }
+    return { issues: written.value, lines: valueLines(written.value) }
   })
 
   onMessage('issue/recheck-tab', async ({ tabId }, context) => {

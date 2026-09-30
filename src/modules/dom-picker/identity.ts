@@ -20,44 +20,15 @@ import type { ElementFingerprint, ElementIdentity } from '@/shared/issue-schema'
  *
  * زرٌّ صار `disabled` بعد إصلاح نموذجه هو الزرّ نفسه، وقائمةٌ `aria-expanded` تُفتح وتُغلق بين فحصين.
  */
-const STATEFUL_ATTRS = new Set([
-  'class',
-  'style',
-  'value',
-  'checked',
-  'selected',
-  'disabled',
-  'hidden',
-  'open',
-  'inert',
-  'tabindex',
-  'contenteditable',
-  'draggable',
-  'data-state',
-  'data-active',
-  'data-selected',
-  'data-open',
-  'data-focus',
-  'data-hover',
-  'aria-expanded',
-  'aria-selected',
-  'aria-pressed',
-  'aria-checked',
-  'aria-hidden',
-  'aria-busy',
-  'aria-current',
-  'aria-disabled',
-  'aria-invalid',
-  'aria-activedescendant',
-  'aria-live',
-])
+const STATEFUL_ATTRS =
+  /^(class|style|value|checked|selected|disabled|hidden|open|inert|tabindex|data-state|aria-(expanded|selected|pressed|checked|hidden|busy|current|disabled|invalid|activedescendant))$/
 
 /** أسماء تولّدها الأطر بقيمة مجزّأة في الاسم نفسه — تتغيّر بكل بناء. */
 const GENERATED_ATTR = /^(data-v-[a-f0-9]{6,}|_ng(content|host)-|data-reactid$|data-react-|jsx-\d)/
 
 /** سمات المستمعين المضمَّنة (`onclick`) ليست من الهوية، ولا يجوز أن تعبر إلى البصمة. */
 const isStableAttr = (name: string): boolean =>
-  !STATEFUL_ATTRS.has(name) && !GENERATED_ATTR.test(name) && !name.startsWith('on')
+  !STATEFUL_ATTRS.test(name) && !GENERATED_ATTR.test(name) && !name.startsWith('on')
 
 /** أقصى محارف تُجزَّأ — نصّ حاوية كبيرة لا يستحقّ أن يُمرّ عليه كلّه في كل فحص. */
 const MAX_HASHED_TEXT = 4096

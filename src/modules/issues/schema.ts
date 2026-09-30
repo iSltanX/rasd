@@ -19,7 +19,8 @@ import {
   MAX_ISSUE_HISTORY,
   MAX_RECHECK,
   RECHECK_REASONS,
-  type IssueDraft,
+  type IssueDraftInput,
+  type IssueObservation,
   type IssueRecord,
   type RecheckResult,
 } from '@/shared/issue-schema'
@@ -117,7 +118,6 @@ const DraftSchema = v.pipe(
     projectId: v.nullable(id),
     withNote: v.boolean(),
     shot: v.object({
-      rect: DeviceRectSchema,
       element: DeviceRectSchema,
       dpr: v.pipe(finite, v.minValue(0.1), v.maxValue(16)),
     }),
@@ -127,6 +127,24 @@ const DraftSchema = v.pipe(
     (d) => (d.check.kind === 'spacing') === (d.pair !== null),
     'فحص المسافة وحده يحمل عنصرًا ثانيًا',
   ),
+)
+
+const ObservationSchema = v.pipe(
+  v.array(
+    v.object({
+      id,
+      outcome: v.nullable(v.picklist(['not-found', 'changed', 'unreliable'])),
+      observed,
+      reason,
+      context: v.nullable(
+        v.object({
+          rootFontPx: v.pipe(finite, v.minValue(0.1), v.maxValue(1000)),
+          fontPx: v.pipe(finite, v.minValue(0.1), v.maxValue(1000)),
+        }),
+      ),
+    }),
+  ),
+  v.maxLength(MAX_RECHECK),
 )
 
 const RecheckSchema = v.pipe(
@@ -157,17 +175,25 @@ export function parseIssue(raw: unknown): Result<IssueRecord> {
   return ok(parsed.output as IssueRecord)
 }
 
-/** يتحقّق من مسودّة وصلت من الصفحة. */
-export function parseDraft(raw: unknown): Result<IssueDraft> {
+/** يتحقّق من مسودّة وصلت من الصفحة — بلا مستطيل اللقطة: تحسبه الخلفية (`evidenceRect`). */
+export function parseDraft(raw: unknown): Result<IssueDraftInput> {
   const parsed = v.safeParse(DraftSchema, raw)
   if (!parsed.success)
     return errText('invalid-data', 'بيانات المشكلة غير صالحة.', issuesOf(parsed.issues))
-  return ok(parsed.output as IssueDraft)
+  return ok(parsed.output as IssueDraftInput)
 }
 
 /** يتحقّق من نتائج جولة فحص وصلت من الصفحة. */
 export function parseRecheck(raw: unknown): Result<RecheckResult[]> {
   const parsed = v.safeParse(RecheckSchema, raw)
+  if (!parsed.success)
+    return errText('invalid-data', 'نتائج الفحص غير صالحة.', issuesOf(parsed.issues))
+  return ok(parsed.output)
+}
+
+/** يتحقّق من قراءات جولة فحص وصلت من الصفحة — بلا حكم: الخلفية تحكم (`judge`). */
+export function parseObservations(raw: unknown): Result<IssueObservation[]> {
+  const parsed = v.safeParse(ObservationSchema, raw)
   if (!parsed.success)
     return errText('invalid-data', 'نتائج الفحص غير صالحة.', issuesOf(parsed.issues))
   return ok(parsed.output)

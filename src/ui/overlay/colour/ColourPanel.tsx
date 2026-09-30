@@ -2,6 +2,8 @@ import { formatPercent, plural } from '@/shared/bidi'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
 
+import { LogIssueButton } from '../issues/IssueForm'
+
 import type { JSX } from 'preact'
 
 /**
@@ -95,6 +97,8 @@ export interface ColourUsageView {
 }
 
 export interface ColourPanelProps {
+  /** «سجّل مشكلة» على العنصر الذي أُخذ منه اللون (`STAGES/32`) — غيابه يُخفي الزرّ. */
+  onLogIssue?: () => void
   /** القيمة السداسية للعيّنة — تُعرض كبيرة في رأس الكتلة. */
   hex: string
   /** لون المربّع — قيمة CSS تُمرَّر سطريًا، **من الصفحة لا من سمتنا**. */
@@ -148,6 +152,7 @@ export function ColourPanel({
   onHighlightAll,
   onReplace,
   onGenerateScale,
+  onLogIssue,
 }: ColourPanelProps): JSX.Element {
   return (
     <section class="rasd-ov-cp" data-rasd-ov="colour-panel" aria-label="اللون">
@@ -353,6 +358,7 @@ export function ColourPanel({
           <Icon name="swatches" size="sm" />
         </button>
       </footer>
+      {onLogIssue ? <LogIssueButton onClick={onLogIssue} /> : null}
     </section>
   )
 }

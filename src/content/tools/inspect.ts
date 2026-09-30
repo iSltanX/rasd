@@ -79,6 +79,8 @@ export interface InspectTool {
   frame(reasons: ReadonlySet<SyncReason>): void
   /** يمسح التثبيت ويعود إلى الخمول. */
   clear(): void
+  /** العنصر المثبَّت — ما تُسجَّل عليه المشكلة من لوحة الفحص. `null` بلا تثبيت. */
+  pinnedElement(): Element | null
   reset(): void
   dispose(): void
 }
@@ -224,7 +226,9 @@ export function createInspect(options: InspectOptions = {}): InspectTool {
     own = null
   }
 
-  return { state, onPointerMove, onPointerUp, frame, clear, reset, dispose }
+  const pinnedElement = (): Element | null => (state.detail.peek() ? target : null)
+
+  return { state, onPointerMove, onPointerUp, frame, clear, pinnedElement, reset, dispose }
 }
 
 /** يمشي على شجرة القواعد ويجمع قواعد الأنماط مفكَّكةَ التداخل. */
