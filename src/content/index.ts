@@ -9,10 +9,11 @@
  * أخيرًا، حتى لا يُطلَق معالج على مضيف أُزيل.
  */
 
-import { computed, signal } from '@preact/signals'
+import { computed, effect, signal } from '@preact/signals'
 
 import { captureKindFor, type CaptureSource } from '@/modules/capture/kind'
 import { exportPalette, exportScale, type PaletteFormat } from '@/modules/colour/export'
+import { formatColour } from '@/modules/colour/formats'
 import { revertAll } from '@/modules/colour/replace'
 import { classifyViewport, VIEWPORT_ORDER } from '@/modules/compare/viewport'
 import { toCss, toJson, toTailwindText } from '@/modules/style-export/css'
@@ -29,6 +30,21 @@ import { createCssResolver } from './css-resolver'
 import { blockedFrames, isTopFrame } from './frames'
 import { adoptTeardown, mountHost, type OverlayHost } from './host'
 import { createModeManager, type ModeManager } from './mode-manager'
+import {
+  captureFailed,
+  captureNotCopied,
+  captureSaved,
+  colourReadFailed,
+  colourSaved,
+  createNoticeCenter,
+  exitNotice,
+  FILE_FAILED,
+  fileSaved,
+  paletteSaved,
+  saveFailed,
+  valueCopied,
+  valueCopyFailed,
+} from './notices'
 import { mountOverlayApp, requestCapture } from './overlay-app'
 import { reportAcrossPageLifecycle } from './page-report'
 import { startPersistence, type Persistence } from './persistence'
@@ -227,6 +243,13 @@ async function bootOverlay(
    * إطار. هذا يجعل التحديد يتبع التمرير وتغيّر المقاس بلا مستمع خاصّ به.
    */
   const spaceSignal = signal<CoordSpace>(space)
+
+  /** إشعارات الأدوات فوق الصفحة — `notices.ts`: ما حُفظ، وما نُسخ، وما تعذّر، وكيف تعود. */
+  const notices = createNoticeCenter()
+  /** «افتح» في الإشعار: الصفحة في تبويب جديد، كما تفتحها النافذة والمكتبة. */
+  const openPage = (page: 'editor' | 'library', params: Record<string, string>) =>
+    void send('page/open', { page, params })
+
   const delaySignal = signal(0)
   let copyAfterCapture = false
   void getSettings().then((settings) => {
@@ -261,21 +284,31 @@ async function bootOverlay(
     source: CaptureSource = 'area',
   ) => {
     void (async () => {
-      const reply = await requestCapture(captureKindFor(source, rect), rect, spaceSignal.peek())
+      const kind = captureKindFor(source, rect)
+      const reply = await requestCapture(kind, rect, spaceSignal.peek())
       pendingViewport.value = false
       if (reply.ok) {
-        lastCapture = reply.value
+        const saved = reply.value
+        lastCapture = saved
+        let notice = captureSaved(kind, saved.width, saved.height, () =>
+          openPage('editor', { capture: saved.id }),
+        )
         // النسخ **بعد** الحفظ لا بدلًا منه: فشله يترك اللقطة في المكتبة.
         if (copyAfterCapture) {
-          const copied = await copyCaptureToClipboard(reply.value.id)
-          if (!copied.ok) console.warn(`[رصد] ${copied.error.message}`)
+          const copied = await copyCaptureToClipboard(saved.id)
+          if (!copied.ok) {
+            console.warn(`[رصد] ${copied.error.message}`)
+            notice = captureNotCopied(copied.error.message)
+          }
         }
         // الالتقاط ينهي الوضع: بقاء التحديد بعده يوحي بأن شيئًا لم يحدث.
         area.reset()
         modes.escape()
+        notices.show(notice)
       } else {
         // الفشل يترك التحديد قائمًا كي يعيد المستخدم المحاولة بلا إعادة رسم.
         console.warn(`[رصد] تعذّر الالتقاط: ${reply.error.message}`)
+        notices.show(captureFailed(reply.error.message))
       }
     })()
   }
@@ -308,11 +341,7 @@ async function bootOverlay(
       modes.busy.value = busy
     },
     onInvalidate: () => sync.invalidate('pointer'),
-    onCopySelector: (selector) => {
-      void navigator.clipboard?.writeText(selector).catch(() => {
-        console.warn('[رصد] تعذّر نسخ المحدِّد إلى الحافظة.')
-      })
-    },
+    onCopySelector: (selector) => copyValue('المحدِّد', selector),
   })
 
   /**
@@ -372,6 +401,12 @@ async function bootOverlay(
     skip: host.hostEl,
     resolver: cssResolver,
     onInvalidate: () => sync.invalidate('pointer'),
+  })
+
+  /** `colors / error` (`303:22356`) — تعذّر العيّنة إشعار خطر في مكان الإشعارات الواحد. */
+  const stopColourError = effect(() => {
+    const reason = colour.state.error.value
+    if (reason) notices.show(colourReadFailed(reason))
   })
 
   /**
@@ -813,7 +848,43 @@ async function bootOverlay(
   ) => {
     const text = inspectText(tool, kind)
     if (text === null) return
-    saveTextFile(DOWNLOAD_NAME[kind], DOWNLOAD_MIME[kind], text, doc)
+    download(DOWNLOAD_NAME[kind], DOWNLOAD_MIME[kind], text)
+  }
+
+  /** تنزيل ملفّ مطوّر، وإشعارٌ بما جرى — التنزيل كان صامتًا نجح أم تعذّر. */
+  const download = (name: string, mime: string, text: string) => {
+    notices.show(saveTextFile(name, mime, text, doc) ? fileSaved(name) : FILE_FAILED)
+  }
+
+  /**
+   * نسخ قيمة تقنية إلى الحافظة، وإشعارٌ بالنتيجة. صفحةٌ بلا واجهة حافظة (سياق غير آمن)
+   * أو ترفض الكتابة تُقال صراحةً — كان الرفض يذهب إلى `console` وحده.
+   */
+  const copyValue = (what: 'اللون' | 'المحدِّد', value: string) => {
+    const clipboard = navigator.clipboard as Clipboard | undefined
+    if (!clipboard) {
+      notices.show(valueCopyFailed(what))
+      return
+    }
+    void clipboard.writeText(value).then(
+      () => notices.show(valueCopied(what, value)),
+      () => {
+        console.warn(`[رصد] تعذّر نسخ ${what} إلى الحافظة.`)
+        notices.show(valueCopyFailed(what))
+      },
+    )
+  }
+
+  /** حفظ لوحة في المكتبة — الخلفية تملك المخزن (`palette/save`)، والإشعار يقول كم حُفظ. */
+  const savePalette = (name: string, colors: readonly string[]) => {
+    if (colors.length === 0) return
+    void send('palette/save', { name, colors }).then((saved) =>
+      notices.show(
+        saved.ok
+          ? paletteSaved(saved.value.count, () => openPage('library', { view: 'palettes' }))
+          : saveFailed('اللوحة', saved.error.message),
+      ),
+    )
   }
 
   /**
@@ -894,18 +965,32 @@ async function bootOverlay(
      */
     onExportPalette: (format) => {
       const text = exportPalette(colourPalette.state.swatches.peek(), format)
-      saveTextFile(paletteDownloadName('palette', format), PALETTE_DOWNLOAD_MIME[format], text, doc)
+      download(paletteDownloadName('palette', format), PALETTE_DOWNLOAD_MIME[format], text)
     },
     onExportScale: (format) => {
       const text = exportScale(colourScale.state.stops.peek(), format)
-      saveTextFile(paletteDownloadName('scale', format), PALETTE_DOWNLOAD_MIME[format], text, doc)
+      download(paletteDownloadName('scale', format), PALETTE_DOWNLOAD_MIME[format], text)
+    },
+    /**
+     * «احفظ اللوحة» و«احفظ في المكتبة» — كانا زرّين صامتين: لا معالج يُمرَّر، ولا مسار يكتب
+     * لوحة في المكتبة أصلًا، فعرض المكتبة «اللوحات» لا يمتلئ إلا ببيانات اختبار.
+     */
+    onSavePalette: () => {
+      const host = doc.location.hostname
+      savePalette(
+        host ? `لوحة ${host}` : 'لوحة الصفحة',
+        colourPalette.state.swatches.peek().map((s) => s.hex),
+      )
+    },
+    onSaveScale: () => {
+      const base = colourScale.state.base.peek()
+      savePalette(
+        base ? `درجات ${formatColour(base).hex}` : 'درجات',
+        colourScale.state.stops.peek().map((s) => s.hex),
+      )
     },
     onCopyInspect: (kind) => downloadInspect(inspect, kind),
-    onCopyColour: (value: string) => {
-      void navigator.clipboard?.writeText(value).catch(() => {
-        console.warn('[رصد] تعذّر نسخ قيمة اللون إلى الحافظة.')
-      })
-    },
+    onCopyColour: (value: string) => copyValue('اللون', value),
     /**
      * الحفظ في المكتبة (`§6.15`).
      *
@@ -922,7 +1007,13 @@ async function bootOverlay(
         name: '',
         note: '',
         source: pinned.source,
-      })
+      }).then((saved) =>
+        notices.show(
+          saved.ok
+            ? colourSaved(() => openPage('library', { view: 'colors' }))
+            : saveFailed('اللون', saved.error.message),
+        ),
+      )
     },
     /**
      * **«استخدم آخر لقطة» — عادت بعد إصلاح موضع التخزين (الصفّ 78).**
@@ -956,6 +1047,7 @@ async function bootOverlay(
     compareDiff,
     onCaptureCompareDiff: captureLiveDiff,
     fullPage,
+    notices,
     onCancelFullPage: () => void send('fullpage/cancel', undefined),
     space: spaceSignal,
     delaySeconds: delaySignal,
@@ -1127,7 +1219,11 @@ async function bootOverlay(
             // الإلغاء يمرّ من الخلفية: هي التي تملك الحلقة و`AbortController`.
             void send('fullpage/cancel', undefined)
           } else if (modes.mode.value !== 'idle') {
+            const leaving = modes.mode.value
             modes.escape()
+            // `capture / cancelled` · `inspect / cancelled` · `colors / cancelled` — وكيف تعود.
+            const notice = exitNotice(leaving, shortcutBindings.get())
+            if (notice) notices.show(notice)
           }
           break
         /*
@@ -1161,6 +1257,8 @@ async function bootOverlay(
     // رأى المراقبُ المضيفَ يختفي فأعاد إلحاقه في اللحظة نفسها.
     removeShortcuts()
     shortcutBindings.stop()
+    stopColourError()
+    notices.dismiss()
     unregisterModeSet()
     unregisterCompareResume()
     unregisterPrepare()

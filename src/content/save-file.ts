@@ -18,13 +18,15 @@
  * محلّه.** الصفحة المضيفة قد تحجب إنشاء عناصر أو تُفسد `URL.createObjectURL`
  * (سياسات أمان صارمة، إطارٌ مقيَّد)؛ وتصديرٌ فشل تنزيله لا يجوز أن يُسقط
  * معالج النقرة بخطأ غير مُمسوك — نفس الدرس من مسار الحافظة المجاور تمامًا.
+ *
+ * **وتُعيد هل بدأ التنزيل** كي يقول الإشعار ما جرى (`content/notices.ts`) — كان الفشل صامتًا.
  */
 export function saveTextFile(
   filename: string,
   mime: string,
   text: string,
   doc: Document = document,
-): void {
+): boolean {
   try {
     const url = URL.createObjectURL(new Blob([text], { type: mime }))
     const a = doc.createElement('a')
@@ -36,7 +38,9 @@ export function saveTextFile(
     a.remove()
     // إبطالٌ مؤجَّل: كروم يبدأ التنزيل من نداء `click()` لا ينتظر عودته.
     setTimeout(() => URL.revokeObjectURL(url), 0)
+    return true
   } catch {
     console.warn('[رصد] تعذّر تنزيل الملفّ.')
+    return false
   }
 }

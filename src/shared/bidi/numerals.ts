@@ -130,3 +130,30 @@ export function plural(count: number, one: string, two: string, many: string): s
   if (count >= 3 && count <= 10) return `${formatHuman(count)} ${many}`
   return `${formatHuman(count)} ${one}`
 }
+
+/** صيغ المعدود الخمس في قاعدة العدد العربية. */
+export interface CountForms {
+  /** للواحد: «لقطة واحدة». */
+  readonly one: string
+  /** للاثنين: «لقطتان». */
+  readonly two: string
+  /** جمع القلّة (3–10): «لقطات». */
+  readonly many: string
+  /** مفرد التمييز المنصوب (11–99): «لقطة» · «مرجعًا». */
+  readonly accusative: string
+  /** مفرد التمييز المجرور (المئات): «لقطة» · «مرجع». */
+  readonly singular: string
+}
+
+/**
+ * العدد مع معدوده بقاعدة العدد العربية، بأرقام هندية: «٨ مراجع» · «١٩ لوحة» · «١٢ مرجعًا».
+ * عدٌّ بشري لا قياس — فيمرّ من `formatHuman`.
+ */
+export function countText(count: number, forms: CountForms): string {
+  if (count === 1) return forms.one
+  if (count === 2) return forms.two
+  const lastTwo = count % 100
+  const noun =
+    lastTwo >= 3 && lastTwo <= 10 ? forms.many : lastTwo >= 11 ? forms.accusative : forms.singular
+  return `${formatHuman(count)} ${noun}`
+}

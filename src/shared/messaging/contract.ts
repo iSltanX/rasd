@@ -268,6 +268,15 @@ export interface RequestMap {
     readonly dropNeutrals: boolean
   }
   /**
+   * يحفظ لوحة ألوان في المكتبة — «احفظ اللوحة» في لوحة الاستخراج و«احفظ في المكتبة» في لوحة
+   * الدرجات. **من الخلفية** كـ`colour/save`: المخزن وسياسة التصفّح الخاصّ هناك. والحمولة من
+   * صفحةٍ قد تكون معادية تُصفّى في المستقبِل: `#RRGGBB` وحده، بلا تكرار، وبحدّ أعلى.
+   */
+  'palette/save': {
+    readonly name: string
+    readonly colors: readonly string[]
+  }
+  /**
    * يقيس الفرق بين مرجع المقاس المحفوظ والجزء الظاهر من الصفحة الآن.
    *
    * **الحساب في الخلفية لا في سكربت المحتوى** — نفس حكم [ADR 0017](../../../Docs/ADR/0017-palette-extraction-host.md)
@@ -369,6 +378,8 @@ export interface ResponseMap {
   'colour/frame': { dataUrl: string }
   'colour/save': { id: string }
   'palette/extract': PaletteExtraction
+  /** `count` ما حُفظ فعلًا بعد التصفية — قد يقلّ عمّا أُرسل. */
+  'palette/save': { id: string; count: number }
   'compare/diff': LiveDiff
   'fullpage/prepare': FullPagePrepared
   'fullpage/step': FullPageStep

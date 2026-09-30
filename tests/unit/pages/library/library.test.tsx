@@ -694,7 +694,7 @@ describe('Library — عروض الشريط الجانبي', () => {
 
 describe('countText — العدد ومعدوده', () => {
   it('يتبع قاعدة العدد العربية بأرقام هندية', async () => {
-    const { countText } = await import('@/pages/library/Library')
+    const { countText } = await import('@/shared/bidi/numerals')
     const forms = {
       one: 'مرجع واحد',
       two: 'مرجعان',

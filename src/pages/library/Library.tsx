@@ -33,7 +33,7 @@ import {
   type SortDirection,
 } from '@/modules/library/sort'
 import { purgeCapture, TRASH_RETENTION_DAYS } from '@/modules/library/trash'
-import { formatHuman } from '@/shared/bidi/numerals'
+import { countText, formatHuman, type CountForms } from '@/shared/bidi/numerals'
 import { send } from '@/shared/messaging'
 import { captures } from '@/shared/storage/repository'
 import { Button } from '@/ui/components/Button/Button'
@@ -174,19 +174,6 @@ const SEARCH_PLACEHOLDER: Record<LibraryTab, string> = {
   guides: 'ابحث في الأدلّة…',
 }
 
-interface CountForms {
-  /** للواحد: «لقطة واحدة». */
-  one: string
-  /** للاثنين: «لقطتان». */
-  two: string
-  /** جمع القلّة (3–10): «لقطات». */
-  many: string
-  /** مفرد التمييز المنصوب (11–99): «لقطة» · «مرجعًا». */
-  accusative: string
-  /** مفرد التمييز المجرور (المئات): «لقطة» · «مرجع». */
-  singular: string
-}
-
 const PROJECT_FORMS: CountForms = {
   one: 'مشروع واحد',
   two: 'مشروعان',
@@ -225,16 +212,6 @@ const COUNT_FORMS: Record<LibraryTab, CountForms> = {
     accusative: 'دليلًا',
     singular: 'دليل',
   },
-}
-
-/** العدد مع معدوده بقاعدة العدد العربية، بأرقام هندية: «٨ مراجع» · «١٩ لوحة» · «١٢ مرجعًا». */
-export function countText(count: number, forms: CountForms): string {
-  if (count === 1) return forms.one
-  if (count === 2) return forms.two
-  const lastTwo = count % 100
-  const noun =
-    lastTwo >= 3 && lastTwo <= 10 ? forms.many : lastTwo >= 11 ? forms.accusative : forms.singular
-  return `${formatHuman(count)} ${noun}`
 }
 
 /**

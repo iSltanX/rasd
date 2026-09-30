@@ -33,7 +33,7 @@ import { getSettings, patchSettings, resetSettings, watchSettings } from '@/shar
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
 import { closeOffscreen, ensureOffscreen } from '@/shared/storage/offscreen'
 import { quotaState } from '@/shared/storage/quota'
-import { blobs, captures, colors } from '@/shared/storage/repository'
+import { blobs, captures, colors, palettes } from '@/shared/storage/repository'
 import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
 
 import { applyModeIcon } from './action-icon'
@@ -44,7 +44,7 @@ import { extractFromCapture, extractFromViewport } from './palette-service'
 
 import type { PageKey } from '@/modules/compare/reference'
 import type { InspectSnapshot } from '@/shared/inspect-schema'
-import type { Viewport } from '@/shared/storage/schema'
+import type { PaletteRecord, Viewport } from '@/shared/storage/schema'
 
 /** اسم منبّه الحارس. */
 const WATCHDOG_ALARM = 'rasd:watchdog'
@@ -270,6 +270,16 @@ function registerRequestHandlers() {
     const saved = await colors.put(record)
     if (!saved.ok) throw new RasdThrow(saved.error)
     return { id: record.id }
+  })
+
+  onMessage('palette/save', async ({ name, colors: sent }) => {
+    const record = paletteRecord(name, sent)
+    if (!record) {
+      throw new RasdThrow({ code: 'invalid-data', message: 'لا لون صالحًا في اللوحة.' })
+    }
+    const saved = await palettes.put(record)
+    if (!saved.ok) throw new RasdThrow(saved.error)
+    return { id: record.id, count: record.colors.length }
   })
 
   /**
@@ -573,4 +583,39 @@ export async function sweepStalledJobs(now = Date.now()): Promise<boolean> {
 /** لحظة إقلاع النسخة الحالية — للتشخيص والاختبار. */
 export function serviceWorkerBootedAt(): number {
   return bootedAt
+}
+
+/** حدّ ألوان اللوحة المحفوظة — فوق أكبر ما تستخرجه اللوحة أو يولّده السلّم بكثير. */
+export const PALETTE_MAX_COLORS = 64
+/** حدّ اسمها بالمحارف — اسمٌ يُعرض على بطاقة، لا نصّ. */
+export const PALETTE_MAX_NAME = 80
+const HEX_COLOUR = /^#[0-9a-f]{6}$/iu
+
+/**
+ * سجلّ لوحة من حمولة `palette/save`، أو `null` حين لا يبقى لونٌ صالح.
+ *
+ * **الحمولة من سكربت محتوى فوق صفحةٍ قد تكون معادية**، فتُصفّى هنا لا هناك: `#RRGGBB` وحده
+ * (ما تُخرجه اللوحة والسلّم كلاهما)، بلا تكرار بلا اعتبار لحالة الأحرف، وبحدّ أعلى؛ والاسم
+ * مقصوص، وفارغُه «لوحة».
+ */
+export function paletteRecord(name: string, sent: readonly string[]): PaletteRecord | null {
+  const seen = new Set<string>()
+  const kept: string[] = []
+  for (const colour of sent) {
+    if (typeof colour !== 'string' || !HEX_COLOUR.test(colour)) continue
+    const key = colour.toUpperCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    kept.push(colour)
+    if (kept.length === PALETTE_MAX_COLORS) break
+  }
+  if (kept.length === 0) return null
+  const trimmed = typeof name === 'string' ? name.trim().slice(0, PALETTE_MAX_NAME) : ''
+  return {
+    id: crypto.randomUUID(),
+    name: trimmed || 'لوحة',
+    colors: kept,
+    projectId: null,
+    createdAt: Date.now(),
+  }
 }

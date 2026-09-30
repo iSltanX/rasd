@@ -21,7 +21,6 @@ import { pxToRem } from '@/modules/measure/units'
 import { formatDimensions, formatUnit } from '@/shared/bidi'
 import { viewportRect, viewportRectToDevice, type CoordSpace } from '@/shared/geometry'
 import { send } from '@/shared/messaging'
-import { Icon } from '@/ui/icons/Icon'
 import {
   AlignGuide,
   BoxModel,
@@ -46,8 +45,10 @@ import { ColourIdle, ColourPanel } from '@/ui/overlay/colour/ColourPanel'
 import { PalettePanel } from '@/ui/overlay/colour/PalettePanel'
 import { ScalePanel } from '@/ui/overlay/colour/ScalePanel'
 import { Crosshair } from '@/ui/overlay/Crosshair'
-import { at, box } from '@/ui/overlay/geometry'
+import { at, box, HINT_OFFSET_PX } from '@/ui/overlay/geometry'
 import { Loupe } from '@/ui/overlay/Loupe'
+import { MeasureIdle } from '@/ui/overlay/MeasureIdle'
+import { NoticeToast } from '@/ui/overlay/Notice'
 import { Toolbar } from '@/ui/overlay/Toolbar'
 
 import { contrastView, formatRows, variableView } from './colour-view'
@@ -55,6 +56,7 @@ import { buildGroups } from './inspect-view'
 import { LOUPE_CELLS } from './sampler'
 import { measureRootFontSize } from './tools/measure'
 
+import type { NoticeCenter } from './notices'
 import type { AreaSelectTool } from './tools/area-select'
 import type { ColourPaletteTool } from './tools/colour-palette'
 import type { ColourScaleTool } from './tools/colour-scale'
@@ -163,6 +165,15 @@ export interface OverlayAppProps {
   onCopyColour?: (value: string, label: string) => void
   /** يُطلَب حين يحفظ المستخدم لونًا في المكتبة (`§6.15`). */
   onSaveColour?: () => void
+  /** «احفظ اللوحة» في لوحة الاستخراج — `palette/save`. */
+  onSavePalette?: () => void
+  /** «احفظ في المكتبة» في لوحة الدرجات — `palette/save` بالدرجات. */
+  onSaveScale?: () => void
+  /**
+   * إشعارات الأدوات (`content/notices.ts`) — تُرسَم في كل وضع، والخمول منها: الإشعار يأتي
+   * غالبًا **بعد** أن تُغلق الأداة (التقاطٌ حُفظ، `Esc`). اختيارية كبقية الأسلاك.
+   */
+  notices?: NoticeCenter
   /** يُطلَب حين يضغط المستخدم «استخدم آخر لقطة» في حالة المقارنة الفارغة. */
   onCompareUseLastCapture?: () => void
   /** يُطلَب حين يُفلِت المستخدم صورة في منطقة إفلات المقارنة. */
@@ -597,6 +608,13 @@ function MeasureLayer({
         </div>
       ) : null}
 
+      {/* `measure / idle` (`98:251`): لا مرجع ولا هدف ولا سحب — بطاقة الأداة في ركن اللوحة. */}
+      {!freeRect && !hover && !reference ? (
+        <div class="rasd-ov-place" style={at({ x: PANEL_INSET, y: PANEL_TOP })}>
+          <MeasureIdle />
+        </div>
+      ) : null}
+
       {/* الإحداثيات المطلقة تبقى غربية دائمًا كما يفرض §3.5، والتحويل px↔rem يقرأه المستهلك أعلاه. */}
       <span hidden data-w={s.layoutWidth} />
     </>
@@ -624,6 +642,8 @@ function ColourLayer({
   onGenerateScale,
   onExportPalette,
   onExportScale,
+  onSavePalette,
+  onSaveScale,
 }: {
   colour: EyedropperTool
   /** أداة المرحلة 14 — غيابها يُخفي كتلة الاستخدام وزرّ الاستبدال. */
@@ -640,10 +660,13 @@ function ColourLayer({
   onGenerateScale?: () => void
   onExportPalette?: (format: Exclude<PaletteFormat, 'text'>) => void
   onExportScale?: (format: Exclude<PaletteFormat, 'text'>) => void
+  /** «احفظ اللوحة» — تُكتب في المكتبة من الخلفية (`palette/save`). */
+  onSavePalette?: () => void
+  /** «احفظ في المكتبة» في لوحة الدرجات — المسار نفسه، درجاتٍ لوحةً. */
+  onSaveScale?: () => void
 }) {
   const live = colour.state.live.value
   const pinned = colour.state.pinned.value
-  const error = colour.state.error.value
   const s = space.value
 
   /*
@@ -732,6 +755,7 @@ function ColourLayer({
               ? { unavailable: palette.state.unavailable.value }
               : {})}
             {...(onExportPalette ? { onExport: onExportPalette } : {})}
+            {...(onSavePalette ? { onSave: onSavePalette } : {})}
             onClose={() => palette.close()}
           />
         ) : scaleOpen && scale ? (
@@ -743,6 +767,7 @@ function ColourLayer({
             sample={scale.sampleRows()}
             onStepsChange={(n) => scale.setSteps(n)}
             {...(onExportScale ? { onExport: onExportScale } : {})}
+            {...(onSaveScale ? { onSave: onSaveScale } : {})}
             onClose={() => scale.close()}
           />
         ) : shown ? (
@@ -773,42 +798,7 @@ function ColourLayer({
         )}
       </div>
 
-      {/*
-       * `colors / error` (`303:22356`): إشعار خطر فوق الشريط العائم — عنوانه ثمّ السبب ثمّ
-       * الإغلاق. و«أبلغ» المرسومة لا تُعرض قبل محرّكها في `STAGES/13`.
-       */}
-      {error ? (
-        <div
-          class="rasd-ov-place"
-          style={at({
-            x: s.layoutWidth / 2,
-            y: s.layoutHeight - DOCK_BOTTOM_PX - DOCK_HEIGHT_PX - DOCK_GAP_PX,
-          })}
-          data-anchor="bottom-center"
-          data-rasd-ov="colour-error"
-        >
-          <div class="rasd-ov-toast" role="alert">
-            <span class="rasd-ov-toast-badge" aria-hidden="true">
-              <Icon name="close" size="xs" />
-            </span>
-            <span class="rasd-ov-toast-text">
-              <span class="rasd-ov-toast-title">تعذّرت قراءة اللون</span>
-              <span class="rasd-ov-toast-detail">{error}</span>
-            </span>
-            <button
-              type="button"
-              class="rasd-ov-tool rasd-ov-tool-close"
-              aria-label="إغلاق"
-              onClick={() => {
-                colour.state.error.value = null
-              }}
-            >
-              <Icon name="close" size="xs" />
-            </button>
-          </div>
-        </div>
-      ) : null}
-
+      {/* `colors / error` (`303:22356`) صار إشعار الطبقة المشترك — `content/notices.ts`. */}
       <span hidden data-w={s.layoutWidth} />
     </>
   )
@@ -1148,6 +1138,10 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
   // القراءة داخل المكوّن هي ما يشترك في الإشارة — لا `subscribe` يدوي.
   const mode = props.mode.value
   const dock = <ToolDock mode={mode} space={props.space.value} onSwitchMode={props.onSwitchMode} />
+  // الإشعار آخرًا في كل فرع: فوق ما ترسمه الأداة والشريط.
+  const notice = props.notices ? (
+    <NoticeLayer notices={props.notices} space={props.space.value} mode={mode} />
+  ) : null
   if (mode === 'inspect')
     return (
       <>
@@ -1158,6 +1152,7 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         />
         {dock}
         {job}
+        {notice}
       </>
     )
   if (mode === 'element')
@@ -1170,6 +1165,7 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         />
         {dock}
         {job}
+        {notice}
       </>
     )
   if (mode === 'measure')
@@ -1182,6 +1178,7 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         />
         {dock}
         {job}
+        {notice}
       </>
     )
   if (mode === 'colour')
@@ -1200,9 +1197,12 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
           {...(props.onGenerateScale ? { onGenerateScale: props.onGenerateScale } : {})}
           {...(props.onExportPalette ? { onExportPalette: props.onExportPalette } : {})}
           {...(props.onExportScale ? { onExportScale: props.onExportScale } : {})}
+          {...(props.onSavePalette ? { onSavePalette: props.onSavePalette } : {})}
+          {...(props.onSaveScale ? { onSaveScale: props.onSaveScale } : {})}
         />
         {dock}
         {job}
+        {notice}
       </>
     )
   if (mode === 'compare')
@@ -1230,9 +1230,16 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         />
         {dock}
         {job}
+        {notice}
       </>
     )
-  if (mode !== 'area') return job
+  if (mode !== 'area')
+    return (
+      <>
+        {job}
+        {notice}
+      </>
+    )
   return (
     <>
       {job}
@@ -1244,7 +1251,42 @@ function OverlayApp(props: OverlayAppProps): JSX.Element | null {
         onCapture={props.onCapture}
       />
       {dock}
+      {notice}
     </>
+  )
+}
+
+/**
+ * موضع الإشعار أسفل الوسط: فوق الشريط العائم ما دامت أداة مفتوحة، وفوق شريط التلميحات في
+ * المنطقة والعنصر (`HINT_OFFSET_PX`، `59:2` و`59:123`)، وفي مكان الشريط نفسه حين لا أداة —
+ * فأكثر الإشعارات يأتي بعد أن تُغلق الأداة: التقاطٌ حُفظ، أو `Esc`.
+ */
+export function NoticeLayer({
+  notices,
+  space,
+  mode,
+}: {
+  notices: NoticeCenter
+  space: CoordSpace
+  mode: Mode
+}): JSX.Element | null {
+  const notice = notices.current.value
+  if (!notice) return null
+  const lift =
+    mode === 'idle'
+      ? DOCK_BOTTOM_PX
+      : mode === 'area' || mode === 'element'
+        ? HINT_OFFSET_PX + DOCK_GAP_PX
+        : DOCK_BOTTOM_PX + DOCK_HEIGHT_PX + DOCK_GAP_PX
+  return (
+    <div
+      class="rasd-ov-place"
+      style={at({ x: space.layoutWidth / 2, y: space.layoutHeight - lift })}
+      data-anchor="bottom-center"
+      data-rasd-ov="notice"
+    >
+      <NoticeToast notice={notice} onClose={() => notices.dismiss()} />
+    </div>
   )
 }
 
