@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>عيّنة الأداء — خمسة آلاف عقدة</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          14px/1.5 system-ui,
+          sans-serif;
+        background: #fff;
+        color: #111827;
+      }
+      header {
+        padding: 12px 20px;
+        background: #111827;
+        color: #fff;
+        font-weight: 700;
+      }
+
+      /*
+        خمسة آلاف خلية حقيقية الحجم، لا عناصر صفرية: مؤشّر يمرّ فوقها يجد عنصرًا في كل بكسل تقريبًا،
+        فتُقاس كلفة اختبار الإصابة والإبراز على صفحة كثيفة فعلًا. ولا حركة ولا مؤقّت في العيّنة —
+        فأي نشاط CPU يُقرأ فوقها هو نشاط الطبقة وحدها.
+      */
+      #grid {
+        display: grid;
+        grid-template-columns: repeat(50, 1fr);
+        gap: 2px;
+        padding: 8px;
+      }
+      #grid > b {
+        display: block;
+        block-size: 22px;
+        background: #e5e7eb;
+      }
+      #grid > b:nth-child(3n) {
+        background: #d1d5db;
+      }
+      #grid > b:nth-child(7n) {
+        background: #bfdbfe;
+      }
+    </style>
+  </head>
+  <body>
+    <header>عيّنة الأداء — 5000 عقدة ساكنة</header>
+    <main id="grid"></main>
+
+    <script>
+      // العقد تُبنى مرّة بالنص لا بحلقة DOM: أسرع تحميلًا، والعدد ثابت لا يتغيّر بعد التحميل.
+      const CELLS = 5000
+      document.getElementById('grid').innerHTML = '<b></b>'.repeat(CELLS)
+      window.__nodes = document.getElementsByTagName('*').length
+      document.title = `perf-5000 · ${window.__nodes} عقدة`
+    </script>
+  </body>
+</html>

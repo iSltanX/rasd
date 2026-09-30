@@ -24,6 +24,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
+import { judge, median } from './runtime-budgets.mjs'
+
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
 const PORT = 9372
@@ -357,6 +359,82 @@ if (!librarySession) {
       })()`,
       )
       await new Promise((r) => setTimeout(r, 400))
+
+      // ── ميزانية: البحث في 5000 عنصر (`STAGES/20`، ADR 0038) ──────────
+      /*
+       * **من الإدخال إلى النتيجة على الشاشة.** يُكتب الاستعلام ويُبثّ حدث `input` كما يفعل المستخدم، ثم
+       * يُنتظر حتى تبلغ البطاقات المرسومة **الحالة التي تستقرّ عليها** لذلك الاستعلام، ثم إطاران
+       * (الأوّل يعالج والثاني بعد الرسم). والحالة المستقرّة تُتعلَّم أوّلًا بجولة غير مقيسة تنتظر
+       * نصف ثانية — فلا تُفترض أعدادٌ يخالفها الفرز أو التقطيع، ولا يُحسب زمنٌ لنتيجة خاطئة.
+       *
+       * استعلامان: **انتقائي** (نتيجة واحدة من 5002، الأشدّ على المرشّح) و**واسع** (مئات النتائج، الأشدّ
+       * على العرض الافتراضي). خمس مرّات لكلٍّ، من حالة «كل اللقطات» في كل مرّة.
+       */
+      const setSearch = (query) =>
+        evalIn(
+          S,
+          `(() => {
+        const el = ${searchInput}
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+        setter.call(el, ${JSON.stringify(query)})
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+      })()`,
+        )
+      const cardIds = () =>
+        evalIn(
+          S,
+          `[...document.querySelectorAll('[data-capture-id]')].map(e => e.getAttribute('data-capture-id')).join(',')`,
+        )
+      const timedSearch = (query, expectedIds) =>
+        evalIn(
+          S,
+          `new Promise((resolve) => {
+        const el = ${searchInput}
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+        const ids = () => [...document.querySelectorAll('[data-capture-id]')].map(e => e.getAttribute('data-capture-id')).join(',')
+        const want = ${JSON.stringify(expectedIds)}
+        const t0 = performance.now()
+        const giveUp = setTimeout(() => { mo.disconnect(); resolve(null) }, 3000)
+        const mo = new MutationObserver(() => {
+          if (ids() !== want) return
+          mo.disconnect()
+          clearTimeout(giveUp)
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now() - t0)))
+        })
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true })
+        setter.call(el, ${JSON.stringify(query)})
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+      })`,
+        )
+      for (const [name, query] of [
+        ['انتقائي', 'الفحص'],
+        ['واسع', 'لقطة 4'],
+      ]) {
+        await setSearch('')
+        await new Promise((r) => setTimeout(r, 500))
+        await setSearch(query)
+        await new Promise((r) => setTimeout(r, 500))
+        const settled = await cardIds()
+        const settledCount = settled ? settled.split(',').length : 0
+        const times = []
+        for (let i = 0; i < 5; i++) {
+          await setSearch('')
+          await new Promise((r) => setTimeout(r, 400))
+          times.push(await timedSearch(query, settled))
+        }
+        const valid = times.filter((t) => typeof t === 'number')
+        note(
+          `بحث ${name} «${query}» — ${settledCount} بطاقة مرسومة · الأزمنة (ms): ${times.map((t) => (t === null ? 'لم تستقرّ' : t.toFixed(1))).join(' ')}`,
+        )
+        const verdict = judge(
+          'search-5000',
+          valid.length === times.length && settledCount > 0 ? median(valid) : Number.NaN,
+        )
+        if (verdict.pass) ok(`بحث ${name} — ${verdict.text} (وسيط 5)`)
+        else fail(`بحث ${name} — ${verdict.text} (وسيط 5)`)
+        await setSearch('')
+        await new Promise((r) => setTimeout(r, 400))
+      }
 
       // ── التبويبات الأربعة الأخرى — بيانات حقيقية من مخازنها ────────
       const TABS = [

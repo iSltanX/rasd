@@ -26,6 +26,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { ensureFixturesServer } from './live-fixtures.mjs'
 import { attachLiveServiceWorker } from './live-sw.mjs'
+import { cpuPercent, framesToFps, judge } from './runtime-budgets.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
@@ -524,6 +525,148 @@ if (extId && sw && granted) {
 
     await inSW(`chrome.tabs.remove(${tabId})`)
   }
+}
+
+// ── ميزانيتا الوقت: الطبقة الخاملة والإطارات فوق 5000 عقدة (`STAGES/20`، ADR 0038) ──
+/*
+ * **عيّنة `perf-5000/` ساكنة عمدًا** — لا مؤقّت فيها ولا حركة ولا طلب شبكة — فكل نشاط يُقرأ فوقها
+ * هو نشاط طبقتنا وحدها. ولا نستعمل عيّنات الجولة أعلاه: بعضها يحرّك نفسه (`mutating`) أو يعيد
+ * بناء شجرته (`spa`) فيُنسب إلينا ما ليس منّا.
+ *
+ * **CPU الخامل:** `Performance.getMetrics` على الصفحة، والقيمة `TaskDuration` — زمن عمل الخيط
+ * الرئيسي — بين قراءتين تفصلهما ثلاث ثوانٍ، نسبةً إلى الزمن الجداري. وقبلها نافذة **شاهد** على
+ * الصفحة نفسها قبل الحقن، تُطبع ولا تُحكَم: تفرّق طبقةً تستهلك من صفحةٍ تستهلك من نفسها.
+ * والخيط الرئيسي هو موضع كل ما تفعله الطبقة (حلقة الإطار والمراقبات والمؤقّتات)؛ أما رسم الخلفية
+ * فيقع خارجه، وهو صفر في طبقة خاملة لا تغيّر شيئًا.
+ *
+ * **الإطارات:** فواصل `requestAnimationFrame` **تجري أثناء** حركة مؤشِّر حقيقية لا بعدها — النداءان
+ * يُطلقان معًا ولا يُنتظر أولهما قبل الثاني. وتُقاس في وضعين يفحصان الإصابة عند كل حركة
+ * (`element` و`inspect`)؛ ويُشترط أن يكون الإبراز مرسومًا فعلًا بعدها، وإلا فالطبقة كانت لا تعمل
+ * والرقم رقم صفحة فارغة.
+ */
+if (extId && sw && granted) {
+  const tag = 'perf-5000:'
+  const tabId = await openTab('/perf-5000/')
+  await settleResume(tabId)
+  const nodes = await inPage(tabId, `() => document.getElementsByTagName('*').length`)
+  if (nodes >= 5000) ok(`${tag} العيّنة ${nodes} عقدة`)
+  else fail(`${tag} العيّنة ${nodes} عقدة فقط — تُشترط 5000`)
+
+  const { targetInfos } = await send('Target.getTargets')
+  const target = targetInfos.find((t) => t.type === 'page' && String(t.url).includes('/perf-5000/'))
+  const pageSession = target
+    ? (await send('Target.attachToTarget', { targetId: target.targetId, flatten: true })).sessionId
+    : null
+  if (!pageSession) {
+    fail(`${tag} تعذّر الاتصال بهدف الصفحة — لا قياس ولا أحداث مؤشِّر`)
+  } else {
+    await send('Performance.enable', {}, pageSession)
+    const metrics = async () => (await send('Performance.getMetrics', {}, pageSession)).metrics
+    const idleWindow = async () => {
+      const before = await metrics()
+      await new Promise((r) => setTimeout(r, 3000))
+      return cpuPercent(before, await metrics())
+    }
+
+    await new Promise((r) => setTimeout(r, 800))
+    const control = await idleWindow()
+    note(`${tag} شاهد — الصفحة وحدها قبل الحقن: ${control.toFixed(2)}% CPU`)
+
+    const injected = await injectOverlay(tabId)
+    const started = await inSW(`chrome.scripting.executeScript({
+      target: { tabId: ${tabId} },
+      world: 'ISOLATED',
+      func: () => globalThis.__rasdContent.startOverlay().then(r => {
+        if (r.ok) globalThis.__rasdPicker = r.value
+        return { ok: r.ok, error: r.ok ? null : r.error.message }
+      }),
+    }).then(r => r[0].result)`)
+    if (injected !== 'injected' || !started?.ok) {
+      fail(`${tag} تعذّر بدء الطبقة: ${injected} / ${JSON.stringify(started)}`)
+    } else {
+      // الخطوط والحقن والاستئناف الصامت تستقرّ قبل النافذة المحكومة.
+      await new Promise((r) => setTimeout(r, 1500))
+      const idle = await idleWindow()
+      const idleVerdict = judge('idle-cpu', idle)
+      if (idleVerdict.pass) ok(`${tag} ${idleVerdict.text}`)
+      else fail(`${tag} ${idleVerdict.text}`)
+
+      const inOverlay = (fnSource) =>
+        inSW(`chrome.scripting.executeScript({
+          target: { tabId: ${tabId} }, world: 'ISOLATED', func: ${fnSource},
+        }).then(r => r[0].result)`)
+
+      for (const mode of ['element', 'inspect']) {
+        const set = await inOverlay(
+          `() => JSON.stringify(globalThis.__rasdPicker.modes.set(${JSON.stringify(mode)}))`,
+        )
+        if (!JSON.parse(set).ok) {
+          fail(`${tag} الوضع ${mode} رُفض: ${set}`)
+          continue
+        }
+        await new Promise((r) => setTimeout(r, 300))
+
+        const WINDOW_MS = 1500
+        const frames = send(
+          'Runtime.evaluate',
+          {
+            expression: `(async () => {
+              const intervals = []
+              let last = performance.now()
+              let raf = 0
+              const tick = () => {
+                const now = performance.now()
+                intervals.push(now - last)
+                last = now
+                raf = requestAnimationFrame(tick)
+              }
+              raf = requestAnimationFrame(tick)
+              await new Promise((r) => setTimeout(r, ${WINDOW_MS}))
+              cancelAnimationFrame(raf)
+              return intervals
+            })()`,
+            awaitPromise: true,
+            returnByValue: true,
+          },
+          pageSession,
+        )
+        // المؤشِّر يجول داخل الشبكة (x 60..1160 · y 120..720) طوال النافذة، بحركة كل 8ms تقريبًا.
+        let moves = 0
+        const until = Date.now() + WINDOW_MS - 100
+        while (Date.now() < until) {
+          await send(
+            'Input.dispatchMouseEvent',
+            {
+              type: 'mouseMoved',
+              x: 60 + ((moves * 37) % 1100),
+              y: 120 + ((moves * 23) % 600),
+              pointerType: 'mouse',
+            },
+            pageSession,
+          )
+          moves++
+          await new Promise((r) => setTimeout(r, 8))
+        }
+        const intervals = (await frames).result?.value ?? []
+        const { frames: count, totalMs, medianMs, p95Ms, fps } = framesToFps(intervals)
+        note(
+          `${tag} ${mode}: ${moves} حركة مؤشِّر · ${count} إطارًا في ${totalMs.toFixed(0)}ms · وسيط ${medianMs.toFixed(1)}ms · p95 ${p95Ms.toFixed(1)}ms`,
+        )
+        const fpsVerdict = judge('fps-5000', fps)
+        if (fpsVerdict.pass) ok(`${tag} ${mode} — ${fpsVerdict.text}`)
+        else fail(`${tag} ${mode} — ${fpsVerdict.text}`)
+
+        const drawn = await inOverlay(
+          `() => globalThis.__rasdPicker.host.layer.querySelectorAll('[data-rasd-ov]').length`,
+        )
+        if (drawn > 0) ok(`${tag} ${mode}: الطبقة رسمت أثناء الحركة (${drawn} عنصر)`)
+        else fail(`${tag} ${mode}: لا شيء مرسوم بعد الحركة — القياس على طبقة لا تعمل`)
+
+        await inOverlay(`() => JSON.stringify(globalThis.__rasdPicker.modes.set('idle'))`)
+      }
+    }
+  }
+  await inSW(`chrome.tabs.remove(${tabId})`)
 }
 
 // ── التقرير ─────────────────────────────────────────────────────

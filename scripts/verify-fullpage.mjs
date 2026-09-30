@@ -21,6 +21,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { ensureFixturesServer } from './live-fixtures.mjs'
 import { waitForExtensionContext } from './live-sw.mjs'
+import { BUDGETS, judge } from './runtime-budgets.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
@@ -510,8 +511,13 @@ if (extId && sw && granted) {
         `اكتمل الالتقاط: ${d.width}×${d.height} من ${d.tiles} بلاطة في ${(elapsed / 1000).toFixed(1)}s`,
       )
 
-      if (elapsed <= 25000) ok(`ضمن الميزانية الزمنية — ${(elapsed / 1000).toFixed(1)}s ≤ 25s`)
-      else fail(`تجاوز الميزانية: ${(elapsed / 1000).toFixed(1)}s > 25s`)
+      /*
+       * السقف نفسه على عيّنة العلامات (13.6 شاشة) — لا يُعدّ ميزانية العشرين شاشة، فحكمها في
+       * كتلة `perf-20screens` أدناه. رقمه من `BUDGETS` لا حرفيّ هنا، كي لا يبقى الرقم في موضعين.
+       */
+      if (elapsed / 1000 <= BUDGETS.fullPageSeconds)
+        ok(`عيّنة العلامات ضمن السقف الزمني — ${(elapsed / 1000).toFixed(1)}s`)
+      else fail(`عيّنة العلامات تجاوزت السقف الزمني: ${(elapsed / 1000).toFixed(1)}s`)
 
       if (d.truncated) note(`بُتر الالتقاط: ${d.truncated}`)
 
@@ -602,6 +608,115 @@ if (extId && sw && granted) {
     note(`الحاوية: محتوى ${inner.appScroll}px بينما المستند ${inner.docScroll}px`)
     if (inner.appScroll > inner.docScroll * 2) {
       ok('العيّنة تمثّل الحالة فعلًا — المستند لا يمرّر')
+    }
+  }
+}
+
+// ── ميزانية: التقاط صفحة عشرين شاشة (`STAGES/20`، ADR 0038) ─────────
+/*
+ * الميزانية «التقاط صفحة 20 شاشة ≤ 25 ثانية»، وعيّنة `fullpage/` أعلاه 13.6 شاشة (9690px على نافذة
+ * 713px) — فكان سقف الخمس والعشرين يُطبَّق على صفحة ثلثين وحسب، والقراءة منها لا تقول شيئًا عن
+ * العشرين. فتُلتقط هنا `perf-20screens/` وحدها، شاشاتها `100vh` بالضبط فالعدد عشرون أيًّا كان مقاس
+ * النافذة.
+ *
+ * **الزمن من التفعيل إلى «اكتمل»،** كالجولة الأولى. ولا يُقبل رقمٌ من التقاط ناقص: يُشترط أن تغطي
+ * الصورة ارتفاع الصفحة (بهامش بلاطة) وألّا تُبتر وأن تبلغ البلاطات عدد الشاشات — التقاطٌ يعود مبكرًا
+ * بنصف الصفحة سريعٌ جدًّا ولا يُثبت شيئًا.
+ */
+if (extId && sw && granted) {
+  const tag = 'perf-20screens:'
+  const tabId = await openTab('/perf-20screens/')
+  const injected = await injectOverlay(tabId)
+  const started = await startOverlay(tabId)
+  if (injected !== 'injected' || !started?.ok) {
+    fail(`${tag} تعذّر بدء الطبقة: ${injected} / ${JSON.stringify(started)}`)
+  } else {
+    const dims = await inPage(
+      tabId,
+      `() => ({
+        scrollHeight: document.documentElement.scrollHeight,
+        innerHeight: window.innerHeight,
+        dpr: window.devicePixelRatio,
+        screens: window.__screens ?? 0,
+      })`,
+    )
+    const screens = dims.scrollHeight / dims.innerHeight
+    if (dims.screens === 20 && screens >= 20 && screens < 21.5) {
+      ok(
+        `${tag} العيّنة ${screens.toFixed(1)} شاشة (${dims.scrollHeight}px على نافذة ${dims.innerHeight}px)`,
+      )
+    } else {
+      fail(`${tag} العيّنة لا تمثّل عشرين شاشة: ${screens.toFixed(1)} شاشة، علامات ${dims.screens}`)
+    }
+
+    // صفحة الإضافة هي المُرسِل — انظر الجولة الأولى.
+    const driverTab = await inSW(
+      `chrome.tabs.get(${tabId}).then(t =>
+        chrome.tabs.create({ url: chrome.runtime.getURL('src/pages/library/index.html'), windowId: t.windowId, active: false })
+      ).then(t => t.id)`,
+    )
+    await inSW(`new Promise(res => {
+      const check = () => chrome.tabs.get(${driverTab}).then(t => t.status === 'complete' ? res(1) : setTimeout(check, 100))
+      check()
+    })`)
+    const driver = await attachToPage('src/pages/library/')
+    if (!driver) {
+      fail(`${tag} تعذّر فتح صفحة الإضافة لقيادة المهمّة`)
+    } else {
+      // مهلة بعد الإيقاظ — انظر الجولة الأولى: الحقن ينجح بعد ~900ms من بدء العامل.
+      await evalIn(
+        driver,
+        `chrome.runtime.sendMessage({ __rasd: 1, id: 'ping', type: 'diagnostics/ping' })`,
+      )
+      await new Promise((r) => setTimeout(r, 1200))
+
+      const t0 = Date.now()
+      const run = await evalIn(
+        driver,
+        `(async () => {
+          const listen = new Promise((resolve) => {
+            const port = chrome.runtime.connect({ name: 'rasd:job' })
+            const timer = setTimeout(() => { port.disconnect(); resolve({ timeout: true }) }, 90000)
+            let last = null
+            port.onMessage.addListener((m) => {
+              if (m.kind === 'progress') last = m
+              if (m.kind === 'done') { clearTimeout(timer); port.disconnect(); resolve({ done: m.result, last }) }
+              if (m.kind === 'failed') { clearTimeout(timer); port.disconnect(); resolve({ failed: m, last }) }
+            })
+          })
+          const act = await chrome.runtime.sendMessage({
+            __rasd: 1,
+            id: 'verify-fullpage-20',
+            type: 'tool/activate',
+            payload: { tool: 'full-page', tabId: ${tabId} },
+          })
+          const settled = await listen
+          return { act, ...settled }
+        })()`,
+      )
+      const seconds = (Date.now() - t0) / 1000
+
+      if (run?.failed) {
+        fail(`${tag} فشل الالتقاط: ${run.failed.code} — ${run.failed.message}`)
+      } else if (run?.timeout) {
+        fail(`${tag} لم تُحسم المهمّة خلال 90 ثانية — آخر تقدّم ${JSON.stringify(run.last)}`)
+      } else if (!run?.done) {
+        fail(`${tag} ردّ غير متوقَّع: ${JSON.stringify(run)}`)
+      } else {
+        const d = run.done
+        note(`${tag} ${d.width}×${d.height} من ${d.tiles} بلاطة في ${seconds.toFixed(1)}s`)
+        const wanted = Math.round(dims.scrollHeight * dims.dpr)
+        const slack = Math.round(dims.innerHeight * dims.dpr)
+        if (d.truncated) fail(`${tag} بُتر الالتقاط: ${d.truncated} — لا يُحكم على زمن التقاط ناقص`)
+        else if (Math.abs(d.height - wanted) > slack)
+          fail(`${tag} الارتفاع خارج الهامش: ${d.height} مقابل ${wanted} (هامش ${slack})`)
+        else if (d.tiles < 20) fail(`${tag} ${d.tiles} بلاطة فقط لصفحة عشرين شاشة`)
+        else {
+          const verdict = judge('fullpage-20', seconds)
+          if (verdict.pass) ok(`${tag} ${verdict.text}`)
+          else fail(`${tag} ${verdict.text}`)
+        }
+      }
     }
   }
 }
