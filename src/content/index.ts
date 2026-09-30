@@ -256,7 +256,9 @@ async function bootOverlay(
 
   const delaySignal = signal(0)
   let copyAfterCapture = false
-  void getSettings().then((settings) => {
+  // حيّان لا مقروءان مرّة: من غيّر التأجيل أو النسخ من الإعدادات والطبقة قائمة يرى أثره في
+  // الالتقاط التالي — صنف الصفّ 117 في `§6`، وكان إعدادا الالتقاط هذان خارجه (الصفّ 145 (ج)).
+  const stopCaptureSettings = watchSettings((settings) => {
     delaySignal.value = settings.capture.delaySeconds
     copyAfterCapture = settings.capture.copyToClipboard
   })
@@ -1086,7 +1088,12 @@ async function bootOverlay(
 
   const unsubscribeInteractive = modes.subscribe((mode) => {
     host.setInteractive(INTERACTIVE_MODES.has(mode))
-    if (mode !== 'area') area.reset()
+    if (mode !== 'area') {
+      area.reset()
+      // التقاط الظاهر المؤجَّل يعيش في وضع المنطقة وحده: مغادرته — `Esc` أو أداة أخرى — تُلغيه،
+      // وإلّا بدأ العدّ وحده عند الدخول التالي إلى المنطقة والتقط الظاهر (الصفّ 145 (ب)).
+      pendingViewport.value = false
+    }
     if (mode !== 'element') element.reset()
     if (mode !== 'inspect') inspect.reset()
     if (mode !== 'measure') measure.reset()
@@ -1302,6 +1309,7 @@ async function bootOverlay(
     reportMode('idle')
     modes.dispose()
     stopTheme()
+    stopCaptureSettings()
     host.teardown()
   }
 

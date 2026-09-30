@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { startOverlay } from '@/content'
 import { resetHandlers } from '@/shared/messaging/rpc'
-import { resetSettingsCache } from '@/shared/settings'
+import { patchSettings, resetSettingsCache } from '@/shared/settings'
 
 /**
  * ربط `content/index.ts` كما يُقلع فعلًا — `startOverlay` الحقيقي بكل ما فيه، والرسائل وحدها مقلَّدة.
@@ -52,6 +52,16 @@ async function boot() {
 
 const press = (code: string) =>
   window.dispatchEvent(new KeyboardEvent('keydown', { code, key: code, bubbles: true }))
+
+/** رسالة من الخلفية إلى سكربت المحتوى كما تصل فعلًا — عبر مستمع `onMessage` الحقيقي. */
+async function fromBackground(type: string, payload: unknown): Promise<void> {
+  // ما تعيده المستمعات لا يهمّ — المستقبِل يعمل في مهمّة، و`settle` بعده ينتظر أثره.
+  void (await fakeBrowser.runtime.onMessage.trigger(
+    { __rasd: 1, id: `bg-${type}`, type, payload },
+    {},
+    () => undefined,
+  ))
+}
 
 const reports = () =>
   sent.filter((m) => m.type === 'mode/report').map((m) => (m.payload as { mode: string }).mode)
@@ -138,5 +148,53 @@ describe('ربط الطبقة', () => {
     await settle(200)
     expect(text()).not.toContain('تعذّرت قراءة اللون')
     expect(session.host.layer.querySelector('[data-rasd-ov="colour-error"]')).toBeNull()
+  })
+
+  it('`Esc` يُلغي التقاط الظاهر المؤجَّل كلّه — الدخول التالي إلى المنطقة لا يبدأ عدًّا', async () => {
+    await patchSettings({ capture: { delaySeconds: 3 } } as never)
+    const session = await boot()
+    const countdown = () => session.host.layer.querySelector('[data-rasd-ov="countdown"]')
+
+    await fromBackground('capture/start', { kind: 'viewport' })
+    await settle()
+    expect(session.modes.mode.peek()).toBe('area')
+    expect(countdown()).not.toBeNull()
+
+    press('Escape')
+    await settle()
+    expect(countdown()).toBeNull()
+
+    session.modes.set('idle')
+    await settle()
+    session.modes.set('area')
+    await settle()
+    expect(countdown()).toBeNull()
+  })
+
+  it('مغادرة المنطقة إلى أداة أخرى أثناء العدّ تُلغيه أيضًا', async () => {
+    await patchSettings({ capture: { delaySeconds: 3 } } as never)
+    const session = await boot()
+    const countdown = () => session.host.layer.querySelector('[data-rasd-ov="countdown"]')
+
+    await fromBackground('capture/start', { kind: 'viewport' })
+    await settle()
+    expect(countdown()).not.toBeNull()
+
+    session.modes.set('measure')
+    await settle()
+    session.modes.set('area')
+    await settle()
+    expect(countdown()).toBeNull()
+  })
+
+  it('تأجيل الالتقاط يُقرأ حيًّا — تغييره والطبقة قائمة يسري على الالتقاط التالي', async () => {
+    const session = await boot()
+    const countdown = () => session.host.layer.querySelector('[data-rasd-ov="countdown"]')
+
+    await patchSettings({ capture: { delaySeconds: 3 } } as never)
+    await settle()
+    await fromBackground('capture/start', { kind: 'viewport' })
+    await settle()
+    expect(countdown()).not.toBeNull()
   })
 })
