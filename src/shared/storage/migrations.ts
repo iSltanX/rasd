@@ -6,7 +6,7 @@
  * خطوتها ساعة إضافتها.
  */
 
-import type { RasdDB, ReferenceRecord, StoreName } from './schema'
+import type { GuideRecord, RasdDB, ReferenceRecord, StoreName } from './schema'
 import type { IDBPDatabase, IDBPTransaction } from 'idb'
 
 /** معاملة الترقية ترى كل المخازن — `idb` يشتقّ النوع من أسمائها. */
@@ -94,15 +94,46 @@ export const MIGRATIONS: Readonly<Record<number, MigrationStep>> = {
           await cursor.update({ ...cursor.value, exclusions: [] })
         }
       }
-    })().catch(() => {
-      // `openDB` يرفض بالإجهاض — والمعاملة المُجهَضة أصلًا (طلبٌ فاشل) ترمي هنا فيُبتلع ذلك وحده.
-      try {
-        transaction.abort()
-      } catch {
-        /* أُجهضت قبلنا */
-      }
-    })
+    })().catch(() => abortUpgrade(transaction))
   },
+
+  /*
+   * دليل الخطوات بنصّه وقوالب التصدير (ADR 0041) — مخزنٌ جديد، ونقل بيانات في `guides`: كل دليلٍ قائم يُكتب
+   * بـ`stepText: {}` و`updatedAt` زمن إنشائه. الترتيب والعضوية في `captureIds` كما كانا، فلا لقطة تسقط ولا
+   * تنتقل من موضعها.
+   *
+   * بقواعد الخطوة 4 نفسها: داخل معاملة الترقية بطلبات مخزنها وحده، والإجهاض صريحٌ على أيّ فشل — فالقاعدة إمّا 5
+   * كاملةً أو 4 كما كانت، والمخزن الجديد يُلغى مع الإجهاض. وما يحمل الحقلين أصلًا يُترك.
+   * يحرسها `tests/unit/storage-upgrade-v5.test.ts`، وقد كُتب قبلها.
+   */
+  5: (db, transaction) => {
+    const templates = db.createObjectStore('templates', { keyPath: 'id' })
+    templates.createIndex('name', 'name', { unique: true })
+
+    const store = transaction.objectStore('guides')
+    void (async () => {
+      for (let cursor = await store.openCursor(); cursor; cursor = await cursor.continue()) {
+        const record = cursor.value as Partial<GuideRecord>
+        const hasText = typeof record.stepText === 'object' && record.stepText !== null
+        const hasTime = typeof record.updatedAt === 'number'
+        if (hasText && hasTime) continue
+        await cursor.update({
+          ...cursor.value,
+          stepText: hasText ? cursor.value.stepText : {},
+          updatedAt: hasTime ? cursor.value.updatedAt : cursor.value.createdAt,
+        })
+      }
+    })().catch(() => abortUpgrade(transaction))
+  },
+}
+
+/** `openDB` يرفض بالإجهاض — والمعاملة المُجهَضة أصلًا (طلبٌ فاشل) ترمي هنا فيُبتلع ذلك وحده. */
+function abortUpgrade(transaction: UpgradeTransaction): void {
+  try {
+    transaction.abort()
+  } catch {
+    /* أُجهضت قبلنا */
+  }
 }
 
 /** أعلى نسخة لها خطوة — يجب أن تساوي `DB_VERSION`. */

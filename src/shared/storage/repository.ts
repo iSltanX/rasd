@@ -5,12 +5,20 @@
  * يتجاوز سياسة التصفّح الخاص أو حدّ الحصّة.
  */
 
+import { guideSteps, stepTextFrom } from '../guide-schema'
 import { errWith, ok, type Result } from '../result'
 
 import { database, guardWrite, withDb } from './db'
 
 import type { IssueRecord } from '../issue-schema'
-import type { AnnotationRecord, BlobRecord, CaptureRecord, RasdDB, StoreName } from './schema'
+import type {
+  AnnotationRecord,
+  BlobRecord,
+  CaptureRecord,
+  GuideRecord,
+  RasdDB,
+  StoreName,
+} from './schema'
 
 type RecordOf<S extends StoreName> = RasdDB[S]['value']
 type KeyOf<S extends StoreName> = RasdDB[S]['key']
@@ -121,6 +129,7 @@ export const palettes = repository('palettes')
 export const references = repository('references')
 export const annotations = repository('annotations')
 export const guides = repository('guides')
+export const templates = repository('templates')
 export const tags = repository('tags')
 export const thumbnails = repository('thumbnails')
 export const issues = repository('issues')
@@ -342,7 +351,8 @@ export async function deleteReferenceWithBlob(id: string, blobId: string): Promi
  * فأُغلق في الوحدة التي أنشأت المنهجيّة. (‏`Docs/Engineering.md §6` صفّ 120.)
  *
  * والأدلّة تُقرأ وتُكتب داخل المعاملة نفسها: تنظيفٌ بعدها كان سيترك نافذةً
- * تُقرأ فيها حالةٌ نصفُها محذوف.
+ * تُقرأ فيها حالةٌ نصفُها محذوف. **ونصّ الخطوة يُحذف مع لقطتها** (النسخة 5، ADR 0041):
+ * عنوانٌ وملاحظةٌ كتبهما المستخدم عن صورةٍ حذفها لا يبقيان في دليلٍ لا يعرضهما.
  */
 export async function deleteCaptureWithBlob(id: string): Promise<Result<null>> {
   return withDb(async (db) => {
@@ -357,13 +367,50 @@ export async function deleteCaptureWithBlob(id: string): Promise<Result<null>> {
       tx.objectStore('blobs').delete(id),
       tx.objectStore('annotations').delete(id),
       tx.objectStore('thumbnails').delete(id),
-      ...affected.map((guide) =>
-        guideStore.put({ ...guide, captureIds: guide.captureIds.filter((c) => c !== id) }),
-      ),
+      ...affected.map((guide) => {
+        const kept = guideSteps(guide).filter((step) => step.captureId !== id)
+        return guideStore.put({
+          ...guide,
+          captureIds: kept.map((step) => step.captureId),
+          stepText: stepTextFrom(kept),
+        })
+      }),
       tx.done,
     ])
     return null
   })
+}
+
+/**
+ * يكتب الدليل من الصفحة **فوق ما في القاعدة لا فوق ما قرأته الصفحة** — في معاملة واحدة.
+ *
+ * الحذف الدوري (`retention.ts`) يجري والصفحة مفتوحة، و`deleteCaptureWithBlob` يُزيل اللقطة ونصّها من الدليل في
+ * معاملته. فحفظٌ بخطواتٍ قُرئت قبله كان يعيد اللقطة المحذوفة بنصّها (المراجعة المستقلّة، `STAGES/06`). فتُقرأ
+ * العضوية الحاضرة هنا وتُكتب خطوات الصفحة الباقية فيها وحدها بترتيب الصفحة، ودليلٌ حُذف لا يُعاد إنشاؤه.
+ */
+export async function writeGuide(next: GuideRecord): Promise<Result<GuideRecord>> {
+  const guard = await guardWrite(0)
+  if (!guard.ok) return guard
+  const written = await withDb(async (db) => {
+    const tx = db.transaction('guides', 'readwrite')
+    const current = await tx.store.get(next.id)
+    if (!current) {
+      await tx.done
+      return null
+    }
+    const alive = new Set(current.captureIds)
+    const kept = guideSteps(next).filter((step) => alive.has(step.captureId))
+    const record: GuideRecord = {
+      ...next,
+      captureIds: kept.map((step) => step.captureId),
+      stepText: stepTextFrom(kept),
+    }
+    await Promise.all([tx.store.put(record), tx.done])
+    return record
+  })
+  if (!written.ok) return written
+  if (written.value === null) return errWith('not-found', `guides/${next.id}`)
+  return ok(written.value)
 }
 
 /**

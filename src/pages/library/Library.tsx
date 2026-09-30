@@ -64,10 +64,12 @@ import {
   resolveThumbnailUrl,
   type LibraryRecord,
 } from './context'
+import { createGuide } from './guides'
 import styles from './Library.module.css'
 import { ColorCard } from './parts/ColorCard'
 import { Grid } from './parts/Grid'
 import { GuideCard } from './parts/GuideCard'
+import { GuidePage } from './parts/GuidePage'
 import { IssuesPage } from './parts/IssuesPage'
 import { PaletteCard } from './parts/PaletteCard'
 import { ProjectsOverview } from './parts/ProjectsOverview'
@@ -167,6 +169,7 @@ const TITLE: Record<Exclude<LibraryView['kind'], 'project'>, string> = {
   guides: 'أدلة الخطوات',
   issues: 'المشكلات',
   issue: 'المشكلة',
+  guide: 'دليل الخطوات',
 }
 
 const SEARCH_PLACEHOLDER: Record<LibraryTab, string> = {
@@ -334,7 +337,7 @@ export function Library(): JSX.Element {
     const myTicket = ++reloadTicketRef.current
     // المشكلات مخزنها غير مخزن اللقطات وعرضاها يقرآنه بنفسيهما — لا لقطات تُحمَّل لهما. والتذكرة زِيدت قبل
     // هذا فيُسقَط استدعاءٌ قديم لعرض اللقطات كان في الطيران وعاد بعد الانتقال.
-    if (view.kind === 'issues' || view.kind === 'issue') return
+    if (view.kind === 'issues' || view.kind === 'issue' || view.kind === 'guide') return
 
     /**
      * **حارس مبكر — قبل `setLoadState('loading')` لا بعده فقط.** مراجعة
@@ -529,6 +532,25 @@ export function Library(): JSX.Element {
 
   const noopOpen = useCallback(() => undefined, [])
 
+  /** الدليل يُفتح صفحته تحت القشرة نفسها — `?guide=<id>` (`STAGES/06`). */
+  const openGuide = useCallback((id: string) => switchView({ kind: 'guide', id }), [switchView])
+
+  /**
+   * «أنشئ دليلًا» من التحديد — بترتيب الالتقاط، ثمّ يُفتح الدليل ليُسمّى ويُرتَّب. والفشل يُقال بسببه ولا يُفرِغ
+   * التحديد: المستخدم يعيد المحاولة على ما اختاره.
+   */
+  const onCreateGuide = useCallback(() => {
+    void createGuide([...selection], Date.now()).then((created) => {
+      if (!created.ok) {
+        announce({ tone: 'danger', title: 'تعذّر إنشاء الدليل', detail: created.error.message })
+        return
+      }
+      clearSelection()
+      bump()
+      switchView({ kind: 'guide', id: created.value.id })
+    })
+  }, [selection, announce, clearSelection, bump, switchView])
+
   /**
    * تُطبَّق تسلسليًّا لا بالتوازي: العدد المتوقَّع للتحديد عشراتٌ لا آلاف،
    * ومعاملة واحدة لكل سجلّ أبسط من إدارة فشل جزئي وسط دفعة متوازية.
@@ -710,6 +732,22 @@ export function Library(): JSX.Element {
       ),
     [viewMode],
   )
+
+  if (view.kind === 'guide') {
+    return (
+      <AppShell
+        activeId={viewId(view)}
+        onNavigate={switchView}
+        revision={revision}
+        onNewProject={() => {
+          switchView({ kind: 'projects' })
+          setProjectsPanelOpen(true)
+        }}
+      >
+        <GuidePage id={view.id} onBack={() => switchView({ kind: 'guides' })} onChanged={bump} />
+      </AppShell>
+    )
+  }
 
   // عرضا المشكلات لهما صفحتهما تحت القشرة نفسها: لا شريط أنواع السجلّات ولا مبدّل العرض ولا لوحاتها —
   // ليست منها. و«مشروع جديد» في الشريط يفتح نظرة المشاريع ولوحتها فلا يبقى زرّ بلا أثر.
@@ -914,6 +952,28 @@ export function Library(): JSX.Element {
                     kind={
                       isCaptures && libraryHasAny ? 'no-results' : EMPTY_KIND_FOR_TAB[activeTab]
                     }
+                    {...(activeTab === 'guides' && !searchQuery.trim()
+                      ? {
+                          // `guide / empty` (`319:54680`): الدليل يُنشأ من لقطات محدَّدة، فالزرّ يأخذ إليها.
+                          action: (
+                            <Button
+                              variant="primary"
+                              size="m"
+                              icon="plus"
+                              data-guide-create-empty=""
+                              onClick={() => {
+                                switchView({ kind: 'all' })
+                                announce({
+                                  title: 'حدّد اللقطات، ثمّ «أنشئ دليلًا»',
+                                  detail: 'تصير الخطوات بترتيب التقاطها، وتُعاد ترتيبها في الدليل.',
+                                })
+                              }}
+                            >
+                              أنشئ دليلًا
+                            </Button>
+                          ),
+                        }
+                      : {})}
                   />
                 </div>
               ) : activeTab === 'captures' ? (
@@ -960,7 +1020,7 @@ export function Library(): JSX.Element {
                   records={records as GuideRecord[]}
                   selection={selection}
                   onToggleSelect={toggleSelect}
-                  onOpen={noopOpen}
+                  onOpen={openGuide}
                   CardComponent={GuideCard}
                   aria-label="أدلّة الخطوات"
                 />
@@ -1001,6 +1061,7 @@ export function Library(): JSX.Element {
               onPurge={onPurgeSelection}
               onMoveToProject={onMoveSelectionToProject}
               onAddTag={onAddTagToSelection}
+              onCreateGuide={onCreateGuide}
               onClear={clearSelection}
             />
           ) : selection.size > 0 ? (

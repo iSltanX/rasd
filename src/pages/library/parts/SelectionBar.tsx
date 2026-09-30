@@ -50,6 +50,8 @@ export interface SelectionBarProps {
   onPurge: () => void
   onMoveToProject: (projectId: string | null) => void
   onAddTag: (name: string) => void
+  /** «أنشئ دليلًا» من المحدَّد — وضع `live` وحده (`STAGES/06`). */
+  onCreateGuide?: () => void
   onClear: () => void
 }
 
@@ -116,7 +118,7 @@ export function MoveToProject({
 }
 
 interface BarButtonProps {
-  icon: 'star' | 'folder' | 'refresh' | 'trash'
+  icon: 'star' | 'folder' | 'refresh' | 'trash' | 'list-view'
   label: string
   'aria-label': string
   danger?: boolean
@@ -149,6 +151,7 @@ export function SelectionBar({
   onPurge,
   onMoveToProject,
   onAddTag,
+  onCreateGuide,
   onClear,
 }: SelectionBarProps): JSX.Element {
   // حذف نهائي بلا رجعة يمرّ بحوار الإطار (`library / delete-confirm`) — كان تأكيد المتصفّح.
@@ -199,6 +202,14 @@ export function SelectionBar({
             </>
           ) : (
             <>
+              {viewMode === 'live' && onCreateGuide ? (
+                <BarButton
+                  icon="list-view"
+                  label="أنشئ دليلًا"
+                  aria-label="أنشئ دليلًا من المحدَّد"
+                  onClick={onCreateGuide}
+                />
+              ) : null}
               <MoveToProject projects={projects} onMoveToProject={onMoveToProject} />
               <form class={cx(styles.action, styles.tagForm)} onSubmit={onTagSubmit}>
                 <Icon name="tag" size="xs" class={styles.actionIcon} />

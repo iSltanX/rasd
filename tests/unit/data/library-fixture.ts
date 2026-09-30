@@ -4,12 +4,19 @@ import { openDB } from 'idb'
 
 import { defaultSettings, type Settings } from '@/shared/settings'
 import { MIGRATIONS } from '@/shared/storage/migrations'
-import { DB_NAME, STORE_NAMES, type RasdDB, type StoreName } from '@/shared/storage/schema'
+import {
+  DB_NAME,
+  DB_VERSION,
+  STORE_NAMES,
+  type RasdDB,
+  type StoreName,
+} from '@/shared/storage/schema'
 
 import { issueFixture } from '../modules/issues/fixture'
 
 /**
- * مكتبةٌ كاملة بشكل النسخة `0.1.0` — كل مخزن فيها بسجلّين على الأقلّ، وحالاتها الحدّية (`STAGES/07`).
+ * مكتبةٌ كاملة بشكل القاعدة اليوم — كل مخزن فيها بسجلّين على الأقلّ، وحالاتها الحدّية (`STAGES/07`). وشكل
+ * الإصدار `0.1.0` منها `v010Fixture()` أدناه: ما سبق ترحيل النسخة 5 (`STAGES/06`).
  *
  * **مكتوبة النوع لكل مخزن:** `{ [S in StoreName]: … }` يُسقط الترجمة إن أُضيف مخزنٌ إلى `STORE_NAMES` بلا
  * سجلّات هنا — فاختبارات النسخ والاستعادة والحذف الكامل لا تمرّ على مكتبةٍ ينقصها مخزنٌ جديد.
@@ -186,8 +193,25 @@ export function libraryFixture(): LibraryRecords {
       { captureId: 'c2', scene: { captureId: 'c2', items: [] }, updatedAt: at + 21 },
     ],
     guides: [
-      { id: 'g1', title: 'دليل الدفع', projectId: 'p1', captureIds: ['c1', 'c2'], createdAt: at },
-      { id: 'g2', title: 'فارغ', projectId: null, captureIds: [], createdAt: at + 1 },
+      {
+        id: 'g1',
+        title: 'دليل الدفع',
+        projectId: 'p1',
+        captureIds: ['c2', 'c1'],
+        createdAt: at,
+        // خطوةٌ بنصّها وأخرى بلاه — الغياب يُقرأ فراغًا (ADR 0041).
+        stepText: { c2: { title: 'افتح السلّة', note: 'من الزاوية العليا.' } },
+        updatedAt: at + 5,
+      },
+      {
+        id: 'g2',
+        title: 'فارغ',
+        projectId: null,
+        captureIds: [],
+        createdAt: at + 1,
+        stepText: {},
+        updatedAt: at + 1,
+      },
     ],
     tags: [
       { name: 'هبوط', count: 2 },
@@ -201,6 +225,15 @@ export function libraryFixture(): LibraryRecords {
     issues: [
       issueFixture(),
       issueFixture({ id: 'i2', status: 'resolved', projectId: 'p1', updatedAt: 9_000 }),
+    ],
+    templates: [
+      {
+        id: 't1',
+        name: 'تقرير الفريق',
+        options: { format: 'pdf', pageSize: 'a4', numbered: true, notes: true },
+        createdAt: at,
+        updatedAt: at,
+      },
     ],
   }
 }
@@ -224,12 +257,25 @@ export function settingsFixture(): Settings {
 }
 
 /**
+ * المكتبة نفسها بشكل الإصدار `0.1.0` (القاعدة 4): بلا مخزن القوالب، وأدلّةٌ بلا نصّ خطوات ولا زمن تعديل —
+ * ما يكتبه `0.1.0` حرفيًّا. وما يصير إليه بعد ترحيل النسخة 5 يثبته `storage-upgrade-v5.test.ts`.
+ */
+export function v010Fixture(): Partial<Record<StoreName, object[]>> {
+  const { templates: _templates, guides, ...rest } = libraryFixture()
+  return {
+    ...rest,
+    guides: guides.map(({ stepText: _text, updatedAt: _updated, ...guide }) => guide),
+  }
+}
+
+/**
  * يبني قاعدة النسخة `version` بخطوات ترحيلها كما جرت عند المستخدمين — لا بمخطّطٍ منسوخ — ثمّ يكتب
- * `records` في معاملة واحدة ويُغلقها. نمط `storage-upgrade-v4.test.ts`.
+ * `records` في معاملة واحدة ويُغلقها. نمط `storage-upgrade-v4.test.ts`. والافتراض القاعدة اليوم: سجلّات
+ * `libraryFixture()` بشكلها؛ وبذرة `0.1.0` تُطلب صراحةً بـ`V010_DB_VERSION` مع `v010Fixture()`.
  */
 export async function seedDatabase(
-  records: Partial<LibraryRecords>,
-  version = V010_DB_VERSION,
+  records: Partial<Record<StoreName, readonly object[]>>,
+  version = DB_VERSION,
 ): Promise<void> {
   const db = await openDB<RasdDB>(DB_NAME, version, {
     upgrade(database, oldVersion, _newVersion, transaction) {

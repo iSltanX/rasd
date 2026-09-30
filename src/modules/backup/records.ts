@@ -18,6 +18,7 @@
 import * as v from 'valibot'
 
 import { EXCLUSION_LIMITS } from '@/shared/exclusion-schema'
+import { GUIDE_FORMATS, GUIDE_LIMITS, GUIDE_PAGE_SIZES } from '@/shared/guide-schema'
 import {
   CHECK_KINDS,
   CHECK_OUTCOMES,
@@ -144,12 +145,32 @@ const AnnotationSchema = v.looseObject({
   redaction: v.exactOptional(v.looseObject({ total: num, irreversible: num })),
 })
 
+const GuideStepTextSchema = v.looseObject({
+  title: text(GUIDE_LIMITS.stepTitle),
+  note: text(GUIDE_LIMITS.note),
+})
+
 const GuideSchema = v.looseObject({
   id,
   title: v.string(),
   projectId: nullableId,
   captureIds: v.array(v.string()),
   createdAt: ts,
+  stepText: v.record(v.string(), GuideStepTextSchema),
+  updatedAt: ts,
+})
+
+const TemplateSchema = v.looseObject({
+  id,
+  name: v.pipe(v.string(), v.minLength(1), v.maxLength(GUIDE_LIMITS.templateName)),
+  options: v.looseObject({
+    format: v.picklist(GUIDE_FORMATS),
+    pageSize: v.picklist(GUIDE_PAGE_SIZES),
+    numbered: v.boolean(),
+    notes: v.boolean(),
+  }),
+  createdAt: ts,
+  updatedAt: ts,
 })
 
 const TagSchema = v.looseObject({
@@ -243,6 +264,7 @@ export const BACKUP_RECORDS = {
   tags: TagSchema,
   thumbnails: ThumbnailSchema,
   issues: IssueSchema,
+  templates: TemplateSchema,
 } as const satisfies Record<StoreName, v.GenericSchema>
 
 /** المخازن التي تحمل صورةً في حقل `blob` — تُكتب ملفّاتٍ في الحاوية. */
@@ -277,5 +299,6 @@ const _checked: { [S in StoreName]: Checked<S> } = {
   tags: true,
   thumbnails: true,
   issues: true,
+  templates: true,
 }
 void _checked

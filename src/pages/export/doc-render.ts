@@ -16,7 +16,9 @@ import {
   type DocFont,
   type DocInk,
   type DocOp,
+  type DocPage,
   type DocTone,
+  type MeasureDoc,
 } from '@/modules/export/pdf-document'
 import { TEXT_PAGE_DENSITY, textPagePixels, type PageBox } from '@/modules/export/pdf-layout'
 import { ok, type Result } from '@/shared/result'
@@ -121,6 +123,20 @@ function drawOp(ctx: Ctx, op: DocOp): void {
 }
 
 /**
+ * القياس بخطوط الواجهة بعد تحميلها — ما يلفّ به التخطيطُ الأسطر، ويُعطى للدليل كي يعرف أين ينتهي رأس الخطوة
+ * قبل أن يُرسم (ADR 0041).
+ */
+export async function docMeasurer(): Promise<MeasureDoc> {
+  await loadFonts()
+  const probe = new OffscreenCanvas(1, 1).getContext('2d')
+  return (text: string, font: DocFont): number => {
+    if (!probe) return text.length * DOC_FONTS[font].size * 0.55
+    probe.font = fontCss(font, 1)
+    return probe.measureText(text).width
+  }
+}
+
+/**
  * يرسم الكتل صفحاتٍ ويخبز كلًّا منها PNG معتمًا — بترتيبها.
  *
  * يفشل بالاسم: قماشٌ لا يُنشأ، أو خبزٌ يُرفض، أو إلغاء — ولا يُعيد نصف القائمة.
@@ -130,15 +146,17 @@ export async function bakeDocPages(
   box: PageBox,
   signal?: { readonly aborted: boolean },
 ): Promise<Result<ExportBytes[]>> {
-  await loadFonts()
-  const probe = new OffscreenCanvas(1, 1).getContext('2d')
-  const measure = (text: string, font: DocFont): number => {
-    if (!probe) return text.length * DOC_FONTS[font].size * 0.55
-    probe.font = fontCss(font, 1)
-    return probe.measureText(text).width
-  }
+  const measure = await docMeasurer()
+  return bakeLaidOutPages(layoutDocument(blocks, box, measure), box, signal)
+}
 
-  const pages = layoutDocument(blocks, box, measure)
+/** يخبز صفحاتٍ خُطِّطت سلفًا — للدليل الذي يحتاج أسفل الرأس قبل الخبز. */
+export async function bakeLaidOutPages(
+  pages: readonly DocPage[],
+  box: PageBox,
+  signal?: { readonly aborted: boolean },
+): Promise<Result<ExportBytes[]>> {
+  await loadFonts()
   const pixels = textPagePixels(box)
   const out: ExportBytes[] = []
 

@@ -129,8 +129,9 @@ describe('الترقية من النسخة 3 إلى 4', () => {
     const byId = [...legacyReferences].sort((p, q) => p.id.localeCompare(q.id))
     expect(after.map((r) => r.exclusions)).toEqual(byId.map(() => []))
     expect(after).toEqual(byId.map((r) => ({ ...r, exclusions: [] })))
-    expect(db.version).toBe(4)
-    expect(DB_VERSION).toBe(4)
+    // `database()` تفتح على أحدث نسخة — فالخطوات بعد 4 تجري هنا أيضًا، وما يخصّها في اختبار ترقيتها.
+    expect(db.version).toBe(DB_VERSION)
+    expect(DB_VERSION).toBeGreaterThanOrEqual(4)
   })
 
   it('والفهارس تعمل بعد الترقية: مرجعا الصفحة يُقرآن بأصلها كما قبلها', async () => {
@@ -197,7 +198,7 @@ describe('الترقية إلى 4 — كلّها أو لا شيء', () => {
     raw.close()
 
     const retried = await database()
-    expect(retried.version).toBe(4)
+    expect(retried.version).toBe(DB_VERSION)
     expect((await retried.getAll('references')).every((r) => Array.isArray(r.exclusions))).toBe(
       true,
     )

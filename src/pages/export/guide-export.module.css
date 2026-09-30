@@ -1,0 +1,106 @@
+/*
+ * نافذة تصدير الدليل — ما يختلف عن هيكل نافذة التصدير وحده (`guide / export` وأطوارها).
+ *
+ * الحاجب والترويسة والجسم والملخّص والأفعال من `export.module.css` نفسها. وكل قيمة من العقد — لا لون حرفي ولا
+ * `px` حرفية ولا خاصية فيزيائية.
+ */
+
+/* `guide / template-save` أضيق من نافذة الخيارات (`304:1922`). */
+.narrow {
+  inline-size: min(27.5rem, 100%);
+}
+
+/* أربع بطاقات صيغة بعرضٍ متساوٍ — وصفّان على النافذة الضيّقة. */
+.formats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: var(--rasd-space-8);
+}
+
+.templateControl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-4);
+}
+
+/* ── الأطوار الوسطى: التحميل والنجاح والإلغاء ─────────────── */
+
+.center {
+  align-items: center;
+  text-align: center;
+}
+
+.centerText {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+}
+
+.stateIcon {
+  display: grid;
+  place-items: center;
+  inline-size: var(--rasd-control-lg);
+  block-size: var(--rasd-control-lg);
+  border-radius: var(--rasd-radius-full);
+}
+
+.success {
+  background: var(--rasd-status-success-surface);
+  color: var(--rasd-status-success-fg);
+}
+
+.warning {
+  background: var(--rasd-status-warning-surface);
+  color: var(--rasd-status-warning-fg);
+}
+
+.stateTitle {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+
+.path {
+  align-self: stretch;
+  padding-block: var(--rasd-space-10);
+  padding-inline: var(--rasd-space-12);
+  border-radius: var(--rasd-radius-md);
+  background: var(--rasd-surface-sunken);
+  color: var(--rasd-text-primary);
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.stretch {
+  align-self: stretch;
+  text-align: start;
+}
+
+.progress {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-8);
+}
+
+.progressHead {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--rasd-space-12);
+  color: var(--rasd-text-secondary);
+}
+
+.progressCount {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── الخطأ ────────────────────────────────────────────────── */
+
+.block {
+  display: block;
+  margin-block-start: var(--rasd-space-4);
+}
+
+.bannerActions {
+  display: flex;
+  gap: var(--rasd-space-8);
+  margin-block-start: var(--rasd-space-10);
+}
