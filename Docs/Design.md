@@ -400,9 +400,9 @@ return {
 | `compare / no-reference`    | فراغ       | [`96:560`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=96-560)       | [`310:33023`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33023) | [`ComparePanel.tsx`](../src/ui/overlay/compare/ComparePanel.tsx)                                 | ✓                                                  |
 | `compare / two-captures`    | أساسية     | [`127:196`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=127-196)     | [`310:33040`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33040) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓ · §11                                            |
 | `compare / viewports`       | أساسية     | [`127:315`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=127-315)     | [`310:33110`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33110) | [`ViewportGallery.tsx`](../src/ui/overlay/compare/ViewportGallery.tsx)                           | ✓                                                  |
-| `compare / report`          | أساسية     | [`291:12538`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12538) | [`310:33162`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33162) | [05](../STAGES/05.md)                                                                            | —                                                  |
-| `compare / report-done`     | نجاح       | [`291:12691`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12691) | [`310:33283`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33283) | [05](../STAGES/05.md)                                                                            | —                                                  |
-| `compare / diff-saved`      | نجاح       | [`291:12790`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12790) | [`310:33371`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33371) | [05](../STAGES/05.md)                                                                            | —                                                  |
+| `compare / report`          | أساسية     | [`291:12538`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12538) | [`310:33162`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33162) | [`ReportDialog.tsx`](../src/pages/compare/parts/ReportDialog.tsx)                                | ✓ · §11                                            |
+| `compare / report-done`     | نجاح       | [`291:12691`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12691) | [`310:33283`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33283) | [`ReportDialog.tsx`](../src/pages/compare/parts/ReportDialog.tsx)                                | ✓ · §11                                            |
+| `compare / diff-saved`      | نجاح       | [`291:12790`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12790) | [`310:33371`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33371) | [`DiffSavedDialog.tsx`](../src/pages/compare/parts/DiffSavedDialog.tsx)                          | ✓                                                  |
 | `compare / loading`         | تحميل      | [`291:12887`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12887) | [`310:33457`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33457) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓                                                  |
 | `compare / identical`       | نجاح       | [`291:12984`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12984) | [`310:33545`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33545) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓ · §11                                            |
 | `compare / size-mismatch`   | خطأ        | [`291:13076`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-13076) | [`310:33630`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33630) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓ · §11                                            |
@@ -451,15 +451,15 @@ return {
 
 ### التصدير — الصفحة `22 — Export`
 
-| الإطار                       | الحالة     | الداكن                                                                                  | الفاتح                                                                                    | منفَّذ                                                               | مطابق   |
-| ---------------------------- | ---------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------- |
-| `export / modal`             | أساسية     | [`73:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=73-2)         | [`310:43256`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-43256) | [`ExportModal.tsx`](../src/pages/export/ExportModal.tsx)             | ✓ · §11 |
-| `export / done`              | نجاح       | [`129:1249`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=129-1249) | [`310:43481`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-43481) | [`ExportDone.tsx`](../src/pages/export/ExportDone.tsx)               | ✓ · §11 |
-| `export / pdf`               | أساسية     | [`290:480`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=290-480)   | [`310:43706`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-43706) | [05](../STAGES/05.md)                                                | —       |
-| `export / loading`           | تحميل      | [`290:901`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=290-901)   | [`310:43931`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-43931) | [`ExportProgress.tsx`](../src/pages/editor/parts/ExportProgress.tsx) | ✓       |
-| `export / error`             | خطأ        | [`290:1261`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=290-1261) | [`310:44142`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-44142) | [`ExportModal.tsx`](../src/pages/export/ExportModal.tsx)             | ✓       |
-| `export / permission-denied` | رفض صلاحية | [`290:1630`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=290-1630) | [`310:44346`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-44346) | [`ExportDone.tsx`](../src/pages/export/ExportDone.tsx)               | ✓       |
-| `export / cancelled`         | إلغاء      | [`290:1997`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=290-1997) | [`310:44561`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-44561) | [`ExportModal.tsx`](../src/pages/export/ExportModal.tsx)             | ✓       |
+| الإطار                       | الحالة     | الداكن                                                                                  | الفاتح                                                                                    | منفَّذ                                                                                                          | مطابق   |
+| ---------------------------- | ---------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------- |
+| `export / modal`             | أساسية     | [`73:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=73-2)         | [`310:43256`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-43256) | [`ExportModal.tsx`](../src/pages/export/ExportModal.tsx)                                                        | ✓ · §11 |
+| `export / done`              | نجاح       | [`129:1249`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=129-1249) | [`310:43481`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-43481) | [`ExportDone.tsx`](../src/pages/export/ExportDone.tsx)                                                          | ✓ · §11 |
+| `export / pdf`               | أساسية     | [`290:480`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=290-480)   | [`310:43706`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-43706) | [`ExportModal.tsx`](../src/pages/export/ExportModal.tsx) · [`pdf-export.ts`](../src/pages/export/pdf-export.ts) | ✓ · §11 |
+| `export / loading`           | تحميل      | [`290:901`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=290-901)   | [`310:43931`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-43931) | [`ExportProgress.tsx`](../src/pages/editor/parts/ExportProgress.tsx)                                            | ✓       |
+| `export / error`             | خطأ        | [`290:1261`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=290-1261) | [`310:44142`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-44142) | [`ExportModal.tsx`](../src/pages/export/ExportModal.tsx)                                                        | ✓       |
+| `export / permission-denied` | رفض صلاحية | [`290:1630`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=290-1630) | [`310:44346`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-44346) | [`ExportDone.tsx`](../src/pages/export/ExportDone.tsx)                                                          | ✓       |
+| `export / cancelled`         | إلغاء      | [`290:1997`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=290-1997) | [`310:44561`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-44561) | [`ExportModal.tsx`](../src/pages/export/ExportModal.tsx)                                                        | ✓       |
 
 ### المشاركة المحلّية — الصفحة `23 — Share`
 
@@ -868,20 +868,28 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
 
 ### التصدير
 
-- SVG محذوفة (قرار النطاق)، وPDF معطَّلة بسببها حتى [05](../STAGES/05.md). «ضمّن بيانات الصفحة» و«ضمّن قائمة
-  الملاحظات» معطَّلان بسطر سببهما، و«خلفية شفافة» محذوف، و«دمج التعليقات» سطر ملخّص (ADR 0015).
+- SVG محذوفة (قرار النطاق)، وPDF تعمل منذ [05](../STAGES/05.md) بإطار `export / pdf` (ADR 0040). «ضمّن
+  بيانات الصفحة» و«ضمّن قائمة الملاحظات» يعملان مع PDF، ويُعرضان مع PNG وWebP (كما يرسمهما `73:2`) معطَّلَين
+  بسطرٍ يدلّ على PDF: هما صفحةٌ في الوثيقة لا تحملها صورة. و«بيانات الصفحة» معطَّلة بسببها حين يُحذف
+  الوصف في الخصوصية. و«خلفية شفافة» محذوف، و«دمج التعليقات» سطر ملخّص (ADR 0015).
+- PDF بلا «انسخ إلى الحافظة»: الحافظة لا تقبل الوثيقة، والإطار `290:480` يرسم «تنزيل» وحده.
 - «تنزيل» و«افتح المجلّد» بدل «نزّل» و«اعرض في المجلّد» — `verify:export` يجد الزرّين بنصّيهما.
 
 ### المقارنة
 
-- «تصدير التقرير · قريبًا» و«التقط الفرق · قريبًا» حتى [05](../STAGES/05.md). والشريط الجانبي يسرد
-  المناطق المتغيّرة مرقَّمةً — المحرّك لا يصنّفها «مضاف · محذوف · منقول».
+- «تصدير التقرير» و«التقط الفرق» يعملان منذ [05](../STAGES/05.md)، معطَّلَين حتى يُحسب الفرق. والشريط الجانبي
+  يسرد المناطق المتغيّرة مرقَّمةً — المحرّك لا يصنّفها «مضاف · محذوف · منقول».
+- `compare / report`: «الصيغة» سطرٌ ثابت PDF لا قائمة — التقرير وثيقة، وصورة الفرق وحدها لها «التقط الفرق».
+  و«رابط الصفحة» معطَّل بسطر «محذوف مع البيانات الوصفية» حين يُحذف الوصف في الخصوصية. وفي «النتيجة» سطرٌ
+  للمناطق المستثناة حين توجد: خارج النسبة ومخطّطة بأرقامها في صورة الفرق.
+- `compare / report-done`: «افتح المجلّد» بدل «اعرض في المجلّد» كنافذة التصدير، ولا يظهر على مسار المرساة.
 - `cancelled`: لا إلغاء في الصفحة — الفرق يُحسب مرّة عند فتحها.
 
 ### الإعدادات والخصوصية
 
 - «لقطة جديدة» في الشريط الجانبي تفتح ورقة الاختصارات — صفحة الإضافة لا تلتقط تبويبًا آخر.
-- «احفظ نسخة في مجلّد التنزيلات» قريبًا حتى [05](../STAGES/05.md) (الصفّ 115)، والجودة قائمة من قيم مقيسة.
+- «احفظ نسخة في مجلّد التنزيلات» مفتاحٌ يعمل منذ [05](../STAGES/05.md) (الصفّ 286)، يطلب صلاحية التنزيلات عند
+  تشغيله ويقول تحته ما يحدث إن رُفضت. والجودة قائمة من قيم مقيسة.
 - البيانات: القراءتان الحيّتان (المساحة والتخزين الدائم)، والباقي قريبًا حتى [07](../STAGES/07.md) —
   وإعادة الضبط منها لأن `settings/reset` يمحو المواقع المستثناة بلا تأكيد (الصفّ 118).
 - الصلاحيات السبع بأسمائها وأسبابها لا ثلاثة صفوف ودّية، والاقتراحات في المواقع المستثناة باقية.
