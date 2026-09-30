@@ -155,7 +155,9 @@ export function AppShell({
       />
       <div class={styles.main}>{children}</div>
       {sheet ? <ShortcutsSheet onClose={closeSheet} /> : null}
-      {whatsNew ? <WhatsNewDialog entry={whatsNew} onClose={closeWhatsNew} /> : null}
+      {whatsNew ? (
+        <WhatsNewDialog entry={whatsNew} origin="update" onClose={closeWhatsNew} />
+      ) : null}
     </div>
   )
 }

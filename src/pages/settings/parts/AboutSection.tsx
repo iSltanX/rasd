@@ -114,7 +114,7 @@ export function AboutSection({ version }: AboutSectionProps) {
 
       {licenses ? <LicensesDialog onClose={() => setLicenses(false)} /> : null}
       {whatsNew && entry ? (
-        <WhatsNewDialog entry={entry} onClose={() => setWhatsNew(false)} />
+        <WhatsNewDialog entry={entry} origin="about" onClose={() => setWhatsNew(false)} />
       ) : null}
     </>
   )

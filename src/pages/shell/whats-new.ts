@@ -22,10 +22,12 @@ export interface ChangelogEntry {
 const ENTRY_HEADING = /^## (\S+)(?:\s+—\s+(\d{4}-\d{2}-\d{2}))?\s*$/u
 const ANY_HEADING = /^#{1,6}\s/u
 const ITEM = /^- (.+)$/u
+const CONTINUATION = /^\s+(\S.*)$/u
 
 /**
  * يحلّل السجلّ إلى إصداراته بترتيبها فيه. عنوان `##` برقم نسخة يفتح إصدارًا، وأي عنوان آخر يغلقه،
- * و`- ` داخله بند. وما قبل أوّل إصدار (المقدّمة وقواعد الكتابة) لا يُقرأ بنودًا.
+ * و`- ` داخله بند. **وسطرٌ مُزاح بعد بند تكملةٌ له** — البند الطويل يُلفّ كما تُلفّ المقدّمة، وكان
+ * ما بعد سطره الأوّل يسقط صامتًا. وما قبل أوّل إصدار (المقدّمة وقواعد الكتابة) لا يُقرأ بنودًا.
  */
 export function parseChangelog(source: string): ChangelogEntry[] {
   const entries: ChangelogEntry[] = []
@@ -42,8 +44,15 @@ export function parseChangelog(source: string): ChangelogEntry[] {
       current = null
       continue
     }
+    if (!current) continue
     const item = ITEM.exec(line)
-    if (item?.[1] && current) current.items.push(item[1].trim())
+    if (item?.[1]) {
+      current.items.push(item[1].trim())
+      continue
+    }
+    const more = CONTINUATION.exec(line)
+    const last = current.items.length - 1
+    if (more?.[1] && last >= 0) current.items[last] = `${current.items[last]} ${more[1].trim()}`
   }
   return entries
 }

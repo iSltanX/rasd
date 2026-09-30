@@ -59,6 +59,16 @@ describe('parseChangelog', () => {
     ])
   })
 
+  it('البند الملفوف على أسطر يُقرأ كاملًا لا سطره الأوّل وحده', () => {
+    const wrapped = ['## 0.2.0', '- بند طويل يبدأ هنا', '  ويكمل في السطر التالي', '- قصير'].join(
+      '\n',
+    )
+    expect(parseChangelog(wrapped)[0]?.items).toEqual([
+      'بند طويل يبدأ هنا ويكمل في السطر التالي',
+      'قصير',
+    ])
+  })
+
   it('entryFor يطابق 1.0 و1.0.0، ولا يعيد إصدارًا بلا بنود', () => {
     const entries = parseChangelog(source)
     expect(entryFor('1.0', entries)?.items).toEqual(['قديم'])
@@ -93,6 +103,15 @@ describe('CHANGELOG.md كما يُضمَّن في الحزمة', () => {
       expect(item, item).not.toMatch(/[*`[\]_<>]/u)
       expect(item, item).not.toMatch(/(?:المرحلة|الوحدة)\s+\d/u)
     }
+  })
+
+  it('لا سطر داخل إصدار يسقط صامتًا: عنوانٌ أو بندٌ أو تكملةٌ مُزاحة', () => {
+    const lines = readFileSync(join(process.cwd(), 'CHANGELOG.md'), 'utf8').split(/\r?\n/u)
+    const first = lines.findIndex((l) => /^## \d/u.test(l))
+    const stray = lines
+      .slice(first)
+      .filter((l) => l.trim() !== '' && !/^#{1,6}\s|^- |^\s+\S/u.test(l))
+    expect(stray).toEqual([])
   })
 
   it('الإصدارات بأحدثها أوّلًا', () => {

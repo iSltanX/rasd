@@ -31,15 +31,32 @@ async function openTabs(): Promise<string[]> {
 // اختباران يستبدلان `runtime` و`extension` على الكائن المزيّف نفسه، و`reset()` لا يعيدهما.
 const original = { runtime: globalThis.chrome.runtime, extension: globalThis.chrome.extension }
 
+/**
+ * المتصفّح المزيّف لا يعرف «آخر نافذة مُركَّزة» (`getLastFocused` فارغ)، ونافذته الوحيدة معرّفها صفر:
+ * فتُقرأ `lastFocusedWindow` عليها — كما يقرؤها كروم حين تكون النافذة الوحيدة.
+ */
+const realQuery = fakeBrowser.tabs.query.bind(fakeBrowser.tabs)
+const focusedQuery = (info: chrome.tabs.QueryInfo) => {
+  const { lastFocusedWindow, ...rest } = info
+  return realQuery(lastFocusedWindow ? { ...rest, windowId: 0 } : rest)
+}
+
 beforeEach(() => {
   fakeBrowser.reset()
   resetSettingsCache()
   vi.restoreAllMocks()
+  // `query` بتوقيعَيه (الوعد والنداء الراجع) لا يقبل وعدًا من `spyOn` في الأنواع — فيُستبدل.
+  mockQuery(focusedQuery)
 })
 
 afterEach(() => {
   Object.assign(globalThis.chrome, original)
+  Object.assign(fakeBrowser.tabs, { query: realQuery })
 })
+
+function mockQuery(impl: (info: chrome.tabs.QueryInfo) => Promise<chrome.tabs.Tab[]>) {
+  Object.assign(chrome.tabs, { query: vi.fn(impl) })
+}
 
 describe('جولة التعريف — عند التثبيت وحده', () => {
   it('install يفتح صفحة التأهيل ولا يكتب شيئًا في الإعدادات', async () => {
@@ -49,10 +66,49 @@ describe('جولة التعريف — عند التثبيت وحده', () => {
     expect(set).not.toHaveBeenCalled()
   })
 
-  it('الفتح يُطلب متزامنًا مع الحدث قبل أي انتظار — فيسبق تبويبًا يفتحه غيره بعد الإقلاع', () => {
+  it('طلبا «ما في الواجهة» و«افتح في الخلفية» يصدران متزامنين مع الحدث قبل أي انتظار', () => {
+    const query = vi.mocked(chrome.tabs.query)
     const create = vi.spyOn(chrome.tabs, 'create')
     void handleInstalled({ reason: 'install' }, '1.0.0')
+    expect(query).toHaveBeenCalledTimes(1)
     expect(create).toHaveBeenCalledTimes(1)
+    expect(create.mock.calls[0]?.[0]).toMatchObject({ active: false })
+  })
+
+  it('في الواجهة صفحةٌ غريبة لم تتغيّر ⇐ الجولة تتقدّم إليها', async () => {
+    const store = await chrome.tabs.create({
+      url: 'https://chromewebstore.google.com/',
+      active: true,
+    })
+    const update = vi.spyOn(chrome.tabs, 'update')
+    await handleInstalled({ reason: 'install' }, '1.0.0')
+    const [tour] = await chrome.tabs.query({ url: onboardingUrl() })
+    expect(update).toHaveBeenCalledWith(tour!.id, { active: true })
+    expect(store.id).not.toBe(tour!.id)
+  })
+
+  it('في الواجهة صفحةٌ من رصد ⇐ الجولة تبقى في الخلفية ولا تُخفيها', async () => {
+    await chrome.tabs.create({
+      url: chrome.runtime.getURL('src/pages/library/index.html'),
+      active: true,
+    })
+    const update = vi.spyOn(chrome.tabs, 'update')
+    await handleInstalled({ reason: 'install' }, '1.0.0')
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('تقدّم شيءٌ آخر إلى الواجهة بعد التثبيت ⇐ لا تنتزعها الجولة منه', async () => {
+    await chrome.tabs.create({ url: 'https://example.com/a', active: true })
+    let calls = 0
+    mockQuery(async (info) => {
+      calls++
+      // القراءة الثانية: تبويبٌ فتحه غيرنا بعد التثبيت صار في الواجهة.
+      if (calls === 2) await chrome.tabs.create({ url: 'https://example.com/b', active: true })
+      return focusedQuery(info)
+    })
+    const update = vi.spyOn(chrome.tabs, 'update')
+    await handleInstalled({ reason: 'install' }, '1.0.0')
+    expect(update).not.toHaveBeenCalled()
   })
 
   it('update لا يفتح التأهيل — والمستخدم القائم يُعامَل «شوهد» فلا تفاجئه الترحيبيّة', async () => {
@@ -100,6 +156,20 @@ describe('جولة التعريف — عند التثبيت وحده', () => {
     await fakeBrowser.runtime.onStartup.trigger()
     await new Promise((r) => setTimeout(r, 0))
     expect(await openTabs()).toEqual([])
+  })
+
+  it('registerLifecycle يسجّله — حذف سطر التسجيل يُسقط هذا', async () => {
+    Object.assign(globalThis.chrome, {
+      runtime: { ...globalThis.chrome.runtime, onConnect: { addListener: vi.fn() } },
+      alarms: {
+        create: vi.fn(),
+        get: vi.fn().mockResolvedValue(undefined),
+        onAlarm: { addListener: vi.fn() },
+      },
+    })
+    registerLifecycle()
+    await fakeBrowser.runtime.onInstalled.trigger({ reason: 'install' })
+    await vi.waitFor(async () => expect(await openTabs()).toEqual([onboardingUrl()]))
   })
 
   it('المستمع مسجَّل على onInstalled فعلًا', async () => {

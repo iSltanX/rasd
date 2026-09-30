@@ -48,7 +48,7 @@ const STEPS: readonly Step[] = [
   },
   {
     title: 'التقط أوّل لقطة',
-    body: 'افتح أي صفحة واختر وضعًا من الأربعة، باختصاره أو من زرّ رصد في شريط المتصفّح. تُحفظ اللقطة في المكتبة، ويُفتح المحرّر لتعلّق عليها.',
+    body: 'افتح أي صفحة واختر وضعًا من الأربعة، باختصاره أو من زرّ رصد في شريط المتصفّح. تُحفظ اللقطة في المكتبة، وتفتحها في المحرّر من إشعارها لتعلّق عليها.',
   },
 ]
 
@@ -170,28 +170,31 @@ export function Onboarding(): JSX.Element {
 
         <footer class={styles.footer}>
           <Dots current={step} total={STEPS.length} />
-          <div class={styles.actions}>
-            {last ? null : (
-              <Button variant="ghost" size="m" onClick={finish}>
-                تخطَّ
-              </Button>
-            )}
-            {last ? (
-              <Button variant="primary" size="m" icon="check" iconPosition="end" onClick={finish}>
-                ابدأ
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                size="m"
-                icon="chevron-right"
-                iconPosition="end"
-                onClick={next}
-              >
-                التالي
-              </Button>
-            )}
-          </div>
+          {/* انتهت ولم يُغلق التبويب: زرٌّ بعدها لا يفعل شيئًا، فلا زرّ — والرسالة تقول ما بقي. */}
+          {done ? null : (
+            <div class={styles.actions}>
+              {last ? null : (
+                <Button variant="ghost" size="m" onClick={finish}>
+                  تخطَّ
+                </Button>
+              )}
+              {last ? (
+                <Button variant="primary" size="m" icon="check" iconPosition="end" onClick={finish}>
+                  ابدأ
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="m"
+                  icon="chevron-right"
+                  iconPosition="end"
+                  onClick={next}
+                >
+                  التالي
+                </Button>
+              )}
+            </div>
+          )}
         </footer>
       </div>
     </main>

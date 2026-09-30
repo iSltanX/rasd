@@ -12,7 +12,17 @@ import type { JSX } from 'preact'
 
 export interface WhatsNewDialogProps {
   entry: ChangelogEntry
+  /**
+   * `update` بعد الترقية مرّة (قشرة الصفحات)، و`about` بطلب المستخدم من «عن رصد» — فلا تقول له
+   * البطاقة إنها تظهر مرّة وهو يفتحها للمرّة الخامسة.
+   */
+  origin: 'update' | 'about'
   onClose: () => void
+}
+
+const SUBTITLE: Record<WhatsNewDialogProps['origin'], string> = {
+  update: 'يظهر مرّة واحدة بعد التحديث',
+  about: 'ما تغيّر في هذا الإصدار',
 }
 
 /**
@@ -24,7 +34,7 @@ export interface WhatsNewDialogProps {
  * و«اقرأ سجلّ التغييرات» يفتح الملفّ في المستودع — **فلا يُعرض إلا مع رابط المستودع**
  * (`SHOW_REPO_LINK`): المستودع خاصّ اليوم، ورابطٌ يعطي زائره 404 لا يُعرض (`AGENTS.md` §7).
  */
-export function WhatsNewDialog({ entry, onClose }: WhatsNewDialogProps): JSX.Element {
+export function WhatsNewDialog({ entry, origin, onClose }: WhatsNewDialogProps): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -54,7 +64,7 @@ export function WhatsNewDialog({ entry, onClose }: WhatsNewDialogProps): JSX.Ele
             <h2 class={`${styles.title} t-arabic-heading-s`} id="rasd-whats-new-title">
               ما الجديد في رصد <bdi dir="ltr">{displayVersion(entry.version)}</bdi>
             </h2>
-            <p class={`${styles.subtitle} t-arabic-ui-xs`}>يظهر مرّة واحدة بعد التحديث</p>
+            <p class={`${styles.subtitle} t-arabic-ui-xs`}>{SUBTITLE[origin]}</p>
           </div>
           <IconButton icon="close" aria-label="أغلق" size="m" onClick={onClose} />
         </div>

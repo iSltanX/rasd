@@ -131,6 +131,8 @@ describe('الإنهاء والتخطّي', () => {
     await vi.waitFor(() =>
       expect(root.querySelector('[role="status"]')?.textContent).toContain('انتهت الجولة'),
     )
+    // لا زرّ يبقى بعدها يبدو فعّالًا ولا يفعل شيئًا.
+    expect(root.querySelectorAll('footer button')).toHaveLength(0)
   })
 
   it('آخر تبويب في نافذته لا يُغلقها — يُفتح قبله تبويب جديد', async () => {

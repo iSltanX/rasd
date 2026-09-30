@@ -54,12 +54,21 @@ describe('claimPendingWhatsNew', () => {
 })
 
 describe('WhatsNewDialog', () => {
-  function mount(onClose = vi.fn()) {
+  function mount(onClose = vi.fn(), origin: 'update' | 'about' = 'update') {
     container = document.createElement('div')
     document.body.appendChild(container)
-    render(<WhatsNewDialog entry={ENTRY} onClose={onClose} />, container)
+    render(<WhatsNewDialog entry={ENTRY} origin={origin} onClose={onClose} />, container)
     return { root: container, onClose }
   }
+
+  it('«يظهر مرّة واحدة» بعد الترقية وحدها — لا حين يفتحها المستخدم من «عن رصد»', () => {
+    expect(mount().root.querySelector('h2 + p')?.textContent).toBe('يظهر مرّة واحدة بعد التحديث')
+    render(null, container!)
+    container!.remove()
+    expect(mount(vi.fn(), 'about').root.querySelector('h2 + p')?.textContent).toBe(
+      'ما تغيّر في هذا الإصدار',
+    )
+  })
 
   it('العنوان بالنسخة المختصرة، والبنود من السجلّ، والعلامات زخرفةٌ لا مربّعات اختيار', () => {
     const { root } = mount()
