@@ -25,6 +25,7 @@
  */
 import { execFileSync, spawn } from 'node:child_process'
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -54,6 +55,30 @@ const writeBaselines = args.includes('--baselines')
 const skipBuild = args.includes('--no-build')
 const runAxe = args.includes('--axe')
 const runKeys = args.includes('--keys')
+const BASELINES = join(root, 'tests', 'visual-baselines')
+/**
+ * مشاهد تُنسخ خطوطَ أساس بأسمائها القائمة — الأسماء لا تُغيَّر ولا تُعاد ترقيمًا (`AGENTS.md` §4)،
+ * فبعضها يحمل اسم حالة قديمة (`crop-square`) وما فيه موصوف في `README.md` مجلّده.
+ */
+const BASELINE_SHOTS = {
+  'popup / default|light': 'phase-07/popup-default-light-rtl.png',
+  'capture / area-select|dark': 'phase-08/area-select-rtl.png',
+  'editor / text|dark': 'phase-15/annotating-text-rtl.png',
+  'editor / redact|dark': 'phase-15/redact-blur-rtl.png',
+  'editor / crop|dark': 'phase-15/crop-square-rtl.png',
+}
+/** مشاهد تُكتب شجرة إتاحتها كما يبنيها Chrome — `Accessibility.getFullAXTree` لا تقريبًا من DOM. */
+const BASELINE_TREES = {
+  'popup / default|dark': [
+    'phase-07/popup-rtl-a11y-tree.md',
+    'نافذة الإضافة — الحالات الاثنتا عشرة',
+  ],
+  'privacy / excluded-sites|dark': [
+    'phase-20/settings-privacy-a11y-tree.md',
+    'الإعدادات ‹ الخصوصية ‹ المواقع المستثناة، بقائمة مواقع',
+  ],
+}
+const baselineLog = []
 /** محطّات تركيز بلا أثر مرئي — `--keys`. */
 const keyFindings = []
 let keyScenes = 0
@@ -341,6 +366,58 @@ async function walkKeys(page, frame, mode) {
   }
 }
 
+const INTERACTIVE = new Set([
+  'button',
+  'link',
+  'checkbox',
+  'switch',
+  'tab',
+  'radio',
+  'textbox',
+  'searchbox',
+  'combobox',
+  'menuitem',
+  'slider',
+  'spinbutton',
+  'listbox',
+  'option',
+])
+const STRUCTURAL = new Set([
+  'heading',
+  'dialog',
+  'alertdialog',
+  'status',
+  'alert',
+  'progressbar',
+  'tablist',
+  'tabpanel',
+  'navigation',
+  'main',
+  'region',
+  'img',
+])
+
+/** شجرة الإتاحة كما يبنيها Chrome، مكتوبةً خطَّ أساس يُقرأ بالعين. */
+async function writeTree(page, file, title) {
+  const { nodes } = await send('Accessibility.getFullAXTree', {}, page.sessionId)
+  const live = nodes.filter((n) => !n.ignored)
+  const rows = live
+    .map((n) => ({ role: n.role?.value ?? '', name: (n.name?.value ?? '').trim() }))
+    .filter((r) => INTERACTIVE.has(r.role) || STRUCTURAL.has(r.role))
+  const unnamed = rows.filter((r) => INTERACTIVE.has(r.role) && !r.name).length
+  const body =
+    `# شجرة الإتاحة — ${title}\n\n` +
+    'مولَّدة بـ`pnpm design:shots --baselines` من `Accessibility.getFullAXTree` في Chrome حقيقي،\n' +
+    'بالوضع الداكن وRTL. **تُقرأ بالعين ولا تُقارَن آليًّا**: التغيّر فيها متوقَّع مع كل إضافة،\n' +
+    'والمقصود أن يمرّ عليها قارئ حين يتغيّر شيء — لا أن تُسقط البناء.\n\n' +
+    `العناصر التفاعلية والبنيوية: ${rows.length} · **بلا اسم: ${unnamed}** (من ${live.length} عقدة فعّالة)\n\n` +
+    '```\n' +
+    rows.map((r) => `${r.role} — ${r.name || '(بلا اسم)'}`).join('\n') +
+    '\n```\n'
+  writeFileSync(join(BASELINES, file), body)
+  baselineLog.push(`${file} — ${rows.length} عنصرًا، بلا اسم ${unnamed}`)
+}
+
 const ctx = {
   ORIGIN,
   BASE,
@@ -350,7 +427,53 @@ const ctx = {
     await page.shot(shotName(frame, mode), clip)
     if (runAxe) await audit(page, frame, mode)
     if (runKeys) await walkKeys(page, frame, mode)
+    if (writeBaselines) {
+      const target = BASELINE_SHOTS[`${frame}|${mode}`]
+      if (target) {
+        copyFileSync(shotName(frame, mode), join(BASELINES, target))
+        baselineLog.push(target)
+      }
+      const tree = BASELINE_TREES[`${frame}|${mode}`]
+      if (tree) await writeTree(page, ...tree)
+    }
   },
+}
+
+/** خطوط أساس ليست مشهدًا من المجموعات: المعرض بأوضاعه الأربعة، وشبكة حالات النافذة كاملة. */
+async function extraBaselines() {
+  for (const mode of MODES) {
+    for (const dir of ['rtl', 'ltr']) {
+      const page = await openPage(`${ORIGIN}/src/pages/gallery/index.html`, mode)
+      await page.waitFor(`document.querySelector('[aria-label="الاتجاه"]')`)
+      if (dir === 'ltr') {
+        await page.evaluate(`[...document.querySelectorAll('[aria-label="الاتجاه"] button')]
+          .find((b) => b.textContent.trim() === 'LTR').click()`)
+        await page.waitFor('document.documentElement.dir === "ltr"')
+      }
+      // نموذج `Menu` في المعرض يركّز عنصره عند التركيب فيمرّر المتصفّح إليه — والخطّ رأسُ المعرض.
+      await page.evaluate('window.scrollTo(0, 0)')
+      await page.settle()
+      const file = `phase-05/gallery-${mode}-${dir}.png`
+      await page.shot(join(BASELINES, file))
+      baselineLog.push(file)
+      if (mode === 'dark' && dir === 'rtl') {
+        await writeTree(page, 'phase-05/gallery-rtl-a11y-tree.md', 'معرض المكوّنات')
+      }
+      await page.close()
+    }
+  }
+  const grid = await openPage(`${ORIGIN}/src/pages/popup-preview/index.html?theme=dark`, 'dark')
+  await grid.waitFor('document.querySelectorAll("[data-popup-state]").length >= 12')
+  await grid.settle()
+  const { contentSize } = await send('Page.getLayoutMetrics', {}, grid.sessionId)
+  await grid.shot(join(BASELINES, 'phase-07/popup-states-dark-rtl.png'), {
+    x: 0,
+    y: 0,
+    width: Math.ceil(contentSize.width),
+    height: Math.ceil(contentSize.height),
+  })
+  baselineLog.push('phase-07/popup-states-dark-rtl.png')
+  await grid.close()
 }
 
 const groupDir = join(root, 'scripts', 'design-shots')
@@ -374,6 +497,13 @@ for (const [name, run] of Object.entries(groups)) {
     }
   }
 }
+if (writeBaselines && !only.length) {
+  try {
+    await extraBaselines()
+  } catch (e) {
+    console.log(`  ✗ خطوط الأساس الإضافية — ${e.message}`)
+  }
+}
 console.log(`\n${total} لقطة في ${SHOTS}`)
 if (runKeys) {
   writeFileSync(join(OUT, 'keys.json'), JSON.stringify(keyFindings, null, 2))
@@ -394,5 +524,8 @@ if (runAxe) {
   for (const f of axeFindings) byRule[f.id] = (byRule[f.id] ?? 0) + 1
   for (const [id, n] of Object.entries(byRule)) console.log(`  ${id}: ${n}`)
 }
-if (writeBaselines) console.log('خطوط الأساس: لم تُحدَّد بعد في هذا الإصدار')
+if (writeBaselines) {
+  console.log(`خطوط الأساس (${baselineLog.length}) في tests/visual-baselines/:`)
+  for (const line of baselineLog) console.log(`  ${line}`)
+}
 finish(0)
