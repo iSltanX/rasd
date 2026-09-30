@@ -21,6 +21,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { ensureFixturesServer } from './live-fixtures.mjs'
 import { attachLiveServiceWorker } from './live-sw.mjs'
+import { judge, median } from './runtime-budgets.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
@@ -246,6 +247,79 @@ if (extId && sw && granted) {
     fail(`تعذّر بدء الطبقة: ${injected} / ${JSON.stringify(started)}`)
   } else {
     ok(`الطبقة بدأت (${started.level})`)
+
+    /*
+     * ── ميزانية: زمن دخول وضع الفحص (`STAGES/20`، ADR 0038) ─────────
+     *
+     * **بالمسار الحقيقي لا بنداء دالّة.** الأمر يصل كما يصل من النافذة أو الاختصار: رسالة
+     * `mode/set` من الـservice worker إلى الصفحة. والمقيس من لحظة إرسالها في الـSW إلى **ثاني
+     * `requestAnimationFrame` بعد تبدّل الوضع** — الأول يعالج ما جدولته الأداة، والثاني يبدأ بعد
+     * أن رُسم الإطار الأول. فيدخل في الرقم عبور الرسالة وتبديل الوضع وأول رسم، وهذا هو ما يراه
+     * المستخدم.
+     *
+     * الساعتان (الـSW والصفحة) تُقرآن كـ`timeOrigin + now()`: ساعة رتيبة واحدة على الجهاز، فيُطرح
+     * الطرفان. فارقٌ سالب بينهما ⇒ الساعتان لا تتّفقان والقياس باطل، فيسقط ولا يُقرأ سريعًا جدًّا.
+     *
+     * **دخول بارد ثم ثمانية دافئة.** الأول هو ما يقع حين يضغط المستخدم أوّل مرّة على صفحة لم يدخل
+     * فيها وضعًا، والباقي يفصل عيب المسار من ضجيج التشغيل الأوّل. الميزانية على الاثنين: البارد
+     * وحده والوسيط الدافئ وحده.
+     */
+    await inOverlay(
+      tabId,
+      `() => {
+        const h = globalThis.__rasdPicker
+        globalThis.__rasdEntry = []
+        h.modes.subscribe((mode) => {
+          if (mode !== 'inspect') return
+          const set = performance.timeOrigin + performance.now()
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() =>
+              globalThis.__rasdEntry.push({ set, painted: performance.timeOrigin + performance.now() }),
+            ),
+          )
+        })
+        return true
+      }`,
+    )
+    const sendMode = (mode) =>
+      inSW(`(async () => {
+        const sent = performance.timeOrigin + performance.now()
+        const reply = await chrome.tabs.sendMessage(${tabId}, {
+          __rasd: 1, id: 'verify-mode-${mode}', type: 'mode/set', payload: { mode: ${JSON.stringify(mode)} },
+        })
+        return { sent, reply }
+      })()`)
+    const TRIALS = 9
+    const entries = []
+    for (let i = 0; i < TRIALS; i++) {
+      const { sent, reply } = await sendMode('inspect')
+      await new Promise((r) => setTimeout(r, 250))
+      const stamps = await inOverlay(tabId, `() => globalThis.__rasdEntry.slice()`)
+      const stamp = stamps[i]
+      if (!reply?.ok || !stamp || stamp.set < sent) {
+        entries.push(Number.NaN)
+        note(
+          `دخول ${i + 1}: قياس باطل — ردّ ${JSON.stringify(reply)} · ختم ${JSON.stringify(stamp)} · إرسال ${sent}`,
+        )
+      } else {
+        entries.push(stamp.painted - sent)
+        if (i === 0) note(`عبور الرسالة إلى الصفحة: ${(stamp.set - sent).toFixed(1)}ms`)
+      }
+      await sendMode('idle')
+      await new Promise((r) => setTimeout(r, 120))
+    }
+    const [cold, ...warm] = entries
+    note(
+      `دخول وضع الفحص (ms): بارد ${cold.toFixed(1)} · دافئ ${warm.map((v) => v.toFixed(1)).join(' ')}`,
+    )
+    for (const [name, value] of [
+      ['البارد', cold],
+      ['وسيط الدافئ', median(warm)],
+    ]) {
+      const verdict = judge('inspect-entry', value)
+      if (verdict.pass) ok(`${name} — ${verdict.text}`)
+      else fail(`${name} — ${verdict.text}`)
+    }
 
     /*
      * المحرّك يُشغَّل داخل العالم المعزول عبر مقبض الطبقة، ويُقارَن ناتجه

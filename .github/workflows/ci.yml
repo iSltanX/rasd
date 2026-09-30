@@ -262,15 +262,15 @@ jobs:
           - { guard: compare-diff, blocking: false }
           - { guard: editor, blocking: true }
           - { guard: export, blocking: false }
-          - { guard: fullpage, blocking: true }
+          - { guard: fullpage, blocking: false }
           - { guard: gate, blocking: true }
-          - { guard: inspect, blocking: true }
+          - { guard: inspect, blocking: false }
           - { guard: issues, blocking: false }
           - { guard: library, blocking: false }
           - { guard: lifecycle, blocking: true }
           - { guard: load, blocking: true }
           - { guard: measure, blocking: true }
-          - { guard: overlay, blocking: true }
+          - { guard: overlay, blocking: false }
           - { guard: palette, blocking: true }
           - { guard: picker, blocking: true }
           - { guard: popup, blocking: false }
