@@ -63,6 +63,12 @@ describe('judge', () => {
     expect(judge('search-5000', 0).pass).toBe(true)
   })
 
+  it('ذروة الذاكرة: 400MB تمرّ و401 تسقط، ولم تُقَس تسقط', () => {
+    expect(judge('memory-peak', 400).pass).toBe(true)
+    expect(judge('memory-peak', 400.5).pass).toBe(false)
+    expect(judge('memory-peak', Number.NaN).pass).toBe(false)
+  })
+
   it('الأرضية: الحدّ نفسه يمرّ وما تحته يسقط', () => {
     expect(judge('fps-5000', 55).pass).toBe(true)
     expect(judge('fps-5000', 54.99).pass).toBe(false)
@@ -180,6 +186,7 @@ describe('الجدول والحرّاس', () => {
       'fullpage-20',
       'idle-cpu',
       'inspect-entry',
+      'memory-peak',
       'search-5000',
     ])
     for (const row of mine) {

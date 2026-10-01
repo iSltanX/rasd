@@ -8,6 +8,7 @@
  * `shared/` طبقة قاعدية: لا تستورد من أي طبقة أعلى منها.
  */
 
+import { replaceListener } from '../listener-slot'
 import { err, ok, rasdError, toRasdError, type Result } from '../result'
 
 import {
@@ -132,45 +133,53 @@ function ensureListener() {
   if (listening) return
   listening = true
 
-  chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
-    if (!isEnvelope(message)) return false
+  /*
+   * **عبر مقعد لا مباشرةً**: `content.js` يعيد تنفيذ هذه الوحدة عند كل تفعيل فتعود `listening` إلى `false`، ومستمعُ
+   * النسخة السابقة حيّ — فيتراكم واحدٌ في كل دورة، والأقدم بلا معالجات فيردّ «لا مستقبِل» قبل الصحيح (`STAGES/21`).
+   */
+  replaceListener(
+    'runtime.onMessage',
+    chrome.runtime.onMessage,
+    (message: unknown, sender, sendResponse) => {
+      if (!isEnvelope(message)) return false
 
-    const handler = handlers[message.type] as Handler<MessageType> | undefined
-    if (!handler) {
-      sendResponse({
-        ok: false,
-        error: { code: 'no-receiver', message: `لا مستقبِل للرسالة ${message.type}` },
-      } satisfies WireReply)
-      // `true` حتى بعد ردّ متزامن: بعض البيئات تُسقط الردّ إذا عاد `false`.
-      return true
-    }
-
-    const context: MessageContext = {
-      ...(sender.tab?.id === undefined ? {} : { tabId: sender.tab.id }),
-      ...(sender.frameId === undefined ? {} : { frameId: sender.frameId }),
-      ...(sender.origin === undefined ? {} : { origin: sender.origin }),
-    }
-
-    void (async () => {
-      try {
-        const value = await handler(message.payload, context)
-        sendResponse({ ok: true, value } satisfies WireReply)
-      } catch (thrown) {
-        const error = toRasdError(thrown, 'handler-failed')
+      const handler = handlers[message.type] as Handler<MessageType> | undefined
+      if (!handler) {
         sendResponse({
           ok: false,
-          error: {
-            code: error.code,
-            message: error.message,
-            ...(error.detail === undefined ? {} : { detail: error.detail }),
-          },
+          error: { code: 'no-receiver', message: `لا مستقبِل للرسالة ${message.type}` },
         } satisfies WireReply)
+        // `true` حتى بعد ردّ متزامن: بعض البيئات تُسقط الردّ إذا عاد `false`.
+        return true
       }
-    })()
 
-    // `true` يُبقي القناة مفتوحة للردّ غير المتزامن.
-    return true
-  })
+      const context: MessageContext = {
+        ...(sender.tab?.id === undefined ? {} : { tabId: sender.tab.id }),
+        ...(sender.frameId === undefined ? {} : { frameId: sender.frameId }),
+        ...(sender.origin === undefined ? {} : { origin: sender.origin }),
+      }
+
+      void (async () => {
+        try {
+          const value = await handler(message.payload, context)
+          sendResponse({ ok: true, value } satisfies WireReply)
+        } catch (thrown) {
+          const error = toRasdError(thrown, 'handler-failed')
+          sendResponse({
+            ok: false,
+            error: {
+              code: error.code,
+              message: error.message,
+              ...(error.detail === undefined ? {} : { detail: error.detail }),
+            },
+          } satisfies WireReply)
+        }
+      })()
+
+      // `true` يُبقي القناة مفتوحة للردّ غير المتزامن.
+      return true
+    },
+  )
 }
 
 /** للاختبارات: يُفرِغ المستقبِلات المسجَّلة. */

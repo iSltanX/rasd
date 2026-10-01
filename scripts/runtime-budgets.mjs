@@ -119,8 +119,8 @@ export const ROWS = Object.freeze([
     op: '<=',
     budget: 400,
     unit: 'MB',
-    command: null,
-    pending: 'STAGES/21',
+    command: 'verify:memory',
+    guard: 'memory',
     source: null,
   },
   {

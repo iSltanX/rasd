@@ -5,6 +5,7 @@
  * (النافذة، الصفحات، الـservice worker، الطبقة داخل الصفحة) بلا رسائل يدوية.
  */
 
+import { replaceListener } from '../listener-slot'
 import { attempt, ok, type Result } from '../result'
 
 import { defaultSettings, parseSettings, type Settings } from './schema'
@@ -223,7 +224,8 @@ export function watchSettings(listener: (settings: Settings) => void): () => voi
 function ensureWatcher() {
   if (watching) return
   watching = true
-  chrome.storage.onChanged.addListener((changes, area) => {
+  // مقعدٌ واحد لكل عالم: إعادة تنفيذ `content.js` تبني وحدةً جديدة ومستمعُ السابقة حيّ (`STAGES/21`).
+  replaceListener('settings.storage.onChanged', chrome.storage.onChanged, (changes, area) => {
     if (area !== 'local' || !(KEY in changes)) return
     const { settings } = parseSettings(changes[KEY]?.newValue)
     refresh(settings)
