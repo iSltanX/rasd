@@ -25,6 +25,7 @@ export type RasdErrorCode =
   | 'permission-denied' // المستخدم رفض صلاحية
   | 'quota-exceeded' // التخزين ممتلئ
   | 'incognito-blocked' // الحفظ ممنوع في التصفّح الخاص
+  | 'library-locked' // المكتبة مقفلة برمز ولم تُفتح في هذه الجلسة (ADR 0043)
   | 'not-found' // سجلّ غير موجود
   | 'invalid-data' // بيانات لا تطابق المخطّط
   | 'migration-failed' // ترحيل قاعدة البيانات فشل
@@ -48,6 +49,7 @@ const MESSAGES: Record<RasdErrorCode, string> = {
   'permission-denied': 'لم تُمنح الصلاحية المطلوبة.',
   'quota-exceeded': 'مساحة التخزين ممتلئة. احذف أو أرشِف بعض اللقطات.',
   'incognito-blocked': 'الحفظ معطَّل في التصفّح الخاص.',
+  'library-locked': 'المكتبة مقفلة. افتحها برمزها من صفحة المكتبة.',
   'not-found': 'العنصر غير موجود.',
   'invalid-data': 'البيانات غير صالحة.',
   'migration-failed': 'تعذّرت ترقية قاعدة البيانات المحلية.',

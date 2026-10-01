@@ -10,6 +10,7 @@ import { openDB, type IDBPDatabase } from 'idb'
 import { isIncognitoContext } from '../env'
 import { errWith, ok, toRasdError, type Result } from '../result'
 
+import { libraryLocked } from './lock-state'
 import { runMigrations } from './migrations'
 import { assertWritable } from './quota'
 import { DB_NAME, DB_VERSION, type RasdDB } from './schema'
@@ -76,8 +77,28 @@ export async function guardWrite(incomingBytes = 0): Promise<Result<null>> {
   return ok(null)
 }
 
-/** يغلّف عملية قاعدة بيانات في `Result` — لا استثناء يعبر الحدّ. */
+/**
+ * يغلّف عملية قاعدة بيانات في `Result` — لا استثناء يعبر الحدّ.
+ *
+ * **وهنا حارس قفل المكتبة** (ADR 0043 §1): كل مستودعٍ ومعاملةٍ ذرّية وقراءةٍ للنسخ الاحتياطي يمرّ من هنا، فالمكتبة
+ * المقفلة لا تُقرأ ولا تُكتب من أيّ سياق — لا في الواجهة وحدها. والفحص قبل فتح القاعدة: لا ترقية ولا اتّصال.
+ */
 export async function withDb<T>(fn: (db: IDBPDatabase<RasdDB>) => Promise<T>): Promise<Result<T>> {
+  if (await libraryLocked()) return errWith('library-locked')
+  return run(fn)
+}
+
+/**
+ * بلا حارس القفل — **لإفراغ القاعدة وحده** (`clearAllStores`، ADR 0043 §4): رمزٌ منسيّ يُفرغ المكتبة ولا يفتحها.
+ * لا تقرأ بها سجلًّا: `storage-lock.test.ts` يسقط إن استُعملت في غير ذلك الموضع.
+ */
+export async function withDbForErase<T>(
+  fn: (db: IDBPDatabase<RasdDB>) => Promise<T>,
+): Promise<Result<T>> {
+  return run(fn)
+}
+
+async function run<T>(fn: (db: IDBPDatabase<RasdDB>) => Promise<T>): Promise<Result<T>> {
   try {
     return ok(await fn(await database()))
   } catch (thrown) {

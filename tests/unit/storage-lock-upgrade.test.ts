@@ -7,7 +7,13 @@ import { closeDatabase } from '@/shared/storage/db'
 import { libraryCounts, readLibrary } from '@/shared/storage/library'
 import { MIGRATIONS } from '@/shared/storage/migrations'
 import { blobs, captures, issues } from '@/shared/storage/repository'
-import { DB_NAME, DB_VERSION, STORE_NAMES, type RasdDB, type StoreName } from '@/shared/storage/schema'
+import {
+  DB_NAME,
+  DB_VERSION,
+  STORE_NAMES,
+  type RasdDB,
+  type StoreName,
+} from '@/shared/storage/schema'
 
 /**
  * مكتبةٌ قائمة بلا قفل تبقى مقروءةً كاملة بعد الترقية — كُتب **قبل** حارس القفل في `withDb` (`AGENTS.md` §7،
@@ -74,7 +80,12 @@ const SEED: { [S in StoreName]: object } = {
     updatedAt: at,
   },
   tags: { name: 'سلّة', count: 1 },
-  thumbnails: { id: 'c1', blob: new Blob(['webp'], { type: 'image/webp' }), width: 320, height: 200 },
+  thumbnails: {
+    id: 'c1',
+    blob: new Blob(['webp'], { type: 'image/webp' }),
+    width: 320,
+    height: 200,
+  },
   issues: {
     id: 'i1',
     projectId: 'p1',
@@ -136,7 +147,10 @@ describe('الترقية إلى إصدار القفل — مكتبةٌ بلا ق
   })
 
   it('والكتابة كذلك — المكتبة بلا قفل لا يمسّها الحارس', async () => {
-    const written = await captures.put({ ...(SEED.captures as RasdDB['captures']['value']), id: 'c2' })
+    const written = await captures.put({
+      ...(SEED.captures as RasdDB['captures']['value']),
+      id: 'c2',
+    })
     expect(written.ok).toBe(true)
     const counted = await captures.count()
     expect(counted.ok && counted.value).toBe(2)

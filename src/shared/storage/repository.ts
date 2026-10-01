@@ -8,7 +8,7 @@
 import { guideSteps, stepTextFrom } from '../guide-schema'
 import { errWith, ok, type Result } from '../result'
 
-import { database, guardWrite, withDb } from './db'
+import { database, guardWrite, withDb, withDbForErase } from './db'
 
 import type { IssueRecord } from '../issue-schema'
 import type {
@@ -483,7 +483,8 @@ export async function putIfUnchanged<S extends StoreName>(
  * الكامل أسوأ مكانٍ لإغفال مخزن.
  */
 export async function clearAllStores(): Promise<Result<number>> {
-  return withDb(async (db) => {
+  // يمرّ والمكتبة مقفلة: «نسيت الرمز» و«احذف كل البيانات» يفرغانها ولا يقرآن منها شيئًا (ADR 0043 §4).
+  return withDbForErase(async (db) => {
     const names = [...db.objectStoreNames]
     const tx = db.transaction(names as never, 'readwrite')
     await Promise.all([...names.map((n) => tx.objectStore(n as never).clear()), tx.done])
