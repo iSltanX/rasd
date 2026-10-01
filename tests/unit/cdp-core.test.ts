@@ -3,6 +3,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { runInNewContext } from 'node:vm'
 
 import { describe, expect, it } from 'vitest'
 
@@ -12,8 +13,10 @@ import {
   createReport,
   sabotageList,
   unpackedExtensionId,
+  waitForInstallFlow,
   // @ts-expect-error — سكربت أدوات بلا تعريفات أنواع؛ يُستورَد لدوالّه الخالصة.
 } from '../../scripts/lib/cdp.mjs'
+import { PAGE_PATHS } from '../../src/shared/page-paths'
 
 /**
  * النواة المشتركة للحرّاس (`STAGES/17`، ADR 0042): كل حارس كروم فوقها، والتحميل فيها وحدها.
@@ -77,5 +80,68 @@ describe('دوالّ النواة الخالصة', () => {
     r.fail('ج')
     expect(r.errors).toEqual(['ج'])
     expect(r.lines).toEqual(['  ✓ أ', '  · ب', '  ✗ ج'])
+  })
+})
+
+/**
+ * **جولة التعريف تتقدّم على صفحة الحارس إن فرغ مستمع التثبيت بعد فتحها** (الجولتان `36814645684` و
+ * `36835982821`): الصفحة تُخبّأ، و`requestAnimationFrame` لا يجري في صفحة مخفيّة، فيعلق كل `settle`
+ * حتى الحدّ الأقصى. فالنواة لا تسلّم العامل لحارسه قبل أن تصير الجولة هي النشطة — أي فرغ المستمع.
+ *
+ * التعبير يُقيَّم هنا على `chrome` مزيّف كما يقيّمه العامل، فيُختبر شرطه لا شكله.
+ */
+describe('انتظار مستمع التثبيت قبل تسليم العامل', () => {
+  const ORIGIN = 'chrome-extension://abc/'
+  const blank = { id: 1, active: true, url: '' }
+  const tour = (active: boolean) => ({
+    id: 2,
+    active,
+    url: '',
+    pendingUrl: `${ORIGIN}${PAGE_PATHS.onboarding}`,
+  })
+
+  /** عاملٌ مزيّف: كل تقييم يقرأ اللقطة التالية من حالات التبويبات (والأخيرة تبقى). */
+  const fakeWorker = (states: { id: number; active: boolean; url: string }[][]) => {
+    let calls = 0
+    const evaluate = (expression: string): Promise<unknown> => {
+      const tabs = states[Math.min(calls++, states.length - 1)] ?? []
+      const chrome = {
+        runtime: { getURL: (p: string) => `${ORIGIN}${p}` },
+        tabs: {
+          query: (q: { active?: boolean }) =>
+            Promise.resolve(tabs.filter((t) => q.active === undefined || t.active === q.active)),
+        },
+      }
+      return Promise.resolve(runInNewContext(expression, { chrome }))
+    }
+    return { evaluate, calls: () => calls }
+  }
+
+  it('لا يعود حتى تصير الجولة النشطة — وجودها في الخلفية لا يكفي', async () => {
+    const w = fakeWorker([[blank], [blank, tour(false)], [{ ...blank, active: false }, tour(true)]])
+    await expect(waitForInstallFlow(w.evaluate, { pollMs: 0 })).resolves.toBe(true)
+    expect(w.calls()).toBe(3)
+  })
+
+  it('سياقٌ يُستبدَل أثناء الإقلاع يُعاد تقييمه ولا يُقرأ «فرغ»', async () => {
+    let n = 0
+    const evaluate = () =>
+      n++ === 0 ? Promise.reject(new Error('context')) : Promise.resolve(true)
+    await expect(waitForInstallFlow(evaluate, { pollMs: 0 })).resolves.toBe(true)
+    expect(n).toBe(2)
+  })
+
+  it('جولةٌ لا تأتي أبدًا تنتهي بمهلتها بـ`false` — لا تعليق', async () => {
+    const w = fakeWorker([[blank]])
+    await expect(waitForInstallFlow(w.evaluate, { pollMs: 1, timeoutMs: 20 })).resolves.toBe(false)
+  })
+
+  it('`startGuard` ينتظره بعد الارتباط بالعامل وقبل تسليمه', () => {
+    const core = read('scripts/lib/cdp.mjs') ?? ''
+    const attach = core.indexOf('await attachLiveServiceWorker(send')
+    const wait = core.indexOf('await waitForInstallFlow(')
+    expect(attach).toBeGreaterThan(-1)
+    expect(wait).toBeGreaterThan(attach)
+    expect(wait).toBeLessThan(core.indexOf('const finish = async'))
   })
 })

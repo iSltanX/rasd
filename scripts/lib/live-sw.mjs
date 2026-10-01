@@ -22,6 +22,8 @@
  * إقلاعه، فيصير المُرتبَط به هدفًا ميّتًا لا يحييه انتظار.
  */
 
+import { PAGE_PATHS } from '../../src/shared/page-paths.ts'
+
 /** المهلة الافتراضية — سخيّة لأن عدّاء CI أبطأ من جهاز التطوير بمراتب. */
 const DEFAULT_TIMEOUT_MS = 25_000
 
@@ -103,4 +105,43 @@ export async function waitForExtensionContext(evaluate, options = {}) {
     await new Promise((r) => setTimeout(r, 250))
   }
   return false
+}
+
+/**
+ * ينتظر أن يفرغ مستمع التثبيت: **جولة التعريف هي التبويب النشط**.
+ *
+ * **العلّة، مقيسةً.** ملفّ التعريف جديد في كل حارس، فـ`onInstalled` يقع في كل جولة، ومستمعه
+ * (`src/background/install-flow.ts`) يقدّم الجولة إن بقي في الواجهة ما كان فيها لحظة الحدث. وصفحة
+ * الحارس تُفتح بعد الارتباط بالعامل مباشرةً: إن فرغ المستمع قبلها بقيت في الواجهة، وإن فرغ بعدها
+ * كانت هي «ما في الواجهة» فتقدّمت الجولة فوقها وخبّأتها — وصفحةٌ مخفيّة لا يجري فيها
+ * `requestAnimationFrame`، فيعلق كل `settle` حتى الحدّ الأقصى. على جهاز التطوير يفرغ قبل الارتباط
+ * دائمًا، وتأخيره 300ms وحدها في نسخة فحص خبّأ الصفحة؛ وعلى عدّاء CI سقط بعَرَضه في الجولتين
+ * `36814645684` و`36835982821` (`colour` و`issues` و`compare` تعلق، و`capturing` تقرأ النافذة فوق
+ * الجولة `restricted`، و`export` لا تُرسم نتيجته).
+ *
+ * و«موجودة» لا تكفي: بين إنشاء الجولة في الخلفية وتقديمها نافذةٌ يُخبّأ فيها ما يُفتح. فالمحكّ أنها
+ * **النشطة** — والواجهة لحظة التثبيت في ملفّ جديد `about:blank`، فيقدّمها المستمع دائمًا.
+ *
+ * @param {(expression: string) => Promise<any>} evaluate مُقيِّم العامل الحيّ.
+ * @returns {Promise<boolean>} هل فرغ المستمع قبل المهلة — ولا يُبتلع الحكم: المستدعي يقرّر.
+ */
+export async function waitForInstallFlow(evaluate, options = {}) {
+  const timeoutMs = options.timeoutMs ?? 15_000
+  const pollMs = options.pollMs ?? 100
+  const deadline = Date.now() + timeoutMs
+  const expression = `(() => {
+    const tour = chrome.runtime.getURL(${JSON.stringify(PAGE_PATHS.onboarding)})
+    return chrome.tabs.query({ active: true }).then((tabs) =>
+      tabs.some((t) => [t.url, t.pendingUrl].some((u) => typeof u === 'string' && u.startsWith(tour))),
+    )
+  })()`
+  for (;;) {
+    try {
+      if ((await evaluate(expression)) === true) return true
+    } catch {
+      // السياق يُستبدَل أثناء الإقلاع — تُعاد المحاولة، ولا يُبتلع الحكم
+    }
+    if (Date.now() >= deadline) return false
+    await new Promise((r) => setTimeout(r, pollMs))
+  }
 }

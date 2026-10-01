@@ -37,10 +37,10 @@ import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 import { ensureFixturesServer, FIXTURES_PORT } from './live-fixtures.mjs'
-import { attachLiveServiceWorker } from './live-sw.mjs'
+import { attachLiveServiceWorker, waitForInstallFlow } from './live-sw.mjs'
 
 export { ensureFixturesServer, FIXTURES_PORT, probeFixtures } from './live-fixtures.mjs'
-export { attachLiveServiceWorker, waitForExtensionContext } from './live-sw.mjs'
+export { attachLiveServiceWorker, waitForExtensionContext, waitForInstallFlow } from './live-sw.mjs'
 
 export const ROOT = fileURLToPath(new URL('../..', import.meta.url))
 export const DIST = join(ROOT, 'dist')
@@ -501,6 +501,14 @@ export async function startGuard(o) {
         target: live.sw,
         sessionId: live.swSession,
         evaluate: evaluator(send, live.swSession),
+      }
+      /*
+       * **لا يُسلَّم العامل قبل أن يفرغ مستمع التثبيت** — وإلا تقدّمت جولة التعريف فوق أوّل صفحة يفتحها
+       * الحارس فخبّأتها (العلّة مقيسةً عند `waitForInstallFlow`). مهلةٌ تنقضي لا تُسقط شيئًا: حارسٌ
+       * يكسر العامل أو التثبيت عمدًا يمضي، والسطر يقول لماذا قد تُخبّأ صفحته.
+       */
+      if (!(await waitForInstallFlow(sw.evaluate))) {
+        report.note('مستمع التثبيت لم يقدّم جولة التعريف في مهلته — صفحةٌ تُفتح الآن قد تُخبّأ')
       }
     }
   }
