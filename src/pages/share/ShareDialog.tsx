@@ -164,12 +164,7 @@ export function ShareDialog(props: ShareDialogProps): JSX.Element {
           </div>
         </header>
 
-        <div
-          class={cx(
-            styles.body,
-            (phase.kind === 'running' || phase.kind === 'cancelled') && local.center,
-          )}
-        >
+        <div class={styles.body}>
           {phase.kind === 'choose' && props.path === 'page' ? (
             <Banner tone="info">{LOCAL_PROMISE}</Banner>
           ) : null}
@@ -228,7 +223,7 @@ export function ShareDialog(props: ShareDialogProps): JSX.Element {
               <p class={cx(local.centerText, 't-arabic-ui-s')}>{phase.hint}</p>
             </div>
           ) : phase.kind === 'running' ? (
-            <div class={local.center} data-share-running="">
+            <div class={cx(local.center, styles.group)} data-share-running="">
               <Spinner size="m" label={phase.text} />
               <p class={cx(local.centerText, 't-arabic-ui-s')}>{phase.text}</p>
             </div>
@@ -253,7 +248,7 @@ export function ShareDialog(props: ShareDialogProps): JSX.Element {
               </Banner>
             </div>
           ) : (
-            <div class={local.center} data-share-cancelled="">
+            <div class={cx(local.center, styles.group)} data-share-cancelled="">
               <span class={cx(local.stateIcon, local.warning)}>
                 <Icon name="close" size="lg" />
               </span>
@@ -274,7 +269,7 @@ export function ShareDialog(props: ShareDialogProps): JSX.Element {
 function Done({ phase }: { readonly phase: Extract<SharePhase, { kind: 'done' }> }): JSX.Element {
   return (
     <div
-      class={local.center}
+      class={cx(local.center, styles.group)}
       data-share-done={phase.path}
       data-share-blob={phase.blobUrl}
       data-share-route={phase.downloadId === null ? 'anchor' : 'managed'}
