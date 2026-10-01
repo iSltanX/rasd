@@ -116,6 +116,14 @@
   inset-inline-start: 0;
   translate: var(--rasd-ov-x, 0) var(--rasd-ov-y, 0);
   pointer-events: none;
+
+  /*
+   * أقصى ارتفاع تبلغه لوحةٌ موضوعة هنا دون أن تتجاوز حافّة النافذة السفلى: ارتفاع النافذة ناقص
+   * إزاحتها العلوية وهامشٍ سفليّ. اللوحات (`.rasd-ov-pal` · `.rasd-ov-cp` · `.rasd-ov-scl` ·
+   * `.rasd-ov-cmp`) تأخذه سقفًا، فما زاد على نافذة ٦٤٠–٧١٣px يتمرّر ولا يُقطع. تُحلّ `var()` هنا
+   * على العنصر نفسه فتصل قيمته المحسوبة إلى الأبناء.
+   */
+  --rasd-ov-fit: calc(100vh - var(--rasd-ov-y, 0px) - var(--rasd-space-16));
 }
 
 /*
@@ -1606,6 +1614,11 @@
   /* السطح التفاعلي الوحيد في الطبقة أثناء أخذ العيّنة. */
   pointer-events: auto;
 
+  /* لا تتجاوز حافّة النافذة السفلى — ما زاد يتمرّر؛ انظر `--rasd-ov-fit` في `.rasd-ov-place`. */
+  max-block-size: var(--rasd-ov-fit);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
   --rasd-ov-cp-w: 22.5rem; /* rasd-allow-literal: عرض 360px مقيس من `65:55`، ويُحلّ على جذرنا لا على جذر الصفحة */
 }
 
@@ -2114,6 +2127,11 @@
   font-size: var(--rasd-font-size-xs);
   color: var(--rasd-text-primary);
   pointer-events: auto;
+
+  /* لا تتجاوز حافّة النافذة السفلى — ما زاد يتمرّر؛ انظر `--rasd-ov-fit` في `.rasd-ov-place`. */
+  max-block-size: var(--rasd-ov-fit);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 
   --rasd-ov-cmp-w: 21.25rem; /* rasd-allow-literal: عرض 340px، مقيس من `69:104` */
 }
@@ -2845,6 +2863,11 @@
   color: var(--rasd-text-primary);
   pointer-events: auto;
 
+  /* لا تتجاوز حافّة النافذة السفلى — ما زاد يتمرّر؛ انظر `--rasd-ov-fit` في `.rasd-ov-place`. */
+  max-block-size: var(--rasd-ov-fit);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
   --rasd-ov-scl-w: 55rem; /* rasd-allow-literal: عرض 880px مقيس من `125:355` */
 }
 
@@ -3124,8 +3147,23 @@
   font-size: var(--rasd-font-size-xs);
   color: var(--rasd-text-primary);
   pointer-events: auto;
+  /* الرأس والإجراءات ثابتان والجسم يتمرّر — انظر `.rasd-ov-pal-body`. */
+  max-block-size: var(--rasd-ov-fit);
 
   --rasd-ov-pal-w: 26.25rem; /* rasd-allow-literal: عرض 420px مقيس مباشرةً من `122:157` */
+}
+
+/* التحكّمات والنتيجة: الجزء الوحيد الذي يتمرّر، فلا يغيب «احفظ اللوحة» تحت حافّة النافذة. */
+.rasd-ov-pal-body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.rasd-ov-pal-head,
+.rasd-ov-pal-actions {
+  flex: none;
 }
 
 .rasd-ov-pal-head {

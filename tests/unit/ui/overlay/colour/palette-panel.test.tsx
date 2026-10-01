@@ -7,6 +7,9 @@
  * الألوان هنديّ في الموضعين معًا (يصحّح تناقض الإطار المرجعي نفسه)، والنِّسَب
  * غربية رغم أن اللقطة ترسمها هندية.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { render } from 'preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -531,5 +534,63 @@ describe('PalettePanel — لا حفظ ولا تصدير بلا ألوان', () 
     expect(buttons.some((b) => b.disabled)).toBe(false)
     buttons[0]!.click()
     expect(onSave).toHaveBeenCalledOnce()
+  })
+})
+
+/**
+ * **اللوحة لا تتجاوز حافّة النافذة — ويبقى «احفظ اللوحة» في المتناول.**
+ *
+ * قِيس في Chrome حقيقي بنافذة ١٢٨٠×٨٠٠ (`innerHeight` ٧١٣): اللوحة ٨٢٣px وقاعها عند y≈٨٦٧،
+ * فزرّ الحفظ وأزرار التصدير تحت الحافّة لا يبلغها نقر ولا تمرير. happy-dom بلا محرّك تخطيط، فلا
+ * يُقاس الموضع هنا؛ يُحرَس ما يصنع النتيجة: البنية (رأسٌ وإجراءات خارج الجسم المتمرِّر) وعقد
+ * الأنماط (سقف الارتفاع وتمرير الجسم وسقف الرصيف). والقياس الحيّ في Chrome حقيقي جرى بنوافذ ٧١٣ و٦٤٠ و٤٨٠px
+ * وأبقى زرّ الحفظ داخل النافذة في الثلاث.
+ */
+describe('PalettePanel — يبقى داخل النافذة', () => {
+  const css = readFileSync(join(process.cwd(), 'src/ui/overlay/overlay.css'), 'utf8')
+
+  /** متن أول قاعدة مُحدِّدها بالضبط `selector` (بلا حالات ولا أحفاد). */
+  function rule(selector: string): string {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const m = new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`).exec(css)
+    if (!m) throw new Error(`قاعدة ${selector} غير موجودة`)
+    return m[1]!
+  }
+
+  it('الرأس والإجراءات ابنان مباشران للّوحة، والتحكّمات والنتيجة داخل جسمٍ واحد', () => {
+    const el = mount(<PalettePanel {...panelProps()} />)
+    const kids = [...panel(el).children].map((c) => c.className)
+    expect(kids).toEqual(['rasd-ov-pal-head', 'rasd-ov-pal-body', 'rasd-ov-pal-actions'])
+    const body = panel(el).querySelector('.rasd-ov-pal-body')!
+    expect([...body.children].map((c) => c.className)).toEqual([
+      'rasd-ov-pal-controls',
+      'rasd-ov-pal-results',
+    ])
+    // الأزرار الأربعة كلّها خارج الجسم المتمرِّر — لا يخبّئها تمريره.
+    expect(body.querySelector('button[data-primary="true"]')).toBeNull()
+    expect(panel(el).querySelectorAll('.rasd-ov-pal-actions button')).toHaveLength(4)
+  })
+
+  it('اللوحة مسقوفة بارتفاع النافذة، وجسمها وحده يتمرّر', () => {
+    expect(rule('.rasd-ov-pal')).toMatch(/max-block-size:\s*var\(--rasd-ov-fit\)/)
+    const body = rule('.rasd-ov-pal-body')
+    expect(body).toMatch(/overflow-y:\s*auto/)
+    expect(body).toMatch(/min-block-size:\s*0/)
+    expect(rule('.rasd-ov-pal-head,\n.rasd-ov-pal-actions')).toMatch(/flex:\s*none/)
+  })
+
+  it('السقف يُحسب من ارتفاع النافذة وإزاحة الرصيف، لا من قيمة حرفية', () => {
+    const fit = /--rasd-ov-fit:\s*([^;]+);/.exec(rule('.rasd-ov-place'))?.[1] ?? ''
+    expect(fit).toMatch(/100vh/)
+    expect(fit).toMatch(/var\(--rasd-ov-y/)
+    expect(fit).toMatch(/var\(--rasd-space-/)
+  })
+
+  it('اللوحات الشقيقة الثلاث تأخذ السقف نفسه وتتمرّر عند تجاوزه', () => {
+    for (const sel of ['.rasd-ov-cp', '.rasd-ov-scl', '.rasd-ov-cmp']) {
+      const body = rule(sel)
+      expect(body, sel).toMatch(/max-block-size:\s*var\(--rasd-ov-fit\)/)
+      expect(body, sel).toMatch(/overflow-y:\s*auto/)
+    }
   })
 })

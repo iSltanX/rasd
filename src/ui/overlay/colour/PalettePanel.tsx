@@ -279,185 +279,192 @@ export function PalettePanel({
         </button>
       </header>
 
-      <div class="rasd-ov-pal-controls">
-        <div class="rasd-ov-pal-group">
-          <span class="rasd-ov-pal-group-label">المصدر</span>
-          <TabRow
-            ariaLabel="مصدر اللوحة"
-            options={SOURCE_OPTIONS.map((o) => ({ value: o.kind, label: o.label }))}
-            active={source}
-            onChange={onSourceChange}
-          />
-        </div>
+      {/*
+       * **التحكّمات والنتيجة جسمٌ واحد يتمرّر؛ الرأس والإجراءات ثابتان.** اللوحة بقدّها الكامل
+       * (~٨٢٠px مقيسة) أطول من نافذة حاسوب محمول عاديّ (٧١٣px عند ١٢٨٠×٨٠٠)، فكان «احفظ اللوحة»
+       * وأزرار التصدير تحت حافّة النافذة لا يبلغها نقر ولا تمرير. سقف الارتفاع في `.rasd-ov-pal`.
+       */}
+      <div class="rasd-ov-pal-body">
+        <div class="rasd-ov-pal-controls">
+          <div class="rasd-ov-pal-group">
+            <span class="rasd-ov-pal-group-label">المصدر</span>
+            <TabRow
+              ariaLabel="مصدر اللوحة"
+              options={SOURCE_OPTIONS.map((o) => ({ value: o.kind, label: o.label }))}
+              active={source}
+              onChange={onSourceChange}
+            />
+          </div>
 
-        <div class="rasd-ov-pal-group">
-          <span class="rasd-ov-pal-group-label">عدد الألوان</span>
-          <div class="rasd-ov-pal-tabs" role="tablist" aria-label="عدد الألوان">
-            {COUNT_PRESETS.map((n) => (
+          <div class="rasd-ov-pal-group">
+            <span class="rasd-ov-pal-group-label">عدد الألوان</span>
+            <div class="rasd-ov-pal-tabs" role="tablist" aria-label="عدد الألوان">
+              {COUNT_PRESETS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  role="tab"
+                  aria-selected={n === count}
+                  class="rasd-ov-pal-tab"
+                  onClick={() => onCountChange(n)}
+                >
+                  {/* عدٌّ بشري بأرقام هندية (`§3.5` البند 1) — كتجزئة `ScalePanel` بالضبط. */}
+                  {formatHuman(n)}
+                </button>
+              ))}
               <button
-                key={n}
                 type="button"
                 role="tab"
-                aria-selected={n === count}
+                aria-selected={isCustomCount}
                 class="rasd-ov-pal-tab"
-                onClick={() => onCountChange(n)}
-              >
-                {/* عدٌّ بشري بأرقام هندية (`§3.5` البند 1) — كتجزئة `ScalePanel` بالضبط. */}
-                {formatHuman(n)}
-              </button>
-            ))}
-            <button
-              type="button"
-              role="tab"
-              aria-selected={isCustomCount}
-              class="rasd-ov-pal-tab"
-              onClick={() => {
-                if (!isCustomCount) onCountChange(CUSTOM_SEED)
-              }}
-            >
-              {isCustomCount ? formatHuman(count) : 'مخصّص'}
-            </button>
-          </div>
-          {isCustomCount ? (
-            <label class="rasd-ov-pal-custom-count">
-              <span>عدد مخصّص</span>
-              <input
-                type="number"
-                min={1}
-                class="rasd-ov-pal-custom-count-input"
-                value={count}
-                onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => {
-                  const next = Math.floor(Number(e.currentTarget.value))
-                  onCountChange(Number.isFinite(next) && next > 0 ? next : 1)
+                onClick={() => {
+                  if (!isCustomCount) onCountChange(CUSTOM_SEED)
                 }}
-              />
-            </label>
-          ) : null}
-        </div>
-
-        <div class="rasd-ov-pal-group">
-          <span class="rasd-ov-pal-group-label">طريقة القراءة</span>
-          <TabRow
-            ariaLabel="طريقة القراءة"
-            options={READ_METHOD_OPTIONS.map((o) => ({ value: o.method, label: o.label }))}
-            active={readMethod}
-            onChange={onReadMethodChange}
-            equalWidth={false}
-          />
-        </div>
-
-        <label class="rasd-ov-pal-toggle">
-          <input
-            type="checkbox"
-            role="switch"
-            class="rasd-ov-pal-toggle-input"
-            checked={hideNeutrals}
-            onChange={(e: JSX.TargetedEvent<HTMLInputElement>) =>
-              onHideNeutralsChange(e.currentTarget.checked)
-            }
-          />
-          <span class="rasd-ov-pal-toggle-text">
-            <span class="rasd-ov-pal-toggle-title">إخفاء الألوان الحيادية</span>
-            <span class="rasd-ov-pal-toggle-desc">الأبيض والأسود والرماديات</span>
-          </span>
-          <span class="rasd-ov-pal-toggle-track" aria-hidden="true">
-            <span class="rasd-ov-pal-toggle-knob" />
-          </span>
-        </label>
-
-        <label class="rasd-ov-pal-toggle">
-          <input
-            type="checkbox"
-            role="switch"
-            class="rasd-ov-pal-toggle-input"
-            checked={separateSources}
-            onChange={(e: JSX.TargetedEvent<HTMLInputElement>) =>
-              onSeparateSourcesChange(e.currentTarget.checked)
-            }
-          />
-          <span class="rasd-ov-pal-toggle-text">
-            <span class="rasd-ov-pal-toggle-title">افصل ألوان الواجهة عن الصور</span>
-            <span class="rasd-ov-pal-toggle-desc">يعرض مصدر كل لون</span>
-          </span>
-          <span class="rasd-ov-pal-toggle-track" aria-hidden="true">
-            <span class="rasd-ov-pal-toggle-knob" />
-          </span>
-        </label>
-      </div>
-
-      <div class="rasd-ov-pal-results">
-        <div class="rasd-ov-pal-results-head">
-          <span class="rasd-ov-pal-results-label">المستخرَج</span>
-          {!extracting && !unavailable ? (
-            <span class="rasd-ov-pal-results-count">
-              {/*
-               * هنديّ — عدٌّ بشري (`§3.5` البند 1)، ويصحّح تناقضًا داخل
-               * الإطار المرجعي نفسه؛ انظر فقرة «عدّاد النتيجة» في ترويسة الملفّ.
-               */}
-              {plural(swatches.length, 'لون', 'لونين', 'ألوان')}
-            </span>
-          ) : null}
-        </div>
-
-        {unavailable ? (
-          <p class="rasd-ov-pal-status">{unavailable}</p>
-        ) : extracting ? (
-          <p class="rasd-ov-pal-status">جارٍ الاستخراج…</p>
-        ) : swatches.length === 0 ? (
-          /*
-           * `colors / palette-empty` (`303:22513`): كانت شبكة فارغة تحت «٠ لون» بلا سبب ولا
-           * مخرج. والسبب الغالب أن ألوان المصدر حيادية كلّها وأُخفيت — فالمخرج بنقرة هنا.
-           */
-          <div class="rasd-ov-pal-status" data-rasd-ov="palette-empty">
-            {hideNeutrals && droppedNeutrals > 0 ? (
-              <>
-                <p>
-                  لم يبقَ لون في اللوحة — ألوان المصدر حيادية كلّها؛ أوقف «إخفاء الألوان الحيادية»
-                  لإظهارها.
-                </p>
-                <button
-                  type="button"
-                  class="rasd-ov-pal-btn rasd-ov-pal-empty-btn"
-                  onClick={() => onHideNeutralsChange(false)}
-                >
-                  أظهر الحيادية
-                </button>
-              </>
-            ) : (
-              <p>لم يُعثر على لون في المصدر.</p>
-            )}
-          </div>
-        ) : (
-          <div class="rasd-ov-pal-grid">
-            {swatches.map((s, i) => (
-              <div key={`${s.hex}-${i}`} class="rasd-ov-pal-card">
-                <span
-                  class="rasd-ov-pal-card-sw"
-                  style={{ '--rasd-ov-sample': s.hex }}
-                  data-rasd-ov-sample=""
+              >
+                {isCustomCount ? formatHuman(count) : 'مخصّص'}
+              </button>
+            </div>
+            {isCustomCount ? (
+              <label class="rasd-ov-pal-custom-count">
+                <span>عدد مخصّص</span>
+                <input
+                  type="number"
+                  min={1}
+                  class="rasd-ov-pal-custom-count-input"
+                  value={count}
+                  onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => {
+                    const next = Math.floor(Number(e.currentTarget.value))
+                    onCountChange(Number.isFinite(next) && next > 0 ? next : 1)
+                  }}
                 />
-                <span class="rasd-ov-pal-card-text">
-                  <TechnicalValue kind="color" variant="mono-xs">
-                    {s.hex.toUpperCase()}
-                  </TechnicalValue>
-                  <span class="rasd-ov-pal-card-meta">
-                    {s.source ? `${SOURCE_LABELS[s.source]} · ` : ''}
-                    {/* نسبة — قياس تقني (`§3.5` البند 1)، غربية عبر `formatPercent`؛ انظر ترويسة الملفّ. */}
-                    <TechnicalValue kind="code" variant="inherit">
-                      {formatPercent(s.share)}
-                    </TechnicalValue>
-                  </span>
-                </span>
-              </div>
-            ))}
+              </label>
+            ) : null}
           </div>
-        )}
 
-        {!extracting && droppedNeutrals > 0 && swatches.length > 0 ? (
-          <p class="rasd-ov-pal-note">
-            {`أُسقطت أيضًا ${plural(droppedNeutrals, 'لون حيادي واحد', 'لونان حياديان', 'ألوان حيادية')}`}
-          </p>
-        ) : null}
+          <div class="rasd-ov-pal-group">
+            <span class="rasd-ov-pal-group-label">طريقة القراءة</span>
+            <TabRow
+              ariaLabel="طريقة القراءة"
+              options={READ_METHOD_OPTIONS.map((o) => ({ value: o.method, label: o.label }))}
+              active={readMethod}
+              onChange={onReadMethodChange}
+              equalWidth={false}
+            />
+          </div>
+
+          <label class="rasd-ov-pal-toggle">
+            <input
+              type="checkbox"
+              role="switch"
+              class="rasd-ov-pal-toggle-input"
+              checked={hideNeutrals}
+              onChange={(e: JSX.TargetedEvent<HTMLInputElement>) =>
+                onHideNeutralsChange(e.currentTarget.checked)
+              }
+            />
+            <span class="rasd-ov-pal-toggle-text">
+              <span class="rasd-ov-pal-toggle-title">إخفاء الألوان الحيادية</span>
+              <span class="rasd-ov-pal-toggle-desc">الأبيض والأسود والرماديات</span>
+            </span>
+            <span class="rasd-ov-pal-toggle-track" aria-hidden="true">
+              <span class="rasd-ov-pal-toggle-knob" />
+            </span>
+          </label>
+
+          <label class="rasd-ov-pal-toggle">
+            <input
+              type="checkbox"
+              role="switch"
+              class="rasd-ov-pal-toggle-input"
+              checked={separateSources}
+              onChange={(e: JSX.TargetedEvent<HTMLInputElement>) =>
+                onSeparateSourcesChange(e.currentTarget.checked)
+              }
+            />
+            <span class="rasd-ov-pal-toggle-text">
+              <span class="rasd-ov-pal-toggle-title">افصل ألوان الواجهة عن الصور</span>
+              <span class="rasd-ov-pal-toggle-desc">يعرض مصدر كل لون</span>
+            </span>
+            <span class="rasd-ov-pal-toggle-track" aria-hidden="true">
+              <span class="rasd-ov-pal-toggle-knob" />
+            </span>
+          </label>
+        </div>
+
+        <div class="rasd-ov-pal-results">
+          <div class="rasd-ov-pal-results-head">
+            <span class="rasd-ov-pal-results-label">المستخرَج</span>
+            {!extracting && !unavailable ? (
+              <span class="rasd-ov-pal-results-count">
+                {/*
+                 * هنديّ — عدٌّ بشري (`§3.5` البند 1)، ويصحّح تناقضًا داخل
+                 * الإطار المرجعي نفسه؛ انظر فقرة «عدّاد النتيجة» في ترويسة الملفّ.
+                 */}
+                {plural(swatches.length, 'لون', 'لونين', 'ألوان')}
+              </span>
+            ) : null}
+          </div>
+
+          {unavailable ? (
+            <p class="rasd-ov-pal-status">{unavailable}</p>
+          ) : extracting ? (
+            <p class="rasd-ov-pal-status">جارٍ الاستخراج…</p>
+          ) : swatches.length === 0 ? (
+            /*
+             * `colors / palette-empty` (`303:22513`): كانت شبكة فارغة تحت «٠ لون» بلا سبب ولا
+             * مخرج. والسبب الغالب أن ألوان المصدر حيادية كلّها وأُخفيت — فالمخرج بنقرة هنا.
+             */
+            <div class="rasd-ov-pal-status" data-rasd-ov="palette-empty">
+              {hideNeutrals && droppedNeutrals > 0 ? (
+                <>
+                  <p>
+                    لم يبقَ لون في اللوحة — ألوان المصدر حيادية كلّها؛ أوقف «إخفاء الألوان الحيادية»
+                    لإظهارها.
+                  </p>
+                  <button
+                    type="button"
+                    class="rasd-ov-pal-btn rasd-ov-pal-empty-btn"
+                    onClick={() => onHideNeutralsChange(false)}
+                  >
+                    أظهر الحيادية
+                  </button>
+                </>
+              ) : (
+                <p>لم يُعثر على لون في المصدر.</p>
+              )}
+            </div>
+          ) : (
+            <div class="rasd-ov-pal-grid">
+              {swatches.map((s, i) => (
+                <div key={`${s.hex}-${i}`} class="rasd-ov-pal-card">
+                  <span
+                    class="rasd-ov-pal-card-sw"
+                    style={{ '--rasd-ov-sample': s.hex }}
+                    data-rasd-ov-sample=""
+                  />
+                  <span class="rasd-ov-pal-card-text">
+                    <TechnicalValue kind="color" variant="mono-xs">
+                      {s.hex.toUpperCase()}
+                    </TechnicalValue>
+                    <span class="rasd-ov-pal-card-meta">
+                      {s.source ? `${SOURCE_LABELS[s.source]} · ` : ''}
+                      {/* نسبة — قياس تقني (`§3.5` البند 1)، غربية عبر `formatPercent`؛ انظر ترويسة الملفّ. */}
+                      <TechnicalValue kind="code" variant="inherit">
+                        {formatPercent(s.share)}
+                      </TechnicalValue>
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!extracting && droppedNeutrals > 0 && swatches.length > 0 ? (
+            <p class="rasd-ov-pal-note">
+              {`أُسقطت أيضًا ${plural(droppedNeutrals, 'لون حيادي واحد', 'لونان حياديان', 'ألوان حيادية')}`}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       {/* الأيقونة أوّلًا في DOM في الأزرار الأربعة كلّها — مقيسٌ من `122:157`؛ انظر ترويسة الملفّ. */}
