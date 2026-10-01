@@ -41,7 +41,7 @@ describe('readReport', () => {
         },
       ],
     }
-    expect(readReport(report)).toEqual({ total: 2, skipped: 0, failed: [] })
+    expect(readReport(report)).toEqual({ total: 2, skipped: 0, failed: [], retried: [] })
   })
 
   it('الساقط يُسمّى بملفّه ومساره وكثافته', () => {
@@ -60,6 +60,7 @@ describe('readReport', () => {
       total: 2,
       skipped: 0,
       failed: ['a.spec.mjs › مسار › dpr-2'],
+      retried: [],
     })
   })
 
@@ -67,7 +68,7 @@ describe('readReport', () => {
     const report = {
       suites: [{ title: 'a', specs: [spec('مسار', 'dpr-1', 'skipped', ['skipped'])] }],
     }
-    expect(readReport(report)).toEqual({ total: 1, skipped: 1, failed: [] })
+    expect(readReport(report)).toEqual({ total: 1, skipped: 1, failed: [], retried: [] })
   })
 
   it('مسارٌ نجح في المحاولة الثانية بعد فشل أوّل ليس أخضر — الإعادة تُخفي التقطّع', () => {
@@ -75,6 +76,35 @@ describe('readReport', () => {
       suites: [{ title: 'a', specs: [spec('مسار', 'dpr-1', 'flaky', ['failed', 'passed'])] }],
     }
     expect(readReport(report).failed).toEqual(['a › مسار › dpr-1'])
+  })
+
+  it('إعادة الإيماءة تُحصى وتُسمّى وإن نجح المسار — أقرب ما يُرى من التقطّع', () => {
+    const report = {
+      suites: [
+        {
+          title: 'a.spec.mjs',
+          specs: [
+            {
+              title: 'مسار',
+              tests: [
+                {
+                  projectName: 'dpr-1',
+                  status: 'expected',
+                  results: [{ status: 'passed' }],
+                  annotations: [
+                    { type: 'gesture-retry', description: 'تحديد منطقة — المحاولة 2' },
+                    { type: 'share-step', description: 'ليست إعادة' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const read = readReport(report)
+    expect(read.failed).toEqual([])
+    expect(read.retried).toEqual(['مسار · dpr-1 — تحديد منطقة — المحاولة 2'])
   })
 
   it('خطأ تشغيلٍ على مستوى التقرير (إعداد معطوب) يُعدّ ساقطًا مسمًّى', () => {
