@@ -157,6 +157,7 @@ export function PopupPreview(): JSX.Element {
           title="لم تُحفظ اللقطة"
           message="توقّفت الصفحة عن الاستجابة قبل اكتمال الالتقاط. أعد المحاولة."
           onRetry={noop}
+          onReport={noop}
         />
       </Frame>
 

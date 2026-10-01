@@ -3,8 +3,9 @@
  *
  * الإصدار من البيان المحمَّل فعلًا لا ثابتًا مكتوبًا. «ما الجديد» يعرض بطاقة الإصدار المثبَّت من
  * `CHANGELOG.md`، و«أعد العرض» يفتح جولة التعريف في تبويب — ولا يمحو علامة «شوهد»: من أعادها
- * بيده لا تعود إليه ترحيبيّة النافذة. وما محرّكه في مرحلة لاحقة يُعرض «قريبًا» بسببه: الإبلاغ عن
- * مشكلة (`STAGES/13`)، وسياسة الخصوصية (`STAGES/28`). والتراخيص من قائمة `licenses.ts`.
+ * بيده لا تعود إليه ترحيبيّة النافذة. وما محرّكه في مرحلة لاحقة يُعرض «قريبًا» بسببه: سياسة
+ * الخصوصية (`STAGES/28`). و«أبلغ عن مشكلة» يفتح نافذة البلاغ (ADR 0050) — ويفتحها الرابط نفسه
+ * (`?report=1`) حين يأتي من «أبلغ عن المشكلة» في رسالة خطأ. والتراخيص من قائمة `licenses.ts`.
  */
 import { useState } from 'preact/hooks'
 
@@ -21,15 +22,22 @@ import { WhatsNewDialog } from '../../shell/WhatsNewDialog'
 import styles from './AboutSection.module.css'
 import { Group } from './Group'
 import { LicensesDialog } from './LicensesDialog'
+import { ReportDialog, type ReportRequest } from './report/ReportDialog'
 
 const SOON = <Chip tone="neutral">قريبًا</Chip>
 
 export interface AboutSectionProps {
   version: string
+  /** طلب بلاغٍ من الرابط — النافذة تُفتح به عند التحميل. */
+  reportRequest?: ReportRequest | null
+  onOpenPrivacy?: () => void
 }
 
-export function AboutSection({ version }: AboutSectionProps) {
+export function AboutSection({ version, reportRequest = null, onOpenPrivacy }: AboutSectionProps) {
   const [licenses, setLicenses] = useState(false)
+  const [report, setReport] = useState<{ request: ReportRequest | null } | null>(
+    reportRequest ? { request: reportRequest } : null,
+  )
   const [whatsNew, setWhatsNew] = useState(false)
   const entry = entryFor(version)
 
@@ -83,7 +91,11 @@ export function AboutSection({ version }: AboutSectionProps) {
           label="أبلغ عن مشكلة"
           hint="يصل بلاغك إلى جهة الدعم وحدها، ولا يُنشر للعامة"
           divider
-          control={SOON}
+          control={
+            <Button size="s" onClick={() => setReport({ request: null })}>
+              أبلغ عن مشكلة
+            </Button>
+          }
         />
         <SettingRow
           label="سياسة الخصوصية"
@@ -113,6 +125,16 @@ export function AboutSection({ version }: AboutSectionProps) {
       <Footer layout="inline" class={styles.footer} />
 
       {licenses ? <LicensesDialog onClose={() => setLicenses(false)} /> : null}
+      {report ? (
+        <ReportDialog
+          request={report.request}
+          onClose={() => setReport(null)}
+          onOpenPrivacy={() => {
+            setReport(null)
+            onOpenPrivacy?.()
+          }}
+        />
+      ) : null}
       {whatsNew && entry ? (
         <WhatsNewDialog entry={entry} origin="about" onClose={() => setWhatsNew(false)} />
       ) : null}

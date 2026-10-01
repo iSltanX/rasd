@@ -5,9 +5,8 @@
  * إلا لملفٍّ سيُستعاد كما هو، و«استعد» لا يكتشف عطبًا بعد أن وعد. والكتابة معاملةٌ واحدة: تنجح كلّها أو
  * لا يتغيّر في المكتبة شيء، وهذا ما يقوله كل سطر خطأ هنا.
  *
- * **فرقان عن الإطار مكتوبان:** «أبلغ عن المشكلة» لا يظهر — الإبلاغ لم يُبنَ بعد، وزرٌّ بلا محرّك ممنوع
- * (`AGENTS.md` §4)؛ و«أعد المحاولة» لا يظهر إلا لرفضٍ من القاعدة — إعادة قراءة ملفٍّ تالف تعطي الجواب نفسه،
- * والطريق «اختر ملفًّا آخر».
+ * **فرقٌ عن الإطار مكتوب:** «أعد المحاولة» لا يظهر إلا لرفضٍ من القاعدة — إعادة قراءة ملفٍّ تالف تعطي الجواب
+ * نفسه، والطريق «اختر ملفًّا آخر». و«أبلغ عن المشكلة» يفتح نافذة البلاغ بالأداة `data` ورمز الفشل (ADR 0050).
  */
 import { useEffect, useRef, useState } from 'preact/hooks'
 
@@ -17,6 +16,7 @@ import {
   type BackupFailure,
   type RestorePlan,
 } from '@/modules/backup/backup'
+import { reportUrl } from '@/shared/report-link'
 import { toRasdError } from '@/shared/result'
 import { requestPersistence } from '@/shared/storage/persistence'
 import { Banner, Button, ProgressBar, Spinner } from '@/ui/components'
@@ -285,13 +285,30 @@ export function RestoreDialog({
       <div class={styles.failure} role="alert" data-failure={phase.failure.kind}>
         <p class={cx(styles.failureTitle, 't-arabic-ui-m')}>{text.title}</p>
         <p class={cx(styles.failureText, 't-arabic-ui-s')}>{text.text}</p>
-        {retryable && plan ? (
-          <div class={styles.failureActions}>
+        <div class={styles.failureActions}>
+          {retryable && plan ? (
             <Button variant="secondary" size="s" onClick={() => restore(plan)}>
               أعد المحاولة
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+          <Button
+            variant="ghost"
+            size="s"
+            onClick={() =>
+              location.assign(
+                reportUrl({
+                  tool: 'data',
+                  code:
+                    phase.failure.kind === 'storage'
+                      ? phase.failure.error.code
+                      : `restore-${phase.failure.kind}`,
+                }),
+              )
+            }
+          >
+            أبلغ عن المشكلة
+          </Button>
+        </div>
       </div>
     </DataDialog>
   )

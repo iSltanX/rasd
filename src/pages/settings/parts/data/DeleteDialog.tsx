@@ -6,10 +6,11 @@
  * نسخة» يفتح النسخ في مكانه، ويعود إلى هنا بـ«آخر نسخة» محدَّثة. **والثانية تطلب كلمة «احذف» مكتوبةً** — لا
  * نقرتين متتاليتين على موضعٍ واحد يمرّ بهما إصبعٌ مستعجل. والحذف نفسه مسارٌ واحد (`eraseAllData`).
  *
- * «أبلغ عن المشكلة» في إطار الخطأ لا يظهر: الإبلاغ لم يُبنَ بعد، وزرٌّ بلا محرّك ممنوع (`AGENTS.md` §4).
+ * «أبلغ عن المشكلة» في إطار الخطأ يفتح نافذة البلاغ بالأداة `data` ورمز الفشل (ADR 0050).
  */
 import { useState } from 'preact/hooks'
 
+import { reportUrl } from '@/shared/report-link'
 import { eraseAllData } from '@/shared/storage/erase'
 import { Banner, Button, Input, Spinner } from '@/ui/components'
 import { cx } from '@/ui/cx'
@@ -59,11 +60,13 @@ export function DeleteDialog({
 }: DeleteDialogProps): JSX.Element {
   const [step, setStep] = useState<Step>('review')
   const [typed, setTyped] = useState('')
+  const [failureCode, setFailureCode] = useState<string | null>(null)
 
   const erase = () => {
     setStep('erasing')
     void eraseAllData().then((result) => {
       onErased()
+      setFailureCode(result.ok ? null : `erase-${result.error.failed.join('-')}`.slice(0, 64))
       setStep(result.ok ? 'done' : 'failed')
     })
   }
@@ -236,6 +239,13 @@ export function DeleteDialog({
         <div class={styles.failureActions}>
           <Button variant="secondary" size="s" onClick={erase}>
             أعد المحاولة
+          </Button>
+          <Button
+            variant="ghost"
+            size="s"
+            onClick={() => location.assign(reportUrl({ tool: 'data', code: failureCode }))}
+          >
+            أبلغ عن المشكلة
           </Button>
         </div>
       </div>

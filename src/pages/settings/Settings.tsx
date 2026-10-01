@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
+import { readReportRequest } from '@/shared/report-link'
 import { SectionNav, type SectionNavEntry } from '@/ui/components/SectionNav/SectionNav'
 import { Toast } from '@/ui/components/Toast/Toast'
 
@@ -141,6 +142,8 @@ export function SettingsNotice({
 export function Settings() {
   const [settings, setSettings] = useState<SettingsValue | null>(null)
   const [{ section, view }, setPlace] = useState(readLocation)
+  // «أبلغ عن المشكلة» من رسالة خطأ في صفحةٍ أخرى: `?section=about&report=1&tool=…&code=…` (`shared/report-link.ts`).
+  const [reportRequest, setReportRequest] = useState(() => readReportRequest(location.search))
   const [notice, setNotice] = useState<Notice>(null)
   /** يزيد حين تتغيّر المكتبة من هنا (استعادة أو حذف كامل) — فيُعاد عدّ الشريط الجانبي. */
   const [revision, setRevision] = useState(0)
@@ -150,6 +153,8 @@ export function Settings() {
 
   const go = (next: SectionId, nextView: PrivacyView = 'controls') => {
     setPlace({ section: next, view: nextView })
+    // طلب البلاغ يُستهلك مرّةً: العودة إلى «عن رصد» لا تعيد فتح النافذة.
+    setReportRequest(null)
     const params = new URLSearchParams({ section: next })
     if (next === 'privacy' && nextView !== 'controls') params.set('view', nextView)
     history.replaceState(null, '', `?${params.toString()}`)
@@ -224,7 +229,13 @@ export function Settings() {
       content = <IntegrationsSection />
       break
     case 'about':
-      content = <AboutSection version={chrome.runtime.getManifest().version} />
+      content = (
+        <AboutSection
+          version={chrome.runtime.getManifest().version}
+          reportRequest={reportRequest}
+          onOpenPrivacy={() => go('privacy')}
+        />
+      )
       break
   }
 

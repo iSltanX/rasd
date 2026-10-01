@@ -35,6 +35,7 @@ import {
 import { purgeCapture, TRASH_RETENTION_DAYS } from '@/modules/library/trash'
 import { countText, formatHuman, type CountForms } from '@/shared/bidi/numerals'
 import { send } from '@/shared/messaging'
+import { openReport } from '@/shared/report-link'
 import { captures } from '@/shared/storage/repository'
 import { Button } from '@/ui/components/Button/Button'
 import { EmptyState, type EmptyStateKind } from '@/ui/components/EmptyState/EmptyState'
@@ -939,6 +940,7 @@ function LibraryContent(): JSX.Element {
                         setOverview(null)
                         bump()
                       }}
+                      onReport={() => openReport({ tool: 'library', code: 'projects-read' })}
                     />
                   </div>
                 ) : overview.length === 0 ? (
@@ -987,6 +989,7 @@ function LibraryContent(): JSX.Element {
                     title="تعذّرت قراءة المكتبة"
                     body="لم يستجب التخزين على هذا الجهاز. لقطاتك لم تُحذف — أعد المحاولة، أو أعد تحميل الصفحة."
                     onRetry={() => void reload()}
+                    onReport={() => openReport({ tool: 'library', code: 'library-read' })}
                   />
                 </div>
               ) : records.length === 0 ? (

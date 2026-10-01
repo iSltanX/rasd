@@ -28,6 +28,8 @@ export interface ButtonProps {
   'aria-label'?: string
   /** لزرّ يفتح لوحة ويغلقها. */
   'aria-expanded'?: boolean | undefined
+  /** لزرّ تبديلٍ بين أدوات (القصّ والحجب في صورة البلاغ). */
+  'aria-pressed'?: boolean | undefined
   /**
    * تلميحٌ بعد النصّ خارج كتلته — مفتاح اختصار مثلًا (`<KeyCap>`). خارج كتلة النصّ كي يبقى
    * نصّ الزرّ نصَّه وحده لمن يقرؤه.
