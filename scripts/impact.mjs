@@ -55,6 +55,11 @@ export const IMPACT = [
   { match: /^src\/pages\/popup\//u, scripts: ['verify:popup'] },
   { match: /^src\/pages\/editor\//u, scripts: ['verify:editor'] },
   { match: /^src\/pages\/library\//u, scripts: ['verify:library'] },
+  /*
+   * المشاركة المحلّية (`STAGES/10`): النافذة ومحرّكاها ومولِّد صفحة اللقطة — يحرسها `verify:share` بمراقبة الشبكة
+   * أثناء المسارات الثلاثة وفتح الصفحة المصدَّرة بلا إنترنت.
+   */
+  { match: /^src\/pages\/share\//u, scripts: ['verify:share'] },
   { match: /^src\/shared\/messaging\//u, scripts: ['verify:activate', 'verify:capture'] },
   { match: /^src\/shared\/storage\//u, scripts: ['verify:library', 'verify:compare'] },
   {

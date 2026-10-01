@@ -58,6 +58,7 @@
     "verify:activate": "node scripts/verify-activate.mjs",
     "verify:gate": "node scripts/verify-gate.mjs",
     "verify:export": "node scripts/verify-export.mjs",
+    "verify:share": "node scripts/verify-share.mjs",
     "verify:wave": "node scripts/wave-verify.mjs",
     "docs:lint": "node scripts/docs-lint.mjs",
     "entrypoints:lint": "node scripts/entrypoints-lint.mjs",

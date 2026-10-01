@@ -3,7 +3,7 @@
   "repo": "iSltanX/rasd",
   "promotionStreak": 10,
   "window": 20,
-  "capturedAt": "2026-09-30T23:48:36.368Z",
+  "capturedAt": "2026-10-01T01:16:22.856Z",
   "runs": [
     {
       "id": 36653482704,
@@ -1083,6 +1083,54 @@
         "94ad6c3115f9e7c3b48137fbdc8e451d616d7a4a",
         "94ad6c3115f9e7c3b48137fbdc8e451d616d7a4a",
         "026c25bd96795547e11fc94964a60dd779886b4b"
+      ],
+      "streak": 0,
+      "eligible": false
+    },
+    "share": {
+      "results": [
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole"
+      ],
+      "scripts": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
       ],
       "streak": 0,
       "eligible": false
