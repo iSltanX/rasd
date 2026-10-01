@@ -3,8 +3,14 @@
   "repo": "iSltanX/rasd",
   "promotionStreak": 10,
   "window": 20,
-  "capturedAt": "2026-10-01T04:12:52.184Z",
+  "capturedAt": "2026-10-01T07:41:39.082Z",
   "runs": [
+    {
+      "id": 36814645684,
+      "sha": "7025e8bfcd7cca18030f44106d104920c2deafaf",
+      "event": "push",
+      "createdAt": "2026-10-01T04:20:21Z"
+    },
     {
       "id": 36653482704,
       "sha": "8cf84326afc54b4d3af5e899995bb16395d46841",
@@ -118,12 +124,6 @@
       "sha": "1abd6d59e8416fde451cbc983305cfcc81405a36",
       "event": "push",
       "createdAt": "2026-09-12T21:03:49Z"
-    },
-    {
-      "id": 34715326854,
-      "sha": "a1f78058ac4d1922efc18c96e4e47d54848cf72a",
-      "event": "push",
-      "createdAt": "2026-09-12T19:50:20Z"
     }
   ],
   "guards": {
@@ -151,7 +151,7 @@
         "green"
       ],
       "scripts": [
-        "049b9fd7a302fa3ae054874533d32a3655607e8e",
+        "d0f69162835b916435037082b068f016ddc66086",
         "049b9fd7a302fa3ae054874533d32a3655607e8e",
         "049b9fd7a302fa3ae054874533d32a3655607e8e",
         "049b9fd7a302fa3ae054874533d32a3655607e8e",
@@ -172,7 +172,7 @@
         "049b9fd7a302fa3ae054874533d32a3655607e8e",
         "049b9fd7a302fa3ae054874533d32a3655607e8e"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "capture": {
@@ -199,7 +199,7 @@
         "green"
       ],
       "scripts": [
-        "3f44b91562ff7d8c226c406d5c08440df8540920",
+        "53ea6898b57d3a2d5f1b8a4d60d1fb6c02b8b276",
         "3f44b91562ff7d8c226c406d5c08440df8540920",
         "3f44b91562ff7d8c226c406d5c08440df8540920",
         "3f44b91562ff7d8c226c406d5c08440df8540920",
@@ -220,7 +220,7 @@
         "3f44b91562ff7d8c226c406d5c08440df8540920",
         "3f44b91562ff7d8c226c406d5c08440df8540920"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "capturing": {
@@ -247,7 +247,7 @@
         "green"
       ],
       "scripts": [
-        "702e2543afb3df1a2058b1760869007101566d91",
+        "16c4883bc532bce4d2b2de18cae56e41f561affa",
         "702e2543afb3df1a2058b1760869007101566d91",
         "702e2543afb3df1a2058b1760869007101566d91",
         "702e2543afb3df1a2058b1760869007101566d91",
@@ -268,12 +268,12 @@
         "702e2543afb3df1a2058b1760869007101566d91",
         "702e2543afb3df1a2058b1760869007101566d91"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "colour": {
       "results": [
-        "green",
+        "red",
         "green",
         "green",
         "green",
@@ -295,7 +295,7 @@
         "green"
       ],
       "scripts": [
-        "6a882c93bc2fab8d0f6b5bd33fb9a7263a75007d",
+        "54bec6686f00087f65b7e8c0d7dfa0301a23acb3",
         "6a882c93bc2fab8d0f6b5bd33fb9a7263a75007d",
         "6a882c93bc2fab8d0f6b5bd33fb9a7263a75007d",
         "6a882c93bc2fab8d0f6b5bd33fb9a7263a75007d",
@@ -326,24 +326,24 @@
         "green",
         "green",
         "green",
-        "red",
-        "red",
         "green",
         "red",
-        "green",
+        "red",
         "green",
         "red",
         "green",
         "green",
-        "green",
-        "green",
-        "green",
-        "green",
         "red",
-        "green"
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "red"
       ],
       "scripts": [
-        "854ef115d692cba7a7c84162c39dfab685a9d961",
+        "20f90e2ac2a4ade5f693500038f7563448e3a5d2",
         "854ef115d692cba7a7c84162c39dfab685a9d961",
         "854ef115d692cba7a7c84162c39dfab685a9d961",
         "854ef115d692cba7a7c84162c39dfab685a9d961",
@@ -364,7 +364,7 @@
         "854ef115d692cba7a7c84162c39dfab685a9d961",
         "854ef115d692cba7a7c84162c39dfab685a9d961"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "compare-diff": {
@@ -391,7 +391,7 @@
         "green"
       ],
       "scripts": [
-        "e3ffa8804837613729f78962132aa107384a0d29",
+        "d33d525a7f68716bc7c98d4ae4d2ede2d814ea11",
         "e3ffa8804837613729f78962132aa107384a0d29",
         "e3ffa8804837613729f78962132aa107384a0d29",
         "e3ffa8804837613729f78962132aa107384a0d29",
@@ -412,7 +412,7 @@
         "e3ffa8804837613729f78962132aa107384a0d29",
         "e3ffa8804837613729f78962132aa107384a0d29"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "editor": {
@@ -439,7 +439,7 @@
         "green"
       ],
       "scripts": [
-        "0ea6116bdc9c595f5ee027adf44aa9e18c8a4d29",
+        "a2a1f859262dfaea2d31e33f1d9fa91217ef3ed2",
         "0ea6116bdc9c595f5ee027adf44aa9e18c8a4d29",
         "0ea6116bdc9c595f5ee027adf44aa9e18c8a4d29",
         "0ea6116bdc9c595f5ee027adf44aa9e18c8a4d29",
@@ -460,12 +460,12 @@
         "0ea6116bdc9c595f5ee027adf44aa9e18c8a4d29",
         "0ea6116bdc9c595f5ee027adf44aa9e18c8a4d29"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "export": {
       "results": [
-        "green",
+        "red",
         "green",
         "green",
         "green",
@@ -487,9 +487,9 @@
         "green"
       ],
       "scripts": [
+        "7a670d89065126ded05ceecf282d44136955777b",
         "757550cea92710cd88386448b34d359cb04757d1",
         "757550cea92710cd88386448b34d359cb04757d1",
-        "14b44113ec1ffd1b6893cc5ac31e95dd1b4f3d45",
         "14b44113ec1ffd1b6893cc5ac31e95dd1b4f3d45",
         "14b44113ec1ffd1b6893cc5ac31e95dd1b4f3d45",
         "14b44113ec1ffd1b6893cc5ac31e95dd1b4f3d45",
@@ -535,7 +535,7 @@
         "green"
       ],
       "scripts": [
-        "37b4f71aac6b5d43b3496b5626900623614d39cf",
+        "bedce93c9dc1274351bd3129333ec3f41bdf906a",
         "37b4f71aac6b5d43b3496b5626900623614d39cf",
         "37b4f71aac6b5d43b3496b5626900623614d39cf",
         "37b4f71aac6b5d43b3496b5626900623614d39cf",
@@ -583,7 +583,7 @@
         "green"
       ],
       "scripts": [
-        "4c5eec66fca8b6e0d5288d8faa61bdf298878112",
+        "ae68d137045eb8c4e151fc80ec7a6d3b7e1fe938",
         "4c5eec66fca8b6e0d5288d8faa61bdf298878112",
         "4c5eec66fca8b6e0d5288d8faa61bdf298878112",
         "4c5eec66fca8b6e0d5288d8faa61bdf298878112",
@@ -604,7 +604,7 @@
         "4c5eec66fca8b6e0d5288d8faa61bdf298878112",
         "4c5eec66fca8b6e0d5288d8faa61bdf298878112"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "inspect": {
@@ -631,7 +631,7 @@
         "green"
       ],
       "scripts": [
-        "b8c0363764ee7886b1cec65c09f45d721452ef7a",
+        "ba34070dc9f6e8da1efec0ec663c70191d1fa440",
         "b8c0363764ee7886b1cec65c09f45d721452ef7a",
         "b8c0363764ee7886b1cec65c09f45d721452ef7a",
         "b8c0363764ee7886b1cec65c09f45d721452ef7a",
@@ -657,7 +657,7 @@
     },
     "issues": {
       "results": [
-        "hole",
+        "red",
         "hole",
         "hole",
         "hole",
@@ -679,7 +679,7 @@
         "hole"
       ],
       "scripts": [
-        null,
+        "050f52cb0e980607cece5a3acb8422a2f3eeb418",
         null,
         null,
         null,
@@ -727,7 +727,7 @@
         "green"
       ],
       "scripts": [
-        "8954cea204a1a013e8c091804c4da8f6c11248b5",
+        "6e404b5d881be367ed32c945b8fc9db1ef4465fe",
         "8954cea204a1a013e8c091804c4da8f6c11248b5",
         "8954cea204a1a013e8c091804c4da8f6c11248b5",
         "8954cea204a1a013e8c091804c4da8f6c11248b5",
@@ -775,7 +775,7 @@
         "green"
       ],
       "scripts": [
-        "c96d5337a3bd40d4fd14241862b795b659da0604",
+        "94a951311fa20916e0c501b88e36ac25e910922d",
         "c96d5337a3bd40d4fd14241862b795b659da0604",
         "c96d5337a3bd40d4fd14241862b795b659da0604",
         "c96d5337a3bd40d4fd14241862b795b659da0604",
@@ -796,7 +796,7 @@
         "c96d5337a3bd40d4fd14241862b795b659da0604",
         "c96d5337a3bd40d4fd14241862b795b659da0604"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "load": {
@@ -823,7 +823,7 @@
         "green"
       ],
       "scripts": [
-        "0d39d9ba04c59c382b64d783f7a71f5e7efe3e6b",
+        "d7ed7222bffa8cd3f52e1a36d42d7d7dc3d6b2b7",
         "0d39d9ba04c59c382b64d783f7a71f5e7efe3e6b",
         "0d39d9ba04c59c382b64d783f7a71f5e7efe3e6b",
         "0d39d9ba04c59c382b64d783f7a71f5e7efe3e6b",
@@ -844,7 +844,7 @@
         "0d39d9ba04c59c382b64d783f7a71f5e7efe3e6b",
         "0d39d9ba04c59c382b64d783f7a71f5e7efe3e6b"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "measure": {
@@ -871,7 +871,7 @@
         "green"
       ],
       "scripts": [
-        "4f3610478e967424e87d4d110298b8588ba56b10",
+        "eb7a813bbfef3b85b79a7294513b352f3738f918",
         "4f3610478e967424e87d4d110298b8588ba56b10",
         "4f3610478e967424e87d4d110298b8588ba56b10",
         "4f3610478e967424e87d4d110298b8588ba56b10",
@@ -891,6 +891,54 @@
         "4f3610478e967424e87d4d110298b8588ba56b10",
         "4f3610478e967424e87d4d110298b8588ba56b10",
         "4f3610478e967424e87d4d110298b8588ba56b10"
+      ],
+      "streak": 1,
+      "eligible": false
+    },
+    "memory": {
+      "results": [
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole"
+      ],
+      "scripts": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
       ],
       "streak": 0,
       "eligible": false
@@ -919,7 +967,7 @@
         "green"
       ],
       "scripts": [
-        "9dc6231210cef5b3782e7f9b2f649e86830f77c4",
+        "46e5236e33784ea94d5328682ded41a8653ff605",
         "9dc6231210cef5b3782e7f9b2f649e86830f77c4",
         "9dc6231210cef5b3782e7f9b2f649e86830f77c4",
         "9dc6231210cef5b3782e7f9b2f649e86830f77c4",
@@ -967,7 +1015,7 @@
         "green"
       ],
       "scripts": [
-        "19f89bcbdbb85064bfebe8ef662c56b457e0c1b7",
+        "9719dd815c6199ea3705171bb62b97a4962eb42f",
         "19f89bcbdbb85064bfebe8ef662c56b457e0c1b7",
         "19f89bcbdbb85064bfebe8ef662c56b457e0c1b7",
         "19f89bcbdbb85064bfebe8ef662c56b457e0c1b7",
@@ -988,7 +1036,7 @@
         "19f89bcbdbb85064bfebe8ef662c56b457e0c1b7",
         "19f89bcbdbb85064bfebe8ef662c56b457e0c1b7"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "picker": {
@@ -1015,7 +1063,7 @@
         "green"
       ],
       "scripts": [
-        "444b89650436f3f0d83a1b46d262b67a5f8a10d3",
+        "72343b7f2e8f442986660f4bb91e46c52aca1e30",
         "444b89650436f3f0d83a1b46d262b67a5f8a10d3",
         "444b89650436f3f0d83a1b46d262b67a5f8a10d3",
         "444b89650436f3f0d83a1b46d262b67a5f8a10d3",
@@ -1036,24 +1084,24 @@
         "444b89650436f3f0d83a1b46d262b67a5f8a10d3",
         "444b89650436f3f0d83a1b46d262b67a5f8a10d3"
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     },
     "popup": {
       "results": [
-        "green",
         "red",
         "green",
-        "red",
-        "red",
-        "red",
         "red",
         "green",
         "red",
         "red",
-        "green",
+        "red",
+        "red",
         "green",
         "red",
+        "red",
+        "green",
+        "green",
         "red",
         "red",
         "red",
@@ -1063,6 +1111,7 @@
         "red"
       ],
       "scripts": [
+        "24d30b2af8e1677f26a0eb07c336290a37f338b4",
         "94ad6c3115f9e7c3b48137fbdc8e451d616d7a4a",
         "94ad6c3115f9e7c3b48137fbdc8e451d616d7a4a",
         "94ad6c3115f9e7c3b48137fbdc8e451d616d7a4a",
@@ -1081,15 +1130,14 @@
         "94ad6c3115f9e7c3b48137fbdc8e451d616d7a4a",
         "94ad6c3115f9e7c3b48137fbdc8e451d616d7a4a",
         "94ad6c3115f9e7c3b48137fbdc8e451d616d7a4a",
-        "94ad6c3115f9e7c3b48137fbdc8e451d616d7a4a",
-        "026c25bd96795547e11fc94964a60dd779886b4b"
+        "94ad6c3115f9e7c3b48137fbdc8e451d616d7a4a"
       ],
       "streak": 0,
       "eligible": false
     },
     "share": {
       "results": [
-        "hole",
+        "green",
         "hole",
         "hole",
         "hole",
@@ -1111,7 +1159,7 @@
         "hole"
       ],
       "scripts": [
-        null,
+        "42a9c38bc4b94014de6aea8f2504cd2cf75e4ca4",
         null,
         null,
         null,
@@ -1132,7 +1180,7 @@
         null,
         null
       ],
-      "streak": 0,
+      "streak": 1,
       "eligible": false
     }
   }
