@@ -70,8 +70,11 @@ export function scaleRect(r: DeviceRect, scale: number): DeviceRect {
   )
 }
 
-/** لون الغطاء — أسود مصمت؛ والخبز يفرض `alpha = 255` على التغطية مهما كان (ADR 0015 §1). */
-const COVER = '#000000'
+/**
+ * لون الغطاء — أسود مصمت؛ والخبز يفرض `alpha = 255` على التغطية مهما كان (ADR 0015 §1). **بكسلاتٌ تُخبز في ملفٍّ
+ * يغادر الجهاز لا لون واجهة:** ثابتٌ لا يتبع السمة، فلا يصير الحجب رماديًّا فاتحًا في الوضع الفاتح.
+ */
+const COVER = '#000000' /* rasd-allow-literal */
 
 const STYLE: RenderStyle = {
   palette: Object.fromEntries(ANNOTATION_COLORS.map((c) => [c, COVER])) as RenderStyle['palette'],
