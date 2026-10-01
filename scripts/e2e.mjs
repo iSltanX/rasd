@@ -27,7 +27,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { DIST, ensureFixturesServer, findChrome } from './lib/cdp.mjs'
 import { summarise } from './test-repeat.mjs'
-import { LOCK_PORT, tryLock } from './wave-verify.mjs'
+import { tryLock } from './wave-verify.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const CONFIG = join(root, 'tests', 'e2e', 'playwright.config.mjs')
@@ -58,6 +58,7 @@ export function parseArgs(argv) {
  */
 export function readReport(report) {
   const failed = []
+  const retried = []
   let total = 0
   let skipped = 0
   const walk = (suite, titles) => {
@@ -65,6 +66,11 @@ export function readReport(report) {
     for (const spec of suite.specs ?? []) {
       for (const t of spec.tests ?? []) {
         total++
+        // إعادةُ إيماءةٍ (`until`) نجحت ثانيةً لا تُسقط المسار، لكنها تُحصى وتُسمّى: هي أقرب ما يُرى من التقطّع.
+        for (const a of t.annotations ?? []) {
+          if (a.type === 'gesture-retry')
+            retried.push(`${spec.title} · ${t.projectName} — ${a.description}`)
+        }
         const last = t.results?.at(-1)
         if (t.status === 'skipped') skipped++
         else if (t.status !== 'expected' || last?.status !== 'passed') {
@@ -75,8 +81,9 @@ export function readReport(report) {
     for (const child of suite.suites ?? []) walk(child, here)
   }
   for (const suite of report.suites ?? []) walk(suite, [])
-  for (const e of report.errors ?? []) failed.push(`(خطأ تشغيل: ${String(e.message).split('\n')[0]})`)
-  return { total, skipped, failed }
+  for (const e of report.errors ?? [])
+    failed.push(`(خطأ تشغيل: ${String(e.message).split('\n')[0]})`)
+  return { total, skipped, failed, retried }
 }
 
 async function acquire() {
@@ -155,17 +162,28 @@ async function main() {
         try {
           run = readReport(JSON.parse(readFileSync(out, 'utf8')))
         } catch {
-          run = { total: 0, skipped: 0, failed: [], error: `لم يُكتب التقرير (خروج ${String(code)})` }
+          run = {
+            total: 0,
+            skipped: 0,
+            failed: [],
+            error: `لم يُكتب التقرير (خروج ${String(code)})`,
+          }
+        }
+        // تقريرٌ يبدو أخضر ولم يُنفَّذ فيه مسار، أو خرج بغير صفر بلا ساقطٍ مسمّى، **لا يُعدّ أخضر**.
+        if (!run.error && run.total === run.skipped) run.error = 'لم يُنفَّذ أيّ مسار'
+        if (!run.error && code !== 0 && run.failed.length === 0) {
+          run.error = `خرج بالرمز ${String(code)} بلا ساقطٍ مسمّى`
         }
         results.push(run)
         const seconds = ((Date.now() - started) / 1000).toFixed(1)
         const verdict = run.error
           ? `✗ ${run.error}`
-          : run.failed.length === 0 && code === 0
+          : run.failed.length === 0
             ? `✓ ${String(run.total - run.skipped)} مسارًا${run.skipped ? ` · ${String(run.skipped)} متخطّى` : ''}`
             : `✗ ${String(run.failed.length)} ساقط من ${String(run.total)}`
         console.log(`  ${String(i).padStart(2)}/${String(runs)}  ${verdict}  (${seconds} ث)`)
         for (const name of run.failed) console.log(`         ↳ ${name}`)
+        for (const note of run.retried ?? []) console.log(`         ↻ إعادة إيماءة: ${note}`)
       }
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -173,6 +191,10 @@ async function main() {
     const summary = summarise(results)
     console.log(
       `\n  الخلاصة: ${String(summary.green)}/${String(summary.runs)} أخضر · أطول سلسلة متتالية ${String(summary.longestStreak)}`,
+    )
+    const retries = results.reduce((n, r) => n + (r.retried?.length ?? 0), 0)
+    console.log(
+      `  إعادات الإيماءات: ${String(retries)} — كلٌّ منها نجح ثانيةً ولم يُسقط مسارًا، لكنها أقرب ما يُرى من التقطّع`,
     )
     for (const f of summary.flaky)
       console.log(`  متقطّع: ${f.name} — سقط ${String(f.times)} من ${String(summary.runs)}`)

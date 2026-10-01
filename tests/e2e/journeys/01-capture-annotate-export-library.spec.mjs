@@ -11,7 +11,7 @@
  * `verify-export.mjs`، وهو مسار المستخدم الذي رفض الصلاحية وليس مسارًا مفتعلًا.
  */
 import { expect, test } from '../support/rasd.mjs'
-import { captureArea } from '../support/steps.mjs'
+import { captureArea, until } from '../support/steps.mjs'
 
 test('التقاط ← تعليق ← تصدير ← مكتبة', async ({ rasd }) => {
   const dpr = rasd.dpr
@@ -52,11 +52,18 @@ test('التقاط ← تعليق ← تصدير ← مكتبة', async ({ rasd 
   const stage = await editor.locator('[data-editor-stage]').boundingBox()
   const cx = Math.round(stage.x + stage.width / 2)
   const cy = Math.round(stage.y + stage.height / 2)
-  await editor.mouse.move(cx - 80, cy - 60)
-  await editor.mouse.down()
-  await editor.mouse.move(cx, cy, { steps: 4 })
-  await editor.mouse.move(cx + 80, cy + 60, { steps: 4 })
-  await editor.mouse.up()
+  await until(
+    rasd,
+    async () => {
+      await editor.mouse.move(cx - 80, cy - 60)
+      await editor.mouse.down()
+      await editor.mouse.move(cx, cy, { steps: 4 })
+      await editor.mouse.move(cx + 80, cy + 60, { steps: 4 })
+      await editor.mouse.up()
+    },
+    async () => (await nodes.textContent()) === '1',
+    { what: 'رسم مستطيل' },
+  )
   await expect(nodes, 'السحبة أنشأت عقدة').toHaveText('1')
 
   await editor.keyboard.press('Control+z')
@@ -103,12 +110,17 @@ test('التقاط ← تعليق ← تصدير ← مكتبة', async ({ rasd 
   await expect(card).toContainText('مجلة الطيف')
   await expect(card, 'نوع اللقطة على البطاقة').toContainText('منطقة')
 
-  const editorsBefore = rasd.context.pages().filter((p) => p.url().includes('/src/pages/editor/')).length
+  const editorsBefore = rasd.context
+    .pages()
+    .filter((p) => p.url().includes('/src/pages/editor/')).length
   await card.click()
   await expect
     .poll(() => rasd.context.pages().filter((p) => p.url().includes('/src/pages/editor/')).length)
     .toBe(editorsBefore + 1)
-  const reopened = rasd.context.pages().filter((p) => p.url().includes('/src/pages/editor/')).at(-1)
+  const reopened = rasd.context
+    .pages()
+    .filter((p) => p.url().includes('/src/pages/editor/'))
+    .at(-1)
   await reopened.locator('[data-editor-state="annotating"]').waitFor()
   await expect(reopened.locator('[data-editor-nodes]'), 'التعليق عاد من المكتبة').toHaveText('1')
 

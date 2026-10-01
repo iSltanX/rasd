@@ -13,7 +13,15 @@
  * لا يصله المؤشّر. و`#deep-child` يمتدّ إلى x=490، فنقطته (470, 325) حرّة.
  */
 import { expect, test } from '../support/rasd.mjs'
-import { activate, captureArea, centreOf, click, hoverUntil, modeOf } from '../support/steps.mjs'
+import {
+  activate,
+  captureArea,
+  centreOf,
+  click,
+  hoverUntil,
+  modeOf,
+  until,
+} from '../support/steps.mjs'
 
 test('فحص ← قياس ← التقاط', async ({ rasd }) => {
   const dpr = rasd.dpr
@@ -34,10 +42,12 @@ test('فحص ← قياس ← التقاط', async ({ rasd }) => {
     (s) => !!s.host.layer.querySelector('[data-rasd-ov="inspect-highlight"]'),
     'إبراز الفحص',
   )
-  await click(page)
-  await expect
-    .poll(() => rasd.session(tabId, (s) => !!s.inspect.pinnedElement()), { message: 'عنصرٌ مثبَّت' })
-    .toBe(true)
+  await until(
+    rasd,
+    () => click(page),
+    () => rasd.session(tabId, (s) => !!s.inspect.pinnedElement()),
+    { what: 'تثبيت عنصر الفحص' },
+  )
   expect(
     await rasd.overlayCentre(tabId, '[data-rasd-ov="inspect-panel"]'),
     'لوحة فحص العنصر مرسومة',
@@ -69,12 +79,12 @@ test('فحص ← قياس ← التقاط', async ({ rasd }) => {
   const plain = await centreOf(page, '#plain')
   const scaled = await centreOf(page, '#scaled')
   await hoverUntil(rasd, page, tabId, plain, (s) => !!s.measure.state.hover.value, 'مرجع القياس')
-  await click(page)
-  await expect
-    .poll(() => rasd.session(tabId, (s) => !!s.measure.state.reference.value), {
-      message: 'مرجعٌ مثبَّت',
-    })
-    .toBe(true)
+  await until(
+    rasd,
+    () => click(page),
+    () => rasd.session(tabId, (s) => !!s.measure.state.reference.value),
+    { what: 'تثبيت مرجع القياس' },
+  )
   await hoverUntil(
     rasd,
     page,
@@ -95,20 +105,32 @@ test('فحص ← قياس ← التقاط', async ({ rasd }) => {
     })),
   }))
   expect(gap.nearest).toBe('bottom')
-  expect(Math.abs(gap.value - expectedGap), `الفجوة ${String(gap.value)} ≈ ${String(expectedGap)}`).toBeLessThanOrEqual(2)
+  expect(
+    Math.abs(gap.value - expectedGap),
+    `الفجوة ${String(gap.value)} ≈ ${String(expectedGap)}`,
+  ).toBeLessThanOrEqual(2)
   // الرقم المعروض بأرقام غربية وبوحدته — قياسٌ تقني لا عدٌّ بشري.
   expect(gap.shown, 'قيمة الفجوة المعروضة').toEqual([
     { text: `${String(gap.value)}px`, emphasis: 'true' },
   ])
 
   // ── 3) التقاط من شريط الأدوات ──────────────────────────────
-  await rasd.clickOverlay(page, tabId, '[role="toolbar"] button[aria-label="تصوير منطقة"]')
-  await expect.poll(() => modeOf(rasd, tabId), { message: 'الشريط يبدّل إلى تصوير منطقة' }).toBe('area')
+  await until(
+    rasd,
+    () => rasd.clickOverlay(page, tabId, '[role="toolbar"] button[aria-label="تصوير منطقة"]'),
+    async () => (await modeOf(rasd, tabId)) === 'area',
+    { what: 'تبديل شريط الأدوات إلى تصوير منطقة' },
+  )
 
   const W = 300
   const H = 220
   const before = (await rasd.db.all('captures')).length
-  const capture = await captureArea(rasd, page, { x1: 30, y1: 30, x2: 30 + W, y2: 30 + H }, { activate: false })
+  const capture = await captureArea(
+    rasd,
+    page,
+    { x1: 30, y1: 30, x2: 30 + W, y2: 30 + H },
+    { activate: false },
+  )
   expect((await rasd.db.all('captures')).length).toBe(before + 1)
   expect(capture).toMatchObject({
     kind: 'area',
