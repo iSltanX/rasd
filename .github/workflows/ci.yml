@@ -55,7 +55,7 @@ jobs:
           outside=$(echo "$files" | grep -Ev "$DOCS_ONLY" || true)
           [ -z "$outside" ] || full "ملفّات خارج التوثيق: $(echo "$outside" | head -5 | tr '\n' ' ')"
           echo "code=false" >> "$GITHUB_OUTPUT"
-          echo "مسار التوثيق — البناء وحرّاس كروم التسعة عشر تُتخطّى"
+          echo "مسار التوثيق — البناء وحرّاس كروم العشرون تُتخطّى"
 
   # ── مسار التوثيق: فحوص الاتّساق وحدها ─────────────────────────────
   #
@@ -99,7 +99,7 @@ jobs:
   # ── المسار الكامل ─────────────────────────────────────────────────
   #
   # كل فحص مرّة واحدة في الجولة: `typecheck` هنا وحدها، والبناء و`verify:dist`
-  # في «بناء الحزمة المشتركة» وحدها، والحرّاس التسعة عشر على حزمتها.
+  # في «بناء الحزمة المشتركة» وحدها، والحرّاس العشرون على حزمتها.
   # والشرط `!= 'false'` لا `== 'true'`: إن سقط التصنيف نفسه جرى المسار الكامل.
   verify:
     name: فحوص ساكنة · typecheck · lint · test · coverage
@@ -293,7 +293,7 @@ jobs:
 
       # الحزمة تُنزَّل من وظيفة «بناء الحزمة المشتركة» ولا تُبنى هنا. ولا تُنزَّل
       # من الوظيفة الأولى: ارتباط الحارس بها يجعله يسقط حين تسقط هي بلنت أو
-      # اختبار. وكل حارس من التسعة عشر يتحقّق بنفسه من وجود الحزمة قبل أن يبدأ،
+      # اختبار. وكل حارس من العشرين يتحقّق بنفسه من وجود الحزمة قبل أن يبدأ،
       # فحزمة غائبة تُسقطه برسالة صريحة لا بنجاح كاذب.
       - name: Download extension bundle
         uses: actions/download-artifact@v4
@@ -364,5 +364,72 @@ jobs:
         with:
           name: rasd-a11y-baselines-${{ matrix.guard }}-${{ github.sha }}
           path: tests/visual-baselines/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ── مسارات المنتج الأربعة من طرف إلى طرف (`STAGES/18`، ADR 0045) ──
+  #
+  # وظيفةٌ مستقلّة لا خطوةٌ في «الفحص الحيّ»: الحرّاس تثبت **محرّكًا** كلٌّ على حدة، وهذه تثبت
+  # **السلسلة** — التقاط ← تعليق ← تصدير ← مكتبة، وأخواتها — بكثافتَي 1 و2 في كروم حقيقي. فشلها يقول
+  # شيئًا آخر: «كل جزءٍ يعمل وحده والمسار لا يمرّ».
+  #
+  # **ولا تُبنى هنا ولا تُشغَّل بمصفوفة.** الحزمة تُنزَّل من وظيفة البناء المشتركة كالحرّاس، والكثافتان
+  # مشروعان في Playwright يجريان تباعًا في كروم واحد: عاملٌ واحد ولا إعادة، فمسارٌ ينجح في المحاولة
+  # الثانية يُحسب ساقطًا (معيار «صفر تقطّع» يقيسه `pnpm test:e2e --runs 10`).
+  #
+  # **غير حاجبة إلى أن تُقاس.** جولات CI الخضراء العشر هي ما يرقّي الحرّاس إلى حاجبة (`guards-sync.mjs`)،
+  # وهذه الوظيفة لم تُقَس في CI بعد: تظهر ✗ باسمها إن سقطت ولا تُسقط الجولة. ويُرقّيها المالك بحذف
+  # `continue-on-error` بعد عشر جولات خضراء.
+  e2e:
+    name: مسارات E2E · الكثافتان 1 و2
+    needs: build
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Download extension bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: rasd-dist-${{ github.sha }}
+          path: dist/
+
+      # القيد نفسه الذي تعالجه وظيفة الحرّاس (user namespaces على Ubuntu 24.04). وPlaywright يُقلع كروم
+      # بـ`--no-sandbox` افتراضًا — لا بأس هنا: لا يفتح إلا عيّنات محلّية صامتة شبكيًّا — لكن القيمة
+      # تُرخى وتُطبَع كي يبقى الفرق بين وظيفتَي كروم في الجولة مقروءًا.
+      - name: Chrome version · وصندوق الرمل
+        run: |
+          echo "apparmor_restrict_unprivileged_userns = $(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 'غير معرَّف')"
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          google-chrome --version
+
+      # مهلة الخطوة دون مهلة الوظيفة كي يسقط المعلَّق **فشلًا** لا إلغاءً (`continue-on-error` لا يشمل الإلغاء)
+      # — الدرس نفسه المسجَّل على خطوة الحرّاس أعلاه.
+      - name: pnpm test:e2e in real Chrome
+        run: pnpm run test:e2e
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      # أثر Playwright (تتبّعٌ ولقطةٌ للساقط) ولقطات المراجعة — تُرفع ولا تُقارَن آليًّا.
+      - name: Upload e2e artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rasd-e2e-${{ github.sha }}
+          path: artifacts/e2e/
           retention-days: 14
           if-no-files-found: ignore
