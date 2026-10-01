@@ -5,6 +5,8 @@ import { CHANNELS, openChannel, send, sendToTab, type ToolName } from '@/shared/
 import { originPatternFor, requestHostPermission } from '@/shared/permissions'
 import { selectPopupState, type PopupContext, type PopupStateName } from '@/shared/popup-state'
 
+import { SHARE_PARAM } from '../share/param'
+
 import { copyCaptureImage, loadRecent, POPUP_MARKS, type PopupLoad } from './context'
 import { Footer } from './parts/Footer'
 import { Header } from './parts/Header'
@@ -262,11 +264,15 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
     void send('page/open', { page }).then(() => window.close())
   }
 
-  /** يفتح المحرر **على لقطة بعينها** — المعرّف يمرّ استعلامًا تبنيه الخلفية. */
-  const openEditor = (captureId: string) => {
-    void send('page/open', { page: 'editor', params: { capture: captureId } }).then(() =>
-      window.close(),
-    )
+  /**
+   * يفتح المحرر **على لقطة بعينها** — المعرّف يمرّ استعلامًا تبنيه الخلفية. و`share` يفتحه ونافذة المشاركة
+   * فوقه: المحرّر يملك المشهد بحجبه وأدوات الخبز، فالمشاركة من هناك لا من النافذة (`STAGES/10`).
+   */
+  const openEditor = (captureId: string, share = false) => {
+    void send('page/open', {
+      page: 'editor',
+      params: share ? { capture: captureId, [SHARE_PARAM]: '1' } : { capture: captureId },
+    }).then(() => window.close())
   }
 
   const copySuccess = () => {
@@ -282,8 +288,8 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
     )
   }
 
-  // بترتيب القراءة في الإطار: تعليق، مقارنة، نسخ، مشاركة. والمشاركة المحلّية محرّكها في
-  // `STAGES/10`، فتُعرض معطَّلة بسببها لا زرًّا صامتًا.
+  // بترتيب القراءة في الإطار: تعليق، مقارنة، نسخ، مشاركة. والنسخ والمشاركة يحتاجان معرّف اللقطة، فبلاه
+  // يُعرضان معطَّلين بسببهما لا زرّين صامتين.
   const successActions: SuccessAction[] = [
     {
       icon: 'pen',
@@ -292,7 +298,12 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
     },
     { icon: 'split-view', label: 'مقارنة', onClick: () => runTool('compare') },
     { icon: 'copy', label: 'نسخ', onClick: copySuccess, soon: !success?.id },
-    { icon: 'share', label: 'مشاركة', onClick: () => undefined, soon: true },
+    {
+      icon: 'share',
+      label: 'مشاركة',
+      onClick: () => (success?.id ? openEditor(success.id, true) : undefined),
+      soon: !success?.id,
+    },
   ]
 
   let body: JSX.Element

@@ -81,7 +81,7 @@ const SUCCESS_ACTIONS: SuccessAction[] = [
   { icon: 'pen', label: 'تعليق', onClick: noop },
   { icon: 'split-view', label: 'مقارنة', onClick: noop },
   { icon: 'copy', label: 'نسخ', onClick: noop },
-  { icon: 'share', label: 'مشاركة', onClick: noop, soon: true },
+  { icon: 'share', label: 'مشاركة', onClick: noop },
 ]
 
 interface FrameProps {

@@ -12,6 +12,8 @@ import { err, ok } from '@/shared/result'
 
 import { ExportFlow } from '../export/ExportFlow'
 import { HandoffLauncher } from '../handoff/HandoffLauncher'
+import { CaptureShare } from '../share/CaptureShare'
+import { shareRequested } from '../share/param'
 
 import { buildRenderStyle } from './colors'
 import {
@@ -141,6 +143,11 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
   const [exportOpen, setExportOpen] = useState(false)
   /** «حزمة التسليم» لمشكلات هذه اللقطة مفتوحة؟ نافذةٌ فوق المحرّر كالتصدير، لا حالةٌ بديلة. */
   const [handoffOpen, setHandoffOpen] = useState(false)
+  /**
+   * نافذة المشاركة المحلّية (`STAGES/10`). **تُفتح من العنوان أيضًا:** «مشاركة» في النافذة بعد الالتقاط تفتح
+   * المحرّر بـ`share=1` — المحرّر وحده يملك المشهد بحجبه وأدوات الخبز، فالنافذة لا تخبز لقطةً بنفسها.
+   */
+  const [shareOpen, setShareOpen] = useState(() => shareRequested(window.location.href))
   const [saveState, setSaveState] = useState<SaveState>({
     outcome: 'idle',
     baseUpdatedAt: context.baseUpdatedAt,
@@ -451,6 +458,16 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
             noteIssues={context.noteIssues}
             onClose={() => setExportOpen(false)}
           />
+        ) : shareOpen ? (
+          <CaptureShare
+            scene={history.state.scene}
+            sourceBlob={context.sourceBlob}
+            style={style}
+            layout={layout}
+            client={client}
+            capture={context.capture}
+            onClose={() => setShareOpen(false)}
+          />
         ) : handoffOpen ? (
           <HandoffLauncher
             issues={context.issues}
@@ -475,6 +492,7 @@ function Loaded({ context }: { context: EditorContext }): JSX.Element {
       onOpenHandoff={context.issues.length > 0 ? () => setHandoffOpen(true) : null}
       onExport={(scale) => setExporting(scale)}
       onOpenExport={() => setExportOpen(true)}
+      onOpenShare={() => setShareOpen(true)}
       unsaved={autosave !== null && (saveState.dirty || !UNSAVED_SAFE.includes(saveState.outcome))}
       onFlush={async () => {
         if (!autosave) return true

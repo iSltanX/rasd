@@ -20,7 +20,7 @@ button — إنهاء الاختيار
 button — تعليق
 button — مقارنة
 button — نسخ
-button — مشاركة · قريبًا
+button — مشاركة
 button — افتح في المكتبة
 heading — لم تُحفظ اللقطة
 button — أعد المحاولة
