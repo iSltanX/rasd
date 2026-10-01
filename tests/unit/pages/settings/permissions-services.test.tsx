@@ -10,6 +10,7 @@ import { PermissionsPanel } from '@/pages/settings/parts/PermissionsPanel'
 
 const GITHUB = 'https://api.github.com/*'
 const BANK = 'https://bank.example/*'
+const REPORTS = 'https://app-reports.isultantf.workers.dev/*'
 
 let container: HTMLDivElement | null = null
 let remove: ReturnType<typeof vi.fn>
@@ -96,6 +97,20 @@ describe('الخدمة المسمّاة ليست «موقعًا»', () => {
     root = await mount([])
     row(root, 'api.github.com').querySelector('button')!.click()
     expect(request).toHaveBeenCalledWith({ origins: [GITHUB] })
+  })
+
+  it('نقطة البلاغات خدمةٌ ثانية بسببها وما يتوقّف عندها — لا «موقع» (§6 405)', async () => {
+    const root = await mount([REPORTS, BANK])
+    const sites = [...root.querySelectorAll('span')].find(
+      (s) => s.textContent === 'الوصول إلى المواقع',
+    )!
+    expect(sites.closest('div')!.parentElement!.textContent).not.toContain('app-reports')
+
+    const service = row(root, 'app-reports.isultantf.workers.dev')
+    expect(service.textContent).toContain('لإرسال بلاغ مشكلة إلى جهة الدعم')
+    expect(service.textContent).toContain('عند الرفض: لا يُرسَل بلاغ مشكلة')
+    service.querySelector('button')!.click()
+    await vi.waitFor(() => expect(remove).toHaveBeenCalledWith({ origins: [REPORTS] }))
   })
 
   it('«كل المواقع» تشمل الخدمة: يقول الصفّ ذلك بلا زرّ يسحب ما لم يُمنح', async () => {
