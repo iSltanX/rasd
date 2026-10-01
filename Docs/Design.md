@@ -463,17 +463,17 @@ return {
 
 ### المشاركة المحلّية — الصفحة `23 — Share`
 
-| الإطار                      | الحالة     | الداكن                                                                                    | الفاتح                                                                                    | منفَّذ                | مطابق |
-| --------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------- | ----- |
-| `share / modal`             | أساسية     | [`73:361`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=73-361)       | [`310:45733`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-45733) | [10](../STAGES/10.md) | —     |
-| `share / done`              | نجاح       | [`129:843`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=129-843)     | [`310:45954`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-45954) | [10](../STAGES/10.md) | —     |
-| `share / clipboard`         | نجاح       | [`291:447`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-447)     | [`310:46176`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-46176) | [10](../STAGES/10.md) | —     |
-| `share / file`              | أساسية     | [`291:829`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-829)     | [`310:46391`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-46391) | [10](../STAGES/10.md) | —     |
-| `share / guide`             | أساسية     | [`291:1262`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-1262)   | [`310:46613`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-46613) | [10](../STAGES/10.md) | —     |
-| `share / loading`           | تحميل      | [`291:1658`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-1658)   | [`310:46838`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-46838) | [10](../STAGES/10.md) | —     |
-| `share / error`             | خطأ        | [`291:2012`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-2012)   | [`310:47044`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-47044) | [10](../STAGES/10.md) | —     |
-| `share / permission-denied` | رفض صلاحية | [`291:2381`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-2381)   | [`310:47248`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-47248) | [10](../STAGES/10.md) | —     |
-| `share / cancelled`         | إلغاء      | [`319:55644`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-55644) | [`319:55991`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-55991) | [10](../STAGES/10.md) | —     |
+| الإطار                      | الحالة     | الداكن                                                                                    | الفاتح                                                                                    | منفَّذ                                                                                                              | مطابق      |
+| --------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `share / modal`             | أساسية     | [`73:361`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=73-361)       | [`310:45733`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-45733) | [`ShareDialog.tsx`](../src/pages/share/ShareDialog.tsx) · [`CaptureShare.tsx`](../src/pages/share/CaptureShare.tsx) | ✓          |
+| `share / done`              | نجاح       | [`129:843`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=129-843)     | [`310:45954`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-45954) | [`ShareDialog.tsx`](../src/pages/share/ShareDialog.tsx)                                                             | ✓          |
+| `share / clipboard`         | نجاح       | [`291:447`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-447)     | [`310:46176`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-46176) | [`ShareDialog.tsx`](../src/pages/share/ShareDialog.tsx)                                                             | ✓          |
+| `share / file`              | أساسية     | [`291:829`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-829)     | [`310:46391`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-46391) | [`CaptureShare.tsx`](../src/pages/share/CaptureShare.tsx) — بلا مفاتيح الحذف                                        | ✓ · §6 344 |
+| `share / guide`             | أساسية     | [`291:1262`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-1262)   | [`310:46613`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-46613) | [`GuideShare.tsx`](../src/pages/share/GuideShare.tsx)                                                               | ✓          |
+| `share / loading`           | تحميل      | [`291:1658`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-1658)   | [`310:46838`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-46838) | [`ShareDialog.tsx`](../src/pages/share/ShareDialog.tsx)                                                             | ✓          |
+| `share / error`             | خطأ        | [`291:2012`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-2012)   | [`310:47044`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-47044) | [`ShareDialog.tsx`](../src/pages/share/ShareDialog.tsx) — بلا «أبلغ»                                                | ✓ · §6 344 |
+| `share / permission-denied` | رفض صلاحية | [`291:2381`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-2381)   | [`310:47248`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-47248) | [`ShareDialog.tsx`](../src/pages/share/ShareDialog.tsx) — نتيجةٌ بلافتة                                             | ✓ · §6 344 |
+| `share / cancelled`         | إلغاء      | [`319:55644`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-55644) | [`319:55991`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-55991) | [`ShareDialog.tsx`](../src/pages/share/ShareDialog.tsx)                                                             | ✓          |
 
 ### التكاملات وGitHub — الصفحة `24 — Integrations`
 
@@ -792,8 +792,8 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
 - `capturing`: «المقطع ٤ من ٦» بدل الارتفاع بالبكسل — المهمّة لا تحمل الارتفاع. والسطر الفرعي يصف
   ما يفعله المحرّك (تحييد العناصر الثابتة) لا تحميل الصور المؤجَّلة الذي لا يفعله.
 - `error`: «أبلغ عن المشكلة» لا تُعرض قبل [13](../STAGES/13.md). `first-run`: «جولة سريعة» تفتح جولة
-  التعريف في تبويب، و«ابدأ» تُتمّ التشغيل الأوّل. `success`: «مشاركة · قريبًا» حتى
-  [10](../STAGES/10.md)، و«نسخ» للقطات PNG وحدها (الحافظة لا تقبل غيرها).
+  التعريف في تبويب، و«ابدأ» تُتمّ التشغيل الأوّل. `success`: «مشاركة» تفتح المحرّر
+  ونافذة المشاركة فوقه ([10](../STAGES/10.md)، ADR 0044)، و«نسخ» للقطات PNG وحدها (الحافظة لا تقبل غيرها).
 - `restricted`: «لماذا؟» يعرض سبب التبويب نفسه — كان زرًّا صامتًا.
 - مسافات أصغر بقليل من الإطار (بطاقة الالتقاط، وأداة الفحص، والبطاقة الأخيرة) كي تسع الحالة الافتراضية
   520 بلا تمرير — والإطار نفسه يقصّ جسمه بثلاثة.
@@ -832,7 +832,7 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
 
 ### المحرّر
 
-- «مشاركة · قريبًا» حتى [10](../STAGES/10.md)، وقسم GitHub لا يُعرض قبل [11](../STAGES/11.md).
+- «مشاركة» تفتح نافذة المشاركة ([10](../STAGES/10.md))، وقسم GitHub لا يُعرض قبل [11](../STAGES/11.md).
 - `saved`: لا إشعار لكل حفظ — الحفظ تلقائي كل 800 مللي ثانية، فحالة الشريط «حُفظ قبل …» بدل إشعار كل
   ثوانٍ. `text`: لا لوحة نصّ منفصلة؛ المقاس من قسم النمط، واللون من السكّة، و«خلفية للنصّ» بلا حقل.
 - السكّة اثنتا عشرة أداة لا تسع (الخطّ والنصّ والاقتصاص في المحرّك)، وسبعة ألوان لا أربعة — لوحة
@@ -869,8 +869,8 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
   يُفلَت من أدوات الصفحة، لا من المكتبة.
 - الشريط الجانبي فيه «الألوان» تحت المجموعات ولا يرسمها الإطار: المكتبة تحفظ اللون المفرد نوعًا قائمًا.
 - **الدليل ([06](../STAGES/06.md)، ADR 0041):** `library / guide` و`guide / editor` صفحةٌ واحدة تُحرَّر في مكانها —
-  رقاقات الصيغ من الأوّل اختصارٌ يفتح النافذة على صيغته، والمقبض والحذف و«صدّر الدليل» من الثاني. و«شارك» لا تُعرض
-  (محرّكها في [10](../STAGES/10.md))، ولكل خطوةٍ زرّا «انقل إلى أعلى/أسفل» بجانب المقبض: السحب وحده يُقصي لوحة
+  رقاقات الصيغ من الأوّل اختصارٌ يفتح النافذة على صيغته، والمقبض والحذف و«صدّر الدليل» من الثاني. و«شارك» تفتح نافذة
+  المشاركة ([10](../STAGES/10.md))، ولكل خطوةٍ زرّا «انقل إلى أعلى/أسفل» بجانب المقبض: السحب وحده يُقصي لوحة
   المفاتيح. والعنوان الفارغ يُعرض بعنوان صفحة اللقطة بديلًا. والدليل يُنشأ من «أنشئ دليلًا» في شريط التحديد
   (بترتيب الالتقاط)، و«أنشئ دليلًا» في `guide / empty` يأخذ إلى اللقطات بتلميحٍ لأن الإنشاء يحتاج تحديدًا.
 - **نافذة تصدير الدليل:** الأطوار الستّة (`export` · `template-save` · `export-loading` · `export-done` ·
@@ -887,6 +887,13 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
   الوصف في الخصوصية. و«خلفية شفافة» محذوف، و«دمج التعليقات» سطر ملخّص (ADR 0015).
 - PDF بلا «انسخ إلى الحافظة»: الحافظة لا تقبل الوثيقة، والإطار `290:480` يرسم «تنزيل» وحده.
 - «تنزيل» و«افتح المجلّد» بدل «نزّل» و«اعرض في المجلّد» — `verify:export` يجد الزرّين بنصّيهما.
+
+### المشاركة المحلّية
+
+- **[10](../STAGES/10.md)، ADR 0044:** النافذة فوق المحرّر لا فوق المكتبة كما يرسم `73:361` — المحرّر يملك المشهد
+  بحجبه، و«مشاركة» في النافذة تفتحه بـ`share=1`. ومسار الملفّ بلا مفاتيح الحذف (الصورة لا تحمل ما تحذفه)،
+  و`permission-denied` نتيجةٌ بلافتة رفضٍ صادقة (الملفّ يُحفظ بطريق المرساة)، ولا «انسخ المسار» ولا «أبلغ عن
+  المشكلة» قبل [13](../STAGES/13.md)، والحافظة في الدليل نصّ الخطوات — التفصيل في `Docs/Engineering.md §6` 344.
 
 ### المقارنة
 

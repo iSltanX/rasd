@@ -12,7 +12,7 @@ button — تراجع
 button — إعادة
 button — نسخ الصورة إلى الحافظة
 button — تصدير
-button — مشاركة · قريبًا
+button — مشاركة
 button [pressed=true] — تحريك
 button [pressed=false] — سهم
 button [pressed=false] — مستطيل

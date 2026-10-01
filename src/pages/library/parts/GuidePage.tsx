@@ -4,7 +4,7 @@
  * **عرضٌ يُحرَّر في مكانه:** الإطاران يرسمان الدليل نفسه — الأوّل برقاقات الصيغ، والثاني بمقبض السحب والحذف
  * و«صدّر الدليل». فالصفحة تجمعهما: رقاقات الصيغ اختصارٌ يفتح نافذة التصدير على صيغته، والعناوين والملاحظات
  * حقولٌ تُحفظ حين يغادرها التركيز، والترتيب بالسحب أو بزرّين لكل خطوة — السحب وحده يُقصي لوحة المفاتيح.
- * و«شارك» المرسومة في `guide / editor` لا تُعرض: محرّكها في `STAGES/10`.
+ * و«شارك» تفتح نافذة المشاركة المحلّية (`STAGES/10`) — صفحة الدليل المستقلّة أو نصّه في الحافظة أو ملفّه.
  *
  * **الحالة المعروضة هي ما يُحفظ:** كل حفظٍ يكتب العنوان والخطوات بترتيبها (`saveGuide`)، والتصدير يحفظ أوّلًا
  * ما لم يُحفظ فلا يُصدَّر نصٌّ غير المكتوب.
@@ -23,6 +23,7 @@ import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 
 import { FORMAT_CARD, GuideExportDialog } from '../../export/GuideExportDialog'
+import { GuideShare } from '../../share/GuideShare'
 import { resolveThumbnailUrl } from '../context'
 import { loadGuide, moveStep, saveGuide, type GuideStepView } from '../guides'
 import { browserThumbnailEncoder } from '../thumbnail-encoder'
@@ -58,6 +59,7 @@ export function GuidePage({ id, onBack, onChanged, now = Date.now }: GuidePagePr
   const [steps, setSteps] = useState<readonly GuideStepView[]>([])
   const [thumbs, setThumbs] = useState<ReadonlyMap<string, string | null>>(new Map())
   const [exporting, setExporting] = useState<GuideFormat | 'default' | null>(null)
+  const [sharing, setSharing] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
   /** عدّل المستخدم ولم يُحفظ بعد. */
@@ -152,6 +154,11 @@ export function GuidePage({ id, onBack, onChanged, now = Date.now }: GuidePagePr
     setExporting(format)
   }
 
+  const openShare = (): void => {
+    if (dirty.current) void persist(title, steps)
+    setSharing(true)
+  }
+
   if (load.kind === 'loading') {
     return (
       <div class={styles.page} role="status" aria-busy="true" aria-label="جارٍ تحميل الدليل">
@@ -233,6 +240,16 @@ export function GuidePage({ id, onBack, onChanged, now = Date.now }: GuidePagePr
               </button>
             ))}
           </div>
+          <Button
+            variant="secondary"
+            size="m"
+            icon="share"
+            onClick={openShare}
+            data-guide-share-open=""
+            {...(steps.length === 0 ? { state: 'disabled' as const } : {})}
+          >
+            شارك
+          </Button>
           <Button
             variant="primary"
             size="m"
@@ -368,6 +385,13 @@ export function GuidePage({ id, onBack, onChanged, now = Date.now }: GuidePagePr
           shots={shots}
           {...(exporting === 'default' ? {} : { format: exporting })}
           onClose={() => setExporting(null)}
+        />
+      ) : sharing ? (
+        <GuideShare
+          title={title.trim() || guide.title}
+          steps={steps}
+          captureTitles={captureTitles}
+          onClose={() => setSharing(false)}
         />
       ) : null}
     </div>

@@ -107,6 +107,8 @@ export interface AnnotatingProps {
   readonly onExport: (scale: 1 | 2) => void
   /** يفتح `export / modal` — المدخل الكامل بالصيغة والجودة والتنزيل. */
   readonly onOpenExport: () => void
+  /** يفتح `share / modal` — الصفحة المستقلّة والحافظة والملفّ (`STAGES/10`). */
+  readonly onOpenShare: () => void
   /**
    * يفتح «حزمة التسليم» لمشكلات هذه اللقطة (ADR 0036) — `null` حين لا مشكلة دليلها هنا، فلا زرّ بلا ما يصدّره.
    */
@@ -143,8 +145,7 @@ function hostOf(origin: string): string {
  * مرّات — وثلاث نسخ منه تعني ثلاثة قماشين وثلاث ذاكرات تخطيط، وإعادة تركيبها
  * كلّها عند كل تبديل حالة.
  *
- * **ما في الإطار ولا يُبنى:** «مشاركة» معطَّلة بسببها حتى `STAGES/10`، وقسم «افتح بلاغًا في
- * GitHub» حتى `STAGES/11`–`12`. **وما ليس فيه ويبقى:** بيانات الصفحة والطبقات وشريط النمط
+ * **ما في الإطار ولا يُبنى:** قسم «افتح بلاغًا في GitHub» حتى `STAGES/11`–`12`. **وما ليس فيه ويبقى:** بيانات الصفحة والطبقات وشريط النمط
  * في اللوحة — ميزات قائمة لا موضع لها في الإطار.
  */
 export function Annotating(props: AnnotatingProps): JSX.Element {
@@ -230,8 +231,14 @@ export function Annotating(props: AnnotatingProps): JSX.Element {
           >
             تصدير
           </Button>
-          <Button variant="primary" size="m" icon="share" state="disabled">
-            مشاركة · قريبًا
+          <Button
+            variant="primary"
+            size="m"
+            icon="share"
+            data-share-open=""
+            onClick={props.onOpenShare}
+          >
+            مشاركة
           </Button>
         </div>
       </header>

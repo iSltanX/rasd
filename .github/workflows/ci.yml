@@ -274,6 +274,7 @@ jobs:
           - { guard: palette, blocking: false }
           - { guard: picker, blocking: false }
           - { guard: popup, blocking: false }
+          - { guard: share, blocking: false }
 
     # الوظيفة غير الحاجبة تظهر ✗ في صفحة الفحوص ولا تُسقِط الجولة.
     continue-on-error: ${{ !matrix.blocking }}
