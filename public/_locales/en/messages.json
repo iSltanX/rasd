@@ -8,7 +8,7 @@
     "description": "Short name shown under the extension icon."
   },
   "extDescription": {
-    "message": "Visual inspection for the browser: capture pages and elements, measure spacing, extract colours, and compare implementation against a reference.",
+    "message": "Visual inspection in the browser: capture pages and elements, measure spacing, extract colours, compare a build with its reference.",
     "description": "Extension description in the store and the extensions page."
   },
   "actionTitle": {

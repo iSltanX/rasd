@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AboutSection } from '@/pages/settings/parts/AboutSection'
 import { entryFor } from '@/pages/shell/whats-new'
+import { OWNER_PAGES_LIVE, PRIVACY_POLICY_URL } from '@/shared/links'
 import { PAGE_PATHS } from '@/shared/page-paths'
 
 import pkg from '../../../../package.json' with { type: 'json' }
@@ -25,10 +26,10 @@ afterEach(() => {
   }
 })
 
-function mount(): HTMLDivElement {
+function mount(props: { privacyPolicyUrl?: string | null } = {}): HTMLDivElement {
   container = document.createElement('div')
   document.body.appendChild(container)
-  render(<AboutSection version={pkg.version} />, container)
+  render(<AboutSection version={pkg.version} {...props} />, container)
   return container
 }
 
@@ -63,5 +64,32 @@ describe('AboutSection — الإصدار', () => {
     const create = vi.spyOn(chrome.tabs, 'create')
     button(mount(), 'أعد العرض')!.click()
     expect(create).toHaveBeenCalledWith({ url: chrome.runtime.getURL(PAGE_PATHS.onboarding) })
+  })
+})
+
+/**
+ * «سياسة الخصوصية» — صفحتها العامّة في موقع المالك (`STAGES/28`). قبل نشرها «قريبًا» لا رابطٌ يعطي 404،
+ * وبعده زرٌّ يفتحها في تبويب.
+ */
+describe('AboutSection — سياسة الخصوصية', () => {
+  const support = (root: HTMLElement) => root.querySelector('[aria-labelledby="about-support"]')!
+  /** صفّ الإعداد نفسه: أقرب أبٍ لعنوانه يحمل ضابطه. */
+  const privacyRow = (root: HTMLElement) =>
+    [...support(root).querySelectorAll('span')].find((el) => el.textContent === 'سياسة الخصوصية')!
+      .parentElement!.parentElement!
+
+  it('ما دامت صفحات المالك غير منشورة: «قريبًا» ولا زرّ', () => {
+    expect(OWNER_PAGES_LIVE).toBe(false)
+    const root = mount()
+    expect(privacyRow(root).textContent).toContain('قريبًا')
+    expect(button(root, 'اقرأها')).toBeUndefined()
+  })
+
+  it('حين تُنشر: «اقرأها» يفتح الرابط العامّ في تبويب، ولا «قريبًا» في مجموعة الدعم', () => {
+    const create = vi.spyOn(chrome.tabs, 'create')
+    const root = mount({ privacyPolicyUrl: PRIVACY_POLICY_URL })
+    expect(support(root).textContent).not.toContain('قريبًا')
+    button(root, 'اقرأها')!.click()
+    expect(create).toHaveBeenCalledWith({ url: PRIVACY_POLICY_URL })
   })
 })

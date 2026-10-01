@@ -72,6 +72,8 @@
     "guards:check": "node scripts/guards-sync.mjs --check",
     "gate:a": "node scripts/gate-a.mjs",
     "zip": "node scripts/zip.mjs",
+    "store:images": "node scripts/store-images.mjs",
+    "store:package": "node scripts/store-package.mjs",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run tokens:check && pnpm run verify:tokens && pnpm run test:coverage"
   },
   "dependencies": {

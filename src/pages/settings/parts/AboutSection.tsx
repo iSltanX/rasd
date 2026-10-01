@@ -3,12 +3,14 @@
  *
  * الإصدار من البيان المحمَّل فعلًا لا ثابتًا مكتوبًا. «ما الجديد» يعرض بطاقة الإصدار المثبَّت من
  * `CHANGELOG.md`، و«أعد العرض» يفتح جولة التعريف في تبويب — ولا يمحو علامة «شوهد»: من أعادها
- * بيده لا تعود إليه ترحيبيّة النافذة. وما محرّكه في مرحلة لاحقة يُعرض «قريبًا» بسببه: سياسة
- * الخصوصية (`STAGES/28`). و«أبلغ عن مشكلة» يفتح نافذة البلاغ (ADR 0050) — ويفتحها الرابط نفسه
+ * بيده لا تعود إليه ترحيبيّة النافذة. و«سياسة الخصوصية» تفتح صفحتها العامّة في موقع المالك حين تُنشر
+ * (`OWNER_PAGES_LIVE`)، وقبلها «قريبًا» — لا رابط يعطي 404 (`STAGES/28`). و«أبلغ عن مشكلة» يفتح نافذة البلاغ
+ * (ADR 0050) — ويفتحها الرابط نفسه
  * (`?report=1`) حين يأتي من «أبلغ عن المشكلة» في رسالة خطأ. والتراخيص من قائمة `licenses.ts`.
  */
 import { useState } from 'preact/hooks'
 
+import { OWNER_PAGES_LIVE, PRIVACY_POLICY_URL } from '@/shared/links'
 import { PAGE_PATHS } from '@/shared/page-paths'
 import { Button } from '@/ui/components/Button/Button'
 import { Chip } from '@/ui/components/Chip/Chip'
@@ -31,9 +33,16 @@ export interface AboutSectionProps {
   /** طلب بلاغٍ من الرابط — النافذة تُفتح به عند التحميل. */
   reportRequest?: ReportRequest | null
   onOpenPrivacy?: () => void
+  /** رابط سياسة الخصوصية العامّة، أو `null` ما دامت غير منشورة. */
+  privacyPolicyUrl?: string | null
 }
 
-export function AboutSection({ version, reportRequest = null, onOpenPrivacy }: AboutSectionProps) {
+export function AboutSection({
+  version,
+  reportRequest = null,
+  onOpenPrivacy,
+  privacyPolicyUrl = OWNER_PAGES_LIVE ? PRIVACY_POLICY_URL : null,
+}: AboutSectionProps) {
   const [licenses, setLicenses] = useState(false)
   const [report, setReport] = useState<{ request: ReportRequest | null } | null>(
     reportRequest ? { request: reportRequest } : null,
@@ -101,7 +110,19 @@ export function AboutSection({ version, reportRequest = null, onOpenPrivacy }: A
           label="سياسة الخصوصية"
           hint="ما يُحفظ على جهازك، وما يُرسَل حين تطلب أنت"
           divider
-          control={SOON}
+          control={
+            privacyPolicyUrl ? (
+              <Button
+                variant="secondary"
+                size="s"
+                onClick={() => void chrome.tabs.create({ url: privacyPolicyUrl })}
+              >
+                اقرأها
+              </Button>
+            ) : (
+              SOON
+            )
+          }
         />
         <SettingRow
           label="ورقة الاختصارات"
