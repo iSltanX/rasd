@@ -26,8 +26,49 @@ export const REQUIRED_PERMISSIONS = [
 /** تُطلب عند أول حاجة فقط، من إيماءة المستخدم، مع شرح السبب. */
 export const OPTIONAL_PERMISSIONS = ['tabs', 'downloads', 'desktopCapture'] as const
 
-/** لا تُطلب عند التثبيت أبدًا — هي مصدر تحذير «قراءة وتغيير جميع بياناتك». */
-export const OPTIONAL_HOST_PERMISSIONS = ['<all_urls>'] as const
+/**
+ * **الخدمات الخارجية المسمّاة — القائمة الوحيدة لكل اتّصالٍ يخرج من رصد** ([ADR 0046](../../Docs/ADR/0046-named-network-services.md)).
+ *
+ * منها وحدها تُبنى ثلاثة أشياء، فلا يفترق أحدها عن الآخر:
+ *   1. `connect-src` في سياسة أمن المحتوى (`extensionPagesCsp` أدناه، ويقرؤها `manifest.config.ts`).
+ *   2. صلاحية المضيف الاختيارية لكلٍّ منها في `OPTIONAL_HOST_PERMISSIONS`.
+ *   3. ما يسمح به مخرج الشبكة الواحد (`shared/egress.ts`) — وما سواه يُرفض قبل أن يُطلب.
+ * و`verify:dist` يطابق البيان المبنيّ بها حرفًا: مصدرٌ في CSP ليس هنا يُسقط البناء.
+ *
+ * الأصل `https` بلا مسار ولا نجمة. **ومصدرٌ يُضاف هنا قرارٌ يحتاج ADR**، لا تعديل سطر — ونقطة استقبال
+ * البلاغات (`STAGES/13`) هي الإضافة الوحيدة التي سبق إليها الـADR.
+ */
+export const NETWORK_SERVICES = [
+  {
+    id: 'github',
+    origin: 'https://api.github.com',
+    hostPattern: 'https://api.github.com/*',
+    purpose:
+      'لفتح Issue في مستودعك على GitHub حين تؤكّد ذلك — بعد أن تتّصل بنفسك وتوقف «الوضع المحلّي فقط».',
+  },
+] as const
+
+export type NetworkServiceId = (typeof NETWORK_SERVICES)[number]['id']
+
+/** أصول الخدمات المسمّاة — ما يُسمح به في `connect-src` بعد `'self'`، لا غيره. */
+export const NETWORK_ORIGINS: readonly string[] = NETWORK_SERVICES.map((s) => s.origin)
+
+/**
+ * سياسة صفحات الإضافة — بلا `unsafe-eval` ولا `unsafe-inline`، والسكربت والكائنات من الإضافة وحدها، والاتّصال
+ * بالإضافة **وبالخدمات المسمّاة وحدها**. الصفحة المضيفة تُعامَل كمصدر غير موثوق، وصفحاتنا لا تحمّل شيئًا من الشبكة.
+ */
+export function extensionPagesCsp(): string {
+  return `script-src 'self'; object-src 'self'; connect-src ${["'self'", ...NETWORK_ORIGINS].join(' ')}`
+}
+
+/**
+ * لا تُطلب عند التثبيت أبدًا. `<all_urls>` مصدر تحذير «قراءة وتغيير جميع بياناتك» ويُطلب لموقعٍ واحد عند الحاجة؛
+ * وأنماط الخدمات المسمّاة تُطلب من إيماءة «اتّصل» وحدها، ومخرج الشبكة يشترطها.
+ */
+export const OPTIONAL_HOST_PERMISSIONS = [
+  '<all_urls>',
+  ...NETWORK_SERVICES.map((s) => s.hostPattern),
+] as const
 
 /**
  * لن تُطلب أبدًا. `verify:dist` يُسقط البناء إن ظهرت أي منها في البيان.

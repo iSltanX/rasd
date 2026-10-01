@@ -60,6 +60,19 @@ export async function getSettingsResult(): Promise<Result<Settings>> {
 }
 
 /**
+ * **قراءةٌ من التخزين لا من الذاكرة** — لقرارٍ يُتّخذ لحظةَ فعلٍ لا يُستردّ، أوّله مخرج الشبكة (ADR 0046 §4).
+ *
+ * الذاكرة المؤقّتة لا تتجدّد إلا في سياقٍ نادى `watchSettings`؛ وصفحةٌ فُتحت قبل أن يعيد المستخدم «الوضع المحلّي فقط»
+ * ولم تشترك كانت ستقرأ `localOnly: false` القديمة فتُرسل — رصدته المراجعة المستقلّة (`STAGES/11`). فهذه تقرأ القرص
+ * في كل نداء، ولا تكتب في الذاكرة: لا تنافس قراءةً جارية ولا حدث تغيّر.
+ */
+export async function readSettingsFresh(): Promise<Result<Settings>> {
+  const stored = await attempt(async () => (await chrome.storage.local.get(KEY))[KEY])
+  if (!stored.ok) return stored
+  return ok(parseSettings(stored.value).settings)
+}
+
+/**
  * يقرأ الإعدادات. القيمة التالفة تُصحَّح ولا تُسقط شيئًا.
  *
  * **ولا تُخزَّن نتيجة فشل**: الافتراضيات تُعاد للمستدعي هذه المرّة وحدها،
