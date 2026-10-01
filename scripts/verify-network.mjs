@@ -29,7 +29,15 @@
  * ## كل مسارٍ يُثبت أنه جرى
  *
  * صفر طلب من مسارٍ لم يجرِ لا يثبت شيئًا. فكل مسار يُحكم بأثره: الصفحة رُسمت، والأداة ردّت `started`، واللقطة
- * صارت في المكتبة، والتنزيل اكتمل، والنافذة بلغت طورها. ومسارٌ لم يبلغ أثره يُسقط الحارس باسمه.
+ * صارت في المكتبة، والتصدير خرج ملفًّا بصيغته المطلوبة، والنافذة بلغت طورها. ومسارٌ لم يبلغ أثره يُسقط الحارس باسمه.
+ *
+ * ## ما يراه وما لا يراه
+ *
+ * يرى: كل طلب HTTP(S) من صفحةٍ أو عاملٍ أو إطار (`requestWillBeSent`)، وكل مقبس WebSocket (`webSocketCreated`)،
+ * وكل محاولةٍ حجبتها السياسة، وكل تبويبٍ يُفتح أو يُنقل إلى عنوانٍ خارجي (`Target`)، وما بادر به أصلٌ في سجلّ المتصفّح.
+ * **ولا يرى** ما ليس طلبًا: تلميحات `preconnect` و`dns-prefetch` (ولا مُرسِل لها في `src/`)، وتنزيلًا من عنوانٍ بعيد
+ * يبدؤه المتصفّح (`chrome.downloads` في `src/` لعناوين محلّية وحدها). والوجهتان المسمّاتان تُقبلان **بمسارهما
+ * وطريقتهما وجلسة نقرتهما وعددٍ واحد** — لا الأصل كلّه طوال الطور.
  *
  * ## اختبار العكس
  *
@@ -43,8 +51,10 @@
  * «خارج طورها» في الشاهدين، وهو ما لا تمسكه سياسة المحتوى.
  *
  * و`page` صفحة المكتبة تحمّل صورةً من الأصل المسرِّب (`img-src` لا تقيّده السياسة)، و`csp` تحاول `fetch` إليه فتحجبه
- * السياسة قبل أن يصير طلبًا — فيسقط بند «محاولةٌ حجبتها السياسة» من السجلّ. والترقيعات ترمي بصوتٍ عالٍ إن لم تجد
- * موضعها.
+ * السياسة قبل أن يصير طلبًا — فيسقط بند «محاولةٌ حجبتها السياسة» من السجلّ. و`tab` العامل يفتح تبويبًا إلى الأصل
+ * المسرِّب عند إقلاعه — تنقّلٌ يبدؤه المتصفّح فلا يراه سجلّ الشبكة بأصلٍ مُبادر، ويمسكه بند «تبويبٌ إلى عنوانٍ خارجي».
+ * و`extra` صفحة الإعدادات تُتبع طلب «اتّصل» بطلبٍ ثانٍ إلى `api.github.com` في النافذة نفسها — فيسقط لأن المقبول
+ * مسارُ النقرة وعددُها لا الأصل. والترقيعات ترمي بصوتٍ عالٍ إن لم تجد موضعها.
  *
  * الإقلاع والاتصال والتحميل والارتباط والتنظيف في النواة المشتركة (`scripts/lib/cdp.mjs`، `STAGES/17`).
  */
@@ -74,6 +84,15 @@ const SERVICES = {
   github: 'https://api.github.com',
 }
 const EXPLICIT = { 'report-send:clicked': 'reports', 'github-connect:clicked': 'github' }
+/**
+ * ما تصنعه النقرة بعينه: الطريقة والمسار، ومن صفحة الإعدادات التي نُقرت فيها، ومرّةً واحدة. فطلبٌ آخر إلى الأصل نفسه
+ * في الطور نفسه — مؤقّتٌ في العامل، أو مسارٌ ثانٍ، أو محاولةٌ مكرَّرة — يُسقط الحارس كما يُسقطه خارج طوره.
+ */
+const EXPECTED = {
+  reports: { method: 'POST', path: '/v1/reports' },
+  github: { method: 'GET', path: '/user' },
+}
+const CLICK_SESSION = 'page /src/pages/settings/'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -81,8 +100,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function breakPatch(stage) {
   if (!BREAK) return
-  if (!['content', 'worker', 'page', 'csp'].includes(BREAK)) {
-    throw new Error(`RASD_BREAK_NETWORK=${BREAK}: القيم content أو worker أو page أو csp.`)
+  if (!['content', 'worker', 'page', 'csp', 'tab', 'extra'].includes(BREAK)) {
+    throw new Error(
+      `RASD_BREAK_NETWORK=${BREAK}: القيم content أو worker أو page أو csp أو tab أو extra.`,
+    )
   }
   const prepend = (rel, line) => {
     const file = join(stage, rel)
@@ -94,6 +115,27 @@ function breakPatch(stage) {
     prepend(
       'service-worker-loader.js',
       `fetch(${JSON.stringify(`${SERVICES.github}/rasd-leak`)}).catch(()=>{});`,
+    )
+  }
+  if (BREAK === 'tab') {
+    prepend(
+      'service-worker-loader.js',
+      `chrome.tabs.create({url:${JSON.stringify(`${LEAK}/t`)},active:false}).catch(()=>{});`,
+    )
+  }
+  if (BREAK === 'extra') {
+    // طلبٌ ثانٍ إلى الأصل المسمّى نفسه، من الصفحة نفسها، في نافذة النقرة نفسها — ما لا يميّزه إلا المسار والعدد.
+    const html = join(stage, 'src/pages/settings/index.html')
+    const src = readFileSync(html, 'utf8')
+    if (!src.includes('<head>'))
+      throw new Error('RASD_BREAK_NETWORK: لا `<head>` في صفحة الإعدادات')
+    writeFileSync(
+      join(stage, 'rasd-extra.js'),
+      `const f = globalThis.fetch; globalThis.fetch = (...a) => { const r = f(...a); if (String(a[0]).startsWith(${JSON.stringify(`${SERVICES.github}/user`)})) f(${JSON.stringify(`${SERVICES.github}/rasd-leak`)}).catch(() => {}); return r }\n`,
+    )
+    writeFileSync(
+      html,
+      src.replace('<head>', '<head><script type="module" src="/rasd-extra.js"></script>'),
     )
   }
   if (BREAK === 'page' || BREAK === 'csp') {
@@ -157,6 +199,8 @@ const targetSession = new Map()
 const attachedTypes = new Set()
 const counted = new Set()
 let workerBoots = 0
+/** سياقات تنفيذٍ وُلدت في جلسة عاملٍ مراقَبة — إقلاعٌ رآه المراقب. */
+let workerContexts = 0
 
 const LOCAL_SCHEME = /^(chrome-extension|blob|data|about|chrome|devtools|file):/u
 const LOCAL_HOST = new Set(['127.0.0.1', 'localhost', '[::1]'])
@@ -182,9 +226,19 @@ function label(info) {
   return `${info.type} ${short || '(فارغ)'}`.slice(0, 90)
 }
 
+/** جلسةٌ لم يُفعَّل عليها `Network` جلسةٌ بلا مراقب — إلا هدفًا أُغلق قبل التفعيل، فلا طلب له. */
+const unwatched = []
+const GONE = /closed|detached|not found|No target|No session/iu
 async function watch(sessionId) {
-  await send('Network.enable', {}, sessionId).catch(() => undefined)
+  await send('Network.enable', {}, sessionId).catch((e) => {
+    if (!GONE.test(e.message))
+      unwatched.push(`${sessions.get(sessionId) ?? sessionId}: ${e.message}`)
+  })
   await send('Log.enable', {}, sessionId).catch(() => undefined)
+  // `Runtime` على جلسات العامل: سياقٌ جديد فيها دليل إقلاعٍ تحت المراقب (`workerContexts`).
+  if (String(sessions.get(sessionId)).startsWith('service_worker')) {
+    await send('Runtime.enable', {}, sessionId).catch(() => undefined)
+  }
   // الإطارات وعمّال الصفحة يولدون من الجلسة لا من المتصفّح — فيُراقَبون بالقاعدة نفسها.
   await send(
     'Target.setAutoAttach',
@@ -205,6 +259,12 @@ conn.onEvent((msg) => {
     }
     void watch(p.sessionId)
   }
+  if (
+    msg.method === 'Runtime.executionContextCreated' &&
+    String(sessions.get(msg.sessionId)).startsWith('service_worker')
+  ) {
+    workerContexts++
+  }
   if (msg.method === 'Network.requestWillBeSent') {
     // الهدف الواحد قد يُراقَب من جلستين (العامل: جلسة النواة وجلسة المراقب) — فيُعدّ الطلب مرّة.
     const key = `${p.requestId}|${p.request?.url}`
@@ -212,6 +272,16 @@ conn.onEvent((msg) => {
     counted.add(key)
     requests.push({
       url: String(p.request?.url ?? ''),
+      method: String(p.request?.method ?? ''),
+      phase,
+      where: sessions.get(msg.sessionId) ?? 'المتصفّح',
+    })
+  }
+  // المقبس لا يمرّ من `requestWillBeSent` — حدثه وحده.
+  if (msg.method === 'Network.webSocketCreated') {
+    requests.push({
+      url: String(p.url ?? ''),
+      method: 'WEBSOCKET',
       phase,
       where: sessions.get(msg.sessionId) ?? 'المتصفّح',
     })
@@ -241,17 +311,8 @@ await send('Target.setAutoAttach', {
 sessions.set(g.sw.sessionId, `service_worker (جلسة النواة)`)
 await watch(g.sw.sessionId)
 
-await send('Browser.setDownloadBehavior', {
-  behavior: 'allowAndName',
-  downloadPath: downloads,
-  eventsEnabled: true,
-})
-const completed = new Set()
-conn.onEvent((msg) => {
-  if (msg.method === 'Browser.downloadProgress' && msg.params.state === 'completed') {
-    completed.add(msg.params.guid)
-  }
-})
+// التنزيلات إلى مجلّدٍ مؤقّت لا إلى مجلّد المستخدم — والحكم على التصدير من شاشة نتيجته لا من القرص.
+await send('Browser.setDownloadBehavior', { behavior: 'allowAndName', downloadPath: downloads })
 
 // ── أدوات ────────────────────────────────────────────────────────
 
@@ -339,17 +400,31 @@ const outgoingIn = (...phases) =>
 await sleep(1500) // ما بقي من أثر التثبيت: تبويب التعريف وعمله الأوّل.
 phase = 'boot'
 const bootsBefore = workerBoots
-const stopped = await send('Target.closeTarget', { targetId: g.sw.target.targetId }).then(
-  () => true,
-  (e) => e.message,
-)
-await sleep(500)
+const contextsBefore = workerContexts
+// الإغلاق لا يوقف العامل في كل مرّة (مقيس: جولةٌ من خمس بقي فيها حيًّا فخدم الصفحة بلا إقلاع) — فيُعاد حتى يغيب
+// هدفه من القائمة، والإيقاظ بعد غيابه وحده.
+const workerAlive = async () =>
+  (await send('Target.getTargets')).targetInfos.some(
+    (t) => t.type === 'service_worker' && String(t.url).startsWith(ORIGIN),
+  )
+let stopped = 'لم يُوقَف'
+for (let i = 0; i < 20 && stopped !== true; i++) {
+  await send('Target.closeTarget', { targetId: g.sw.target.targetId }).catch(() => undefined)
+  for (let j = 0; j < 10 && (await workerAlive()); j++) await sleep(100)
+  if (!(await workerAlive())) stopped = true
+}
 const waker = await open(`${ORIGIN}/src/pages/popup/index.html`)
 // النافذة تراسل الخلفية عند فتحها، ونبضٌ صريح بعدها يوقظ العامل إن تأخّر — والانتظار على الارتباط لا على الردّ.
 if (waker) void rpc(waker.sessionId, 'diagnostics/ping').catch(() => undefined)
-for (let i = 0; i < 200 && workerBoots === bootsBefore; i++) await sleep(100)
+const booted = () => workerBoots > bootsBefore || workerContexts > contextsBefore
+for (let i = 0; i < 200 && !booted(); i++) await sleep(100)
 // معرّف هدف العامل يبقى نفسه عبر إيقافه وإقلاعه (مقيس) — فالدليل ارتباطٌ جديد به، وسالب `worker` يثبت أنه يُرى.
-if (workerBoots > bootsBefore) ok('أُوقف العامل وأيقظته صفحة: إقلاعه الثاني كلّه تحت المراقب')
+/*
+ * الدليل أحد اثنين: ارتباطٌ جديد بالعامل (يولد موقوفًا حتى يُراقَب)، أو سياق تنفيذٍ جديد في جلسةٍ مراقَبة بقيت عليه —
+ * كروم يُبقي هدف العامل ومعرّفه وجلساته عبر الإيقاف والإقلاع (مقيس)، فلا يتكرّر الارتباط في كل جولة. وسالب `worker`
+ * يثبت أن طلب الإقلاع يُرى في الحالين.
+ */
+if (stopped === true && booted()) ok('أُوقف العامل وأيقظته صفحة: إقلاعه الثاني كلّه تحت المراقب')
 else fail(`أُوقف العامل (${stopped}) ولم يُرَ إقلاعه الجديد — إقلاعٌ بلا مراقب`)
 await sleep(1000)
 await close(waker)
@@ -498,14 +573,20 @@ else {
     await evalIn(S, `document.querySelector('[data-export-open]')?.click(), 1`, true)
     await waitFor(S, `document.querySelector('[data-export-modal]')`, 5000)
     await evalIn(S, `document.querySelector('[data-export-format="${format}"]')?.click(), 1`, true)
-    // الزرّ معطَّلٌ حتى يُقدَّر الحجم — يُنقر حين يُنقَر.
-    for (let i = 0; i < 40 && !(await clickText(S, 'تنزيل')); i++) await sleep(150)
-    // شاشة النتيجة وحجم ما خرج — أثر المسار كما تعرضه الواجهة نفسها (`verify:export`).
-    const bytes = await waitFor(
-      S,
-      `Number(document.querySelector('[data-export-result]')?.dataset.exportBytes ?? 0) || null`,
-      45_000,
-    )
+    // الزرّ معطَّلٌ حتى يُقدَّر الحجم — يُنقر حين يُنقَر. ونقرةٌ تقع في إعادة رسمٍ بعد اختيار الصيغة تضيع (مقيس: مرّةً في
+    // نحو خمس عشرة جولة بقيت النافذة مفتوحةً ساكنة) — فتُعاد ما دامت النافذة مفتوحةً بلا عمل ولا نتيجة.
+    const RESULT = `(() => { const r = document.querySelector('[data-export-result]'); return r?.dataset.exportKind === '${format}' ? Number(r.dataset.exportBytes ?? 0) || null : null })()`
+    const IDLE = `!!document.querySelector('[data-export-modal]') && !document.querySelector('[data-export-result], [aria-busy="true"]')`
+    let bytes = null
+    for (let attempt = 0; attempt < 3 && !bytes; attempt++) {
+      for (let i = 0; i < 40 && !(await clickText(S, 'تنزيل')); i++) await sleep(150)
+      // شاشة النتيجة وحجم ما خرج — أثر المسار كما تعرضه الواجهة نفسها (`verify:export`).
+      for (let i = 0; i < 150 && !bytes; i++) {
+        bytes = await evalIn(S, RESULT).catch(() => null)
+        if (!bytes && i >= 30 && (await evalIn(S, IDLE).catch(() => false)) === true) break
+        if (!bytes) await sleep(150)
+      }
+    }
     if (bytes) ok(`التصدير ${format.toUpperCase()}: خرج ملفٌّ من ${bytes} بايت`)
     else {
       const state = await evalIn(
@@ -648,11 +729,25 @@ if (!attachedTypes.has('service_worker') || !attachedTypes.has('page')) {
 }
 
 const local = requests.filter((r) => isLocal(r.url)).length
-const outside = requests.filter((r) => {
-  if (isLocal(r.url)) return false
-  const allowed = EXPLICIT[r.phase]
-  return !(allowed && originOf(r.url) === SERVICES[allowed])
-})
+/** طلبُ النقرة بعينه: خدمة طوره، وطريقتها ومسارها، ومن صفحة الإعدادات — وأوّلُه وحده (العدّ أدناه). */
+const accepted = new Map()
+const isClick = (r) => {
+  const service = EXPLICIT[r.phase]
+  if (!service || originOf(r.url) !== SERVICES[service]) return false
+  const { method, path } = EXPECTED[service]
+  if (
+    r.method !== method ||
+    new URL(r.url).pathname !== path ||
+    !r.where.startsWith(CLICK_SESSION)
+  ) {
+    return false
+  }
+  if (accepted.has(service)) return false
+  accepted.set(service, r)
+  return true
+}
+const outside = requests.filter((r) => !isLocal(r.url) && !isClick(r))
+for (const u of unwatched) fail(`جلسةٌ لم تُراقَب: ${u}`)
 if (outside.length === 0) {
   ok(
     `DevTools: ${requests.length} طلبًا على ${sessions.size} جلسة — ${local} محلّيًّا، والباقي في طوره الصريح وإلى خدمته وحدها`,
@@ -679,6 +774,9 @@ for (let i = 0; i < 50; i++) {
   netlog = existsSync(NETLOG) ? readFileSync(NETLOG, 'utf8') : ''
   if (/"polledData"|\]\s*\}\s*$/u.test(netlog.slice(-4096))) break
   await sleep(200)
+}
+if (!/"polledData"|\]\s*\}\s*$/u.test(netlog.slice(-4096))) {
+  fail(`سجلّ الشبكة لم يُغلق خلال عشر ثوانٍ (${netlog.length} بايت) — آخر ما فيه قد يكون مبتورًا`)
 }
 const lines = netlog.split('\n')
 let constants = null
@@ -716,9 +814,8 @@ if (startJob === undefined) {
    */
   for (const s of Object.keys(SERVICES)) {
     const n = toService(s)
-    const clicked = requests.filter(
-      (r) => EXPLICIT[r.phase] === s && originOf(r.url) === SERVICES[s],
-    ).length
+    // طلب النقرة المقبول وحده — وما سواه إلى الخدمة أسقطه الشاهد الأوّل، وهنا يُسقطه العدّ إن فات الأوّل.
+    const clicked = accepted.has(s) ? 1 : 0
     if (n === 0) fail(`سجلّ المتصفّح لم يرَ طلب الطور الصريح إلى ${SERVICES[s]} — شاهدٌ أعمى`)
     else if (n !== clicked) {
       fail(`سجلّ المتصفّح: ${n} طلبًا إلى ${SERVICES[s]} والنقرة صنعت ${clicked} — طلبٌ خارج طوره`)

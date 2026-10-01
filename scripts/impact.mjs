@@ -81,16 +81,26 @@ export const IMPACT = [
   /*
    * الشبكة (`STAGES/25`): مخرج الشبكة الواحد وعميلا الخدمتين المسمّاتين ونافذتاهما — يحرسها `verify:network` بمراقبة
    * كل هدف في المسارات المحلّية كلّها، والوجهتين بفعلٍ صريح وحده. والنافذتان واجهةٌ قبل ذلك: تبقيان على حارسَي
-   * الإتاحة والانحدار البصري، وقبل مدخل الإعدادات العامّ لأن أوّل مدخلٍ يطابق هو الحكم.
+   * الإتاحة والانحدار البصري، وقبل مدخل الإعدادات العامّ لأن أوّل مدخلٍ يطابق هو الحكم. ومُنشئ الـIssue يُفتح من
+   * نافذة التسليم (`pages/handoff/`) في مسار التصدير وتقرير المقارنة والمشاركة — فالتكاملات تحمل حرّاس مداخلها
+   * أيضًا، وكانت خارج الجدول (الطقم كاملًا) فلا يُضيَّق عليها (المراجعة المستقلّة، `STAGES/25`).
    */
+  { match: /^(src\/shared\/egress\.ts|src\/modules\/report\/)/u, scripts: ['verify:network'] },
   {
-    match:
-      /^(src\/shared\/egress\.ts|src\/modules\/report\/|src\/modules\/export\/integrations\/)/u,
-    scripts: ['verify:network'],
+    match: /^src\/pages\/settings\/parts\/report\//u,
+    scripts: ['verify:accessibility', 'verify:visual', 'verify:network'],
   },
   {
-    match: /^src\/pages\/(integrations\/|settings\/parts\/report\/)/u,
-    scripts: ['verify:accessibility', 'verify:visual', 'verify:network'],
+    match: /^(src\/pages\/integrations\/|src\/modules\/export\/integrations\/)/u,
+    scripts: [
+      'verify:accessibility',
+      'verify:visual',
+      'verify:network',
+      'verify:editor',
+      'verify:library',
+      'verify:export',
+      'verify:share',
+    ],
   },
   {
     match: /^src\/pages\/(settings|onboarding)\//u,

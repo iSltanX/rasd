@@ -5,6 +5,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
+import { codeOnly } from '../helpers/code-only'
+
 /**
  * **مخرج الشبكة الواحد لا يُتجاوز** — ADR 0046 §4.
  *
@@ -48,15 +50,16 @@ function walk(dir: string): string[] {
   })
 }
 
-/** يحذف التعليقات: الكتليّة ثمّ السطرية التي لا يسبقها `:` (فلا يُقطع `https://` في نصّ). */
-function code(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/(^|[^:])\/\/.*$/gmu, '$1')
-}
+/**
+ * الشيفرة بلا تعليقاتها، بمحلّل TypeScript (`tests/helpers/code-only.ts`) — كان تعبيرًا نمطيًّا يبتلع شيفرةً بعد `/*`
+ * أو `//` داخل سلسلة (`STAGES/25`).
+ */
+const code = (source: string, file = 'source.ts'): string => codeOnly(source, file)
 
 function scan(): Map<string, number> {
   const found = new Map<string, number>()
   for (const file of walk(SRC)) {
-    const hits = code(readFileSync(file, 'utf8')).match(PRIMITIVES)?.length ?? 0
+    const hits = code(readFileSync(file, 'utf8'), file).match(PRIMITIVES)?.length ?? 0
     if (hits > 0) found.set(relative(SRC, file).split('\\').join('/'), hits)
   }
   return found
@@ -89,5 +92,6 @@ describe('بدائيّات الشبكة في src/', () => {
       expect(code(alias).match(PRIMITIVES), alias).toHaveLength(1)
     }
     expect(code('const deps = { fetch: egressFetch }').match(PRIMITIVES)).toBeNull()
+    expect(code("const g = 'https://x/*'\nfetch(u)\n/** doc */").match(PRIMITIVES)).toHaveLength(1)
   })
 })

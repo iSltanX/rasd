@@ -69,22 +69,28 @@ describe('مخروط الأثر', () => {
     expect(coneOf(['src/pages/unknown/x.tsx']).unmapped).toBe(1)
   })
 
-  it('الشبكة (`STAGES/25`): المخرج وعميلا الخدمتين يلزمهم `verify:network`، ونافذتاهما معه حارسا الواجهة', () => {
-    for (const file of [
-      'src/shared/egress.ts',
-      'src/modules/report/client.ts',
-      'src/modules/export/integrations/github.ts',
-    ]) {
+  it('الشبكة (`STAGES/25`): المخرج وعميل البلاغات يلزمهما `verify:network`، ونافذة البلاغ معها حارسا الواجهة، والتكاملات حرّاس مداخلها', () => {
+    for (const file of ['src/shared/egress.ts', 'src/modules/report/client.ts']) {
       expect(coneOf([file])).toEqual({ needed: ['verify:network'], unmapped: 0 })
     }
+    expect(coneOf(['src/pages/settings/parts/report/ReportDialog.tsx'])).toEqual({
+      needed: ['verify:accessibility', 'verify:visual', 'verify:network'],
+      unmapped: 0,
+    })
+    // مُنشئ الـIssue يُفتح من نافذة التسليم في مسار التصدير وتقرير المقارنة والمشاركة — فحرّاس مداخلها معه.
     for (const file of [
-      'src/pages/settings/parts/report/ReportDialog.tsx',
-      'src/pages/integrations/ConnectDialog.tsx',
+      'src/pages/integrations/IssueComposer.tsx',
+      'src/modules/export/integrations/github.ts',
     ]) {
-      expect(coneOf([file])).toEqual({
-        needed: ['verify:accessibility', 'verify:visual', 'verify:network'],
-        unmapped: 0,
-      })
+      expect(coneOf([file]).needed, file).toEqual([
+        'verify:accessibility',
+        'verify:visual',
+        'verify:network',
+        'verify:editor',
+        'verify:library',
+        'verify:export',
+        'verify:share',
+      ])
     }
     expect(coneOf(['src/shared/permission-policy.ts']).needed).toEqual([
       'verify:load',
