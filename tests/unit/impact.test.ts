@@ -69,6 +69,29 @@ describe('مخروط الأثر', () => {
     expect(coneOf(['src/pages/unknown/x.tsx']).unmapped).toBe(1)
   })
 
+  it('الشبكة (`STAGES/25`): المخرج وعميلا الخدمتين يلزمهم `verify:network`، ونافذتاهما معه حارسا الواجهة', () => {
+    for (const file of [
+      'src/shared/egress.ts',
+      'src/modules/report/client.ts',
+      'src/modules/export/integrations/github.ts',
+    ]) {
+      expect(coneOf([file])).toEqual({ needed: ['verify:network'], unmapped: 0 })
+    }
+    for (const file of [
+      'src/pages/settings/parts/report/ReportDialog.tsx',
+      'src/pages/integrations/ConnectDialog.tsx',
+    ]) {
+      expect(coneOf([file])).toEqual({
+        needed: ['verify:accessibility', 'verify:visual', 'verify:network'],
+        unmapped: 0,
+      })
+    }
+    expect(coneOf(['src/shared/permission-policy.ts']).needed).toEqual([
+      'verify:load',
+      'verify:network',
+    ])
+  })
+
   it('الانحدار البصري (`STAGES/26`): مقارنٌ أو مولِّد لقطات أو صورة مرجعية عُدّلت يلزمها `verify:visual` وحده', () => {
     for (const file of [
       'scripts/lib/visual-compare.mjs',

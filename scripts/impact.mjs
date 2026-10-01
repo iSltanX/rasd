@@ -78,6 +78,20 @@ export const IMPACT = [
     match: /^src\/pages\/library\//u,
     scripts: ['verify:library', 'verify:accessibility', 'verify:visual'],
   },
+  /*
+   * الشبكة (`STAGES/25`): مخرج الشبكة الواحد وعميلا الخدمتين المسمّاتين ونافذتاهما — يحرسها `verify:network` بمراقبة
+   * كل هدف في المسارات المحلّية كلّها، والوجهتين بفعلٍ صريح وحده. والنافذتان واجهةٌ قبل ذلك: تبقيان على حارسَي
+   * الإتاحة والانحدار البصري، وقبل مدخل الإعدادات العامّ لأن أوّل مدخلٍ يطابق هو الحكم.
+   */
+  {
+    match:
+      /^(src\/shared\/egress\.ts|src\/modules\/report\/|src\/modules\/export\/integrations\/)/u,
+    scripts: ['verify:network'],
+  },
+  {
+    match: /^src\/pages\/(integrations\/|settings\/parts\/report\/)/u,
+    scripts: ['verify:accessibility', 'verify:visual', 'verify:network'],
+  },
   {
     match: /^src\/pages\/(settings|onboarding)\//u,
     scripts: ['verify:accessibility', 'verify:visual'],
@@ -102,7 +116,7 @@ export const IMPACT = [
   { match: /^src\/shared\/storage\//u, scripts: ['verify:library', 'verify:compare'] },
   {
     match: /^(manifest\.config\.ts|src\/shared\/permission-policy\.ts)/u,
-    scripts: ['verify:load'],
+    scripts: ['verify:load', 'verify:network'],
   },
   /*
    * إعداد CI وسجلّ ترقية الحرّاس: لا يدخلان الحزمة ولا يغيّران سلوك الإضافة، فلا

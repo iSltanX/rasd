@@ -63,6 +63,7 @@
     "verify:visual": "node scripts/verify-visual.mjs",
     "verify:memory": "node scripts/verify-memory.mjs",
     "verify:lighthouse": "node scripts/verify-lighthouse.mjs",
+    "verify:network": "node scripts/verify-network.mjs",
     "verify:wave": "node scripts/wave-verify.mjs",
     "docs:lint": "node scripts/docs-lint.mjs",
     "entrypoints:lint": "node scripts/entrypoints-lint.mjs",
