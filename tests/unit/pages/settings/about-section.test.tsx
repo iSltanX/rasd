@@ -50,6 +50,15 @@ describe('AboutSection — الإصدار', () => {
     })
   })
 
+  it('«افتح» في نافذة التراخيص يفتح ملفّ النصوص الكاملة المشحون', async () => {
+    const create = vi.spyOn(chrome.tabs, 'create')
+    const root = mount()
+    button(root, 'اعرض التراخيص')!.click()
+    await vi.waitFor(() => expect(button(root, 'افتح')).toBeDefined())
+    button(root, 'افتح')!.click()
+    expect(create).toHaveBeenCalledWith({ url: chrome.runtime.getURL('THIRD_PARTY_LICENSES.txt') })
+  })
+
   it('«أعد العرض» يفتح جولة التعريف في تبويب', () => {
     const create = vi.spyOn(chrome.tabs, 'create')
     button(mount(), 'أعد العرض')!.click()

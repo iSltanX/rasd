@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'preact/hooks'
 
+import { Button } from '@/ui/components/Button/Button'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { useFocusTrap } from '@/ui/use-focus-trap'
 
-import { LICENSES } from './licenses'
+import { LICENSES, LICENSES_FILE } from './licenses'
 import styles from './LicensesDialog.module.css'
 
 import type { JSX } from 'preact'
@@ -13,7 +14,10 @@ export interface LicensesDialogProps {
   onClose: () => void
 }
 
-/** نافذة التراخيص — المكتبات والخطوط المضمَّنة وتراخيصها. `Esc` أو الغشاء يغلقانها. */
+/**
+ * نافذة التراخيص — المكتبات والخطوط المضمَّنة وتراخيصها، ونصوصها الكاملة في ملفّ يُفتح في تبويب.
+ * `Esc` أو الغشاء يغلقانها.
+ */
 export function LicensesDialog({ onClose }: LicensesDialogProps): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null)
   useFocusTrap(dialog)
@@ -76,6 +80,24 @@ export function LicensesDialog({ onClose }: LicensesDialogProps): JSX.Element {
                 }
               />
             ))}
+          </div>
+          <p class={styles.groupTitle}>النصوص الكاملة</p>
+          <div class={styles.card}>
+            <SettingRow
+              label="نصّ كل رخصة"
+              hint="ملفّ نصّي يُشحن مع رصد ويُفتح في تبويب"
+              control={
+                <Button
+                  variant="secondary"
+                  size="s"
+                  onClick={() =>
+                    void chrome.tabs.create({ url: chrome.runtime.getURL(LICENSES_FILE) })
+                  }
+                >
+                  افتح
+                </Button>
+              }
+            />
           </div>
         </div>
       </div>

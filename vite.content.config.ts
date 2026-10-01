@@ -2,6 +2,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 
+import { thirdPartyLicenses } from './scripts/third-party-licenses.ts'
+
 /**
  * بناء منفصل للطبقة داخل الصفحة.
  *
@@ -23,6 +25,10 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  // يدمج ما دخل `content.js` في ملفّ التراخيص الذي كتبه البناء الأوّل (`STAGES/27`).
+  plugins: [
+    thirdPartyLicenses({ root: fileURLToPath(new URL('.', import.meta.url)), mode: 'merge' }),
+  ],
   build: {
     outDir: 'dist',
     // لا يمسح `dist`: هذا بناء ثانٍ يضيف إلى ناتج البناء الأوّل.

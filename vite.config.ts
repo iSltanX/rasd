@@ -5,6 +5,7 @@ import { defineConfig } from 'vite'
 
 import manifest from './manifest.config.ts'
 import { modulePreloadLinks } from './scripts/module-preload.ts'
+import { thirdPartyLicenses } from './scripts/third-party-licenses.ts'
 import { PAGE_PATHS } from './src/shared/page-paths.ts'
 
 export default defineConfig(({ mode }) => ({
@@ -20,7 +21,12 @@ export default defineConfig(({ mode }) => ({
   },
 
   // `modulePreloadLinks` يعيد روابط التحميل المسبق إلى HTML وحده — انظر تعليق `modulePreload` أدناه.
-  plugins: [crx({ manifest }), modulePreloadLinks()],
+  // و`thirdPartyLicenses` يكتب `THIRD_PARTY_LICENSES.txt` ممّا حُزم فعلًا (`STAGES/27`).
+  plugins: [
+    crx({ manifest }),
+    modulePreloadLinks(),
+    thirdPartyLicenses({ root: fileURLToPath(new URL('.', import.meta.url)), mode: 'emit' }),
+  ],
 
   build: {
     outDir: 'dist',
@@ -43,7 +49,8 @@ export default defineConfig(({ mode }) => ({
      * عدّاء CI (`STAGES/04`). فالروابط تعود إلى HTML عبر `modulePreloadLinks` بلا المساعد.
      */
     modulePreload: false,
-    // خرائط المصدر للتطوير فقط — المرحلة 27 تحسم سياسة الإنتاج.
+    // خرائط المصدر للتطوير وحده: حزمة الإصدار بلا خرائط (`STAGES/27`)، و`pnpm zip` يرفض حزمةً فيها
+    // `.map` أو `sourceMappingURL` — فتغيير هذا السطر يُسقط الضغط لا يمرّ صامتًا.
     sourcemap: mode !== 'production',
     minify: mode === 'production',
     rollupOptions: {

@@ -1,0 +1,69 @@
+name: Release
+
+# أتمتة الإصدار (`STAGES/27`): وسمٌ `vX.Y.Z` يبني الحزمة ويفحصها ويرفقها ببصمتها بإصدار GitHub.
+#
+# **مسوَّدةٌ لا إصدارٌ منشور.** نشر الإصدار وتقديم الإضافة للمتجر بأمر المالك وحده (`AGENTS.md` §0)، فالسير
+# يُعدّ المسوَّدة كاملةً — الحزمة وملفّ بصمتها — ولا ينشرها. والوسم بلاحقةٍ (`v0.1.0-trial.1`) تجريبيٌّ يُعلَّم
+# «إصدارًا مسبقًا» ولا يُقاس بسلسلة النسخ.
+#
+# والفحوص كلّها في `pnpm build` و`pnpm zip`، لا هنا: الأوّل `typecheck` والبناء و`verify:dist`، والثاني
+# يعيد `verify:dist` ثمّ فحص الإصدار والوسم (`scripts/lib/release-pack.mjs`) ثمّ الضغط الحتمي. فما يُرفق
+# هنا هو ما يُنتجه الأمر نفسه على أي جهاز، ببصمته نفسها.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: بناء الحزمة وفحصها وإرفاقها
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # `fetch-depth: 0` يجلب الوسوم: `pnpm zip --tag` يقارن النسخة بكل إصدار وُسم قبلها.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Package
+        run: pnpm run zip --tag "$GITHUB_REF_NAME"
+
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          zip=$(ls dist-zip/*.zip)
+          sha=$(cut -d' ' -f1 "$zip.sha256")
+          case "$TAG" in *-*) pre="--prerelease" ;; *) pre="" ;; esac
+          gh release create "$TAG" "$zip" "$zip.sha256" \
+            --draft $pre --verify-tag \
+            --title "رصد ${TAG#v}" \
+            --notes "حزمة رصد ${TAG#v} — بُنيت وفُحصت من الوسم \`$TAG\`.
+
+          SHA-256: \`$sha\`
+
+          تُطابَق بـ\`shasum -a 256 -c $(basename "$zip").sha256\`."
+          echo "### $(basename "$zip")" >> "$GITHUB_STEP_SUMMARY"
+          echo "SHA-256 \`$sha\`" >> "$GITHUB_STEP_SUMMARY"

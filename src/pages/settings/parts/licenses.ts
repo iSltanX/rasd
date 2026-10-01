@@ -3,9 +3,15 @@
  *
  * القائمة تطابق `dependencies` في `package.json` وما تجرّه إلى الحزمة (`@preact/signals-core`، وما تجرّه
  * `pdf-lib` إلى قطعتها الكسولة: `pako` و`@pdf-lib/standard-fonts` و`@pdf-lib/upng` و`tslib`)،
- * والخطوط الثلاثة من Google Fonts. ملفّ التراخيص الكامل المولَّد آليًّا في `STAGES/27`؛
- * و`tests/unit/pages/settings/licenses.test.ts` يُسقط أي تبعية تُضاف بلا سطر هنا.
+ * والخطوط الثلاثة من Google Fonts. و`tests/unit/pages/settings/licenses.test.ts` يُسقط أي تبعية تُضاف
+ * بلا سطر هنا.
+ *
+ * **والنصوص الكاملة في ملفّ يولَّد عند البناء** ممّا حُزم فعلًا (`scripts/third-party-licenses.ts`)،
+ * يُشحن في جذر الحزمة وتفتحه نافذة التراخيص — و`pnpm zip` يرفض حزمةً لا يذكر ملفّها كل اعتمادية.
  */
+
+/** مسار ملفّ التراخيص الكامل في الحزمة — يكتبه ملحق البناء ويفتحه «عن رصد». */
+export const LICENSES_FILE = 'THIRD_PARTY_LICENSES.txt'
 
 export interface LicenseEntry {
   readonly name: string
