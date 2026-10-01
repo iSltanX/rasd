@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'preact/hooks'
 
-import { formatDimensions, formatHuman } from '@/shared/bidi'
+import { formatHuman } from '@/shared/bidi'
 import { CHANNELS, openChannel, send, sendToTab, type ToolName } from '@/shared/messaging'
 import { originPatternFor, requestHostPermission } from '@/shared/permissions'
 import { selectPopupState, type PopupContext, type PopupStateName } from '@/shared/popup-state'
@@ -8,7 +8,13 @@ import { openReport } from '@/shared/report-link'
 
 import { SHARE_PARAM } from '../share/param'
 
-import { copyCaptureImage, loadRecent, POPUP_MARKS, type PopupLoad } from './context'
+import {
+  copyCaptureImage,
+  loadRecent,
+  POPUP_MARKS,
+  savedStatusLine,
+  type PopupLoad,
+} from './context'
 import { Footer } from './parts/Footer'
 import { Header } from './parts/Header'
 import styles from './Popup.module.css'
@@ -191,7 +197,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
       ? 'أُلغي الالتقاط'
       : 'تعذّر الالتقاط'
     : success
-      ? `محفوظة محليًا · ${formatDimensions(success.width, success.height)}`
+      ? savedStatusLine(success.width, success.height)
       : STATUS_BY_STATE[stateName]({ ...loaded, context })
 
   /**

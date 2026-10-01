@@ -278,6 +278,7 @@ jobs:
           - { guard: picker, blocking: false }
           - { guard: popup, blocking: false }
           - { guard: share, blocking: false }
+          - { guard: visual, blocking: false }
 
     # الوظيفة غير الحاجبة تظهر ✗ في صفحة الفحوص ولا تُسقِط الجولة.
     continue-on-error: ${{ !matrix.blocking }}
@@ -347,10 +348,9 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
 
-      # لقطات المراجعة البصرية — تُرفَع ولا تُقارَن آليًّا. المقارنة بالعين
-      # مقصودة: خطُّ أساسٍ بكسليّ على متصفّح يتغيّر شهريًّا يُنتج فشلًا
-      # كاذبًا أكثر ممّا يُنتج كشفًا. واسم الأثر يحمل اسم الحارس لأن
-      # `upload-artifact@v4` يرفض تكرار الاسم بين وظائف المصفوفة.
+      # لقطات المراجعة البصرية — تُرفَع لتُقرأ بالعين، ويقارن الحارس `visual` أسطحها بخطوط الأساس آليًّا
+      # (`STAGES/26`، ADR 0052) وتكتب صورة الفرق في `artifacts/visual-diff/` فتُرفَع هنا أيضًا. واسم
+      # الأثر يحمل اسم الحارس لأن `upload-artifact@v4` يرفض تكرار الاسم بين وظائف المصفوفة.
       - name: Upload visual review shots
         if: always()
         uses: actions/upload-artifact@v4
@@ -360,8 +360,8 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
-      # خطّ أساس شجرة الإتاحة — يُقرأ بالعين لا يُقارَن آليًّا (نفس منطق
-      # اللقطات البصرية أعلاه)، فيُرفَع لا يُختبَر ضده تلقائيًا.
+      # أشجار الإتاحة — تُقرأ بالعين ولا تُقارَن آليًّا: التغيّر فيها متوقَّع مع كل إضافة، فتُرفَع لا
+      # يُختبَر ضدّها. أمّا صور المجلّد نفسه فيقارنها `visual`.
       - name: Upload accessibility tree baselines
         if: always()
         uses: actions/upload-artifact@v4

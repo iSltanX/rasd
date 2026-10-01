@@ -60,6 +60,7 @@
     "verify:export": "node scripts/verify-export.mjs",
     "verify:share": "node scripts/verify-share.mjs",
     "verify:accessibility": "node scripts/verify-accessibility.mjs",
+    "verify:visual": "node scripts/verify-visual.mjs",
     "verify:memory": "node scripts/verify-memory.mjs",
     "verify:lighthouse": "node scripts/verify-lighthouse.mjs",
     "verify:wave": "node scripts/wave-verify.mjs",
