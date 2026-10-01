@@ -42,8 +42,16 @@ export type LockError =
   | { readonly kind: 'too-short' }
   | { readonly kind: 'already-enabled' }
   | { readonly kind: 'not-enabled' }
-  /** `remaining` قبل المهلة التالية، و`until` نهاية مهلةٍ بدأت بهذه المحاولة. */
-  | { readonly kind: 'wrong-code'; readonly remaining: number; readonly until: number | null }
+  /**
+   * `remaining` قبل المهلة التالية و`next` مدّتها — «بقيت محاولتان قبل مهلة دقيقة»؛ و`until` نهاية مهلةٍ بدأت بهذه
+   * المحاولة.
+   */
+  | {
+      readonly kind: 'wrong-code'
+      readonly remaining: number
+      readonly next: number
+      readonly until: number | null
+    }
   | { readonly kind: 'cooling-down'; readonly until: number }
   | { readonly kind: 'storage' }
 
@@ -122,6 +130,7 @@ async function verify(code: string, now: number): Promise<Result<LockRecord, Loc
   return err({
     kind: 'wrong-code',
     remaining: cooled ? 0 : remainingOf(failures),
+    next: cooldownFor(Math.floor(failures / ATTEMPTS_PER_ROUND) + (cooled ? 0 : 1)),
     until: cooled ? until : null,
   })
 }

@@ -9,20 +9,21 @@
  * - «احذف البيانات الوصفية» يزيل ملفّ الألوان المضمَّن من WebP (`webp-strip.ts`)؛ وPNG
  *   تخرج بلا مقطع وصفي أصلًا. نصّ الإطار («رابط الصفحة وعنوانها ووقت الالتقاط») يصف
  *   بيانات لا يكتبها التصدير في الملفّ.
- * - «قفل المكتبة» «قريبًا» حتى `STAGES/08`، و«احذف كل البيانات» انتقل إلى قسم البيانات.
+ * - «قفل المكتبة» حارس وصول لا تشفير (`STAGES/08`، ADR 0043) — صفّه ونوافذه في `lock/LockRow.tsx`. و«احذف كل
+ *   البيانات» انتقل إلى قسم البيانات.
  *
  * والتصفّح الخاص قائمة منسدلة كما في الإطار، وتلميحها يصف الخيار المحدَّد بنصوص صفحة
  * `privacy / incognito` نفسها — فالصفحة الفرعية لا تلزم.
  */
 import { formatHuman, plural } from '@/shared/bidi'
 import { Button } from '@/ui/components/Button/Button'
-import { Chip } from '@/ui/components/Chip/Chip'
 import { Select } from '@/ui/components/Select/Select'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { Toggle } from '@/ui/components/Toggle/Toggle'
 
 import { ExcludedSites } from './ExcludedSites'
 import { Group } from './Group'
+import { LockRow } from './lock/LockRow'
 import { PermissionsPanel } from './PermissionsPanel'
 
 import type { Persist } from '../persist'
@@ -208,12 +209,7 @@ export function PrivacyTab({
       </Group>
 
       <Group title="الحماية" id="privacy-protection">
-        <SettingRow
-          id="privacy-lock"
-          label="قفل المكتبة"
-          hint="لا تُقرأ لقطة قبل إدخال الرمز. يصل في تحديث قريب"
-          control={<Chip tone="neutral">قريبًا</Chip>}
-        />
+        <LockRow onAnnounce={onAnnounce} />
       </Group>
     </>
   )
