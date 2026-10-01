@@ -137,3 +137,16 @@
   flex-direction: column;
   gap: var(--rasd-space-16);
 }
+
+/* عنوان اللافتة ونصّها سطران لا سطرٌ واحد — الفقرة داخل `Banner` تجري سطرًا متّصلًا بلا هذا. */
+.bannerTitle,
+.bannerText {
+  display: block;
+}
+
+/* حقلٌ داخل بطاقة بين صفّين: حشوةٌ كصفوف الإعداد وفاصلٌ تحته. */
+.inCard {
+  padding-block: var(--rasd-space-12);
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  border-block-end: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+}

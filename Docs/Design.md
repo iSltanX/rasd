@@ -477,21 +477,21 @@ return {
 
 ### التكاملات وGitHub — الصفحة `24 — Integrations`
 
-| الإطار                              | الحالة     | الداكن                                                                                    | الفاتح                                                                                    | منفَّذ                | مطابق |
-| ----------------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------- | ----- |
-| `integrations / connections`        | أساسية     | [`72:488`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=72-488)       | [`310:48570`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48570) | [12](../STAGES/12.md) | —     |
-| `integrations / connected`          | نجاح       | [`285:9323`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=285-9323)   | [`310:48590`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48590) | [12](../STAGES/12.md) | —     |
-| `integrations / auth-error`         | خطأ        | [`285:9606`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=285-9606)   | [`310:48606`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48606) | [11](../STAGES/11.md) | —     |
-| `integrations / missing-permission` | رفض صلاحية | [`285:9884`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=285-9884)   | [`310:48624`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48624) | [11](../STAGES/11.md) | —     |
-| `integrations / local-only`         | رفض صلاحية | [`285:10162`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=285-10162) | [`310:48642`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48642) | [11](../STAGES/11.md) | —     |
-| `github / connect`                  | أساسية     | [`293:18976`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-18976) | [`310:48659`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48659) | [11](../STAGES/11.md) | —     |
-| `github / connecting`               | تحميل      | [`293:19134`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19134) | [`310:48702`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48702) | [11](../STAGES/11.md) | —     |
-| `github / issue-compose`            | أساسية     | [`293:19271`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19271) | [`310:48731`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48731) | [12](../STAGES/12.md) | —     |
-| `github / issue-preview`            | أساسية     | [`293:19455`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19455) | [`310:48770`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48770) | [12](../STAGES/12.md) | —     |
-| `github / issue-sending`            | تحميل      | [`293:19642`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19642) | [`310:48807`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48807) | [12](../STAGES/12.md) | —     |
-| `github / issue-sent`               | نجاح       | [`293:19779`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19779) | [`310:48836`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48836) | [12](../STAGES/12.md) | —     |
-| `github / issue-error`              | خطأ        | [`293:19924`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19924) | [`310:48869`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48869) | [12](../STAGES/12.md) | —     |
-| `github / issue-cancelled`          | إلغاء      | [`293:20070`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-20070) | [`310:48896`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48896) | [12](../STAGES/12.md) | —     |
+| الإطار                              | الحالة     | الداكن                                                                                    | الفاتح                                                                                    | منفَّذ                                                                   | مطابق       |
+| ----------------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------- |
+| `integrations / connections`        | أساسية     | [`72:488`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=72-488)       | [`310:48570`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48570) | [`ConnectionsPanel.tsx`](../src/pages/integrations/ConnectionsPanel.tsx) | فروق §6 417 |
+| `integrations / connected`          | نجاح       | [`285:9323`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=285-9323)   | [`310:48590`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48590) | [`ConnectionsPanel.tsx`](../src/pages/integrations/ConnectionsPanel.tsx) | فروق §6 417 |
+| `integrations / auth-error`         | خطأ        | [`285:9606`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=285-9606)   | [`310:48606`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48606) | [`ConnectionsPanel.tsx`](../src/pages/integrations/ConnectionsPanel.tsx) | —           |
+| `integrations / missing-permission` | رفض صلاحية | [`285:9884`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=285-9884)   | [`310:48624`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48624) | [`ConnectionsPanel.tsx`](../src/pages/integrations/ConnectionsPanel.tsx) | —           |
+| `integrations / local-only`         | رفض صلاحية | [`285:10162`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=285-10162) | [`310:48642`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48642) | [`ConnectionsPanel.tsx`](../src/pages/integrations/ConnectionsPanel.tsx) | —           |
+| `github / connect`                  | أساسية     | [`293:18976`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-18976) | [`310:48659`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48659) | [`ConnectDialog.tsx`](../src/pages/integrations/ConnectDialog.tsx)       | فروق §6 420 |
+| `github / connecting`               | تحميل      | [`293:19134`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19134) | [`310:48702`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48702) | [`ConnectDialog.tsx`](../src/pages/integrations/ConnectDialog.tsx)       | —           |
+| `github / issue-compose`            | أساسية     | [`293:19271`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19271) | [`310:48731`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48731) | [`IssueComposer.tsx`](../src/pages/integrations/IssueComposer.tsx)       | فروق §6 417 |
+| `github / issue-preview`            | أساسية     | [`293:19455`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19455) | [`310:48770`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48770) | [`IssueComposer.tsx`](../src/pages/integrations/IssueComposer.tsx)       | فروق §6 419 |
+| `github / issue-sending`            | تحميل      | [`293:19642`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19642) | [`310:48807`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48807) | [`IssueComposer.tsx`](../src/pages/integrations/IssueComposer.tsx)       | —           |
+| `github / issue-sent`               | نجاح       | [`293:19779`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19779) | [`310:48836`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48836) | [`IssueComposer.tsx`](../src/pages/integrations/IssueComposer.tsx)       | —           |
+| `github / issue-error`              | خطأ        | [`293:19924`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-19924) | [`310:48869`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48869) | [`IssueComposer.tsx`](../src/pages/integrations/IssueComposer.tsx)       | فروق §6 421 |
+| `github / issue-cancelled`          | إلغاء      | [`293:20070`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-20070) | [`310:48896`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-48896) | [`IssueComposer.tsx`](../src/pages/integrations/IssueComposer.tsx)       | —           |
 
 ### الإعدادات والبيانات والدعم — الصفحة `25 — Settings`
 
@@ -894,6 +894,26 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
   بحجبه، و«مشاركة» في النافذة تفتحه بـ`share=1`. ومسار الملفّ بلا مفاتيح الحذف (الصورة لا تحمل ما تحذفه)،
   و`permission-denied` نتيجةٌ بلافتة رفضٍ صادقة (الملفّ يُحفظ بطريق المرساة)، ولا «انسخ المسار» ولا «أبلغ عن
   المشكلة» قبل [13](../STAGES/13.md)، والحافظة في الدليل نصّ الخطوات — التفصيل في `Docs/Engineering.md §6` 344.
+
+### التكاملات وGitHub
+
+- **[12](../STAGES/12.md)، ADR 0051:** شاشة الاتّصالات قسمٌ في الإعدادات (`?section=integrations`) لا صفحةٌ مستقلّة
+  — كما يرسمها `integrations / connections` داخل الشريط الجانبي نفسه. وحالاتها الخمس (غير متّصل · متّصل · خطأ
+  مصادقة · صلاحيات ناقصة · الوضع المحلّي) تُقرأ محلّيًّا بلا شبكة، وتزيد عليها ثلاثُ حالاتٍ تمنع الاستعمال قبل أن
+  يبدأ: صلاحية مضيفٍ مسحوبة، ورمزٌ محفوظٌ لا يُقرأ، فلكلٍّ لافتةٌ وزرّ فعلٍ يعمل.
+- **«المستودع الافتراضي» حقل نصٍّ لا قائمة منسدلة** (`§6` 417): سرد مستودعات الحساب طلبٌ شبكيٌّ إضافي لا يطلبه
+  المستخدم، ولا نداء بلا تأكيد. يقبل «المالك/الاسم» أو رابط المستودع، وصيغةٌ خاطئة تُقال ولا تُحفظ.
+- **«الحساب» لا يقول «والاتّصال يعمل»**: «متّصل» تعني رمزًا قابلًا للقراءة محفوظًا، لا أن GitHub قبله الآن — ذلك
+  لا يُعرف بلا سؤاله (ADR 0051 §4). فالنصّ «الحساب {الاسم}» وحده.
+- **المؤلِّف نافذةٌ فوق نافذة حزمة التسليم** (من المكتبة ومن المحرّر معًا) بدل أن تكون فوق صفحة التكاملات كما يرسم
+  `293:19271`: اللقطة والصور المخبوزة بعد الحجب عند تلك النافذة، فلا تُخبَز مرّتين. والصور تُعرض مصغَّرةً تحت نصّ
+  البلاغ، والنصّ المعروض Markdown المصدر نفسه الذي يُرسل لا عرضًا منسَّقًا له.
+- **المعاينة تقول ما سيُكتب في المستودع:** حين يُختار رفع الصورة أصلًا تظهر لافتةٌ تقول إنه التزامٌ لا يُسحب بحذف
+  البلاغ (`§6` 419)، وتظهر لافتة «البلاغ يراه كل من يصل إلى المستودع» كما في الإطار؛ وحجم النصّ يُعرض من حدّ GitHub.
+- **«أبلغ عن المشكلة» غير معروضة في `github / issue-error`** (`§6` 421): لا قناةَ لها بعد، وزرٌّ بلا محرّك ممنوع.
+- **نافذة الاتّصال تقول Contents مع Issues** (`§6` 366، ومغلق في 420): الإطار يعد بأن «Issues تكفي»، والرفع أصلًا
+  يشترط Contents كذلك. وخدمة GitHub صفٌّ في شاشة الصلاحيات بسببها، لا موقعًا (`§6` 365).
+- **الإلغاء أثناء الإرسال لا يدّعي ما لا يضمنه:** يُفحص بين الخطوات، وطلبٌ خرج لا يُسحب، فيُعرض نجاحًا إن وصل.
 
 ### المقارنة
 

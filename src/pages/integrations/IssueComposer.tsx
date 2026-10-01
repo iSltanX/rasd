@@ -378,7 +378,7 @@ export function IssueComposer(props: IssueComposerProps): JSX.Element {
                   الوجهة
                 </h3>
                 <div class={sheet.card}>
-                  <div class={styles.field}>
+                  <div class={cx(styles.field, styles.inCard)}>
                     <Field
                       id="composer-repo"
                       label="المستودع"
@@ -435,7 +435,7 @@ export function IssueComposer(props: IssueComposerProps): JSX.Element {
                     control={
                       <Toggle
                         on={options.notes}
-                        label="الملاحظات المرقَّمة"
+                        aria-label="الملاحظات المرقَّمة"
                         onChange={(on) => setOption('notes', on)}
                       />
                     }
@@ -447,7 +447,7 @@ export function IssueComposer(props: IssueComposerProps): JSX.Element {
                     control={
                       <Toggle
                         on={options.pageLink}
-                        label="رابط الصفحة"
+                        aria-label="رابط الصفحة"
                         onChange={(on) => setOption('pageLink', on)}
                       />
                     }
@@ -609,8 +609,12 @@ export function IssueComposer(props: IssueComposerProps): JSX.Element {
           <>
             <div class={sheet.body} data-composer-failed="">
               <Banner tone="danger">
-                <strong class="t-arabic-ui-s-strong">تعذّر فتح البلاغ</strong>
-                <span data-composer-error="">{phase.text}</span>
+                <strong class={cx(styles.bannerTitle, 't-arabic-ui-s-strong')}>
+                  تعذّر فتح البلاغ
+                </strong>
+                <span class={styles.bannerText} data-composer-error="">
+                  {phase.text}
+                </span>
               </Banner>
             </div>
             <footer class={cx(sheet.actions, styles.actions)}>

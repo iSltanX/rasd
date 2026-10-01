@@ -141,8 +141,10 @@ export function ConnectDialog({ onClose, onConnected }: ConnectDialogProps): JSX
           </Banner>
           {error ? (
             <Banner tone="danger">
-              <strong class="t-arabic-ui-s-strong">{error.title}</strong>
-              <span data-connect-error="">{error.text}</span>
+              <strong class={cx(styles.bannerTitle, 't-arabic-ui-s-strong')}>{error.title}</strong>
+              <span class={styles.bannerText} data-connect-error="">
+                {error.text}
+              </span>
             </Banner>
           ) : null}
 
