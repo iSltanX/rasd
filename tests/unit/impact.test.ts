@@ -56,7 +56,15 @@ describe('مخروط الأثر', () => {
   })
 
   it('الشيفرة تبقى على ربطها', () => {
-    expect(coneOf(['src/pages/popup/App.tsx']).needed).toEqual(['verify:popup'])
+    expect(coneOf(['src/pages/popup/App.tsx']).needed).toEqual([
+      'verify:popup',
+      'verify:accessibility',
+    ])
+    // الإتاحة (`STAGES/24`): صفحتا الإعدادات والتعريف يحرسهما `verify:accessibility` وحده
+    expect(coneOf(['src/pages/settings/Settings.tsx'])).toEqual({
+      needed: ['verify:accessibility'],
+      unmapped: 0,
+    })
     expect(coneOf(['src/pages/unknown/x.tsx']).unmapped).toBe(1)
   })
 

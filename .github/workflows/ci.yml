@@ -254,6 +254,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - { guard: accessibility, blocking: false }
           - { guard: activate, blocking: false }
           - { guard: capture, blocking: false }
           - { guard: capturing, blocking: false }

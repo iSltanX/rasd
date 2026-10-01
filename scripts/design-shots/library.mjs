@@ -343,13 +343,16 @@ const HOLD_LIBRARY = `(() => {
     new Error().stack.includes('loadQuota') ? new Promise(() => {}) : real()
 })()`
 
-/** تحميل المشاريع: طلب القراءة الصادر من `loadProjectOverview` يبقى بلا ردّ (يُبتلع حدث نجاحه). */
+/**
+ * تحميل المشاريع: قراءة مخزن الألوان تبقى بلا ردّ (يُبتلع حدث نجاحها) فلا يكتمل `Promise.all` في
+ * `loadProjectOverview`. كان الحجز بمطابقة المكدّس على اسم الدالة، فسقط حين صار القفل في `withDb`
+ * (`STAGES/08`) يؤخّر `getAll` إلى ما بعد انتظار — فلا يبقى اسمها في المكدّس المتزامن.
+ */
 const HOLD_OVERVIEW = `(() => {
-  Error.stackTraceLimit = 60
   const real = IDBObjectStore.prototype.getAll
   IDBObjectStore.prototype.getAll = function (...args) {
     const req = real.apply(this, args)
-    if (new Error().stack.includes('loadProjectOverview')) {
+    if (this.name === 'colors') {
       for (const type of ['success', 'error']) req.addEventListener(type, (e) => e.stopImmediatePropagation())
     }
     return req

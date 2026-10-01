@@ -13,6 +13,7 @@ import { useEffect, useRef } from 'preact/hooks'
 
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import sheet from '../../../export/export.module.css'
 
@@ -52,10 +53,8 @@ export function DataDialog(props: DataDialogProps): JSX.Element {
   const latest = useRef(props)
   latest.current = props
 
-  useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    return () => opener?.focus()
-  }, [])
+  // حبس `Tab` وعودة التركيز إلى الزرّ الذي فتح النافذة — الخطّاف المشترك لكل الحوارات.
+  useFocusTrap(dialog)
 
   // التركيز عند كل حالة جديدة: الحالة تستبدل الأزرار، والتركيز على زرٍّ زال يضيع إلى `body`.
   useEffect(() => {
@@ -72,24 +71,10 @@ export function DataDialog(props: DataDialogProps): JSX.Element {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const { busy, onClose, onEscape, dismissible = true } = latest.current
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        if (busy) onEscape?.()
-        else if (dismissible) onClose()
-        return
-      }
-      if (e.key !== 'Tab' || !dialog.current) return
-      const focusable = [...dialog.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (!first || !last) return
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault()
-        first.focus()
-      }
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      if (busy) onEscape?.()
+      else if (dismissible) onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

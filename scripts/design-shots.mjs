@@ -85,6 +85,8 @@ const BASELINE_TREES = {
 const baselineLog = []
 /** محطّات تركيز بلا أثر مرئي — `--keys`. */
 const keyFindings = []
+/** ترتيب Tab لكل مشهد — يُكتب في `keys-trails.json` ومنه الجولة الموثَّقة في `Docs/Accessibility.md`. */
+const keyTrails = []
 let keyScenes = 0
 let keyStops = 0
 /** الحالة السالبة: يُمحى كل أثر تركيز قبل المرور فيجب أن تسقط المحطّات كلّها. */
@@ -96,6 +98,9 @@ const AXE_SOURCE = runAxe
 /** نتائج axe: الخطيرة والحرجة وحدها — معيار القبول (`STAGES/04`). */
 const axeFindings = []
 let axeScenes = 0
+/** مشاهد على صفحات ضخمة تخطّاها axe — تُعلَن في الخاتمة ولا تُسكت. */
+const axeSkipped = []
+const AXE_MAX_ELEMENTS = 20_000
 
 const CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -314,6 +319,15 @@ const shotName = (frame, mode) => join(SHOTS, `${frame.replace(/[ /·]+/g, '_')}
  * وفي صفحة إضافة: المستند كلّه.
  */
 async function audit(page, frame, mode) {
+  /*
+   * **صفحةٌ ضخمة لا يُشغَّل عليها axe.** يبني شجرة المستند كلّه قبل أن يقصر الفحص على المضيف، فعلى صفحة
+   * بثلاثمئة ألف عنصر (`contrast-audit / scanning`) يشغل الخيط دقائق ويعلّق الجولة كلّها بلا سطر — قِيس في
+   * `STAGES/24`. واللوحة نفسها تُفحص في مشهدَي «الخمول» و«النتائج» على صفحة عادية.
+   */
+  if ((await page.evaluate('document.getElementsByTagName("*").length')) > AXE_MAX_ELEMENTS) {
+    axeSkipped.push(`${frame} · ${mode}`)
+    return
+  }
   const { root: doc } = await send('DOM.getDocument', { depth: -1, pierce: true }, page.sessionId)
   const html = doc.children?.find((n) => n.nodeName === 'HTML')
   const host = html?.children?.find((n) => n.shadowRoots?.[0]?.shadowRootType === 'closed')
@@ -364,6 +378,7 @@ async function walkKeys(page, frame, mode) {
     }))`)
   }
   const seen = []
+  const trail = []
   for (let i = 0; i < MAX_TAB_STOPS; i++) {
     for (const type of ['keyDown', 'keyUp']) {
       await send(
@@ -383,14 +398,21 @@ async function walkKeys(page, frame, mode) {
       let el = a, visible = false
       for (let d = 0; d < 4 && el && !visible; d++, el = el.parentElement) visible = marked(el)
       const name = (a.getAttribute('aria-label') || a.textContent || a.getAttribute('placeholder') || '').trim().slice(0, 40)
-      return { key: a.tagName + '|' + name + '|' + Math.round(a.getBoundingClientRect().x) + ',' + Math.round(a.getBoundingClientRect().y), tag: a.tagName.toLowerCase(), name, visible }
+      // حوارٌ مشروط مفتوح: كل محطّة يجب أن تكون داخله، وإلا خرج Tab إلى صفحةٍ لا يراها المستخدم (المرحلة 24).
+      const modal = document.querySelector('[aria-modal="true"]')
+      const outside = modal ? !modal.contains(a) : false
+      return { key: a.tagName + '|' + name + '|' + Math.round(a.getBoundingClientRect().x) + ',' + Math.round(a.getBoundingClientRect().y), tag: a.tagName.toLowerCase(), name, visible, outside }
     })()`)
     if (!stop) continue
     if (seen.includes(stop.key)) break
     seen.push(stop.key)
+    trail.push(`${stop.tag} «${stop.name}»`)
     keyStops++
     if (!stop.visible) keyFindings.push({ frame, mode, tag: stop.tag, name: stop.name })
+    if (stop.outside)
+      keyFindings.push({ frame, mode, tag: stop.tag, name: `خارج الحوار: ${stop.name}` })
   }
+  keyTrails.push({ frame, mode, stops: trail })
 }
 
 const INTERACTIVE = new Set([
@@ -535,8 +557,9 @@ if (writeBaselines && !only.length) {
 console.log(`\n${total} لقطة في ${SHOTS}`)
 if (runKeys) {
   writeFileSync(join(OUT, 'keys.json'), JSON.stringify(keyFindings, null, 2))
+  writeFileSync(join(OUT, 'keys-trails.json'), JSON.stringify(keyTrails, null, 2))
   console.log(
-    `لوحة المفاتيح: ${keyScenes} مشهدًا، ${keyStops} محطّة تركيز، ${keyFindings.length} بلا أثر مرئي`,
+    `لوحة المفاتيح: ${keyScenes} مشهدًا، ${keyStops} محطّة تركيز، ${keyFindings.length} بلا أثر مرئي أو خارج حوارٍ مشروط`,
   )
   const byName = {}
   for (const f of keyFindings)
@@ -548,6 +571,7 @@ if (runAxe) {
   console.log(
     `axe: ${axeScenes} مشهدًا، ${axeFindings.length} مخالفة خطيرة أو حرجة → artifacts/design/axe.json`,
   )
+  for (const skipped of axeSkipped) console.log(`  تخطّى axe (صفحة ضخمة): ${skipped}`)
   const byRule = {}
   for (const f of axeFindings) byRule[f.id] = (byRule[f.id] ?? 0) + 1
   for (const [id, n] of Object.entries(byRule)) console.log(`  ${id}: ${n}`)

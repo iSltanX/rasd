@@ -1,9 +1,10 @@
-import { useEffect } from 'preact/hooks'
+import { useEffect, useRef } from 'preact/hooks'
 
 import { formatPercent } from '@/shared/bidi'
 import { Button } from '@/ui/components/Button/Button'
 import { Spinner } from '@/ui/components/Spinner/Spinner'
 import { cx } from '@/ui/cx'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import styles from './ExportProgress.module.css'
 
@@ -30,6 +31,8 @@ export interface ExportProgressProps {
  * لماذا يجعل المستخدم يظنّ الأداة معلّقة.
  */
 export function ExportProgress(props: ExportProgressProps): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -46,6 +49,7 @@ export function ExportProgress(props: ExportProgressProps): JSX.Element {
     <div
       class={styles.scrim}
       data-export-progress=""
+      ref={dialog}
       role="dialog"
       aria-modal="true"
       aria-label="تصدير الصورة"

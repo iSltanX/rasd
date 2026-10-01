@@ -13,6 +13,7 @@ import { Button } from '@/ui/components'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import styles from './export.module.css'
 
@@ -76,6 +77,8 @@ export interface ExportDoneProps {
  * وقائمةٌ فارغة تُعلَن «لا ملاحظات» ولا تُخفى: غيابُ القسم يُقرأ «لم يُفحَص».
  */
 export function ExportDone(props: ExportDoneProps): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
   const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -105,6 +108,7 @@ export function ExportDone(props: ExportDoneProps): JSX.Element {
       data-export-bytes={bytes}
       data-export-kind={doc ? 'pdf' : props.report.format}
       data-export-pages={doc ? doc.pages : undefined}
+      ref={dialog}
       role="dialog"
       aria-modal="true"
       aria-label="اكتمل التصدير"

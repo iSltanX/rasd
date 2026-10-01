@@ -22,6 +22,7 @@ import { Spinner } from '@/ui/components/Spinner/Spinner'
 import { cx } from '@/ui/cx'
 import { Icon, type IconName } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import styles from '../export/export.module.css'
 import local from '../export/guide-export.module.css'
@@ -115,6 +116,8 @@ export interface ShareDialogProps {
 }
 
 export function ShareDialog(props: ShareDialogProps): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
   const closeRef = useRef<HTMLButtonElement>(null)
   const { phase } = props
 
@@ -138,6 +141,7 @@ export function ShareDialog(props: ShareDialogProps): JSX.Element {
   return (
     <div
       class={styles.scrim}
+      ref={dialog}
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-title"
