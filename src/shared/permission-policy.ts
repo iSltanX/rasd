@@ -165,7 +165,7 @@ export const REQUIRED_PERMISSION_NOTE =
 export const REQUIRED_PERMISSION_RATIONALE: Record<RequiredPermission, string> = {
   activeTab:
     'للعمل على التبويب النشط بعد إيماءة صريحة منك — بديل صلاحية الوصول الدائم لكل المواقع.',
-  scripting: 'لحقن أدوات الفحص في الصفحة عند طلبك، أو بعد إعادة تحميل موقعٍ أذنتَ له بذلك.',
+  scripting: 'لحقن أدوات الفحص عند طلبك، أو في موقعٍ أذنتَ له.',
   storage: 'لحفظ إعداداتك وحالة قفل المكتبة ورمز GitHub مشفَّرًا، على جهازك.',
   unlimitedStorage: 'لحفظ مكتبة لقطاتك على جهازك بلا سقف حصّة يفرضه المتصفّح عليها.',
   contextMenus: 'لإتاحة أدوات رصد من قائمة الزر الأيمن.',
