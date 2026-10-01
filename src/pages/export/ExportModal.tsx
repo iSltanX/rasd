@@ -35,6 +35,7 @@ import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import styles from './export.module.css'
 
@@ -127,6 +128,8 @@ export interface ExportModalProps {
  * والقائمة) لأنها ما يُنقر ويُقرأ.
  */
 export function ExportModal(props: ExportModalProps): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
   const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -157,6 +160,7 @@ export function ExportModal(props: ExportModalProps): JSX.Element {
     <div
       class={styles.scrim}
       data-export-modal=""
+      ref={dialog}
       role="dialog"
       aria-modal="true"
       aria-labelledby="export-title"

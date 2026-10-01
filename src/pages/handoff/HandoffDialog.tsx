@@ -36,6 +36,7 @@ import { Toast } from '@/ui/components/Toast/Toast'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import { deliver, revealDownload, type Delivered } from '../export/deliver'
 import sheet from '../export/export.module.css'
@@ -109,6 +110,8 @@ function rasdVersion(): string {
 }
 
 export function HandoffDialog(props: HandoffDialogProps): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
   const [list, setList] = useState<readonly IssueRecord[]>(props.issues)
   const [options, setOptions] = useState<HandoffOptions>(DEFAULT_OPTIONS)
   const [format, setFormat] = useState<Format>('markdown')
@@ -289,6 +292,7 @@ export function HandoffDialog(props: HandoffDialogProps): JSX.Element {
   return (
     <div
       class={sheet.scrim}
+      ref={dialog}
       role="dialog"
       aria-modal="true"
       aria-labelledby="handoff-title"

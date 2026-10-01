@@ -52,9 +52,14 @@ export const IMPACT = [
     scripts: ['verify:issues'],
   },
   { match: /^src\/ui\/overlay\/compare\//u, scripts: ['verify:compare'] },
-  { match: /^src\/pages\/popup\//u, scripts: ['verify:popup'] },
-  { match: /^src\/pages\/editor\//u, scripts: ['verify:editor'] },
-  { match: /^src\/pages\/library\//u, scripts: ['verify:library'] },
+  /*
+   * الإتاحة (`STAGES/24`): صفحة إضافة عُدّلت تُفحص بـ`verify:accessibility` — axe وLighthouse ولوحة المفاتيح — إلى جانب
+   * حارسها الوظيفي. وصفحتا الإعدادات والتعريف لا حارس وظيفيّ لهما غيره.
+   */
+  { match: /^src\/pages\/popup\//u, scripts: ['verify:popup', 'verify:accessibility'] },
+  { match: /^src\/pages\/editor\//u, scripts: ['verify:editor', 'verify:accessibility'] },
+  { match: /^src\/pages\/library\//u, scripts: ['verify:library', 'verify:accessibility'] },
+  { match: /^src\/pages\/(settings|onboarding)\//u, scripts: ['verify:accessibility'] },
   /*
    * المشاركة المحلّية (`STAGES/10`): النافذة ومحرّكاها ومولِّد صفحة اللقطة — يحرسها `verify:share` بمراقبة الشبكة
    * أثناء المسارات الثلاثة وفتح الصفحة المصدَّرة بلا إنترنت.

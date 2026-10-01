@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { Button } from '@/ui/components/Button/Button'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { cx } from '@/ui/cx'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import styles from './LeaveDialog.module.css'
 
@@ -26,6 +27,7 @@ export function LeaveDialog(props: LeaveDialogProps): JSX.Element {
   const [saving, setSaving] = useState(false)
   const [failed, setFailed] = useState(false)
   const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
 
   useEffect(() => {
     dialog.current?.querySelector<HTMLElement>('[data-leave-stay]')?.focus()

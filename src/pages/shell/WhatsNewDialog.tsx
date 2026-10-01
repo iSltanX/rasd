@@ -4,6 +4,7 @@ import { REPO_URL, SHOW_REPO_LINK } from '@/shared/links'
 import { Button } from '@/ui/components/Button/Button'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { Icon } from '@/ui/icons/Icon'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import { displayVersion, type ChangelogEntry } from './whats-new'
 import styles from './WhatsNewDialog.module.css'
@@ -36,6 +37,7 @@ const SUBTITLE: Record<WhatsNewDialogProps['origin'], string> = {
  */
 export function WhatsNewDialog({ entry, origin, onClose }: WhatsNewDialogProps): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
 
   useEffect(() => {
     dialog.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus()

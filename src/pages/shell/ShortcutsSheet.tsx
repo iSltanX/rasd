@@ -7,6 +7,7 @@ import { Button } from '@/ui/components/Button/Button'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { KeyCap } from '@/ui/TechnicalValue'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import { CAPTURE_COMMANDS } from './capture-commands'
 import styles from './ShortcutsSheet.module.css'
@@ -35,6 +36,7 @@ export function ShortcutsSheet({ onClose }: ShortcutsSheetProps): JSX.Element {
   const [commands, setCommands] = useState<readonly chrome.commands.Command[] | null>(null)
   const [settings, setSettings] = useState<Settings | null>(null)
   const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
 
   useEffect(() => {
     void chrome.commands.getAll().then(setCommands)

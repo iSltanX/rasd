@@ -4,6 +4,7 @@ import { countText, type CountForms } from '@/shared/bidi/numerals'
 import { Button } from '@/ui/components/Button/Button'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { Icon } from '@/ui/icons/Icon'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import styles from './DeleteConfirm.module.css'
 
@@ -50,6 +51,7 @@ export function DeleteConfirm({
   onCancel,
 }: DeleteConfirmProps): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
   // الأب يمرّر `onCancel` سطريًّا فيتجدّد مع كل رسم؛ لو كان تبعيّة الأثر لأُعيد التركيز إلى «ألغِ» عند كل
   // رسمٍ للأب (المراجعة المستقلّة لـ`STAGES/04`). فالتركيز عند الفتح وحده، والمستمع يقرأ الأحدث.
   const cancel = useRef(onCancel)
@@ -58,23 +60,9 @@ export function DeleteConfirm({
   useEffect(() => {
     dialog.current?.querySelector<HTMLElement>('[data-rasd-cancel]')?.focus()
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        cancel.current()
-        return
-      }
-      if (e.key !== 'Tab' || !dialog.current) return
-      const focusable = [...dialog.current.querySelectorAll<HTMLElement>('button:not(:disabled)')]
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (!first || !last) return
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault()
-        first.focus()
-      }
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      cancel.current()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

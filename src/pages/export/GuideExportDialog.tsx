@@ -46,6 +46,7 @@ import { Spinner } from '@/ui/components/Spinner/Spinner'
 import { cx } from '@/ui/cx'
 import { Icon, type IconName } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import { createBakeTools } from '../handoff/evidence'
 import { deleteTemplate, loadTemplates, matchingTemplate, saveTemplate } from '../library/guides'
@@ -124,6 +125,8 @@ export function togglesLabel(options: GuideExportOptions): string {
 }
 
 export function GuideExportDialog(props: GuideExportDialogProps): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
   const [options, setOptions] = useState<GuideExportOptions>({
     ...DEFAULT_GUIDE_OPTIONS,
     ...(props.format ? { format: props.format } : {}),
@@ -324,6 +327,7 @@ export function GuideExportDialog(props: GuideExportDialogProps): JSX.Element {
   return (
     <div
       class={styles.scrim}
+      ref={dialog}
       role="dialog"
       aria-modal="true"
       aria-labelledby="guide-export-title"

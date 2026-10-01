@@ -12,6 +12,7 @@ import { Banner, Button } from '@/ui/components'
 import { ProgressBar } from '@/ui/components/ProgressBar/ProgressBar'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import sheet from '../../export/export.module.css'
 import { redactedSources } from '../redaction'
@@ -40,6 +41,8 @@ type Phase =
   | { readonly kind: 'failed'; readonly message: string }
 
 export function DiffSavedDialog(props: DiffSavedDialogProps): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
   const [phase, setPhase] = useState<Phase>({ kind: 'saving' })
   const closeRef = useRef<HTMLButtonElement>(null)
 
@@ -92,6 +95,7 @@ export function DiffSavedDialog(props: DiffSavedDialogProps): JSX.Element {
   return (
     <div
       class={sheet.scrim}
+      ref={dialog}
       role="dialog"
       aria-modal="true"
       aria-labelledby="diff-saved-title"

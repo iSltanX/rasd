@@ -25,6 +25,7 @@ import { Select } from '@/ui/components/Select/Select'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
 import { TechnicalValue } from '@/ui/TechnicalValue'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import { deliver, revealDownload, type Delivered } from '../../export/deliver'
 import sheet from '../../export/export.module.css'
@@ -94,6 +95,8 @@ const OPTIONS: readonly {
 ]
 
 export function ReportDialog(props: ReportDialogProps): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
   const [include_, setInclude] = useState<ReportInclude>(DEFAULT_INCLUDE)
   const [size, setSize] = useState<PageSizeId>('a4')
   const [phase, setPhase] = useState<Phase>({ kind: 'options', error: null })
@@ -215,6 +218,7 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
   return (
     <div
       class={sheet.scrim}
+      ref={dialog}
       role="dialog"
       aria-modal="true"
       aria-labelledby="report-title"

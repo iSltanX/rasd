@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'preact/hooks'
 
 import { IconButton } from '@/ui/components/IconButton/IconButton'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
+import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import { LICENSES } from './licenses'
 import styles from './LicensesDialog.module.css'
@@ -15,6 +16,7 @@ export interface LicensesDialogProps {
 /** نافذة التراخيص — المكتبات والخطوط المضمَّنة وتراخيصها. `Esc` أو الغشاء يغلقانها. */
 export function LicensesDialog({ onClose }: LicensesDialogProps): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialog)
 
   useEffect(() => {
     dialog.current?.querySelector<HTMLElement>('button')?.focus()
