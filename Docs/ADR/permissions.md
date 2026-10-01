@@ -23,7 +23,7 @@
 | --- | --- | --- | --- |
 | `activeTab` | للعمل على التبويب النشط بعد إيماءة صريحة. **هو بديلنا عن `<all_urls>`** — يُمنح عند نقر الأيقونة أو ضغط اختصار، وينتهي بمغادرة التبويب. | `chrome.tabs.captureVisibleTab` في `background/capture-service.ts` | لا شيء |
 | `scripting` | لحقن أدوات الفحص عند الطلب، أو بعد إعادة تحميل موقعٍ منح المستخدم صلاحيته (`background/resume.ts`). بلا `content_scripts` تلقائي — [ADR 0005](0005-manual-injection.md). | `chrome.scripting.executeScript` في `background/commands.ts` | لا شيء |
-| `storage` | لحفظ الإعدادات وحالة قفل المكتبة ومفضّلات التكامل محليًا. | `chrome.storage.local` و`session` في `shared/settings/` و`modules/privacy/lock.ts` | لا شيء |
+| `storage` | لحفظ الإعدادات وحالة قفل المكتبة ورمز GitHub المشفَّر ومفضّلات التكامل محليًا. | `chrome.storage.local` و`session` في `shared/settings/` و`modules/privacy/lock.ts` و`shared/storage/vault.ts` | لا شيء |
 | `unlimitedStorage` | مكتبة اللقطات في IndexedDB بلا سقف حصّة ولا إخلاء تلقائي. و`persist()` يرفضه Chrome للإضافة (‏`§6` صفّ 265)، فهذه الصلاحية هي ما يحمي المكتبة. | `indexedDB.open` عبر `idb` في `shared/storage/db.ts` | لا شيء |
 | `contextMenus` | إتاحة أدوات رصد من قائمة الزر الأيمن. | `chrome.contextMenus.create` في `background/context-menus.ts` | لا شيء |
 | `alarms` | حارسٌ يكتشف المهام الطويلة المعلَّقة وينهيها بحالة فشل، وكنّاسٌ ينفّذ «حذف السجلّ تلقائيًا». `setTimeout` لا ينجو من إيقاف الـservice worker. | `chrome.alarms.create` في `background/lifecycle.ts` | لا شيء |
@@ -39,7 +39,8 @@
 | `downloads` | عند أول تنزيلٍ إلى مكانٍ يختاره المستخدم | **تُظهر تحذير «إدارة تنزيلاتك»**. والتنزيل من صفحة إضافة ممكن بـ`<a download>` بلا صلاحية أصلًا | `chrome.downloads.download` في `background/capture-mirror.ts` و`pages/export/deliver.ts` |
 
 > **أُسقطت `tabs` و`desktopCapture` في `STAGES/23`** (‏`§6` صفّ 122 · [ADR 0055](0055-permission-consumers.md)).
-> `tabs` لم يطلبها مسارٌ قطّ، فكل نداء `chrome.tabs` في رصد يعمل بدونها أصلًا و`activeTab` يعطي عنوان التبويب
+> `tabs` لم يطلبها مسارٌ في المنتج — طالبها الوحيد زرّ «امنح» العامّ في هذه الشاشة، منحٌ بلا مستهلك — وكل نداء
+> `chrome.tabs` في رصد يعمل بدونها و`activeTab` يعطي عنوان التبويب
 > النشط. و`desktopCapture` ميزتها مستبعدة في `Docs/Engineering.md §4` بلا سطر كود — وكان هذا الملفّ يؤجّلها إلى
 > 1.1 في تناقضٍ حُسم بالإسقاط.
 
