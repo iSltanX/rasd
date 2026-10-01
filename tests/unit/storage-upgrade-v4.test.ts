@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { closeDatabase, database, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { MIGRATIONS } from '@/shared/storage/migrations'
-import { DB_NAME, DB_VERSION, STORE_NAMES, type RasdDB } from '@/shared/storage/schema'
+import { ALL_STORE_NAMES, DB_NAME, DB_VERSION, type RasdDB } from '@/shared/storage/schema'
 
 import { issueFixture } from './modules/issues/fixture'
 
@@ -158,7 +158,7 @@ describe('الترقية من النسخة 3 إلى 4', () => {
     expect(await db.count('blobs')).toBe(3)
     expect(await db.get('issues', issueFixture().id)).toEqual(issueFixture())
     expect((await db.get('captures', 'c1'))?.title).toBe('السلّة')
-    expect([...db.objectStoreNames].sort()).toEqual([...STORE_NAMES].sort())
+    expect([...db.objectStoreNames].sort()).toEqual([...ALL_STORE_NAMES].sort())
   })
 
   it('ومن قاعدة جديدة (النسخة 0) تمرّ الخطوات الأربع إلى البنية نفسها', async () => {

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { getSettingsResult, resetSettingsCache } from '@/shared/settings'
 import { closeDatabase, database, setIncognitoWritePolicy } from '@/shared/storage/db'
-import { DB_NAME, STORE_NAMES } from '@/shared/storage/schema'
+import { ALL_STORE_NAMES, DB_NAME, STORE_NAMES } from '@/shared/storage/schema'
 
 import {
   comparable,
@@ -66,10 +66,10 @@ describe('مكتبة 0.1.0 تُفتح كاملة', () => {
     }
   })
 
-  it('والمخازن نفسها لا أقلّ ولا أكثر — `STORE_NAMES` يطابق القاعدة المفتوحة', async () => {
+  it('والمخازن نفسها لا أقلّ ولا أكثر — `ALL_STORE_NAMES` يطابق القاعدة المفتوحة', async () => {
     await seedDatabase(v010Fixture(), V010_DB_VERSION)
     const db = await database()
-    expect([...db.objectStoreNames].sort()).toEqual([...STORE_NAMES].sort())
+    expect([...db.objectStoreNames].sort()).toEqual([...ALL_STORE_NAMES].sort())
   })
 })
 

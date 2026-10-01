@@ -76,7 +76,8 @@ describe('نافذة الاستعادة', () => {
     expect(container?.querySelector('[data-failure="invalid"]')).not.toBeNull()
     expect(text()).toContain('اختر ملفًّا آخر')
     expect(text()).not.toContain('أعد المحاولة')
-    expect(text()).not.toContain('أبلغ عن المشكلة')
+    // «أبلغ عن المشكلة» يظهر منذ بُني الإبلاغ (ADR 0050) — ويفتح نافذة البلاغ، لا يُرسل شيئًا.
+    expect(text()).toContain('أبلغ عن المشكلة')
     expect(restored).not.toHaveBeenCalled()
   })
 })

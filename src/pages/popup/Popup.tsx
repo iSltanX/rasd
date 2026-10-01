@@ -4,6 +4,7 @@ import { formatDimensions, formatHuman } from '@/shared/bidi'
 import { CHANNELS, openChannel, send, sendToTab, type ToolName } from '@/shared/messaging'
 import { originPatternFor, requestHostPermission } from '@/shared/permissions'
 import { selectPopupState, type PopupContext, type PopupStateName } from '@/shared/popup-state'
+import { openReport } from '@/shared/report-link'
 
 import { SHARE_PARAM } from '../share/param'
 
@@ -61,6 +62,8 @@ interface Failure {
   readonly message: string
   /** ما يُعاد بـ«أعد المحاولة» أو «التقط من جديد»: أداة، أو إعادة فحص مشكلات الصفحة. */
   readonly retry: ToolName | 'recheck-issues' | null
+  /** رمز الفشل كما ردّت الخلفية — يملأ «أبلغ عن المشكلة» مع الأداة. */
+  readonly code?: string
 }
 
 export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Element | null {
@@ -124,6 +127,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
                   title: 'لم تُحفظ اللقطة',
                   message: 'توقّفت الصفحة عن الاستجابة قبل اكتمال الالتقاط. أعد المحاولة.',
                   retry: 'full-page',
+                  code: message.code,
                 },
           )
         }
@@ -211,6 +215,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
             ? 'تعذّر بدء الأداة — أعد تحميل الصفحة ثم حاول.'
             : 'تعذّر تشغيل رصد في هذه الصفحة.',
         retry: tool,
+        code: reply.ok ? (reply.value.started ? 'unknown' : reply.value.reason) : reply.error.code,
       })
     })
   }
@@ -234,6 +239,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
             ? 'تعذّر بدء الفحص — أعد تحميل الصفحة ثم حاول.'
             : 'تعذّر إعادة فحص مشكلات هذه الصفحة.',
         retry: 'recheck-issues',
+        code: reply.ok ? (reply.value.started ? 'unknown' : reply.value.reason) : reply.error.code,
       })
     })
   }
@@ -317,6 +323,13 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
           title={failure.title}
           message={failure.message}
           onRetry={() => retryFailed(failure.retry)}
+          onReport={() => {
+            openReport({
+              tool: failure.retry === 'recheck-issues' ? 'issues' : failure.retry,
+              code: failure.code ?? null,
+            })
+            window.close()
+          }}
         />
       )
   } else if (success) {

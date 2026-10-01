@@ -32,8 +32,8 @@ describe('السياسة المبنيّة من القائمة المسمّاة',
     expect(judgeExtensionCsp(csp, NAMED).connect).toEqual(["'self'", ...NAMED])
   })
 
-  it('الخدمة المسمّاة اليوم واحدة: api.github.com', () => {
-    expect(NAMED).toEqual(['https://api.github.com'])
+  it('الخدمتان المسمّاتان اليوم: api.github.com (ADR 0046) ونقطة استقبال البلاغات (ADR 0050)', () => {
+    expect(NAMED).toEqual(['https://api.github.com', 'https://app-reports.isultantf.workers.dev'])
   })
 
   it('كل خدمةٍ مسمّاة لها صلاحية مضيف اختيارية', () => {
@@ -47,6 +47,20 @@ describe('ما يُرفض', () => {
   it('مصدرٌ خارجيّ ثانٍ مضافٌ عمدًا إلى connect-src', () => {
     const tampered = base.replace('connect-src', 'connect-src https://evil.example')
     expect(problems(tampered).join('\n')).toMatch(/غير مسمًّى.*https:\/\/evil\.example/u)
+  })
+
+  it('مصدرٌ ثالث بجانب الخدمتين المسمّاتين — `STAGES/13`: يُسمح بنقطة الاستقبال وحدها لا بما بعدها', () => {
+    const third = base.replace(
+      'https://app-reports.isultantf.workers.dev',
+      'https://app-reports.isultantf.workers.dev https://other-reports.example',
+    )
+    expect(problems(third).join('\n')).toMatch(/غير مسمًّى.*other-reports\.example/u)
+    // ونقطة استقبالٍ غير المسمّاة بدل المسمّاة: ناقصةٌ وزائدة معًا.
+    const swapped = base.replace(
+      'https://app-reports.isultantf.workers.dev',
+      'https://app-reports.attacker.workers.dev',
+    )
+    expect(problems(swapped).join('\n')).toMatch(/غائبة.*app-reports\.isultantf/u)
   })
 
   it('النجمة والمخطّط العامّ و`data:` و`blob:` و`http`', () => {
@@ -114,6 +128,7 @@ describe('parseCsp و judgeHostPermissions', () => {
     ])
     expect(judgeHostPermissions(['<all_urls>'], policy).missing).toEqual([
       'https://api.github.com/*',
+      'https://app-reports.isultantf.workers.dev/*',
     ])
     expect(judgeHostPermissions(undefined, policy).missing).toEqual(policy)
   })

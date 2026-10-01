@@ -16,8 +16,8 @@ export interface ErrorMessageProps {
   onRetry?: (() => void) | undefined
   retryLabel?: string
   /**
-   * زرّ «أبلغ عن المشكلة» يُعرض حين يوجد محرّكه وحده. محرّك الإبلاغ في `STAGES/13`؛
-   * قبله لا يُعرض الزرّ، فلا زرّ صامت (`AGENTS.md` §4).
+   * زرّ «أبلغ عن المشكلة» — يفتح نافذة البلاغ مملوءةً بالأداة ورمز الخطأ (`shared/report-link.ts`، ADR 0050).
+   * يُعرض حين يمرّره المستدعي وحده، فلا زرّ صامت (`AGENTS.md` §4).
    */
   onReport?: (() => void) | undefined
   class?: string | undefined

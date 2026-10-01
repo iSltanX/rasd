@@ -1,3 +1,4 @@
+import { openReport } from '@/shared/report-link'
 import { ErrorMessage } from '@/ui/components/ErrorMessage/ErrorMessage'
 import { Spinner } from '@/ui/components/Spinner/Spinner'
 
@@ -43,6 +44,7 @@ export function NotFound({ message, tone }: NotFoundProps): JSX.Element {
               </>
             }
             onRetry={() => window.location.reload()}
+            onReport={() => openReport({ tool: 'editor', code: 'capture-open' })}
           />
         </div>
       )}

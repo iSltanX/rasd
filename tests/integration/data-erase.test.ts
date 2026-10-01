@@ -7,9 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSettings, resetSettingsCache, watchSettings } from '@/shared/settings'
 import { closeDatabase, database, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { eraseAllData } from '@/shared/storage/erase'
-import { DB_NAME, STORE_NAMES } from '@/shared/storage/schema'
+import { ALL_STORE_NAMES, DB_NAME } from '@/shared/storage/schema'
 
-import { libraryFixture, seedDatabase, settingsFixture } from '../unit/data/library-fixture'
+import {
+  bytesBlob,
+  libraryFixture,
+  seedDatabase,
+  settingsFixture,
+} from '../unit/data/library-fixture'
 
 /**
  * «احذف كل البيانات» — معيار قبول `STAGES/07`: بعد الحذف كل مخزن فارغ، ويحمرّ الاختبار إن أُغفل مخزن.
@@ -32,6 +37,21 @@ afterEach(() => {
 
 async function seedEverything() {
   await seedDatabase(libraryFixture())
+  // مسودة بلاغ بصورتها (ADR 0050) — ليست من المكتبة، والحذف الكامل يمسحها كذلك.
+  const db = await database()
+  await db.put('reportDrafts', {
+    id: 'draft-1',
+    createdAt: 1,
+    updatedAt: 1,
+    kind: 'bug',
+    title: 'عطل',
+    what: 'وصف',
+    steps: '',
+    expected: '',
+    tool: null,
+    errorCode: null,
+    image: { blob: bytesBlob([1, 2, 3], 'image/png'), width: 1, height: 1, redactions: 0 },
+  })
   await fakeBrowser.storage.local.set({
     'rasd:settings': settingsFixture(),
     'rasd:anything-else': { a: 1 },
@@ -54,13 +74,13 @@ describe('الحذف الكامل', () => {
   it('كل مخزن في القاعدة فارغ، وكل مساحة في `chrome.storage` فارغة', async () => {
     await seedEverything()
     const before = await storeCounts()
-    for (const name of STORE_NAMES) expect(before[name], name).toBeGreaterThan(0)
+    for (const name of ALL_STORE_NAMES) expect(before[name], name).toBeGreaterThan(0)
 
     const r = await eraseAllData()
     expect(r.ok).toBe(true)
 
     const after = await storeCounts()
-    expect(Object.keys(after).sort()).toEqual([...STORE_NAMES].sort())
+    expect(Object.keys(after).sort()).toEqual([...ALL_STORE_NAMES].sort())
     expect(Object.values(after).every((n) => n === 0)).toBe(true)
     expect(await fakeBrowser.storage.local.get(null)).toEqual({})
     expect(await fakeBrowser.storage.session.get(null)).toEqual({})

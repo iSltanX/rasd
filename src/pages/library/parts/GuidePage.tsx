@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 import { STEP_FORMS } from '@/modules/export/guide'
 import { countText, formatHuman } from '@/shared/bidi/numerals'
 import { GUIDE_FORMATS, GUIDE_LIMITS, type GuideFormat } from '@/shared/guide-schema'
+import { openReport } from '@/shared/report-link'
 import { Button } from '@/ui/components/Button/Button'
 import { ErrorMessage } from '@/ui/components/ErrorMessage/ErrorMessage'
 import { IconButton } from '@/ui/components/IconButton/IconButton'
@@ -180,7 +181,12 @@ export function GuidePage({ id, onBack, onChanged, now = Date.now }: GuidePagePr
               ? 'لم يستجب التخزين على هذا الجهاز. الدليل لم يُحذف — أعد المحاولة.'
               : 'ربما حُذف من المكتبة. أدلّتك الأخرى في «أدلة الخطوات».'
           }
-          {...(load.kind === 'error' ? { onRetry: () => void reload() } : {})}
+          {...(load.kind === 'error'
+            ? {
+                onRetry: () => void reload(),
+                onReport: () => openReport({ tool: 'guides', code: 'guide-read' }),
+              }
+            : {})}
         />
         <Button variant="secondary" size="m" icon="chevron-right" onClick={onBack}>
           أدلة الخطوات

@@ -10,7 +10,13 @@ import { emptyScene, parseScene } from '@/modules/editor/scene-schema'
 import { devicePoint } from '@/shared/geometry'
 import { closeDatabase, database, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { MIGRATIONS } from '@/shared/storage/migrations'
-import { DB_NAME, DB_VERSION, STORE_NAMES, type RasdDB } from '@/shared/storage/schema'
+import {
+  ALL_STORE_NAMES,
+  DB_NAME,
+  DB_VERSION,
+  STORE_NAMES,
+  type RasdDB,
+} from '@/shared/storage/schema'
 
 /**
  * ترقية القاعدة من النسخة 2 إلى 3 ببيانات حقيقية — كُتب **قبل** خطوة الترحيل (`AGENTS.md` §7).
@@ -178,7 +184,7 @@ describe('الترقية من النسخة 2 إلى 3', () => {
     // `database()` تفتح على أحدث نسخة — فالخطوات بعد 3 تجري هنا أيضًا، وما يخصّها في اختبار ترقيتها.
     const db = await database()
     expect(db.version).toBe(DB_VERSION)
-    expect([...db.objectStoreNames].sort()).toEqual([...STORE_NAMES].sort())
+    expect([...db.objectStoreNames].sort()).toEqual([...ALL_STORE_NAMES].sort())
     expect(STORE_NAMES).toContain('issues')
 
     const issues = db.transaction('issues' as never).store
@@ -234,6 +240,6 @@ describe('الترقية من النسخة 2 إلى 3', () => {
   it('الترقية من قاعدة جديدة (النسخة 0) تمرّ بالخطوات كلّها وتعطي البنية نفسها', async () => {
     const db = await database()
     expect(db.version).toBe(DB_VERSION)
-    expect([...db.objectStoreNames].sort()).toEqual([...STORE_NAMES].sort())
+    expect([...db.objectStoreNames].sort()).toEqual([...ALL_STORE_NAMES].sort())
   })
 })

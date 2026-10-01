@@ -515,16 +515,16 @@ return {
 | `data / delete-confirm-final` | أساسية     | [`292:3109`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=292-3109)   | [`310:52006`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52006) | [`DeleteDialog.tsx`](../src/pages/settings/parts/data/DeleteDialog.tsx)                 | ✓       |
 | `data / delete-done`          | نجاح       | [`292:3268`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=292-3268)   | [`310:52050`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52050) | [`DeleteDialog.tsx`](../src/pages/settings/parts/data/DeleteDialog.tsx)                 | ✓       |
 | `data / delete-error`         | خطأ        | [`292:3419`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=292-3419)   | [`310:52094`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52094) | [`DeleteDialog.tsx`](../src/pages/settings/parts/data/DeleteDialog.tsx)                 | ✓ · §11 |
-| `support / form`              | أساسية     | [`293:4050`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4050)   | [`310:52134`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52134) | [13](../STAGES/13.md)                                                                   | —       |
-| `support / form-error`        | خطأ        | [`293:4220`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4220)   | [`310:52178`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52178) | [13](../STAGES/13.md)                                                                   | —       |
-| `support / image`             | أساسية     | [`293:4381`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4381)   | [`310:52220`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52220) | [13](../STAGES/13.md)                                                                   | —       |
-| `support / image-empty`       | فراغ       | [`293:4598`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4598)   | [`310:52270`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52270) | [13](../STAGES/13.md)                                                                   | —       |
-| `support / review`            | أساسية     | [`293:4760`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4760)   | [`310:52315`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52315) | [13](../STAGES/13.md)                                                                   | —       |
-| `support / sending`           | تحميل      | [`293:4949`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4949)   | [`310:52394`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52394) | [13](../STAGES/13.md)                                                                   | —       |
-| `support / sent`              | نجاح       | [`293:5096`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5096)   | [`310:52433`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52433) | [13](../STAGES/13.md)                                                                   | —       |
-| `support / failed`            | خطأ        | [`293:5250`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5250)   | [`310:52476`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52476) | [13](../STAGES/13.md)                                                                   | —       |
-| `support / local-only`        | رفض صلاحية | [`293:5414`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5414)   | [`310:52528`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52528) | [13](../STAGES/13.md)                                                                   | —       |
-| `support / cancelled`         | إلغاء      | [`293:5570`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5570)   | [`310:52573`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52573) | [13](../STAGES/13.md)                                                                   | —       |
+| `support / form`              | أساسية     | [`293:4050`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4050)   | [`310:52134`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52134) | [`ReportDialog.tsx`](../src/pages/settings/parts/report/ReportDialog.tsx)               | ✓       |
+| `support / form-error`        | خطأ        | [`293:4220`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4220)   | [`310:52178`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52178) | [`ReportDialog.tsx`](../src/pages/settings/parts/report/ReportDialog.tsx)               | ✓       |
+| `support / image`             | أساسية     | [`293:4381`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4381)   | [`310:52220`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52220) | [`ImageStep.tsx`](../src/pages/settings/parts/report/ImageStep.tsx)                     | ✓ · §11 |
+| `support / image-empty`       | فراغ       | [`293:4598`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4598)   | [`310:52270`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52270) | [`ImageStep.tsx`](../src/pages/settings/parts/report/ImageStep.tsx)                     | ✓ · §11 |
+| `support / review`            | أساسية     | [`293:4760`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4760)   | [`310:52315`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52315) | [`ReportDialog.tsx`](../src/pages/settings/parts/report/ReportDialog.tsx)               | ✓ · §11 |
+| `support / sending`           | تحميل      | [`293:4949`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-4949)   | [`310:52394`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52394) | [`ReportDialog.tsx`](../src/pages/settings/parts/report/ReportDialog.tsx)               | ✓       |
+| `support / sent`              | نجاح       | [`293:5096`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5096)   | [`310:52433`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52433) | [`ReportDialog.tsx`](../src/pages/settings/parts/report/ReportDialog.tsx)               | ✓ · §11 |
+| `support / failed`            | خطأ        | [`293:5250`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5250)   | [`310:52476`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52476) | [`ReportDialog.tsx`](../src/pages/settings/parts/report/ReportDialog.tsx)               | ✓       |
+| `support / local-only`        | رفض صلاحية | [`293:5414`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5414)   | [`310:52528`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52528) | [`ReportDialog.tsx`](../src/pages/settings/parts/report/ReportDialog.tsx)               | ✓       |
+| `support / cancelled`         | إلغاء      | [`293:5570`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5570)   | [`310:52573`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52573) | [`ReportDialog.tsx`](../src/pages/settings/parts/report/ReportDialog.tsx)               | ✓       |
 | `whats-new / card`            | أساسية     | [`293:5723`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=293-5723)   | [`310:52615`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-52615) | [`WhatsNewDialog.tsx`](../src/pages/shell/WhatsNewDialog.tsx)                           | ✓ · §11 |
 | `settings / save-error`       | خطأ        | [`319:12777`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-12777) | [`319:13305`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-13305) | [`Settings.tsx`](../src/pages/settings/Settings.tsx)                                    | ✓       |
 | `settings / saved`            | نجاح       | [`319:12812`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-12812) | [`319:13327`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-13327) | [`Settings.tsx`](../src/pages/settings/Settings.tsx)                                    | ✓       |
@@ -791,14 +791,15 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
   أوّل نقرة في الصفحة، ونقل البيانات إليها محرّكُ رسائل لا مرحلة تصميم.
 - `capturing`: «المقطع ٤ من ٦» بدل الارتفاع بالبكسل — المهمّة لا تحمل الارتفاع. والسطر الفرعي يصف
   ما يفعله المحرّك (تحييد العناصر الثابتة) لا تحميل الصور المؤجَّلة الذي لا يفعله.
-- `error`: «أبلغ عن المشكلة» لا تُعرض قبل [13](../STAGES/13.md). `first-run`: «جولة سريعة» تفتح جولة
+- `error`: «أبلغ عن المشكلة» تحت «أعد المحاولة» تفتح نافذة البلاغ في الإعدادات بالأداة ورمز الخطأ ([13](../STAGES/13.md)). `first-run`: «جولة سريعة» تفتح جولة
   التعريف في تبويب، و«ابدأ» تُتمّ التشغيل الأوّل. `success`: «مشاركة» تفتح المحرّر
   ونافذة المشاركة فوقه ([10](../STAGES/10.md)، ADR 0044)، و«نسخ» للقطات PNG وحدها (الحافظة لا تقبل غيرها).
 - `restricted`: «لماذا؟» يعرض سبب التبويب نفسه — كان زرًّا صامتًا.
 - مسافات أصغر بقليل من الإطار (بطاقة الالتقاط، وأداة الفحص، والبطاقة الأخيرة) كي تسع الحالة الافتراضية
   520 بلا تمرير — والإطار نفسه يقصّ جسمه بثلاثة.
 - `offline`: ما يتوقّف دون اتصال بلا GitHub والإبلاغ — لا يُسمّى ما لم يُبنَ قبل [11](../STAGES/11.md)
-  و[13](../STAGES/13.md).
+  و[13](../STAGES/13.md). والإبلاغ بُني في 13، وسطر `offline` لم يُحدَّث فيها: النافذة لا تعرف حالة الاتّصال، والبلاغ
+  يُحفظ مسودةً حين ينقطع.
 
 ### الأدوات فوق الصفحة
 
@@ -917,7 +918,7 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
 - النسخة الاحتياطية: عدّاد التقدّم يعدّ **الصور** لا «اللقطات» (هو ما يُقرأ فعلًا)؛ والمسار في `backup-done` اسم
   الملفّ لا مسار المجلّد (مع الصلاحية يختار المستخدم المكان)؛ و`permission-denied` لا يُفشل النسخة — تُحفظ بمرساة
   ويُكتب ما فُقد تحت «النسخة جاهزة» (الصفّ 268)؛ وسطرٌ تحذيري إن تُرك سجلٌّ تالف (الصفّ 264).
-- `restore-error` و`delete-error` بلا «أبلغ عن المشكلة» — الإبلاغ لم يُبنَ ([13](../STAGES/13.md)) — و«أعد المحاولة»
+- `restore-error` و`delete-error`: «أبلغ عن المشكلة» تفتح نافذة البلاغ بالأداة `data` ورمز الفشل ([13](../STAGES/13.md))؛ و«أعد المحاولة»
   في الاستعادة لرفض القاعدة وحده؛ والخطأ أربعة نصوص لا واحد: ليس نسخة · من إصدارٍ أحدث · تالف · رفضه التخزين
   (الصفّ 269). ولحالتي الفحص والكتابة نافذتا انتظار بلا إطار («يُفحص الملفّ» · «تُستعاد المكتبة») ولنجاحها
   «استُعيدت المكتبة» بما أُضيف وما بقي — والإطار لا يرسم ما بعد «استعد».
@@ -944,6 +945,17 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
   لخيار واحد.
 - `shortcuts / sheet`: «غيّر اختصارات الالتقاط» لا «غيّر الاختصارات» — صفحة Chrome تغيّر اختصارات الالتقاط
   وحدها، ومفاتيح الأدوات من قسم الاختصارات.
+
+- **«أبلغ عن مشكلة»** (`support / *`، [13](../STAGES/13.md)، [ADR 0050](ADR/0050-problem-reports.md)) — فروقٌ مقصودة:
+  - `image` و`image-empty`: «التقط من جديد» و«التقط لقطة» صارتا «اختر صورة أخرى» و«أرفق ملفًّا» مع اللصق — عقد قناة
+    البلاغات المشتركة يمنع التقاطًا يجريه التطبيق للبلاغ. والحجب تغطيةٌ مصمتة وحدها، وتحته «تراجع عن آخر حجب» و«ألغِ
+    القصّ» — الإطار لا يرسم تراجعًا.
+  - `review`: مصغّرة الصورة **المخبوزة** فوق الصفوف — البكسلات التي ستخرج بعد القصّ والحجب (عقد القناة: «كل مرفقٍ بحجمه
+    ومصغّرته»)، والإطار لا يرسمها. والنصّ كاملًا في صفٍّ عموديّ لا «كما كتبتها»، والقيم التقنية حرفًا كما تُرسَل (`full-page` لا «صفحة كاملة»، و`macos`
+    و`15.3.0` في صفّين) — المعيار أن المعروض يطابق المرسَل حرفيًّا. ويزيد صفوف المعمارية واللغة والمنتَج.
+  - `sent`: رقم البلاغ `#4` — رقم الـIssue في القناة نفسه، يطابق ما عند جهة الدعم — لا `RSD-1042` المرسومة.
+  - النافذة 560 لا 600: هيكل نوافذ البيانات نفسه (`DataDialog`) لا نسخةٌ منه.
+  - إغلاق النافذة في منتصف الخطوات بما كُتب يحفظ المسودة ويعرض `cancelled` — الإطار يرسمها للإلغاء أثناء الإرسال وحده.
 
 ### التأهيل و«ما الجديد»
 

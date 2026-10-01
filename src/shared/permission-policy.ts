@@ -35,8 +35,8 @@ export const OPTIONAL_PERMISSIONS = ['tabs', 'downloads', 'desktopCapture'] as c
  *   3. ما يسمح به مخرج الشبكة الواحد (`shared/egress.ts`) — وما سواه يُرفض قبل أن يُطلب.
  * و`verify:dist` يطابق البيان المبنيّ بها حرفًا: مصدرٌ في CSP ليس هنا يُسقط البناء.
  *
- * الأصل `https` بلا مسار ولا نجمة. **ومصدرٌ يُضاف هنا قرارٌ يحتاج ADR**، لا تعديل سطر — ونقطة استقبال
- * البلاغات (`STAGES/13`) هي الإضافة الوحيدة التي سبق إليها الـADR.
+ * الأصل `https` بلا مسار ولا نجمة. **ومصدرٌ يُضاف هنا قرارٌ يحتاج ADR**، لا تعديل سطر: GitHub بـADR 0046، ونقطة
+ * استقبال البلاغات بـ[ADR 0050](../../Docs/ADR/0050-problem-reports.md). وما سواهما يحتاج ADR جديدًا.
  */
 export const NETWORK_SERVICES = [
   {
@@ -45,6 +45,17 @@ export const NETWORK_SERVICES = [
     hostPattern: 'https://api.github.com/*',
     purpose:
       'لفتح Issue في مستودعك على GitHub حين تؤكّد ذلك — بعد أن تتّصل بنفسك وتوقف «الوضع المحلّي فقط».',
+  },
+  {
+    /*
+     * قناة البلاغات المشتركة لتطبيقات المالك (`Docs/Support.md`): خادمٌ على Cloudflare Workers يفتح البلاغ في مستودع
+     * دعمٍ خاصّ. لا حساب ولا مفتاح في الإضافة — المفتاح في أسرار الخادم وحده.
+     */
+    id: 'reports',
+    origin: 'https://app-reports.isultantf.workers.dev',
+    hostPattern: 'https://app-reports.isultantf.workers.dev/*',
+    purpose:
+      'لإرسال بلاغ مشكلة إلى جهة الدعم حين تراجعه وتؤكّده — بعد أن توقف «الوضع المحلّي فقط». لا يُرسَل شيء تلقائيًّا.',
   },
 ] as const
 

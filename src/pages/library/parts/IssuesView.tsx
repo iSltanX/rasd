@@ -22,6 +22,7 @@ import {
 import { countByStatus, currentValue } from '@/modules/issues/status'
 import { countText, formatHuman, formatRelativeTime } from '@/shared/bidi/numerals'
 import { ISSUE_STATUSES, type IssueRecord } from '@/shared/issue-schema'
+import { openReport } from '@/shared/report-link'
 import { Banner } from '@/ui/components/Banner/Banner'
 import { Button } from '@/ui/components/Button/Button'
 import { Checkbox } from '@/ui/components/Checkbox/Checkbox'
@@ -217,6 +218,7 @@ export function IssuesView({
               title="تعذّرت قراءة المشكلات"
               body="لم يستجب التخزين على هذا الجهاز. مشكلاتك لم تُحذف — أعد المحاولة."
               onRetry={() => setAttempt((n) => n + 1)}
+              onReport={() => openReport({ tool: 'issues', code: 'issues-read' })}
             />
           </div>
         ) : empty ? (
