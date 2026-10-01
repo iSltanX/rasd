@@ -24,6 +24,7 @@ import {
   hasPermission,
   HOST_PERMISSION_DENIAL,
   HOST_PERMISSION_RATIONALE,
+  NETWORK_SERVICES,
   OPTIONAL_PERMISSION_DENIAL,
   OPTIONAL_PERMISSION_RATIONALE,
   OPTIONAL_PERMISSIONS,
@@ -35,6 +36,7 @@ import {
   revokeHostPermission,
   revokePermission,
   watchPermissions,
+  type NetworkServiceId,
   type OptionalPermission,
 } from '@/shared/permissions'
 import { Button } from '@/ui/components/Button/Button'
@@ -50,6 +52,17 @@ import type { JSX } from 'preact'
 const ALL_URLS = '<all_urls>'
 
 type Granted = Record<string, boolean>
+
+/**
+ * ما يتوقّف عند رفض صلاحية كل خدمةٍ مسمّاة. `Record` على `NetworkServiceId` لا كائنٌ حرّ: خدمةٌ تُضاف إلى القائمة
+ * بلا جملةٍ هنا تُسقط `pnpm typecheck` — فلا صفّ بلا «ما يتوقّف» (كـ`OPTIONAL_PERMISSION_DENIAL`).
+ */
+const SERVICE_DENIAL: Record<NetworkServiceId, string> = {
+  github: 'لا يتّصل رصد بـGitHub ولا يُفتح بلاغ منه — وتبقى اللقطات والمكتبة كما هي.',
+}
+
+/** أنماط الخدمات المسمّاة — صفوفها مستقلّة، ولا تُحسب مواقعَ تُسحب مع «اسحب الكلّ». */
+const SERVICE_PATTERNS: readonly string[] = NETWORK_SERVICES.map((s) => s.hostPattern)
 
 export function PermissionsPanel(): JSX.Element {
   const [granted, setGranted] = useState<Granted>({})
@@ -74,7 +87,13 @@ export function PermissionsPanel(): JSX.Element {
    * وله إذنٌ قائم. والزرّ كان يمنح `<all_urls>` تحت نصٍّ يقول «لموقع واحد».
    */
   const hasAll = origins.includes(ALL_URLS)
-  const named = origins.filter((origin) => origin !== ALL_URLS)
+  /*
+   * **خدمات رصد المسمّاة ليست «مواقع»** — منحها من شاشة التكاملات كان سيعرض `api.github.com` تحت «الوصول إلى
+   * المواقع» بسببٍ ليس سببه، و«اسحب الكلّ» كان سيسحبه فيقطع الاتّصال من حيث لا يُرى. فلها صفوفها بسببها
+   * (`NETWORK_SERVICES.purpose`)، وتُستثنى هنا.
+   */
+  const sites = origins.filter((origin) => !SERVICE_PATTERNS.includes(origin))
+  const named = sites.filter((origin) => origin !== ALL_URLS)
 
   const toggleOptional = async (name: OptionalPermission) => {
     setBusy(name)
@@ -88,15 +107,25 @@ export function PermissionsPanel(): JSX.Element {
     }
   }
 
-  /** يسحب كل ما مُنح، أو يمنح `<all_urls>` — والتسمية تقول أيّهما. */
+  /** يسحب كل مواقع المستخدم الممنوحة، أو يمنح `<all_urls>` — والتسمية تقول أيّهما. والخدمات لها صفوفها. */
   const toggleHost = async () => {
     setBusy(ALL_URLS)
     try {
-      if (origins.length > 0) await revokeHostPermission(origins)
+      if (sites.length > 0) await revokeHostPermission(sites)
       else await requestHostPermission([ALL_URLS])
     } finally {
       // بلا `finally` يبقى الزرّ في «جارٍ» للأبد إن رمى النداء — وقد يرمي
       // `chrome.permissions.request` خارج إيماءة مستخدم. رصدته مراجعة Gate B.
+      setBusy(null)
+    }
+  }
+
+  const toggleService = async (hostPattern: string) => {
+    setBusy(hostPattern)
+    try {
+      if (origins.includes(hostPattern)) await revokeHostPermission([hostPattern])
+      else await requestHostPermission([hostPattern])
+    } finally {
       setBusy(null)
     }
   }
@@ -172,16 +201,61 @@ export function PermissionsPanel(): JSX.Element {
               size="s"
               state={busy === ALL_URLS ? 'loading' : 'default'}
               aria-label={
-                origins.length > 0
+                sites.length > 0
                   ? 'اسحب صلاحية الوصول من كل المواقع الممنوحة'
                   : 'امنح صلاحية الوصول إلى كل المواقع'
               }
               onClick={() => void toggleHost()}
             >
-              {origins.length > 0 ? 'اسحب الكلّ' : 'امنح للكلّ'}
+              {sites.length > 0 ? 'اسحب الكلّ' : 'امنح للكلّ'}
             </Button>
           }
         />
+      </Group>
+
+      <Group title="خدمات خارجية" id="permissions-services">
+        {NETWORK_SERVICES.map((service, i) => {
+          const on = origins.includes(service.hostPattern)
+          /*
+           * `<all_urls>` تشمل الخدمة: `permissions.contains` يُجيز الاتّصال، و`getAll` لا يذكر نمطها. فالصفّ يقول
+           * الحقيقة — ممنوحة ضمن «كل المواقع» — ولا زرّ: سحبها يكون من صفّ المواقع، وزرٌّ هنا كان سيسحب ما لم يُمنح.
+           */
+          const covered = !on && hasAll
+          return (
+            <SettingRow
+              key={service.id}
+              label={<bdi dir="ltr">{new URL(service.origin).host}</bdi>}
+              hint={
+                <>
+                  {service.purpose}{' '}
+                  {on
+                    ? 'ممنوحة.'
+                    : covered
+                      ? 'ممنوحة ضمن «كل المواقع» — تُسحب من صفّ المواقع أعلاه.'
+                      : 'غير ممنوحة.'}{' '}
+                  عند الرفض: {SERVICE_DENIAL[service.id]}
+                </>
+              }
+              divider={i < NETWORK_SERVICES.length - 1}
+              control={
+                covered ? (
+                  <Chip tone="success">ضمن كل المواقع</Chip>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="s"
+                    state={busy === service.hostPattern ? 'loading' : 'default'}
+                    aria-label={`${on ? 'اسحب' : 'امنح'} صلاحية الوصول إلى ${new URL(service.origin).host}`}
+                    data-service-permission={service.id}
+                    onClick={() => void toggleService(service.hostPattern)}
+                  >
+                    {on ? 'اسحب' : 'امنح'}
+                  </Button>
+                )
+              }
+            />
+          )
+        })}
       </Group>
     </>
   )

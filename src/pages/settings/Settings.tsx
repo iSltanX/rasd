@@ -226,7 +226,7 @@ export function Settings() {
       )
       break
     case 'integrations':
-      content = <IntegrationsSection />
+      content = <IntegrationsSection onOpenPrivacy={() => go('privacy')} />
       break
     case 'about':
       content = (
