@@ -91,8 +91,8 @@ pnpm build
 | `pnpm waves:check`   | اتّساق خطّة الموجات مع ترويسات المراحل     |
 | `pnpm waves:board`   | توليد لوحة التشغيل `Docs/Waves/board.html` |
 | `pnpm verify:wave`   | حرّاس كروم لمرحلة أو لبوّابة موجة، بقفل    |
-| `pnpm verify:<اسم>`  | حارس متصفّح حقيقي — 19 حارسًا              |
-| `pnpm test:e2e`      | غير مبنيّ بعد — `STAGES/16`                |
+| `pnpm verify:<اسم>`  | حارس متصفّح حقيقي — 20 حارسًا              |
+| `pnpm test:e2e`      | المسارات الأربعة بالكثافتين 1 و2، بقفل     |
 
 ## البنية
 

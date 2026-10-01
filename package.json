@@ -81,6 +81,7 @@
   "devDependencies": {
     "@crxjs/vite-plugin": "2.7.1",
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@types/chrome": "0.2.7",
     "@types/culori": "4.0.1",
     "@types/node": "24.10.1",

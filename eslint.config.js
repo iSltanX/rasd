@@ -545,6 +545,16 @@ export default tseslint.config(
     },
   },
 
+  /*
+   * مسارات E2E: دوالّ `page.evaluate` و`sw.evaluate` تُسلَّم إلى المتصفّح فتُنفَّذ هناك، فتُكتب بمراجع
+   * `document` و`window` و`chrome` في ملفّات Node — والمُعرَّف الناقص عندها خطأ لنت لا خطأ تشغيل.
+   * هي `.mjs` خالصة كالسكربتات، بلا لنت واعٍ بالأنواع (`STAGES/18`).
+   */
+  {
+    files: ['tests/e2e/**/*.mjs'],
+    languageOptions: { globals: { ...globals.browser, ...globals.webextensions } },
+  },
+
   // ── ملفات الإعداد تعمل في Node ────────────────────────────────
   {
     files: ['*.config.ts'],
