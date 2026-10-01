@@ -32,7 +32,12 @@ import type { Result } from '@/shared/result'
  */
 
 const SALT = 'c2FsdHNhbHRzYWx0c2FsdA=='
-const RECORD = { v: 1, salt: SALT, iterations: 1000, verifier: 'dmVyaWZpZXI=' }
+const RECORD = {
+  v: 1,
+  salt: SALT,
+  iterations: 1000,
+  verifier: 'dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnY=',
+}
 
 function capture(id: string): CaptureRecord {
   return {

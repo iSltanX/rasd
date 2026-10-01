@@ -68,6 +68,12 @@ const FAILURE: Record<BackupFailure['kind'], { readonly title: string; readonly 
   },
 }
 
+/** المكتبة مقفلة (ADR 0043): الاستعادة تطلب الفكّ — لا «رفض التخزين» لقفلٍ مقصود. */
+const LOCKED_FAILURE = {
+  title: 'المكتبة مقفلة',
+  text: 'افتحها من «قفل المكتبة» في الخصوصية ثمّ أعد الاستعادة. لم يتغيّر شيء في مكتبتك.',
+}
+
 const retentionLabel = (days: number) => settingValueText('privacy.autoDeleteAfterDays', days)
 
 export function RestoreDialog({
@@ -251,7 +257,10 @@ export function RestoreDialog({
     )
   }
 
-  const text = FAILURE[phase.failure.kind]
+  const text =
+    phase.failure.kind === 'storage' && phase.failure.error.code === 'library-locked'
+      ? LOCKED_FAILURE
+      : FAILURE[phase.failure.kind]
   const retryable = phase.failure.kind === 'storage' && phase.plan !== null
   const plan = phase.plan
   return (

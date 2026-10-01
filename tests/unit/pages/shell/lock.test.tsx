@@ -3,8 +3,11 @@ import 'fake-indexeddb/auto'
 import { render } from 'preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createBackup } from '@/modules/backup/backup'
 import { enableLock, lockStatus } from '@/modules/privacy/lock'
 import { Library } from '@/pages/library/Library'
+import { BackupDialog } from '@/pages/settings/parts/data/BackupDialog'
+import { RestoreDialog } from '@/pages/settings/parts/data/RestoreDialog'
 import { LockRow } from '@/pages/settings/parts/lock/LockRow'
 import { mismatched } from '@/pages/settings/parts/lock/SetupDialog'
 import { minutesText } from '@/pages/shell/lock/lock-text'
@@ -14,6 +17,7 @@ import { forgetLockSnapshot } from '@/shared/storage/lock-state'
 import { captures, putCaptureWithBlob } from '@/shared/storage/repository'
 import { DB_NAME, type CaptureRecord } from '@/shared/storage/schema'
 
+import type * as Kdf from '@/modules/privacy/kdf'
 import type { JSX } from 'preact'
 
 /**
@@ -23,7 +27,7 @@ import type { JSX } from 'preact'
  * القياس يُستبدل بعددٍ صغير كي لا ينتظر التفعيل 600ms في كل اختبار — والقياس نفسه مختبَرٌ هناك.
  */
 vi.mock('@/modules/privacy/kdf', async (original) => ({
-  ...(await original<typeof import('@/modules/privacy/kdf')>()),
+  ...(await original<typeof Kdf>()),
   calibrateIterations: () => Promise.resolve(1000),
 }))
 
@@ -200,6 +204,21 @@ describe('صفّ «قفل المكتبة» في الخصوصية', () => {
     expect(text()).toContain('افتح')
   })
 
+  it('قفلٌ فُعّل من صفحةٍ أخرى أثناء الكتابة لا يُعرض «المكتبة محمية» (المراجعة المستقلّة)', async () => {
+    mount(<LockRow />)
+    await vi.waitFor(() => expect(query('[data-lock-mode="off"]')).not.toBeNull())
+    query<HTMLButtonElement>('[aria-label="قفل المكتبة"]')?.click()
+    await vi.waitFor(() => expect(query('#lock-new-code')).not.toBeNull())
+    await type('#lock-new-code', 'رمز-هذه-الصفحة')
+    await type('#lock-new-code-again', 'رمز-هذه-الصفحة')
+    // تبويبٌ آخر يفعّله برمزه قبل النقر هنا.
+    expect((await enableLock(CODE, { iterations: 1000 })).ok).toBe(true)
+    click('فعّل القفل')
+    await vi.waitFor(() => expect(query('[data-phase="taken"]')).not.toBeNull(), { timeout: 3000 })
+    expect(text()).not.toContain('المكتبة محمية')
+    expect(text()).toContain('لم يُحفظ رمزك')
+  })
+
   it('الإيقاف بالرمز الحاليّ — بلا وعدٍ بتشفير', async () => {
     await lockedLibrary()
     mount(<LockRow />)
@@ -212,6 +231,49 @@ describe('صفّ «قفل المكتبة» في الخصوصية', () => {
     await vi.waitFor(() => expect(query('[data-lock-mode="off"]')).not.toBeNull(), {
       timeout: 3000,
     })
+  })
+})
+
+describe('النسخ والاستعادة والمكتبة مقفلة — قفلٌ يُسمّى لا عطل (المراجعة المستقلّة)', () => {
+  it('النسخ يقول «المكتبة مقفلة» ولا يحفظ ملفًّا', async () => {
+    await lockedLibrary()
+    mount(<BackupDialog route="anchor" note={null} onClose={vi.fn()} onDelivered={vi.fn()} />)
+    await vi.waitFor(() => expect(text()).toContain('المكتبة مقفلة. افتحها من «قفل المكتبة»'))
+    expect(text()).not.toContain('تعذّرت قراءة المكتبة')
+  })
+
+  it('الاستعادة من نسخةٍ صالحة تقول «المكتبة مقفلة» ولا «رفض التخزين»', async () => {
+    expect((await putCaptureWithBlob(capture('c1'), new Blob(['png']))).ok).toBe(true)
+    const built = await createBackup({ now: Date.now(), app: 'test' })
+    if (!built.ok || built.value.kind !== 'ready') throw new Error('لم تُصنع نسخة')
+    const file = new File([built.value.blob], built.value.filename, { type: 'application/zip' })
+    expect((await enableLock(CODE, { iterations: 1000 })).ok).toBe(true)
+    await chrome.storage.session.clear()
+    forgetLockSnapshot()
+
+    mount(
+      <RestoreDialog
+        file={file}
+        retention={0}
+        onClose={vi.fn()}
+        onPickAnother={vi.fn()}
+        onRestored={vi.fn()}
+      />,
+    )
+    await vi.waitFor(
+      () => expect(query('[data-phase="preview"], [data-phase="failed"]')).not.toBeNull(),
+      {
+        timeout: 5000,
+      },
+    )
+    if (query('[data-phase="preview"]')) {
+      const restore = [...document.querySelectorAll('button')].find((b) =>
+        b.textContent?.includes('استعد'),
+      )
+      restore?.click()
+    }
+    await vi.waitFor(() => expect(text()).toContain('المكتبة مقفلة'), { timeout: 5000 })
+    expect(text()).not.toContain('رفض التخزين الكتابة')
   })
 })
 

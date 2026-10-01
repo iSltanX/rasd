@@ -25,14 +25,19 @@ export interface LockRecord {
   readonly verifier: string
 }
 
-const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/
+/**
+ * base64 بطول ما يُكتب بالضبط: الملح 16 بايتًا (24 محرفًا) والمُتحقِّق 32 (44). الحروف وحدها لا تكفي — `"A"` يطابقها
+ * و`atob` يرميه، فكان الفكّ يعلق على «تُفتح المكتبة» (المراجعة المستقلّة، `STAGES/08`).
+ */
+const SALT_B64 = /^[A-Za-z0-9+/]{22}==$/
+const VERIFIER_B64 = /^[A-Za-z0-9+/]{43}=$/
 
 export function parseLockRecord(value: unknown): LockRecord | null {
   if (typeof value !== 'object' || value === null) return null
   const r = value as Partial<Record<keyof LockRecord, unknown>>
   if (r.v !== 1) return null
-  if (typeof r.salt !== 'string' || !BASE64.test(r.salt)) return null
-  if (typeof r.verifier !== 'string' || !BASE64.test(r.verifier)) return null
+  if (typeof r.salt !== 'string' || !SALT_B64.test(r.salt)) return null
+  if (typeof r.verifier !== 'string' || !VERIFIER_B64.test(r.verifier)) return null
   if (typeof r.iterations !== 'number' || !Number.isSafeInteger(r.iterations) || r.iterations < 1) {
     return null
   }

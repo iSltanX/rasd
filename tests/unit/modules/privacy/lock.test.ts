@@ -207,6 +207,31 @@ describe('الفكّ والمحاولات', () => {
     expect((await chrome.storage.local.get(ATTEMPTS_KEY))[ATTEMPTS_KEY]).toBeUndefined()
   })
 
+  it('تخميناتٌ متوازية تُعدّ كلّها — لا تُكتب فوق بعضها (المراجعة المستقلّة)', async () => {
+    const guesses = Array.from({ length: ATTEMPTS_PER_ROUND }, () =>
+      unlockLibrary('رمز-خاطئ-تمامًا', now),
+    )
+    await Promise.all(guesses)
+    expect((await chrome.storage.local.get(ATTEMPTS_KEY))[ATTEMPTS_KEY]).toEqual({
+      failures: ATTEMPTS_PER_ROUND,
+      until: now + BASE_COOLDOWN_MS,
+    })
+    expect(await unlockLibrary(CODE, now + 1)).toMatchObject({
+      ok: false,
+      error: { kind: 'cooling-down' },
+    })
+  })
+
+  it('سجلٌّ تالف الطول لا يرمي — خطأ يُعرض ومخرجه «نسيت الرمز» (المراجعة المستقلّة)', async () => {
+    const record = (await chrome.storage.local.get(LOCK_KEY))[LOCK_KEY] as object
+    await chrome.storage.local.set({ [LOCK_KEY]: { ...record, verifier: 'A' } })
+    forgetLockSnapshot()
+    expect(await unlockLibrary(CODE, now)).toEqual({ ok: false, error: { kind: 'storage' } })
+    expect(parseLockRecord({ ...record, verifier: 'AAAA' })).toBeNull()
+    expect(parseLockRecord({ ...record, salt: 'AAAA' })).toBeNull()
+    expect(parseLockRecord(record)).not.toBeNull()
+  })
+
   it('العدّاد يبقى بعد إعادة التشغيل — إغلاق المتصفّح لا يصفّر المهلة', async () => {
     for (let i = 0; i < ATTEMPTS_PER_ROUND; i++) await unlockLibrary('رمز-خاطئ-تمامًا', now)
     await restartBrowser()

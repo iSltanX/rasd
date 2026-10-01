@@ -102,36 +102,57 @@ export async function lockStatus(now = Date.now()): Promise<LockStatus> {
 }
 
 /**
- * يتحقّق من الرمز ويعدّ الخطأ — للفكّ والإيقاف معًا، فالإيقاف لا يصير بابًا لتخمينٍ بلا مهلة.
- * المهلة تُفحص **قبل** الاشتقاق: لا 300ms تُنفق على محاولةٍ مرفوضة سلفًا.
+ * محاولات التحقّق واحدةً بعد واحدة — **عبر السياقات كلّها**. العدّاد قراءةٌ ثمّ اشتقاقٌ (300ms) ثمّ كتابة، فتخميناتٌ
+ * متوازية من تبويبين كانت تقرأ العدد نفسه وتكتب «واحدًا» فوق بعضها: عشرون خاطئةً عُدّت واحدة (المراجعة المستقلّة،
+ * `STAGES/08`). `navigator.locks` قفلٌ على أصل الإضافة تتقاسمه صفحاتها وعاملها؛ والسلسلة في الذاكرة بديلٌ حيث لا
+ * يوجد (بيئة الاختبار).
  */
-async function verify(code: string, now: number): Promise<Result<LockRecord, LockError>> {
-  const read = await readRecord()
-  if (!read.ok) return read
-  const record = read.value
-  if (!record) return err({ kind: 'not-enabled' })
+let chain: Promise<unknown> = Promise.resolve()
 
-  const attempts = await readAttempts()
-  if (attempts.until > now) return err({ kind: 'cooling-down', until: attempts.until })
+function serialized<T>(run: () => Promise<T>): Promise<T> {
+  const locks = (globalThis.navigator as { locks?: LockManager } | undefined)?.locks
+  if (locks) return locks.request('rasd:lock-verify', run)
+  const next = chain.then(run, run)
+  chain = next.catch(() => undefined)
+  return next
+}
 
-  const derived = await attempt(() =>
-    deriveVerifier(code, base64ToBytes(record.salt), record.iterations),
-  )
-  if (!derived.ok) return err({ kind: 'storage' })
-  if (equalBytes(derived.value, base64ToBytes(record.verifier))) {
-    await attempt(() => chrome.storage.local.remove(ATTEMPTS_KEY))
-    return ok(record)
-  }
+/**
+ * يتحقّق من الرمز ويعدّ الخطأ — للفكّ والإيقاف معًا، فالإيقاف لا يصير بابًا لتخمينٍ بلا مهلة.
+ * المهلة تُفحص **قبل** الاشتقاق: لا 300ms تُنفق على محاولةٍ مرفوضة سلفًا. ولا شيء هنا يرمي: سجلٌّ تالف خطأٌ يُعرض.
+ */
+function verify(code: string, now: number): Promise<Result<LockRecord, LockError>> {
+  return serialized(async () => {
+    const read = await readRecord()
+    if (!read.ok) return read
+    const record = read.value
+    if (!record) return err({ kind: 'not-enabled' })
 
-  const failures = attempts.failures + 1
-  const cooled = failures % ATTEMPTS_PER_ROUND === 0
-  const until = cooled ? now + cooldownFor(failures / ATTEMPTS_PER_ROUND) : 0
-  await attempt(() => chrome.storage.local.set({ [ATTEMPTS_KEY]: { failures, until } }))
-  return err({
-    kind: 'wrong-code',
-    remaining: cooled ? 0 : remainingOf(failures),
-    next: cooldownFor(Math.floor(failures / ATTEMPTS_PER_ROUND) + (cooled ? 0 : 1)),
-    until: cooled ? until : null,
+    const attempts = await readAttempts()
+    if (attempts.until > now) return err({ kind: 'cooling-down', until: attempts.until })
+
+    const matched = await attempt(async () =>
+      equalBytes(
+        await deriveVerifier(code, base64ToBytes(record.salt), record.iterations),
+        base64ToBytes(record.verifier),
+      ),
+    )
+    if (!matched.ok) return err({ kind: 'storage' })
+    if (matched.value) {
+      await attempt(() => chrome.storage.local.remove(ATTEMPTS_KEY))
+      return ok(record)
+    }
+
+    const failures = attempts.failures + 1
+    const cooled = failures % ATTEMPTS_PER_ROUND === 0
+    const until = cooled ? now + cooldownFor(failures / ATTEMPTS_PER_ROUND) : 0
+    await attempt(() => chrome.storage.local.set({ [ATTEMPTS_KEY]: { failures, until } }))
+    return err({
+      kind: 'wrong-code',
+      remaining: cooled ? 0 : remainingOf(failures),
+      next: cooldownFor(Math.floor(failures / ATTEMPTS_PER_ROUND) + (cooled ? 0 : 1)),
+      until: cooled ? until : null,
+    })
   })
 }
 

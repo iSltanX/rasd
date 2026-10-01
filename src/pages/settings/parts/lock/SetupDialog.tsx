@@ -19,7 +19,7 @@ import { DataDialog, sheet } from '../data/DataDialog'
 
 import type { JSX } from 'preact'
 
-type Step = 'form' | 'enabling' | 'enabled' | 'failed'
+type Step = 'form' | 'enabling' | 'enabled' | 'failed' | 'taken'
 
 export interface SetupDialogProps {
   readonly lastBackup: LastBackup | null
@@ -48,7 +48,9 @@ export function SetupDialog({ lastBackup, onBackup, onClose }: SetupDialogProps)
     void enableLock(code).then((result) => {
       setCode('')
       setAgain('')
-      setStep(result.ok || result.error.kind === 'already-enabled' ? 'enabled' : 'failed')
+      // مفعَّلٌ من صفحةٍ أخرى برمزٍ غير هذا: «المكتبة محمية» هنا كانت ستُقنع المستخدم برمزٍ لا يفتحها
+      // (المراجعة المستقلّة، `STAGES/08`).
+      setStep(result.ok ? 'enabled' : result.error.kind === 'already-enabled' ? 'taken' : 'failed')
     })
   }
 
@@ -66,6 +68,28 @@ export function SetupDialog({ lastBackup, onBackup, onClose }: SetupDialogProps)
         <div class={styles.status}>
           <Spinner size="l" label="يُفعَّل القفل" />
         </div>
+      </DataDialog>
+    )
+  }
+
+  if (step === 'taken') {
+    return (
+      <DataDialog
+        id="lock-setup"
+        phase="taken"
+        title="قفل المكتبة"
+        subtitle="القفل مفعَّلٌ أصلًا"
+        onClose={onClose}
+        actions={
+          <Button variant="primary" data-rasd-autofocus="" onClick={onClose}>
+            أغلق
+          </Button>
+        }
+      >
+        <Banner tone="warning">
+          فُعّل القفل من صفحةٍ أخرى للتوّ، برمزها لا بما كتبته هنا. لم يُحفظ رمزك، والقفل بالرمز
+          الذي اختير هناك.
+        </Banner>
       </DataDialog>
     )
   }
