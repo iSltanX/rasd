@@ -12,15 +12,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
-import {
-  afterAsk,
-  planDownload,
-  type PermissionState,
-  type DownloadRoute,
-} from '@/modules/export/download'
 import { formatHuman, formatPercent, formatStorage } from '@/shared/bidi'
 import { VERSION } from '@/shared/env'
-import { hasPermission, requestPermission } from '@/shared/permissions'
 import { getSettingsResult, resetSettings, type Settings } from '@/shared/settings'
 import {
   applySettingsImport,
@@ -36,8 +29,8 @@ import { Button } from '@/ui/components/Button/Button'
 import { Chip } from '@/ui/components/Chip/Chip'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 
-import { downloadsRefused, rememberRefusal } from '../../export/permission-memory'
 import { downloadText, loadOverview, type DataOverview } from '../data-context'
+import { useDownloadRoute } from '../download-route'
 
 import { BackupDialog } from './data/BackupDialog'
 import { DeleteDialog } from './data/DeleteDialog'
@@ -46,6 +39,7 @@ import { ResetDialog } from './data/ResetDialog'
 import { RestoreDialog } from './data/RestoreDialog'
 import { Group } from './Group'
 
+import type { DownloadRoute } from '@/modules/export/download'
 import type { PersistenceState } from '@/shared/storage/persistence'
 import type { JSX } from 'preact'
 
@@ -120,7 +114,7 @@ export function DataSection({
   const [overview, setOverview] = useState<DataOverview | null>(null)
   const [dialog, setDialog] = useState<Dialog>(null)
   const [problem, setProblem] = useState<string | null>(null)
-  const permission = useRef<PermissionState>('unknown')
+  const chooseRoute = useDownloadRoute()
   const restoreInput = useRef<HTMLInputElement>(null)
   const importInput = useRef<HTMLInputElement>(null)
 
@@ -132,34 +126,11 @@ export function DataSection({
 
   useEffect(() => {
     void refresh()
-    let live = true
-    void (async () => {
-      if (await hasPermission(['downloads'])) {
-        if (live) permission.current = 'granted'
-        return
-      }
-      if ((await downloadsRefused()) && live) permission.current = 'denied'
-    })()
-    return () => {
-      live = false
-    }
   }, [refresh])
 
   /** **متزامنةٌ من النقرة** — لا `await` قبل `requestPermission` (نمط `ExportFlow`). */
   const startBackup = (then: 'delete' | null) => {
-    const decision = planDownload(permission.current)
-    if (!decision.ask) {
-      setDialog({ kind: 'backup', route: decision.route, note: decision.note, then })
-      return
-    }
-    void requestPermission(['downloads']).then(async (outcome) => {
-      const next = afterAsk(outcome)
-      if (next.remember) {
-        permission.current = next.remember
-        if (next.remember === 'denied') await rememberRefusal()
-      }
-      setDialog({ kind: 'backup', route: next.decision.route, note: next.decision.note, then })
-    })
+    chooseRoute((route, note) => setDialog({ kind: 'backup', route, note, then }))
   }
 
   const exportSettings = async () => {

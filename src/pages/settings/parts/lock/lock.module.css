@@ -1,0 +1,6 @@
+/* أدوات صفّ «قفل المكتبة»: زرٌّ صغير بجوار المفتاح — «اقفل الآن» أو «افتح». */
+.controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rasd-space-8);
+}

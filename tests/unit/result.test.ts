@@ -20,6 +20,7 @@ const ALL_CODES: RasdErrorCode[] = [
   'permission-denied',
   'quota-exceeded',
   'incognito-blocked',
+  'library-locked',
   'not-found',
   'invalid-data',
   'migration-failed',

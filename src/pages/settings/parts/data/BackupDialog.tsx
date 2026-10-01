@@ -53,6 +53,10 @@ export interface BackupDialogProps {
 }
 
 function failureText(failure: BackupFailure): string {
+  if (failure.kind === 'storage' && failure.error.code === 'library-locked') {
+    // قفلٌ مقصود لا عطل (ADR 0043): النسخ يطلب الفكّ.
+    return 'المكتبة مقفلة. افتحها من «قفل المكتبة» في الخصوصية ثمّ خذ النسخة. لم يُحفظ ملفّ.'
+  }
   if (failure.kind === 'storage') return 'تعذّرت قراءة المكتبة. لم يُحفظ ملفّ، والمكتبة كما هي.'
   return 'المكتبة أكبر من أن تُكتب في ملفٍّ واحد. لم يُحفظ ملفّ، والمكتبة كما هي.'
 }

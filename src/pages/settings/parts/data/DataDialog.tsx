@@ -16,6 +16,8 @@ import { Icon } from '@/ui/icons/Icon'
 
 import sheet from '../../../export/export.module.css'
 
+import styles from './data.module.css'
+
 import type { ComponentChildren, JSX } from 'preact'
 
 export interface DataDialogProps {
@@ -33,6 +35,13 @@ export interface DataDialogProps {
   readonly phase?: string
   /** ما يُركَّز عليه عند الفتح إن لم يكن «ألغِ» — حقل كلمة التأكيد مثلًا. */
   readonly focus?: string
+  /**
+   * `false`: لا «×» ولا إغلاق بالحاجب ولا بـ`Esc` — نافذة فكّ المكتبة المقفلة لا شيء خلفها يُعاد إليه
+   * (`library / locked`).
+   */
+  readonly dismissible?: boolean
+  /** النافذة الضيّقة (440) — نوافذ الفكّ في `lock / *`؛ الافتراض 560. */
+  readonly compact?: boolean
 }
 
 const FOCUSABLE =
@@ -62,11 +71,11 @@ export function DataDialog(props: DataDialogProps): JSX.Element {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const { busy, onClose, onEscape } = latest.current
+      const { busy, onClose, onEscape, dismissible = true } = latest.current
       if (e.key === 'Escape') {
         e.preventDefault()
         if (busy) onEscape?.()
-        else onClose()
+        else if (dismissible) onClose()
         return
       }
       if (e.key !== 'Tab' || !dialog.current) return
@@ -87,16 +96,17 @@ export function DataDialog(props: DataDialogProps): JSX.Element {
   }, [])
 
   const titleId = `${props.id}-title`
+  const closable = !props.busy && props.dismissible !== false
   return (
     <div
       class={sheet.scrim}
       onClick={(e) => {
-        if (e.target === e.currentTarget && !props.busy) props.onClose()
+        if (e.target === e.currentTarget && closable) props.onClose()
       }}
     >
       <div
         ref={dialog}
-        class={sheet.modal}
+        class={cx(sheet.modal, props.compact && styles.compact)}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -105,11 +115,11 @@ export function DataDialog(props: DataDialogProps): JSX.Element {
         data-phase={props.phase}
       >
         <header class={sheet.head}>
-          {props.busy ? null : (
+          {closable ? (
             <button type="button" class={sheet.close} aria-label="أغلق" onClick={props.onClose}>
               <Icon name="close" size="sm" />
             </button>
-          )}
+          ) : null}
           <div class={sheet.headText}>
             <h2 id={titleId} class={cx(sheet.title, 't-arabic-heading-s')}>
               {props.title}

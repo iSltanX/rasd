@@ -52,6 +52,8 @@ import {
   viewId,
   type LibraryView,
 } from '../shell/library-views'
+import { UnlockDialog } from '../shell/lock/UnlockDialog'
+import { useLockStatus } from '../shell/lock/use-lock-status'
 import { RECENT_WINDOW_MS } from '../shell/sidebar-data'
 
 import { deleteColors, deleteGuides, deletePalettes, deleteReferences } from './bulk-delete'
@@ -253,7 +255,50 @@ interface Notice {
   readonly tone?: 'success' | 'danger'
 }
 
+/**
+ * المكتبة خلف قفلها (`STAGES/08`، ADR 0043): مقفلةً تُعرض `library / locked` — نافذة الفكّ فوق هيكلٍ فارغ — ولا
+ * يُركَّب شيءٌ يقرأ القاعدة. والحارس الحقيقي في `withDb`؛ هذا ما يراه المستخدم منه. والحالة تتبع التخزين، فـ«اقفل
+ * الآن» في الإعدادات يقفل تبويب المكتبة المفتوح، والفكّ يركّب المكتبة من جديد فتُقرأ كلّها.
+ */
 export function Library(): JSX.Element {
+  const { status, refresh } = useLockStatus()
+  if (status?.mode === 'off' || status?.mode === 'unlocked') return <LibraryContent />
+  // قبل أن تُقرأ الحالة: هيكل التحميل نفسه — لا شيء يقرأ القاعدة قبل أن يُعرف أنها مفتوحة.
+  const locked = status !== null
+  return (
+    <AppShell activeId="all">
+      <div class={styles.page} data-library-locked={locked ? '' : undefined}>
+        <div class={styles.content}>
+          <div class={styles.body}>
+            <div class={styles.main}>
+              <div
+                class={styles.skeletonGrid}
+                {...(locked
+                  ? { 'aria-hidden': 'true' }
+                  : { role: 'status', 'aria-busy': 'true', 'aria-label': 'جارٍ تحميل المكتبة' })}
+              >
+                {Array.from({ length: SKELETON_CARD_COUNT }, (_, i) => (
+                  <Skeleton key={i} kind="card" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {status ? (
+        <UnlockDialog
+          cooldownUntil={status.cooldownUntil}
+          dismissible={false}
+          onClose={() => undefined}
+          onUnlocked={() => void refresh()}
+          onErased={() => void refresh()}
+        />
+      ) : null}
+    </AppShell>
+  )
+}
+
+function LibraryContent(): JSX.Element {
   const [view, setView] = useState<LibraryView>(() =>
     viewFromSearch(typeof location === 'undefined' ? '' : location.search),
   )

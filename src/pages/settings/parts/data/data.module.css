@@ -148,3 +148,15 @@
 .fieldLabel {
   color: var(--rasd-text-secondary);
 }
+
+/* ── النافذة الضيّقة ─────────────────────────────────────── */
+
+/* نوافذ الفكّ (`lock / unlock`، `293:17224`): 440 لا 560. المُحدِّد مضاعف كي يغلب `modal` أيًّا كان ترتيب الحزمة. */
+.compact[role='dialog'] {
+  inline-size: min(27.5rem, 100%);
+}
+
+.fieldHint {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+}
