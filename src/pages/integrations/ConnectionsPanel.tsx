@@ -93,6 +93,7 @@ export function ConnectionsPanel({ onOpenPrivacy }: ConnectionsPanelProps): JSX.
   const { connection, refresh } = useConnection()
   const [connecting, setConnecting] = useState(false)
   const [busy, setBusy] = useState<'disconnect' | 'host' | null>(null)
+  const [disconnectFailed, setDisconnectFailed] = useState(false)
 
   if (connection.kind === 'loading') return null
 
@@ -104,9 +105,12 @@ export function ConnectionsPanel({ onOpenPrivacy }: ConnectionsPanelProps): JSX.
 
   const disconnect = async (): Promise<void> => {
     setBusy('disconnect')
+    setDisconnectFailed(false)
     try {
-      await disconnectGitHub()
-      await clearPrefs()
+      // فشل النسيان يُقال: محو الحساب والمستودع والرمز باقٍ كان سيعرض «متّصل» بلا حساب، وزرّ «افصل» صامتًا.
+      const forgotten = await disconnectGitHub()
+      if (forgotten.ok) await clearPrefs()
+      else setDisconnectFailed(true)
     } finally {
       setBusy(null)
       refresh()
@@ -137,6 +141,14 @@ export function ConnectionsPanel({ onOpenPrivacy }: ConnectionsPanelProps): JSX.
   return (
     <div class={styles.panel} data-integrations={connection.kind}>
       {lit ? <Banner tone={lit.tone}>{lit.text}</Banner> : null}
+      {disconnectFailed ? (
+        <Banner tone="danger">
+          <span data-disconnect-failed="">
+            تعذّر حذف رمز الوصول من هذا الجهاز، فما زال محفوظًا. أعد المحاولة، أو احذف كل البيانات
+            من إعدادات البيانات.
+          </span>
+        </Banner>
+      ) : null}
 
       {hasToken ? (
         <Group title="GitHub" id="integrations-github">

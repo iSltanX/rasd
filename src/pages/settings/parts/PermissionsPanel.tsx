@@ -216,28 +216,42 @@ export function PermissionsPanel(): JSX.Element {
       <Group title="خدمات خارجية" id="permissions-services">
         {NETWORK_SERVICES.map((service, i) => {
           const on = origins.includes(service.hostPattern)
+          /*
+           * `<all_urls>` تشمل الخدمة: `permissions.contains` يُجيز الاتّصال، و`getAll` لا يذكر نمطها. فالصفّ يقول
+           * الحقيقة — ممنوحة ضمن «كل المواقع» — ولا زرّ: سحبها يكون من صفّ المواقع، وزرٌّ هنا كان سيسحب ما لم يُمنح.
+           */
+          const covered = !on && hasAll
           return (
             <SettingRow
               key={service.id}
               label={<bdi dir="ltr">{new URL(service.origin).host}</bdi>}
               hint={
                 <>
-                  {service.purpose} {on ? 'ممنوحة.' : 'غير ممنوحة.'} عند الرفض:{' '}
-                  {SERVICE_DENIAL[service.id]}
+                  {service.purpose}{' '}
+                  {on
+                    ? 'ممنوحة.'
+                    : covered
+                      ? 'ممنوحة ضمن «كل المواقع» — تُسحب من صفّ المواقع أعلاه.'
+                      : 'غير ممنوحة.'}{' '}
+                  عند الرفض: {SERVICE_DENIAL[service.id]}
                 </>
               }
               divider={i < NETWORK_SERVICES.length - 1}
               control={
-                <Button
-                  variant="secondary"
-                  size="s"
-                  state={busy === service.hostPattern ? 'loading' : 'default'}
-                  aria-label={`${on ? 'اسحب' : 'امنح'} صلاحية الوصول إلى ${new URL(service.origin).host}`}
-                  data-service-permission={service.id}
-                  onClick={() => void toggleService(service.hostPattern)}
-                >
-                  {on ? 'اسحب' : 'امنح'}
-                </Button>
+                covered ? (
+                  <Chip tone="success">ضمن كل المواقع</Chip>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="s"
+                    state={busy === service.hostPattern ? 'loading' : 'default'}
+                    aria-label={`${on ? 'اسحب' : 'امنح'} صلاحية الوصول إلى ${new URL(service.origin).host}`}
+                    data-service-permission={service.id}
+                    onClick={() => void toggleService(service.hostPattern)}
+                  >
+                    {on ? 'اسحب' : 'امنح'}
+                  </Button>
+                )
               }
             />
           )

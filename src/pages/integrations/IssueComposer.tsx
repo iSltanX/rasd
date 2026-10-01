@@ -7,8 +7,9 @@
  * لا يُسأل GitHub عن المستودع ولا عن خصوصيته قبل التأكيد: خطؤه (غير موجود، لا صلاحية) يُقال عند الإرسال بسببه،
  * والمعاينة تقول بصدق «يراه كل من يصل إلى المستودع».
  *
- * **والمعاينة هي ما سيُرسل:** النصّ المعروض هو `composeBody` نفسه الذي يُفحص بحدّ GitHub (65536 محرفًا) ويُرسَل؛
- * وحدّه يُفحص هنا فيُعطَّل «افتح البلاغ» بسببٍ مقروء لا يُترك GitHub يرفضه بعد أن رُفعت الصور.
+ * **والمعاينة هي ما سيُرسل — إلا عنوان الصورة:** النصّ المقيس بحدّ GitHub (65536 محرفًا) والمُرسَل هو
+ * `composeBody` نفسه؛ والمعروض يختلف عنه في هدف سطر الصورة وحده (مسار الملفّ في المستودع بدل عنوانٍ لا يُعرف رمز
+ * التزامه قبل الرفع). وحدّه يُفحص هنا فيُعطَّل «افتح البلاغ» بسببٍ مقروء لا يُترك GitHub يرفضه بعد أن رُفعت الصور.
  * وإن اختير رفع الصورة أصلًا فالمعاينة تقول ما سيُكتب في المستودع: التزامٌ على فرعه الافتراضي لا يُسحب بحذف البلاغ.
  *
  * **والإلغاء يُفحص بين الخطوات** (`sendIssue`): طلبٌ خرج لا يُسحب، فإن ألغى المستخدم والطلب الأخير في الطريق وصل
@@ -32,6 +33,7 @@ import {
 } from '@/modules/export/integrations/issue'
 import { sendIssue, type SentIssue } from '@/modules/export/integrations/send'
 import { countText, formatStorage } from '@/shared/bidi/numerals'
+import { PAGE_PATHS } from '@/shared/page-paths'
 import { Banner, Button, Field, Select, SettingRow, Toggle } from '@/ui/components'
 import { Spinner } from '@/ui/components/Spinner/Spinner'
 import { cx } from '@/ui/cx'
@@ -130,6 +132,7 @@ export function IssueComposer(props: IssueComposerProps): JSX.Element {
   const attempt = useRef(0)
   const controller = useRef<AbortController | null>(null)
   const live = useRef(true)
+  const sending = useRef(false)
 
   useEffect(
     () => () => {
@@ -230,7 +233,9 @@ export function IssueComposer(props: IssueComposerProps): JSX.Element {
 
   /** **التأكيد:** أول طلبٍ يخرج في هذه النافذة كلّها هو الذي يلي هذه النقرة. */
   const confirm = (): void => {
-    if (!repo || !planned.ok || problem !== null) return
+    // نقرتان قبل إعادة الرسم كانتا تُرسلان بلاغين: القفل يُرفع حين يعود الطور من «يُرسل».
+    if (!repo || !planned.ok || problem !== null || sending.current) return
+    sending.current = true
     attempt.current += 1
     const runPlan = planIssue(
       {
@@ -256,6 +261,7 @@ export function IssueComposer(props: IssueComposerProps): JSX.Element {
       imageMode: options.imageMode,
       signal: abort.signal,
     }).then(async (result) => {
+      sending.current = false
       if (!live.current) return
       const name = `${repo.owner}/${repo.repo}`
       if (result.ok) {
@@ -272,13 +278,18 @@ export function IssueComposer(props: IssueComposerProps): JSX.Element {
         // آخر ما رآه رصد من GitHub يُحفظ فتعرضه شاشة الاتّصالات: رمزٌ مرفوض أو بلا صلاحية.
         const failure = error.error.failure
         if (failure === 'auth') await savePrefs({ status: 'auth-error' })
-        if (failure === 'missing-permission') await savePrefs({ status: 'missing-permission' })
+        // 403 في **الفتح** يعني أن الرمز بلا Issues. أمّا في **الرفع** فهو Contents وحده: الرمز يفتح البلاغ، ولا
+        // تُحجب به شاشةٌ ولا مستودعاتٌ أخرى — والمخرج «ضمّنها في النصّ» من التعديل.
+        if (failure === 'missing-permission' && error.step === 'issue') {
+          await savePrefs({ status: 'missing-permission' })
+        }
+        const uploadDenied = failure === 'missing-permission' && error.step === 'upload'
         setPhase({
           kind: 'failed',
           text: sendFailureText(error),
           needsReconnect:
             failure === 'auth' ||
-            failure === 'missing-permission' ||
+            (failure === 'missing-permission' && !uploadDenied) ||
             failure === 'not-connected' ||
             failure === 'vault' ||
             failure === 'host-permission' ||
@@ -295,7 +306,7 @@ export function IssueComposer(props: IssueComposerProps): JSX.Element {
 
   const openIntegrations = (): void => {
     void chrome.tabs.create({
-      url: `${chrome.runtime.getURL('src/pages/settings/index.html')}?section=integrations`,
+      url: `${chrome.runtime.getURL(PAGE_PATHS.settings)}?section=integrations`,
     })
   }
 
@@ -632,6 +643,16 @@ export function IssueComposer(props: IssueComposerProps): JSX.Element {
                   أعد المحاولة
                 </Button>
               )}
+              {!phase.needsReconnect ? (
+                <Button
+                  variant="secondary"
+                  size="l"
+                  onClick={() => setPhase({ kind: 'compose' })}
+                  data-composer-edit=""
+                >
+                  عُد للتعديل
+                </Button>
+              ) : null}
               <Button variant="secondary" size="l" onClick={close}>
                 أغلق
               </Button>

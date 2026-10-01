@@ -97,4 +97,14 @@ describe('الخدمة المسمّاة ليست «موقعًا»', () => {
     row(root, 'api.github.com').querySelector('button')!.click()
     expect(request).toHaveBeenCalledWith({ origins: [GITHUB] })
   })
+
+  it('«كل المواقع» تشمل الخدمة: يقول الصفّ ذلك بلا زرّ يسحب ما لم يُمنح', async () => {
+    const root = await mount(['<all_urls>'])
+    // لا زرّ في الصفّ، فيُعثر عليه بنصّه لا بزرّه.
+    const service = [...root.querySelectorAll<HTMLElement>('div')].find((d) =>
+      d.textContent?.startsWith('api.github.com'),
+    )!
+    expect(service.textContent).toContain('ممنوحة ضمن «كل المواقع»')
+    expect(service.querySelector('button')).toBeNull()
+  })
 })

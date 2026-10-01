@@ -153,6 +153,25 @@ describe('الضوابط تعمل', () => {
   })
 })
 
+describe('فشل «افصل»', () => {
+  it('نسيان الرمز إن فشل يُقال، والتفضيلات لا تُمحى، والرمز باقٍ', async () => {
+    await setup({ connected: true })
+    await putPrefs({ account: 'sultan-dev', repo: 'northwind/web', status: 'ok' })
+    const root = panel()
+    await until(() => button(root, 'افصل') !== undefined)
+    const storage = await import('@/shared/storage/vault')
+    const forgetting = vi.spyOn(storage, 'forgetSecret').mockResolvedValue({
+      ok: false,
+      error: { failure: 'storage' },
+    })
+    button(root, 'افصل')!.click()
+    await until(() => root.querySelector('[data-disconnect-failed]') !== null)
+    expect((await storedPrefs()).account).toBe('sultan-dev')
+    expect(await readSecret('github')).toEqual({ ok: true, value: TOKEN })
+    forgetting.mockRestore()
+  })
+})
+
 describe('نافذة الاتّصال', () => {
   const open = async () => {
     const env = await setup()

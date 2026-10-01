@@ -219,6 +219,46 @@ describe('كل فشلٍ برسالته المميَّزة', () => {
     expect(env.fetchSpy).toHaveBeenCalledTimes(1)
   })
 
+  it('403 في الرفع (Contents) لا يحجب المؤلِّف: الحالة سليمة، والمخرج «عُد للتعديل» ثمّ التضمين', async () => {
+    const env = await connectedEnv()
+    const root = composer()
+    await toPreview(root)
+    env.fetchSpy.mockResolvedValueOnce(json(403, {}))
+    q<HTMLButtonElement>(root, '[data-composer-confirm]')!.click()
+    await until(() => phase(root) === 'failed')
+    expect((await storedPrefs()).status).toBe('ok')
+    expect(q(root, '[data-composer-edit]')).not.toBeNull()
+    unmount()
+
+    // الفتح التالي مفتوح لا محجوب.
+    const again = composer()
+    await until(() => phase(again) === 'compose')
+  })
+
+  it('403 في **الفتح** (Issues) يحفظ «صلاحيات ناقصة» فيُحجب المؤلِّف بسببها', async () => {
+    const env = await connectedEnv()
+    await putPrefs({ account: 'a', status: 'ok', imageMode: 'inline' })
+    const root = composer()
+    await toPreview(root)
+    env.fetchSpy.mockResolvedValueOnce(json(403, {}))
+    q<HTMLButtonElement>(root, '[data-composer-confirm]')!.click()
+    await until(() => phase(root) === 'failed')
+    expect((await storedPrefs()).status).toBe('missing-permission')
+  })
+
+  it('نقرتان متتاليتان على «افتح البلاغ» لا تُرسلان بلاغين', async () => {
+    const env = await connectedEnv()
+    await putPrefs({ account: 'a', status: 'ok', imageMode: 'inline' })
+    const root = composer()
+    await toPreview(root)
+    env.fetchSpy.mockResolvedValue(created())
+    const confirm = q<HTMLButtonElement>(root, '[data-composer-confirm]')!
+    confirm.click()
+    confirm.click()
+    await until(() => phase(root) === 'sent')
+    expect(env.fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
   it('صورةٌ رُفعت ثمّ فشل الفتح: الملفّ الباقي في المستودع يُقال', async () => {
     const env = await connectedEnv()
     const root = composer()
