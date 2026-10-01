@@ -1,0 +1,38 @@
+name: Audit
+
+# جولة تدقيق الاعتماديات الأسبوعية (`STAGES/25`، ADR 0056) — منفصلةٌ عن `ci.yml` لأنها لا تتبع دفعًا: ثغرةٌ تُعلَن
+# في السجلّ العامّ لحزمةٍ لم تتغيّر عندنا لا يراها CI الدفع أبدًا. فتجري كل أحد، وبأمرٍ يدويّ متى شاء المالك.
+#
+# **ما يُشحن يُسقط الجولة، وما لا يُشحن يُقرأ.** `pnpm audit --prod` على اعتماديات الحزمة وحدها حكمٌ: ثغرةٌ فيها
+# تحمرّ. وأدوات التطوير (لنت وبناء واختبار) لا تدخل `dist/` فتظهر تحذيرًا لا سقوطًا. والاستثناء — ثغرةٌ لا مسار إليها
+# في استعمالنا — يُكتب في `pnpm-workspace.yaml` (`auditConfig.ignoreGhsas`) ومعه صفٌّ في `Docs/Engineering.md §6`
+# بسببه، لا يُسكَت هنا.
+
+on:
+  schedule:
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: تدقيق الاعتماديات
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: ما يُشحن — يُسقط الجولة
+        run: pnpm audit --prod
+
+      - name: أدوات التطوير — تُقرأ ولا تُسقط
+        run: pnpm audit || echo "::warning title=أدوات التطوير::ثغرةٌ في اعتمادية تطوير — لا تدخل الحزمة، وتُحدَّث في طلب Dependabot الأسبوعي."

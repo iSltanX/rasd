@@ -1,0 +1,28 @@
+# تحديثات الاعتماديات الآلية (`STAGES/25`، ADR 0056).
+#
+# Dependabot يفتح طلب دمج أسبوعيًّا لما تأخّر من الاعتماديات، ولا يدمج شيئًا: الدمج قرار المالك بعد CI. والتحديثات
+# الأمنية الفورية (لا الأسبوعية) مفتاحٌ في إعدادات المستودع لا في هذا الملفّ — «Dependabot alerts» و«security updates»
+# — ويُفعَّلان بأمر المالك. وجولة `pnpm audit --prod` الأسبوعية في `.github/workflows/audit.yml` تقرأ الحالة نفسها
+# من السجلّ العامّ ولو لم يُفعَّلا.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: sunday
+      time: '06:00'
+    open-pull-requests-limit: 5
+    # أدوات التطوير طلبٌ واحد للتحديثات الصغرى والإصلاحية؛ وما يُشحن (`dependencies`) طلبٌ لكلّ حزمة كي يُقرأ أثره وحده.
+    groups:
+      dev-minor-patch:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: sunday
+      time: '06:00'
+    open-pull-requests-limit: 3
