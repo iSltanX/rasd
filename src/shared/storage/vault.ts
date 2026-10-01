@@ -1,0 +1,230 @@
+/**
+ * **خزنة الأسرار** — رمز الوصول إلى خدمةٍ مسمّاة لا يُكتب نصًّا صريحًا في أيّ مكان
+ * ([ADR 0046](../../../Docs/ADR/0046-named-network-services.md) §5).
+ *
+ * - **المفتاح:** AES-GCM بطول 256 بتًّا، يُولَّد بـ`crypto.subtle` **غير قابل للتصدير**، ويُحفظ كائن `CryptoKey`
+ *   في قاعدة IndexedDB مستقلّة `rasd-vault` — لا في قاعدة المكتبة: فلا يمرّ من حارس القفل، ولا يدخل النسخة
+ *   الاحتياطية (`STORE_NAMES`)، ولا يمسّ ترحيلات `rasd`.
+ * - **النصّ المشفَّر:** في `chrome.storage.local` تحت `rasd:vault:<الخانة>`: `{ v, keyId, iv, data }` بـbase64.
+ *   متّجه تهيئةٍ عشوائي 12 بايتًا لكل حفظ، واسم الخانة بيانٌ مصاحب (AAD) — فنصٌّ نُقل إلى خانةٍ أخرى لا يُفكّ.
+ * - **كل حفظٍ مفتاحٌ جديد:** يُكتب المفتاح، ثمّ السجلّ، ثمّ تُحذف المفاتيح السابقة. فحفظٌ تعثّر في منتصفه يترك
+ *   السابق مقروءًا كما كان، لا رمزًا نصفه قديم.
+ *
+ * **ما تضمنه:** الرمز لا يظهر صريحًا في `chrome.storage` ولا في تصدير الإعدادات ولا في النسخة الاحتياطية ولا في
+ * سجلّ — ومن يقرأ `chrome.storage` وحده لا يملك المفتاح. **وما لا تضمنه، ويُقال:** من يملك ملفّ تعريف المتصفّح على
+ * القرص يملك القاعدتين معًا، ومن يفتح أدوات المطوّر على الإضافة يستطيع أن يطلب الفكّ — كما في ADR 0043 §1. فالحماية
+ * الحقيقية للرمز نطاقه: رمزٌ دقيق الصلاحية على مستودعٍ واحد.
+ *
+ * `shared/` طبقة قاعدية: لا تستورد من أي طبقة أعلى منها.
+ */
+
+import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+
+import { base64ToBytes, bytesToBase64 } from '../base64'
+import { err, ok, type Result } from '../result'
+
+/** قاعدة المفاتيح — مستقلّة عن قاعدة المكتبة `rasd` وترحيلاتها. */
+export const VAULT_DB_NAME = 'rasd-vault'
+export const VAULT_DB_VERSION = 1
+const KEY_STORE = 'keys'
+
+/** الخانات المعروفة. خانةٌ جديدة قرارٌ في ADR 0046، لا نصٌّ حرّ. */
+export type VaultSlot = 'github'
+
+export const VAULT_PREFIX = 'rasd:vault:'
+export const vaultKey = (slot: VaultSlot): string => `${VAULT_PREFIX}${slot}`
+
+const RECORD_VERSION = 1
+const IV_BYTES = 12
+
+interface VaultRecord {
+  readonly v: typeof RECORD_VERSION
+  readonly keyId: string
+  readonly iv: string
+  readonly data: string
+}
+
+interface KeyRow {
+  readonly id: string
+  readonly slot: VaultSlot
+  readonly key: CryptoKey
+}
+
+interface VaultDB extends DBSchema {
+  keys: { key: string; value: KeyRow }
+}
+
+/**
+ * لماذا لم تُقرأ الخانة. `unreadable` لا يعني «لا رمز»: سجلٌّ بلا مفتاحه أو بمفتاحٍ لا يفكّه — يُعرض «أعد الاتّصال»
+ * لا «غير متّصل»، ولا يُمحى صامتًا.
+ */
+export type VaultFailure = 'storage' | 'crypto' | 'unreadable'
+
+export interface VaultError {
+  readonly failure: VaultFailure
+  /** اسم الخطأ وحده — لا نصّ يحمل السرّ. */
+  readonly detail?: string | undefined
+}
+
+const fail = (failure: VaultFailure, error?: unknown): VaultError => ({
+  failure,
+  detail: error instanceof Error ? error.name : undefined,
+})
+
+/** تُفتح لكل عملية وتُغلق بعدها — فـ`deleteDatabase` في «احذف كل البيانات» لا يُحجب باتّصالٍ معلّق. */
+async function withVault<T>(work: (db: IDBPDatabase<VaultDB>) => Promise<T>): Promise<T> {
+  const db = await openDB<VaultDB>(VAULT_DB_NAME, VAULT_DB_VERSION, {
+    upgrade(database) {
+      if (!database.objectStoreNames.contains(KEY_STORE)) {
+        database.createObjectStore(KEY_STORE, { keyPath: 'id' })
+      }
+    },
+  })
+  try {
+    return await work(db)
+  } finally {
+    db.close()
+  }
+}
+
+const aad = (slot: VaultSlot) => new TextEncoder().encode(`${VAULT_PREFIX}${slot}`)
+
+/** يحفظ السرّ في خانته مشفَّرًا، ويُبطل ما كان فيها. */
+export async function saveSecret(
+  slot: VaultSlot,
+  secret: string,
+): Promise<Result<null, VaultError>> {
+  let key: CryptoKey
+  let iv: Uint8Array<ArrayBuffer>
+  let cipher: ArrayBuffer
+  try {
+    key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+      'encrypt',
+      'decrypt',
+    ])
+    iv = crypto.getRandomValues(new Uint8Array(IV_BYTES))
+    cipher = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv, additionalData: aad(slot) },
+      key,
+      new TextEncoder().encode(secret),
+    )
+  } catch (error) {
+    return err(fail('crypto', error))
+  }
+
+  const keyId = crypto.randomUUID()
+  try {
+    await withVault((db) => db.put(KEY_STORE, { id: keyId, slot, key }))
+  } catch (error) {
+    return err(fail('storage', error))
+  }
+
+  const record: VaultRecord = {
+    v: RECORD_VERSION,
+    keyId,
+    iv: bytesToBase64(iv),
+    data: bytesToBase64(new Uint8Array(cipher)),
+  }
+  try {
+    await chrome.storage.local.set({ [vaultKey(slot)]: record })
+  } catch (error) {
+    // السجلّ السابق باقٍ بمفتاحه؛ المفتاح الجديد يتيمٌ يُزال.
+    await removeKeys(slot, (row) => row.id === keyId).catch(() => undefined)
+    return err(fail('storage', error))
+  }
+
+  // المفاتيح السابقة لا يشير إليها سجلّ بعد الآن. تعثُّر إزالتها لا يُفشل الحفظ: تُزال في الحفظ أو النسيان التالي.
+  await removeKeys(slot, (row) => row.id !== keyId).catch(() => undefined)
+  return ok(null)
+}
+
+/** يقرأ السرّ: `null` حين لا سجلّ أصلًا (غير متّصل)، وخطأٌ حين وُجد ولم يُفكّ. */
+export async function readSecret(slot: VaultSlot): Promise<Result<string | null, VaultError>> {
+  let stored: unknown
+  try {
+    stored = (await chrome.storage.local.get(vaultKey(slot)))[vaultKey(slot)]
+  } catch (error) {
+    return err(fail('storage', error))
+  }
+  if (stored === undefined) return ok(null)
+  if (!isRecord(stored)) return err(fail('unreadable'))
+
+  let row: KeyRow | undefined
+  try {
+    row = await withVault((db) => db.get(KEY_STORE, stored.keyId))
+  } catch (error) {
+    return err(fail('storage', error))
+  }
+  if (!row || row.slot !== slot) return err(fail('unreadable'))
+
+  try {
+    const plain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: base64ToBytes(stored.iv), additionalData: aad(slot) },
+      row.key,
+      base64ToBytes(stored.data),
+    )
+    return ok(new TextDecoder().decode(plain))
+  } catch (error) {
+    return err(fail('unreadable', error))
+  }
+}
+
+/** هل في الخانة سجلّ؟ بلا فكّ — لتعرض الواجهة «متّصل» بلا أن يُلمس السرّ. */
+export async function hasSecret(slot: VaultSlot): Promise<Result<boolean, VaultError>> {
+  try {
+    return ok((await chrome.storage.local.get(vaultKey(slot)))[vaultKey(slot)] !== undefined)
+  } catch (error) {
+    return err(fail('storage', error))
+  }
+}
+
+/** ينسى الخانة: السجلّ أوّلًا — فسجلٌّ بلا مفتاح «تعذّرت قراءته» لا رمزٌ باقٍ — ثمّ مفاتيحها. */
+export async function forgetSecret(slot: VaultSlot): Promise<Result<null, VaultError>> {
+  try {
+    await chrome.storage.local.remove(vaultKey(slot))
+  } catch (error) {
+    return err(fail('storage', error))
+  }
+  try {
+    await removeKeys(slot, () => true)
+  } catch (error) {
+    return err(fail('storage', error))
+  }
+  return ok(null)
+}
+
+/**
+ * يحذف قاعدة المفاتيح كلّها — جزءٌ من «احذف كل البيانات» (`erase.ts`)، يليه إفراغ `local` الذي يحمل السجلّات.
+ * ترمي عند الفشل أو الحجب، ونداؤها يحوّل ذلك إلى جزءٍ لم يُحذف.
+ */
+export function deleteVaultDatabase(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(VAULT_DB_NAME)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error ?? new Error('vault-delete-failed'))
+    request.onblocked = () => reject(new Error('vault-delete-blocked'))
+  })
+}
+
+async function removeKeys(slot: VaultSlot, which: (row: KeyRow) => boolean): Promise<void> {
+  await withVault(async (db) => {
+    const tx = db.transaction(KEY_STORE, 'readwrite')
+    let cursor = await tx.store.openCursor()
+    while (cursor) {
+      if (cursor.value.slot === slot && which(cursor.value)) await cursor.delete()
+      cursor = await cursor.continue()
+    }
+    await tx.done
+  })
+}
+
+function isRecord(value: unknown): value is VaultRecord {
+  if (!value || typeof value !== 'object') return false
+  const r = value as Record<string, unknown>
+  return (
+    r.v === RECORD_VERSION &&
+    typeof r.keyId === 'string' &&
+    typeof r.iv === 'string' &&
+    typeof r.data === 'string'
+  )
+}

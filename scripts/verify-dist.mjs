@@ -18,6 +18,7 @@ import * as PAGES from '../src/shared/page-paths.ts'
 import * as PERMS from '../src/shared/permission-policy.ts'
 
 import { BUDGETS, fmt, gzipBytes, judge, pageGraph } from './bundle-budget.mjs'
+import { judgeExtensionCsp, judgeHostPermissions } from './csp-policy.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
@@ -202,9 +203,18 @@ if (manifest) {
         `صلاحيات مضيف دائمة: ${manifest.host_permissions.join(', ')} — تُظهر تحذيرًا عند التثبيت`,
       )
 
-  Array.isArray(manifest.optional_host_permissions) && manifest.optional_host_permissions.length > 0
-    ? ok(`صلاحيات المضيف اختيارية (${manifest.optional_host_permissions.join(', ')})`)
-    : fail('optional_host_permissions مفقودة')
+  /*
+   * **مطابقة لا حضور** (ADR 0046): كان الفحص «القائمة غير فارغة»، فنمطٌ يُضاف بلا قرار يمرّ أخضر. والقائمة اليوم
+   * `<all_urls>` وأنماط الخدمات المسمّاة، فتُطابَق بالسياسة مجموعةً.
+   */
+  const hosts = judgeHostPermissions(manifest.optional_host_permissions, [
+    ...PERMS.OPTIONAL_HOST_PERMISSIONS,
+  ])
+  hosts.extra.length === 0 && hosts.missing.length === 0
+    ? ok(`صلاحيات المضيف الاختيارية تطابق السياسة (${PERMS.OPTIONAL_HOST_PERMISSIONS.join(', ')})`)
+    : fail(
+        `صلاحيات المضيف الاختيارية تخالف السياسة — زائدة: [${hosts.extra.join(', ')}] ناقصة: [${hosts.missing.join(', ')}]`,
+      )
 }
 
 // ═══ سياسة الحقن والأمن ════════════════════════════════════════════
@@ -215,22 +225,20 @@ if (manifest) {
     ? ok('لا content_scripts تلقائي — الحقن يدوي عبر chrome.scripting')
     : fail('content_scripts موجود — يخالف ADR 0005 (سياسة الحقن اليدوي)')
 
-  const csp = manifest.content_security_policy?.extension_pages ?? ''
-  csp && !/unsafe-eval|unsafe-inline|https?:\/\//.test(csp)
-    ? ok('CSP بلا unsafe-eval ولا unsafe-inline ولا مصادر خارجية')
-    : fail(`CSP غير آمنة أو مفقودة: "${csp}"`)
-
   /*
-   * **فحص حضور لا غياب — أُضيف في الوحدة 20.3.** الشرط أعلاه يرفض أي مصدر
-   * خارجي في السياسة، لكن سياسةً **تحذف `connect-src` بالكامل** كانت تمرّ
-   * خضراء: الغياب ليس مطابقةً للنمط المرفوض. وشاشة الخصوصية تعرض للمستخدم
-   * أن «سياسة أمن المحتوى تحجب الاتصال الخارجي» — فادّعاءٌ معروض يجب أن
-   * يحرسه البناء لا النيّة. (‏`Docs/Engineering.md §6` صفّ 126.)
+   * **المطابقة بالقائمة المسمّاة — ADR 0046.** كان الشرط «لا `https?://` في السياسة» ومعه فحص حضور
+   * `connect-src 'self'` (الوحدة 20.3: سياسةٌ تحذف `connect-src` كانت تمرّ خضراء). والأوّل يمنع الخدمة المسمّاة
+   * نفسها، فصار الحكم في `csp-policy.mjs`: `connect-src` تساوي `'self'` و`NETWORK_ORIGINS` حرفًا، وكل توجيهٍ غيرها
+   * على الإضافة وحدها، ولا `unsafe-*` في أيّها. ومصدرٌ ثانٍ يُضاف إلى البيان بلا أن يُسمّى في السياسة يُسقط البناء.
    */
-  const connectSelf = /\bconnect-src\s+'self'/u
-  connectSelf.test(csp)
-    ? ok("CSP تحوي connect-src 'self' صراحةً — ادّعاء «لا اتصال خارجي» محروس")
-    : fail(`CSP بلا connect-src 'self' — الادّعاء المعروض في شاشة الخصوصية بلا حارس: "${csp}"`)
+  const csp = manifest.content_security_policy?.extension_pages ?? ''
+  const cspVerdict = judgeExtensionCsp(csp, [...PERMS.NETWORK_ORIGINS])
+  if (cspVerdict.problems.length === 0) {
+    ok('CSP بلا unsafe-* ولا سكربت خارجي، وكل توجيهٍ غير connect-src على الإضافة وحدها')
+    ok(`connect-src تطابق الخدمات المسمّاة حرفًا: ${cspVerdict.connect.join(' ')}`)
+  } else {
+    for (const problem of cspVerdict.problems) fail(`CSP: ${problem} — "${csp}"`)
+  }
 
   manifest.incognito === 'split'
     ? ok('incognito = split')

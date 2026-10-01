@@ -1,10 +1,11 @@
 /**
  * «احذف كل البيانات» — المسار الواحد الذي يُفرغ كل ما يكتبه رصد على هذا الجهاز.
  *
- * أربعة أماكن لا غيرها: **كل مخازن IndexedDB** (المكتبة: اللقطات وبايتاتها والمشاريع والوسوم واللوحات
+ * خمسة أماكن لا غيرها: **كل مخازن IndexedDB** (المكتبة: اللقطات وبايتاتها والمشاريع والوسوم واللوحات
  * والأدلّة والمراجع والمشكلات)، و`chrome.storage.local` (الإعدادات ومنها المواقع المستثناة)، و
  * `chrome.storage.session` (الوضع النشط في كل تبويب ومهمّة الالتقاط وذاكرة رفض الصلاحية)، و
- * `chrome.storage.sync` إن وُجد — لا يكتب فيه رصد اليوم، ولا يُترك فيه ما قد يكتبه غدًا.
+ * `chrome.storage.sync` إن وُجد — لا يكتب فيه رصد اليوم، ولا يُترك فيه ما قد يكتبه غدًا. ومعها **قاعدة مفاتيح الخزنة**
+ * `rasd-vault` (ADR 0046 §5): سجلّات الرموز المشفَّرة في `local`، ومفاتيحها هناك — فلا يبقى مفتاحٌ يتيم.
  *
  * **مسارٌ واحد لا أربعة نداءات متفرّقة في الواجهة:** مخزنٌ يُضاف غدًا يُمسح هنا بلا تعديل (`clearAllStores`
  * يقرأ أسماء القاعدة المفتوحة)، واختبار `erase.test.ts` يسقط إن بقي شيءٌ في أيٍّ منها.
@@ -18,8 +19,9 @@ import { attempt, err, ok, type Result } from '../result'
 
 import { ATTEMPTS_KEY, forgetLockSnapshot, LOCK_KEY } from './lock-state'
 import { clearAllStores } from './repository'
+import { deleteVaultDatabase } from './vault'
 
-export type ErasePart = 'database' | 'local' | 'session' | 'sync'
+export type ErasePart = 'database' | 'vault' | 'local' | 'session' | 'sync'
 
 export interface EraseFailure {
   /** ما لم يُحذف — وكل ما سواه حُذف. */
@@ -56,6 +58,10 @@ export async function eraseAllData(): Promise<Result<null, EraseFailure>> {
 
   const database = await clearAllStores()
   if (!database.ok) failed.push('database')
+
+  // قبل `local`: مفتاحٌ تعثّر حذفه يُبلَّغ ويُعاد، وسجلّه المشفَّر يُمحى مع `local` فلا يُفكّ شيءٌ بعدها.
+  const vault = await attempt(deleteVaultDatabase)
+  if (!vault.ok) failed.push('vault')
 
   for (const name of ['local', 'session', 'sync'] as const) {
     const target = area(name)

@@ -3,6 +3,7 @@ import { defineManifest } from '@crxjs/vite-plugin'
 import pkg from './package.json' with { type: 'json' }
 import { PAGE_PATHS } from './src/shared/page-paths.ts'
 import {
+  extensionPagesCsp,
   OPTIONAL_HOST_PERMISSIONS,
   OPTIONAL_PERMISSIONS,
   REQUIRED_PERMISSIONS,
@@ -14,6 +15,7 @@ import {
  * قرارات هذا الملف موثّقة في:
  *   Docs/ADR/permissions.md              — سبب كل صلاحية
  *   Docs/ADR/0005-manual-injection.md    — لماذا لا يوجد `content_scripts`
+ *   Docs/ADR/0046-named-network-services.md — الاتّصال الخارجي الوحيد ولماذا
  *
  * القوائم تأتي من `src/shared/permission-policy.ts`، و`verify:dist` يقارن
  * البيان المبنيّ بها — فلا تتسلّل صلاحية بصمت.
@@ -125,10 +127,11 @@ export default defineManifest({
   ],
 
   // ── سياسة أمن المحتوى ───────────────────────────────────────────
-  // بلا `unsafe-eval` وبلا مصادر خارجية. الصفحة المضيفة تُعامَل كمصدر
-  // غير موثوق، وصفحاتنا لا تحمّل شيئًا من الشبكة.
+  // بلا `unsafe-eval` وبلا سكربت خارجي. `connect-src` على الإضافة وعلى
+  // الخدمات المسمّاة في `NETWORK_SERVICES` وحدها (ADR 0046) — والسياسة
+  // مبنيّة من تلك القائمة لا مكتوبة هنا، فلا يفترق البيان عن مخرج الشبكة.
   content_security_policy: {
-    extension_pages: "script-src 'self'; object-src 'self'; connect-src 'self'",
+    extension_pages: extensionPagesCsp(),
   },
 
   // نسخة منفصلة تمامًا في التصفّح الخاص — لا تسرّب بين السياقين.

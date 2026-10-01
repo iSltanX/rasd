@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest'
 
 import { PAGE_PATHS } from '@/shared/page-paths'
 import {
+  extensionPagesCsp,
   FORBIDDEN_PERMISSIONS,
+  NETWORK_ORIGINS,
   OPTIONAL_HOST_PERMISSIONS,
   OPTIONAL_PERMISSIONS,
   REQUIRED_PERMISSIONS,
@@ -90,12 +92,13 @@ describe('سياسة الحقن والأمن', () => {
     expect(manifest.content_scripts).toBeUndefined()
   })
 
-  it('CSP بلا unsafe-eval ولا مصادر خارجية', () => {
+  it('CSP بلا unsafe-* ومصادرها الخارجية الخدمات المسمّاة وحدها (ADR 0046)', () => {
     const csp = (manifest.content_security_policy as { extension_pages?: string } | undefined)
       ?.extension_pages
-    expect(csp).toBeTruthy()
-    expect(csp).not.toMatch(/unsafe-eval|unsafe-inline/)
-    expect(csp).not.toMatch(/https?:\/\//)
+    expect(csp).toBe(extensionPagesCsp())
+    expect(csp).not.toMatch(/unsafe-/)
+    const external = [...(csp ?? '').matchAll(/https?:\/\/\S+/g)].map((m) => m[0])
+    expect(external).toEqual([...NETWORK_ORIGINS])
   })
 
   it('التصفّح الخاص منفصل', () => {
