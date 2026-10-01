@@ -59,13 +59,33 @@ describe('مخروط الأثر', () => {
     expect(coneOf(['src/pages/popup/App.tsx']).needed).toEqual([
       'verify:popup',
       'verify:accessibility',
+      'verify:visual',
     ])
-    // الإتاحة (`STAGES/24`): صفحتا الإعدادات والتعريف يحرسهما `verify:accessibility` وحده
+    // الإتاحة (`STAGES/24`) والانحدار البصري (`STAGES/26`): صفحتا الإعدادات والتعريف لا حارس وظيفيّ لهما غيرهما
     expect(coneOf(['src/pages/settings/Settings.tsx'])).toEqual({
-      needed: ['verify:accessibility'],
+      needed: ['verify:accessibility', 'verify:visual'],
       unmapped: 0,
     })
     expect(coneOf(['src/pages/unknown/x.tsx']).unmapped).toBe(1)
+  })
+
+  it('الانحدار البصري (`STAGES/26`): مقارنٌ أو مولِّد لقطات أو صورة مرجعية عُدّلت يلزمها `verify:visual` وحده', () => {
+    for (const file of [
+      'scripts/lib/visual-compare.mjs',
+      'scripts/lib/visual-surfaces.mjs',
+      'scripts/design-shots.mjs',
+      'scripts/design-shots/overlay.mjs',
+      'tests/visual-baselines/surfaces/popup-dark.png',
+      'scripts/verify-visual.mjs',
+      'src/pages/popup-preview/PopupPreview.tsx',
+      'src/pages/gallery/Gallery.tsx',
+    ]) {
+      expect(coneOf([file]), file).toEqual({ needed: ['verify:visual'], unmapped: 0 })
+    }
+    // ونواة الحرّاس تبقى تطلب الطقم كاملًا — المدخل الجديد لا يبتلع `scripts/lib/` كلّها.
+    expect(coneOf(['scripts/lib/cdp.mjs']).unmapped).toBe(1)
+    // والطبقة فوق الصفحة بصريّة كما هي أثرٌ على الصفحة المضيفة.
+    expect(coneOf(['src/ui/overlay/measure/Panel.tsx']).needed).toContain('verify:visual')
   })
 
   it('كل مدخلٍ مصفوفةٌ أو دالّة أو null صريح', () => {

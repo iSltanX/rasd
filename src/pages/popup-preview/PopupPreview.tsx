@@ -11,6 +11,7 @@
  * البصري وحده.
  */
 
+import { savedStatusLine } from '../popup/context'
 import { Footer } from '../popup/parts/Footer'
 import { Header } from '../popup/parts/Header'
 import styles from '../popup/Popup.module.css'
@@ -148,7 +149,7 @@ export function PopupPreview(): JSX.Element {
         />
       </Frame>
 
-      <Frame name="success" state="success" status="محفوظة محليًا · 1440 × 3820">
+      <Frame name="success" state="success" status={savedStatusLine(1440, 3820)}>
         <Success thumbUrl={null} actions={SUCCESS_ACTIONS} onOpenLibrary={noop} />
       </Frame>
 

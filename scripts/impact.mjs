@@ -61,15 +61,27 @@ export const IMPACT = [
       /^(src\/content\/tools\/issues\.ts|src\/ui\/overlay\/issues\/|src\/modules\/issues\/|src\/background\/issues\.ts|src\/modules\/dom-picker\/identity\.ts|src\/shared\/issue-schema\.ts)/u,
     scripts: ['verify:issues'],
   },
-  { match: /^src\/ui\/overlay\/compare\//u, scripts: ['verify:compare'] },
+  { match: /^src\/ui\/overlay\/compare\//u, scripts: ['verify:compare', 'verify:visual'] },
   /*
    * الإتاحة (`STAGES/24`): صفحة إضافة عُدّلت تُفحص بـ`verify:accessibility` — axe وLighthouse ولوحة المفاتيح — إلى جانب
    * حارسها الوظيفي. وصفحتا الإعدادات والتعريف لا حارس وظيفيّ لهما غيره.
    */
-  { match: /^src\/pages\/popup\//u, scripts: ['verify:popup', 'verify:accessibility'] },
-  { match: /^src\/pages\/editor\//u, scripts: ['verify:editor', 'verify:accessibility'] },
-  { match: /^src\/pages\/library\//u, scripts: ['verify:library', 'verify:accessibility'] },
-  { match: /^src\/pages\/(settings|onboarding)\//u, scripts: ['verify:accessibility'] },
+  {
+    match: /^src\/pages\/popup\//u,
+    scripts: ['verify:popup', 'verify:accessibility', 'verify:visual'],
+  },
+  {
+    match: /^src\/pages\/editor\//u,
+    scripts: ['verify:editor', 'verify:accessibility', 'verify:visual'],
+  },
+  {
+    match: /^src\/pages\/library\//u,
+    scripts: ['verify:library', 'verify:accessibility', 'verify:visual'],
+  },
+  {
+    match: /^src\/pages\/(settings|onboarding)\//u,
+    scripts: ['verify:accessibility', 'verify:visual'],
+  },
   /*
    * المشاركة المحلّية (`STAGES/10`): النافذة ومحرّكاها ومولِّد صفحة اللقطة — يحرسها `verify:share` بمراقبة الشبكة
    * أثناء المسارات الثلاثة وفتح الصفحة المصدَّرة بلا إنترنت.
@@ -81,7 +93,7 @@ export const IMPACT = [
    */
   {
     match: /^(src\/content\/|src\/ui\/overlay\/|src\/background\/resume\.ts)/u,
-    scripts: ['verify:lighthouse'],
+    scripts: ['verify:lighthouse', 'verify:visual'],
   },
   {
     match: /^src\/shared\/messaging\//u,
@@ -106,6 +118,17 @@ export const IMPACT = [
    * أيّ حارس يمسّ، فـ`scripts: null` يُعدّه خارج الجدول: الطقم كاملًا.
    */
   { match: /^scripts\/verify-(dist|tokens)\.mjs$/u, scripts: [] },
+  /*
+   * الانحدار البصري (`STAGES/26`): ما يلتقط الأسطح ويقارنها وصورها المرجعية يلزمه `verify:visual` وحده — قبل
+   * مدخل `scripts/lib/` أدناه الذي يطلب الطقم كاملًا، فمقارنٌ عُدّل لا يُشغَّل له أربعة وعشرون حارسًا لا صلة لها.
+   * وصفحتا المعاينة (`popup-preview` · `gallery`) لا تُبنيان في الإنتاج فلا مستهلك لهما غيره. وما يتغيّر بصريًّا في
+   * `src/ui/` والتوكنز لا مدخل له فيبقى خارج الجدول ⇒ الطقم كاملًا ومنه `visual`.
+   */
+  {
+    match:
+      /^(scripts\/lib\/visual-|scripts\/design-shots|tests\/visual-baselines\/|src\/pages\/(popup-preview|gallery)\/)/u,
+    scripts: ['verify:visual'],
+  },
   { match: /^scripts\/verify-([a-z-]+)\.mjs$/u, scripts: (m) => [`verify:${m[1]}`] },
   {
     match:

@@ -19,6 +19,7 @@ import { findReferenceForPage } from '@/modules/compare/reference'
 import { VIEWPORT_ORDER } from '@/modules/compare/viewport'
 import { parseIssue } from '@/modules/issues/schema'
 import { countByStatus } from '@/modules/issues/status'
+import { formatDimensions, isolate } from '@/shared/bidi'
 import { evaluateGate, type GateDecision } from '@/shared/injection-gate'
 import { hasHostPermission, originPatternFor } from '@/shared/permissions'
 import { getSettingsResult } from '@/shared/settings'
@@ -31,6 +32,15 @@ import type { CaptureRecord } from '@/shared/storage/schema'
 import type { ActiveMode, SessionState } from '@/shared/storage/session'
 
 /** ما تحتاجه النافذة قبل أول عرض ذي معنى: التبويب المستهدَف وحالته وآخر لقطتين ومشكلات صفحته. */
+/**
+ * سطر الحالة بعد حفظ لقطة: «محفوظة محليًا · العرض × الارتفاع». البُعدان معزولان — رقمان يفصلهما محايدٌ
+ * وحده ينقلبان بجوار العربية («1440 × 3820» تُعرَض «3820 × 1440»)، وعزل `<bdi>` المحيط بالسطر كلّه لا يعزل
+ * جزءًا عن جزء. النصّ سلسلةٌ لا JSX فيُعزل بمحرفَي العزل (`shared/bidi/isolate.ts`).
+ */
+export function savedStatusLine(width: number, height: number): string {
+  return `محفوظة محليًا · ${isolate(formatDimensions(width, height))}`
+}
+
 export interface PopupLoad {
   readonly tabId: number
   readonly context: PopupContext

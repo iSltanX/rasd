@@ -30,15 +30,15 @@ region — ٦ مواقع مستثناة
 link — كل اللقطات ١٢
 link — المميّزة ٢
 link — الأخيرة ٩
-link — كل المشاريع ٤
+link — كل المشاريع ٣
 link — تطبيق ميزان ٤
 link — موقع نجم ٣
 link — متجر حياة ٣
-link — تطبيق سنَد ٠
 link — اللوحات ٤
 link — الألوان ٨
 link — المراجع ٤
 link — أدلة الخطوات ٣
+link — المشكلات ٠
 link — bysltan.com
 textbox — نمط موقع يُستثنى
 button — أضف

@@ -9,7 +9,11 @@
  *   pnpm design:shots                  # كل المشاهد، الوضعان → artifacts/design/shots/
  *   pnpm design:shots --only=popup     # مجموعة واحدة أو أكثر مفصولة بفواصل
  *   pnpm design:shots --baselines      # ويكتب خطوط الأساس المسمّاة في tests/visual-baselines/
+ *   pnpm design:shots --baselines-dir=D  # ويكتبها في المجلّد D (ما يقارنه `pnpm verify:visual`)
+ *   pnpm design:shots --only=popup --extras  # والإضافية (المعرض وشبكة النافذة) مع `--only` أيضًا
+ *   pnpm design:shots --surfaces --baselines # أسطح خطوط الأساس وحدها، وتُكتب خطوط أساسها (أسرع من الكل)
  *   pnpm design:shots --axe            # ويشغّل axe-core على كل مشهد بحالته → artifacts/design/axe.json
+ *   pnpm design:shots --numerals       # ويفحص سياسة الأرقام: الهندية للعدّ، والغربية معزولةً للقياس
  *   pnpm design:shots --keys           # ويمرّ بـTab على صفحات الإضافة: كل محطّة تركيز لها أثر مرئي؟
  *
  * **و`--axe` يرى ما داخل الطبقة فوق الصفحة.** جذر ظلّها مغلق (`content/host.ts`) فلا يبلغه axe من
@@ -35,10 +39,11 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 import { ensureFixturesServer } from './lib/live-fixtures.mjs'
+import { baselineShots, groupsNeeded, overlayIds, sceneNames } from './lib/visual-surfaces.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const OUT = join(root, 'artifacts', 'design')
@@ -50,23 +55,40 @@ const WIDTH = 1440
 const HEIGHT = 900
 
 const args = process.argv.slice(2)
-const only = (args.find((a) => a.startsWith('--only='))?.slice(7) ?? '').split(',').filter(Boolean)
-const writeBaselines = args.includes('--baselines')
+/**
+ * `--surfaces` يلتقط ما تحويه خطوط الأساس وحده — أسطح `visual-surfaces.mjs` ومجموعاتها ومشاهدها
+ * والإضافية — لا كل المشاهد. هو ما يقارنه `verify:visual`، وما يُكتب به خطّ الأساس من جديد.
+ */
+const surfacesOnly = args.includes('--surfaces')
+if (surfacesOnly) {
+  process.env.RASD_OVERLAY_ONLY ??= overlayIds().join(',')
+  process.env.RASD_SCENES ??= sceneNames().join(',')
+}
+const only = surfacesOnly
+  ? groupsNeeded()
+  : (args.find((a) => a.startsWith('--only='))?.slice(7) ?? '').split(',').filter(Boolean)
+/**
+ * `--baselines-dir=<مجلّد>` يكتب خطوط الأساس هناك بدل `tests/visual-baselines/` — وهو ما يستعمله
+ * `verify:visual` ليلتقط الشاشات الحيّة ويقارنها بالمحفوظة دون أن يلمسها. ويُغني عن `--baselines`.
+ */
+const baselinesDirArg = args.find((a) => a.startsWith('--baselines-dir='))?.slice(16)
+const writeBaselines = args.includes('--baselines') || baselinesDirArg !== undefined
 const skipBuild = args.includes('--no-build')
 const runAxe = args.includes('--axe')
 const runKeys = args.includes('--keys')
-const BASELINES = join(root, 'tests', 'visual-baselines')
+/** `--numerals` يفحص سياسة الأرقام على كل مشهد بحالته → `artifacts/design/numerals.json`. */
+const runNumerals = args.includes('--numerals')
+/** `--extras` يكتب خطوط الأساس الإضافية (المعرض وشبكة النافذة) مع `--only` أيضًا. */
+const forceExtras = args.includes('--extras') || surfacesOnly
+const BASELINES = baselinesDirArg
+  ? resolve(baselinesDirArg)
+  : join(root, 'tests', 'visual-baselines')
 /**
- * مشاهد تُنسخ خطوطَ أساس بأسمائها القائمة — الأسماء لا تُغيَّر ولا تُعاد ترقيمًا (`AGENTS.md` §4)،
- * فبعضها يحمل اسم حالة قديمة (`crop-square`) وما فيه موصوف في `README.md` مجلّده.
+ * مشاهد تُنسخ خطوطَ أساس — الأسطح ومساراتها في `scripts/lib/visual-surfaces.mjs` (مصدرٌ واحد يقرؤه
+ * `verify:visual` أيضًا). الأسماء القائمة لا تُغيَّر ولا تُعاد ترقيمًا (`AGENTS.md` §4)، فبعضها يحمل
+ * اسم حالة قديمة (`crop-square`) وما فيه موصوف في `README.md` مجلّده.
  */
-const BASELINE_SHOTS = {
-  'popup / default|light': 'phase-07/popup-default-light-rtl.png',
-  'capture / area-select|dark': 'phase-08/area-select-rtl.png',
-  'editor / text|dark': 'phase-15/annotating-text-rtl.png',
-  'editor / redact|dark': 'phase-15/redact-blur-rtl.png',
-  'editor / crop|dark': 'phase-15/crop-square-rtl.png',
-}
+const BASELINE_SHOTS = baselineShots()
 /** مشاهد تُكتب شجرة إتاحتها كما يبنيها Chrome — `Accessibility.getFullAXTree` لا تقريبًا من DOM. */
 const BASELINE_TREES = {
   'popup / default|dark': [
@@ -127,6 +149,55 @@ if (!skipBuild) {
   vite(['--config', 'vite.content.config.ts'])
 }
 mkdirSync(SHOTS, { recursive: true })
+
+/**
+ * **تخريب مقصود لإثبات السالب** — `RASD_DESIGN_BREAK=colour|layout` يرقّع التوكنز في البناء المؤقّت قبل
+ * أي لقطة، فيثبت `verify:visual` أنه يسقط حين يتغيّر لونٌ أو تخطيطٌ حقًّا لا حين تُعدَّل صورةٌ بعد التقاطها.
+ * يرمي إن لم يجد نمطه: ترقيعٌ صامت يعطي أخضر كاذبًا. **والترقيع يبقى في المجلّد المبنيّ** — فبعده بناءٌ
+ * جديد (بلا `--no-build`) وإلا حملت اللقطات التالية التخريب.
+ */
+const BREAK = process.env.RASD_DESIGN_BREAK ?? ''
+if (BREAK && BREAK !== 'numerals') {
+  const patches = {
+    // زرّ الإجراء الرئيس رماديّ، والنصّ الثانوي بلون الإشارة — في الوضعين: لونٌ تغيّر عمدًا.
+    colour: [
+      [
+        '--rasd-action-primary-rest: var(--rasd-color-signal-300);',
+        '--rasd-action-primary-rest: var(--rasd-color-ink-500);',
+      ],
+      [
+        '--rasd-action-primary-rest: var(--rasd-color-signal-700);',
+        '--rasd-action-primary-rest: var(--rasd-color-ink-500);',
+      ],
+      [
+        '--rasd-text-secondary: var(--rasd-color-ink-300);',
+        '--rasd-text-secondary: var(--rasd-color-signal-300);',
+      ],
+      [
+        '--rasd-text-secondary: var(--rasd-color-ink-800);',
+        '--rasd-text-secondary: var(--rasd-color-signal-700);',
+      ],
+    ],
+    // فجوةٌ أوسع بأربعة بكسلات — تخطيطٌ تغيّر عمدًا.
+    layout: [['--rasd-space-16: 16px;', '--rasd-space-16: 20px;']],
+  }[BREAK]
+  if (!patches) {
+    console.error(`RASD_DESIGN_BREAK=${BREAK}: القيم colour أو layout أو numerals.`)
+    process.exit(1)
+  }
+  // نسختان من التوكنز: صفحات الإضافة (`:root`) والطبقة فوق الصفحة (`:host` في جذر الظلّ).
+  const files = ['tokens.css', 'tokens-shadow.css'].map((f) => join(EXT, 'assets', f))
+  const css = files.map((f) => readFileSync(f, 'utf8'))
+  for (const [from, to] of patches) {
+    if (!css.some((c) => c.includes(from))) {
+      console.error(`RASD_DESIGN_BREAK=${BREAK}: لا «${from}» في التوكنز المبنيّة — عدِّل النمط.`)
+      process.exit(1)
+    }
+    for (let i = 0; i < css.length; i++) css[i] = css[i].replaceAll(from, to)
+  }
+  files.forEach((f, i) => writeFileSync(f, css[i]))
+  console.log(`  ! تخريب مقصود لإثبات السالب: ${BREAK}`)
+}
 
 // ── 2) Chrome وبروتوكول التنقيح ───────────────────────────────────
 const fixtures = await ensureFixturesServer({ port: FIXTURES_PORT })
@@ -415,6 +486,83 @@ async function walkKeys(page, frame, mode) {
   keyTrails.push({ frame, mode, stops: trail })
 }
 
+/**
+ * سياسة الأرقام على ما يراه المستخدم (`AGENTS.md` §4: الهندية للعدّ البشري، والغربية للقياسات والقيم
+ * التقنية — `shared/bidi/isolate.ts`). تُقاس على النصّ المرسوم بعد أن حسب Chrome اتّجاهه، لا على الشيفرة:
+ *
+ *  - **خلط (`mixed`):** عقدة نصّ فيها نظاما الأرقام معًا — «٣٠x» أو «٣ من 10». الصنفان لا يلتقيان في
+ *    عقدة: العدّ البشري عقدةٌ والقيمة التقنية عقدةٌ معزولة.
+ *  - **انقلاب (`bidi-hazard`):** رقمان غربيّان يفصلهما محايدٌ وحده في عقدة اتّجاهها المحسوب `rtl` بلا عزل —
+ *    `1440 × 900` تُعرَض `900 × 1440` (الأرقام تأخذ حكم R في N1 فتُرتَّب الجزر باتّجاه المحيط). وهذا ما
+ *    تحرسه قاعدة `dimensionIsolationSelector` في ESLint على الشيفرة، وهنا يُقاس على ما رُسم. وما يفصله
+ *    حرفٌ أو كلمة (`17043 بكسل مختلف من 1024000`) لا ينقلب، وما كان بين محرفَي عزل (`⁦3 : 1⁩`) أو في عقدةٍ
+ *    اتّجاهها المحسوب `ltr` (قيمة تقنية في `<bdi>` أو `direction: ltr`) معزول. وعزلُ عنصرٍ يحوي النصّ كلّه
+ *    لا يكفي: يعزله عمّا حوله لا بعضَه عن بعض.
+ *
+ * وجذرها المستند في صفحة إضافة، وجذر الظلّ المغلق للطبقة فوق الصفحة (يُسلَّم عبر CDP كما في axe).
+ * وما يعرضه المضيف من نصّ الصفحة نفسها خارج الجذر فلا يُفحص.
+ */
+const NUMERAL_SCAN = `function () {
+  const root = this
+  const WEST = /[0-9]/, EAST = /[٠-٩]/
+  // رقمان بينهما محايدٌ وحده: بعد حذف ما بين محرفَي العزل. الفاصل المفرد بلا مسافة (16:9 · 1.7 · 1/2) يلتحم رقمًا واحدًا (W4).
+  const HAZARD = /[0-9][^\\p{L}\\p{N}]+[0-9]/u
+  const JOINED = /^[:.,\\/]$/
+  const doc = root.ownerDocument ?? root
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  const hits = []
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.nodeValue ?? ''
+    const west = WEST.test(text), east = EAST.test(text)
+    if (!west && !east) continue
+    const el = node.parentElement
+    if (!el || el.closest('script, style, noscript, textarea')) continue
+    if (el.getClientRects().length === 0) continue
+    const excerpt = text.trim().slice(0, 60)
+    if (west && east) {
+      hits.push({ kind: 'mixed', text: excerpt })
+      continue
+    }
+    if (!west || getComputedStyle(el).direction !== 'rtl') continue
+    const bare = text.replace(/[\\u2066-\\u2068][^\\u2069]*\\u2069/g, ' ')
+    const match = HAZARD.exec(bare)
+    if (match && !JOINED.test(match[0].slice(1, -1))) hits.push({ kind: 'bidi-hazard', text: excerpt })
+  }
+  return hits
+}`
+
+const numeralFindings = []
+let numeralScenes = 0
+
+/** يفحص الأرقام في جذور Rasd المرئية في المشهد — المستند في صفحة إضافة، وجذر الطبقة المغلق فوق صفحة. */
+async function scanNumerals(page, frame, mode) {
+  const { root: doc } = await send('DOM.getDocument', { depth: -1, pierce: true }, page.sessionId)
+  const html = doc.children?.find((n) => n.nodeName === 'HTML')
+  const host = html?.children?.find((n) => n.shadowRoots?.[0]?.shadowRootType === 'closed')
+  const roots = []
+  if (host) {
+    roots.push(
+      (await send('DOM.resolveNode', { nodeId: host.shadowRoots[0].nodeId }, page.sessionId))
+        .object,
+    )
+  } else if (await page.evaluate('location.protocol === "chrome-extension:"')) {
+    roots.push((await send('Runtime.evaluate', { expression: 'document' }, page.sessionId)).result)
+  }
+  for (const root of roots) {
+    const { result } = await send(
+      'Runtime.callFunctionOn',
+      {
+        objectId: root.objectId,
+        functionDeclaration: NUMERAL_SCAN,
+        returnByValue: true,
+      },
+      page.sessionId,
+    )
+    numeralScenes++
+    for (const hit of result.value ?? []) numeralFindings.push({ frame, mode, ...hit })
+  }
+}
+
 const INTERACTIVE = new Set([
   'button',
   'link',
@@ -477,9 +625,24 @@ const ctx = {
     await page.shot(shotName(frame, mode), clip)
     if (runAxe) await audit(page, frame, mode)
     if (runKeys) await walkKeys(page, frame, mode)
+    if (runNumerals) {
+      /*
+       * سالب الأرقام: بُعدان غربيّان بينهما × في فقرة عربية بلا عزل، يُحقنان **بعد** اللقطة فلا يمسّان
+       * البكسلات — يثبت أن الفحص يرى نصًّا مرسومًا لا يعتمد على بكسل. في صفحات الإضافة وحدها.
+       */
+      if (
+        BREAK === 'numerals' &&
+        (await page.evaluate('location.protocol === "chrome-extension:"'))
+      ) {
+        await page.evaluate(`document.body.append(Object.assign(document.createElement('p'), {
+          textContent: 'حجم الصورة 1440 × 900', dir: 'rtl' })) && true`)
+      }
+      await scanNumerals(page, frame, mode)
+    }
     if (writeBaselines) {
       const target = BASELINE_SHOTS[`${frame}|${mode}`]
       if (target) {
+        mkdirSync(dirname(join(BASELINES, target)), { recursive: true })
         copyFileSync(shotName(frame, mode), join(BASELINES, target))
         baselineLog.push(target)
       }
@@ -504,6 +667,7 @@ async function extraBaselines() {
       await page.evaluate('window.scrollTo(0, 0)')
       await page.settle()
       const file = `phase-05/gallery-${mode}-${dir}.png`
+      mkdirSync(dirname(join(BASELINES, file)), { recursive: true })
       await page.shot(join(BASELINES, file))
       baselineLog.push(file)
       if (mode === 'dark' && dir === 'rtl') {
@@ -514,8 +678,17 @@ async function extraBaselines() {
   }
   const grid = await openPage(`${ORIGIN}/src/pages/popup-preview/index.html?theme=dark`, 'dark')
   await grid.waitFor('document.querySelectorAll("[data-popup-state]").length >= 12')
+  /*
+   * **الحركة تُجمَّد قبل لقطة الشبكة.** حالة «الالتقاط» فيها خطّ مسحٍ يتحرّك، فيختلف موضعه بين لقطتين
+   * متتاليتين لشاشةٍ واحدة (1304 بكسلًا، 12.5% في بلاطته) — وهذا ضجيجٌ يضيّق هامش `verify:visual`
+   * (`Docs/ADR/0052-visual-regression.md`). خطّ الأساس لا يتعلّق بطور حركة.
+   */
+  await grid.evaluate(`document.head.appendChild(Object.assign(document.createElement('style'), {
+    textContent: '*, *::before, *::after { animation: none !important; transition: none !important }',
+  })) && true`)
   await grid.settle()
   const { contentSize } = await send('Page.getLayoutMetrics', {}, grid.sessionId)
+  mkdirSync(join(BASELINES, 'phase-07'), { recursive: true })
   await grid.shot(join(BASELINES, 'phase-07/popup-states-dark-rtl.png'), {
     x: 0,
     y: 0,
@@ -538,16 +711,17 @@ let total = 0
 for (const [name, run] of Object.entries(groups)) {
   if (only.length && !only.includes(name)) continue
   for (const mode of MODES) {
+    const started = Date.now()
     try {
       const n = await run(ctx, mode)
       total += n
-      console.log(`  ✓ ${name} · ${mode} — ${n}`)
+      console.log(`  ✓ ${name} · ${mode} — ${n} (${Math.round((Date.now() - started) / 1000)}s)`)
     } catch (e) {
       console.log(`  ✗ ${name} · ${mode} — ${e.message}`)
     }
   }
 }
-if (writeBaselines && !only.length) {
+if (writeBaselines && (!only.length || forceExtras)) {
   try {
     await extraBaselines()
   } catch (e) {
@@ -575,6 +749,12 @@ if (runAxe) {
   const byRule = {}
   for (const f of axeFindings) byRule[f.id] = (byRule[f.id] ?? 0) + 1
   for (const [id, n] of Object.entries(byRule)) console.log(`  ${id}: ${n}`)
+}
+if (runNumerals) {
+  writeFileSync(join(OUT, 'numerals.json'), JSON.stringify(numeralFindings, null, 2))
+  console.log(
+    `الأرقام: ${numeralScenes} جذرًا مفحوصًا، ${numeralFindings.length} مخالفة → artifacts/design/numerals.json`,
+  )
 }
 if (writeBaselines) {
   console.log(`خطوط الأساس (${baselineLog.length}) في tests/visual-baselines/:`)
