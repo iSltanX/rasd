@@ -11,7 +11,8 @@
  *   السابق مقروءًا كما كان، لا رمزًا نصفه قديم.
  * - **الكتابات متسلسلة بقفلٍ واحد** (`navigator.locks`، عابرٌ للسياقات): حفظان متزامنان كان ثانيهما يحذف مفتاح أوّلهما
  *   بعد أن صار سجلّه هو الحيّ، ونسيانٌ أثناء حفظٍ كان يُبعث سجلًّا بلا مفتاح بعد «اقطع الاتّصال» — رصدتهما المراجعة
- *   المستقلّة (`STAGES/11`). فالحفظ والنسيان وحذف القاعدة تمرّ بالقفل نفسه.
+ *   المستقلّة (`STAGES/11`). فالحفظ والنسيان وحذف القاعدة تمرّ بالقفل نفسه، **ويُطلب القفل عند النداء قبل أيّ
+ *   انتظار** — فترتيب الكتابات ترتيب النداء، لا ترتيب انتهاء التشفير (جولة CI ‏36835982821).
  *
  * **ما تضمنه:** الرمز لا يظهر صريحًا في `chrome.storage` ولا في تصدير الإعدادات ولا في النسخة الاحتياطية ولا في
  * سجلّ — ومن يقرأ `chrome.storage` وحده لا يملك المفتاح. **وما لا تضمنه، ويُقال:** من يملك ملفّ تعريف المتصفّح على
@@ -108,38 +109,39 @@ function serialized<T>(work: () => Promise<T>): Promise<T> {
 
 const aad = (slot: VaultSlot) => new TextEncoder().encode(`${VAULT_PREFIX}${slot}`)
 
-/** يحفظ السرّ في خانته مشفَّرًا، ويُبطل ما كان فيها. */
-export async function saveSecret(
-  slot: VaultSlot,
-  secret: string,
-): Promise<Result<null, VaultError>> {
-  let key: CryptoKey
-  let iv: Uint8Array<ArrayBuffer>
-  let cipher: ArrayBuffer
-  try {
-    key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
-      'encrypt',
-      'decrypt',
-    ])
-    iv = crypto.getRandomValues(new Uint8Array(IV_BYTES))
-    cipher = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv, additionalData: aad(slot) },
-      key,
-      new TextEncoder().encode(secret),
-    )
-  } catch (error) {
-    return err(fail('crypto', error))
-  }
-
-  const keyId = crypto.randomUUID()
-  const record: VaultRecord = {
-    v: RECORD_VERSION,
-    keyId,
-    iv: bytesToBase64(iv),
-    data: bytesToBase64(new Uint8Array(cipher)),
-  }
-
+/**
+ * يحفظ السرّ في خانته مشفَّرًا، ويُبطل ما كان فيها. **يدخل القفل عند النداء، والتشفير داخله:** لو سبق التشفيرُ القفلَ
+ * لصار ترتيب الطابور ترتيبَ انتهاء التشفير — فحفظٌ أبطأ تشفيرًا يكتب فوق حفظٍ نودي بعده، ونسيانٌ نودي بعد حفظٍ
+ * يسبقه فيُبعث الرمز بعد «اقطع الاتّصال».
+ */
+export function saveSecret(slot: VaultSlot, secret: string): Promise<Result<null, VaultError>> {
   return serialized(async () => {
+    let key: CryptoKey
+    let iv: Uint8Array<ArrayBuffer>
+    let cipher: ArrayBuffer
+    try {
+      key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+        'encrypt',
+        'decrypt',
+      ])
+      iv = crypto.getRandomValues(new Uint8Array(IV_BYTES))
+      cipher = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv, additionalData: aad(slot) },
+        key,
+        new TextEncoder().encode(secret),
+      )
+    } catch (error) {
+      return err(fail('crypto', error))
+    }
+
+    const keyId = crypto.randomUUID()
+    const record: VaultRecord = {
+      v: RECORD_VERSION,
+      keyId,
+      iv: bytesToBase64(iv),
+      data: bytesToBase64(new Uint8Array(cipher)),
+    }
+
     try {
       await withVault((db) => db.put(KEY_STORE, { id: keyId, slot, key }))
     } catch (error) {

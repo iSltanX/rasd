@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 
 import { fakeBrowser } from '@webext-core/fake-browser'
 import { openDB } from 'idb'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getSettingsResult, resetSettingsCache } from '@/shared/settings'
 import { settingsFile } from '@/shared/settings/transfer'
@@ -138,6 +138,60 @@ describe('الكتابات المتزامنة — المراجعة المستق�
       expect(await readSecret('github')).toEqual({ ok: true, value: `${TOKEN}-b` })
       expect(await vaultKeyCount()).toBe(1)
     }
+  })
+
+  /**
+   * الترتيب ترتيب النداء لا ترتيب انتهاء التشفير. كان التشفير يجري قبل القفل، فحفظٌ تأخّر تشفيره دخل الطابور بعد
+   * حفظٍ نودي بعده وكتب فوقه — سقط الاختبار السابق مرّةً في جولة CI ‏36835982821 (4.5% من الأزواج تحت حملٍ محلّي).
+   * هنا يُحبس تشفير الأوّل حتمًا: إن كان الثاني قد بدأ تشفيره (خارج القفل — العطل) انتظر الأوّل حتى يُتمّه ويطلب
+   * القفل؛ وإن لم يبدأ فهو واقفٌ في الطابور خلف الأوّل (الإصلاح) فلا انتظار. لا مهلة زمنية في الحالتين.
+   */
+  it('حفظان متزامنان وتشفير أوّلهما أبطأ: يبقى آخرهما نداءً', async () => {
+    const subtle = crypto.subtle
+    const encrypt = subtle.encrypt.bind(subtle)
+    const generateKey = subtle.generateKey.bind(subtle) as (
+      ...args: Parameters<SubtleCrypto['generateKey']>
+    ) => Promise<CryptoKey>
+    const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
+    let keysGenerated = 0
+    let secondEncrypted = false
+    const keys = vi.spyOn(subtle, 'generateKey').mockImplementation(((
+      ...args: Parameters<SubtleCrypto['generateKey']>
+    ) => {
+      keysGenerated++
+      return generateKey(...args)
+    }) as SubtleCrypto['generateKey'])
+    const encryption = vi.spyOn(subtle, 'encrypt').mockImplementation(async (params, key, data) => {
+      const plain = new TextDecoder().decode(data)
+      if (plain === `${TOKEN}-a`) {
+        while (keysGenerated > 1 && !secondEncrypted) await tick()
+        // دورةٌ أخرى كي يبلغ الثاني طلبَ القفل بعد تشفيره.
+        await tick()
+      }
+      const cipher = await encrypt(params, key, data)
+      if (plain === `${TOKEN}-b`) secondEncrypted = true
+      return cipher
+    })
+    let saved
+    try {
+      saved = await Promise.all([
+        saveSecret('github', `${TOKEN}-a`),
+        saveSecret('github', `${TOKEN}-b`),
+      ])
+    } finally {
+      keys.mockRestore()
+      encryption.mockRestore()
+    }
+    // الحفظان نجحا كلاهما — فحفظٌ أوّل فشل لا يُخضرّ الاختبار زورًا.
+    expect(saved.map((r) => r.ok)).toEqual([true, true])
+    expect(await readSecret('github')).toEqual({ ok: true, value: `${TOKEN}-b` })
+    expect(await vaultKeyCount()).toBe(1)
+  })
+
+  it('«اقطع الاتّصال» بعد «اتّصل» مباشرةً لا يُبقي رمزًا', async () => {
+    await Promise.all([saveSecret('github', TOKEN), forgetSecret('github')])
+    expect(await readSecret('github')).toEqual({ ok: true, value: null })
+    expect(await vaultKeyCount()).toBe(0)
   })
 
   it('النسيان أثناء حفظٍ معلّق لا يُبعث سجلًّا بلا مفتاح', async () => {
