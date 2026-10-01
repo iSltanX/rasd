@@ -268,17 +268,19 @@ export function Library(): JSX.Element {
   return (
     <AppShell activeId="all">
       <div class={styles.page} data-library-locked={locked ? '' : undefined}>
-        <div class={styles.body}>
-          <div class={styles.main}>
-            <div
-              class={styles.skeletonGrid}
-              {...(locked
-                ? { 'aria-hidden': 'true' }
-                : { role: 'status', 'aria-busy': 'true', 'aria-label': 'جارٍ تحميل المكتبة' })}
-            >
-              {Array.from({ length: SKELETON_CARD_COUNT }, (_, i) => (
-                <Skeleton key={i} kind="card" />
-              ))}
+        <div class={styles.content}>
+          <div class={styles.body}>
+            <div class={styles.main}>
+              <div
+                class={styles.skeletonGrid}
+                {...(locked
+                  ? { 'aria-hidden': 'true' }
+                  : { role: 'status', 'aria-busy': 'true', 'aria-label': 'جارٍ تحميل المكتبة' })}
+              >
+                {Array.from({ length: SKELETON_CARD_COUNT }, (_, i) => (
+                  <Skeleton key={i} kind="card" />
+                ))}
+              </div>
             </div>
           </div>
         </div>

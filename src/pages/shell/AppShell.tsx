@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'preact/hooks'
 
 import { requestPersistence } from '@/shared/storage/persistence'
+import { quotaState } from '@/shared/storage/quota'
 import { AppSidebar, type SidebarGroup } from '@/ui/components/AppSidebar/AppSidebar'
 
 import styles from './AppShell.module.css'
@@ -51,6 +52,7 @@ export function AppShell({
   children,
 }: AppShellProps): JSX.Element {
   const [data, setData] = useState<SidebarData | null>(null)
+  const [storage, setStorage] = useState<SidebarData['storage'] | null>(null)
   const [sheet, setSheet] = useState(false)
   const closeSheet = useCallback(() => setSheet(false), [])
   const [whatsNew, setWhatsNew] = useState<ChangelogEntry | null>(null)
@@ -68,8 +70,18 @@ export function AppShell({
 
   useEffect(() => {
     let cancelled = false
-    void loadSidebarData().then((result) => {
+    void loadSidebarData().then(async (result) => {
       if (!cancelled && result.ok) setData(result.value)
+      /*
+       * المكتبة المقفلة (ADR 0043) لا تُعدّ، لكنّ المساحة ليست منها: «تعذّر قياس المساحة» تحت قفلٍ مقصود كان
+       * سيقول عطلًا لم يقع. فتُقاس وحدها.
+       */
+      if (!result.ok && result.error.code === 'library-locked') {
+        const quota = await quotaState()
+        if (!cancelled && quota.quotaBytes > 0) {
+          setStorage({ usage: quota.usageBytes, quota: quota.quotaBytes })
+        }
+      }
       // مكتبةٌ غير فارغة حُفظ فيها شيء: يُطلب التخزين الدائم إن لم يُمنح (`persistence.ts`).
       if (result.ok && result.value.all > 0) void requestPersistence()
     })
@@ -155,7 +167,7 @@ export function AppShell({
         activeId={activeId}
         homeHref={hrefFor({ kind: 'all' })}
         primaryAction={{ label: 'لقطة جديدة', icon: 'capture-area', onClick: () => setSheet(true) }}
-        storage={data?.storage ?? { usage: null, quota: null }}
+        storage={data?.storage ?? storage ?? { usage: null, quota: null }}
         settings={{ id: 'settings', icon: 'settings', label: 'الإعدادات', href: SETTINGS_HREF }}
       />
       <div class={styles.main}>{children}</div>

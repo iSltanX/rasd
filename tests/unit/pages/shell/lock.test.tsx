@@ -131,7 +131,9 @@ describe('المكتبة المقفلة — `library / locked`', () => {
     await vi.waitFor(() => expect(query('#lock-code')).not.toBeNull())
     await type('#lock-code', 'رمز-خاطئ-تمامًا')
     click('افتح')
-    await vi.waitFor(() => expect(text()).toContain('الرمز غير صحيح. بقيت ٤ محاولات قبل مهلة دقيقة'))
+    await vi.waitFor(() =>
+      expect(text()).toContain('الرمز غير صحيح. بقيت ٤ محاولات قبل مهلة دقيقة'),
+    )
     expect(query('[data-phase="wrong"]')).not.toBeNull()
     expect(query('[data-library-locked]')).not.toBeNull()
   })
