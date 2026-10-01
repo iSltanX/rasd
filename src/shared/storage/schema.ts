@@ -185,6 +185,11 @@ export interface ReportDraftRecord {
   tool: string | null
   errorCode: string | null
   image: { blob: Blob; width: number; height: number; redactions: number } | null
+  /**
+   * بصمة SHA-256 لجسم آخر محاولة خرجت بهذا المعرّف، أو `null`/غائب حين لم يخرج شيء. جسمٌ مختلف بعدها بلاغٌ معدَّل
+   * يُرسَل بمعرّفٍ جديد. اختياريٌّ في السجلّ فلا ترحيل له: الغياب «لم يُحاوَل».
+   */
+  attempted?: string | null
 }
 
 export interface RasdDB extends DBSchema {

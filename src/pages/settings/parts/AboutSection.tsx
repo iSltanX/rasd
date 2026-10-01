@@ -128,7 +128,13 @@ export function AboutSection({ version, reportRequest = null, onOpenPrivacy }: A
       {report ? (
         <ReportDialog
           request={report.request}
-          onClose={() => setReport(null)}
+          onClose={() => {
+            setReport(null)
+            // الرابط يُستهلك مرّة: إعادة تحميل الصفحة بعد الإغلاق لا تعيد فتح النافذة.
+            if (new URLSearchParams(location.search).has('report')) {
+              history.replaceState(null, '', '?section=about')
+            }
+          }}
           onOpenPrivacy={() => {
             setReport(null)
             onOpenPrivacy?.()

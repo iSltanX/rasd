@@ -35,6 +35,7 @@ let sendSpy: ReturnType<typeof vi.fn<ReportDeps['send']>>
 let requestHost: ReturnType<typeof vi.fn<ReportDeps['requestHost']>>
 let saveDraft: ReturnType<typeof vi.fn<ReportDeps['saveDraft']>>
 let deleteDraft: ReturnType<typeof vi.fn<ReportDeps['deleteDraft']>>
+let clearDrafts: ReturnType<typeof vi.fn<ReportDeps['clearDrafts']>>
 let copy: ReturnType<typeof vi.fn<ReportDeps['copy']>>
 let fetchSpy: ReturnType<typeof vi.fn>
 let capture: ReturnType<typeof vi.fn>
@@ -46,6 +47,8 @@ function deps(over: Partial<ReportDeps> = {}): Partial<ReportDeps> {
     send: sendSpy,
     saveDraft,
     deleteDraft,
+    clearDrafts,
+    digest: (text) => Promise.resolve(`h${text.length}:${text}`),
     latestDraft: () => Promise.resolve(ok(null)),
     importImage: vi.fn(),
     bakeWorking: vi.fn(),
@@ -66,6 +69,7 @@ beforeEach(() => {
   requestHost = vi.fn<ReportDeps['requestHost']>().mockResolvedValue('granted')
   saveDraft = vi.fn<ReportDeps['saveDraft']>().mockResolvedValue(ok(null))
   deleteDraft = vi.fn<ReportDeps['deleteDraft']>().mockResolvedValue(ok(null))
+  clearDrafts = vi.fn<ReportDeps['clearDrafts']>().mockResolvedValue(ok(null))
   copy = vi.fn<ReportDeps['copy']>().mockResolvedValue(true)
   fetchSpy = vi.fn()
   vi.stubGlobal('fetch', fetchSpy)
@@ -151,7 +155,7 @@ describe('لا طلب قبل التأكيد، ولا لقطة', () => {
     expect(sendSpy).toHaveBeenCalledTimes(1)
     expect(sendSpy.mock.calls[0]?.[1].key).toBe(KEY)
     expect(text()).toContain('#12')
-    expect(deleteDraft).toHaveBeenCalledWith(KEY)
+    expect(clearDrafts).toHaveBeenCalledTimes(1)
     // ولا التقاط في المسار كلّه: الصورة ملفٌّ يختاره المستخدم وحده.
     expect(capture).not.toHaveBeenCalled()
     expect(fetchSpy).not.toHaveBeenCalled()
@@ -226,7 +230,7 @@ describe('الفشل وإعادة المحاولة', () => {
       expect(text()).toContain('محفوظة على هذا الجهاز')
 
       expect(saveDraft).toHaveBeenCalledTimes(1)
-      const draft = saveDraft.mock.calls[0]![0] as ReportDraftRecord
+      const draft = saveDraft.mock.calls[0]![0]
       expect(draft.id).toBe(KEY)
       expect(draft.title).toBe('اللقطة الكاملة تتوقّف')
 
@@ -236,7 +240,7 @@ describe('الفشل وإعادة المحاولة', () => {
       const [first, second] = sendSpy.mock.calls
       expect(second![0]).toEqual(first![0])
       expect(second![1].key).toBe(first![1].key)
-      expect(deleteDraft).toHaveBeenCalledWith(KEY)
+      expect(clearDrafts).toHaveBeenCalledTimes(1)
     },
   )
 
@@ -315,5 +319,183 @@ describe('الإغلاق في منتصف الخطوات', () => {
     button('ألغِ').click()
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
     expect(saveDraft).not.toHaveBeenCalled()
+  })
+})
+
+/** صورة عاملة مزيّفة وخبزٌ يعيد بايتاتٍ تحمل عدد الحجوب — لمسار الصورة في النافذة بلا قماش. */
+function imageDeps(bake: ReportDeps['bakeWorking']): Partial<ReportDeps> {
+  const bitmap = { close: vi.fn() } as unknown as ImageBitmap
+  return {
+    hostGranted: () => Promise.resolve(true),
+    importImage: vi.fn<ReportDeps['importImage']>().mockResolvedValue({
+      ok: true,
+      image: { bitmap, width: 400, height: 200 },
+    }),
+    bakeWorking: bake,
+  }
+}
+
+async function attach() {
+  const input = container?.querySelector<HTMLInputElement>('input[type="file"]')
+  if (!input) throw new Error('لا منتقي ملفّات')
+  const file = new File([new Uint8Array([137, 80, 78, 71])], 'shot.png', { type: 'image/png' })
+  Object.defineProperty(input, 'files', { value: [file], configurable: true })
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  await vi.waitFor(() =>
+    expect(container?.querySelector('[data-report-image="loaded"]')).not.toBeNull(),
+  )
+}
+
+describe('مراجعة المراجعة المستقلّة — كل ملاحظةٍ أُصلحت باختبارٍ يسقط قبلها', () => {
+  it('إذنٌ سُحب بعد المراجعة: «أعد المحاولة» يطلبه من جديد لا يدور على الرفض نفسه', async () => {
+    sendSpy.mockResolvedValueOnce({ ok: false, error: { failure: 'host-permission' } })
+    mount({ hostGranted: () => Promise.resolve(true) })
+    await toReview()
+    button('أرسل البلاغ').click()
+    await vi.waitFor(() => expect(phase()).toBe('failed'))
+    expect(requestHost).not.toHaveBeenCalled()
+    button('أعد المحاولة').click()
+    await vi.waitFor(() => expect(phase()).toBe('sent'))
+    expect(requestHost).toHaveBeenCalledTimes(1)
+  })
+
+  it('خبزٌ يرمي لا يعلّق النافذة في «تُجهَّز الصورة»: تعود إلى الصورة بسببٍ مفهوم', async () => {
+    const failing = vi.fn<ReportDeps['bakeWorking']>().mockRejectedValue(new Error('oom'))
+    mount(imageDeps(failing))
+    await vi.waitFor(() => expect(phase()).toBe('describe'))
+    await type('report-field-title', 'عطل')
+    await type('report-field-what', 'وصف')
+    button('التالي: الصورة').click()
+    await vi.waitFor(() => expect(phase()).toBe('image'))
+    await attach()
+    button('التالي: المراجعة').click()
+    await vi.waitFor(() => expect(text()).toContain('تعذّر تجهيز الصورة'))
+    expect(phase()).toBe('image')
+  })
+
+  it('نقرتان على «أرسل» أثناء نافذة الإذن: طلب إذنٍ واحد وإرسالٌ واحد', async () => {
+    let grant: (v: 'granted') => void = () => undefined
+    requestHost.mockImplementationOnce(() => new Promise((r) => (grant = r)))
+    mount()
+    await toReview()
+    button('أرسل البلاغ').click()
+    button('أرسل البلاغ').click()
+    grant('granted')
+    await vi.waitFor(() => expect(phase()).toBe('sent'))
+    expect(requestHost).toHaveBeenCalledTimes(1)
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('إعداداتٌ لم تُقرأ: لا يُطلب إذنٌ ولا يُرسَل — والسبب مسمّى', async () => {
+    mount({ localOnly: () => Promise.resolve(null) })
+    await toReview()
+    button('أرسل البلاغ').click()
+    await vi.waitFor(() => expect(phase()).toBe('failed'))
+    expect(text()).toContain('تعذّرت قراءة إعداداتك')
+    nothingLeft()
+  })
+
+  it('بلاغٌ عُدِّل بعد محاولةٍ خرجت يُرسَل بمفتاحٍ جديد — والإعادة بلا تعديل بالمفتاح نفسه', async () => {
+    let n = 0
+    sendSpy
+      .mockResolvedValueOnce({ ok: false, error: { failure: 'network' } })
+      .mockImplementationOnce(
+        (_payload, options) =>
+          new Promise((resolve) => {
+            options.signal?.addEventListener('abort', () =>
+              resolve({ ok: false, error: { failure: 'cancelled' } }),
+            )
+          }),
+      )
+    mount({ hostGranted: () => Promise.resolve(true), newId: () => `key-${++n}` })
+    await toReview()
+    button('أرسل البلاغ').click()
+    await vi.waitFor(() => expect(phase()).toBe('failed'))
+    // إعادةٌ بلا تعديل: المفتاح نفسه — ثمّ إلغاءٌ أثناء الإرسال (قد يكون الطلب وصل).
+    button('أعد المحاولة').click()
+    await vi.waitFor(() => expect(phase()).toBe('sending'))
+    button('ألغِ').click()
+    await vi.waitFor(() => expect(phase()).toBe('cancelled'))
+
+    // «أكمل البلاغ» ثمّ تعديل: بلاغٌ آخر بمفتاحٍ جديد، لا ردٌّ بالرقم القديم يبتلع التعديل.
+    button('أكمل البلاغ').click()
+    await vi.waitFor(() => expect(phase()).toBe('describe'))
+    await type('report-field-what', 'وصفٌ معدَّل بعد الإلغاء')
+    button('التالي: الصورة').click()
+    await vi.waitFor(() => expect(phase()).toBe('image'))
+    button('التالي: المراجعة').click()
+    await vi.waitFor(() => expect(phase()).toBe('review'))
+    button('أرسل البلاغ').click()
+    await vi.waitFor(() => expect(phase()).toBe('sent'))
+
+    const keys = sendSpy.mock.calls.map(([, o]) => o.key)
+    expect(keys).toEqual(['key-1', 'key-1', 'key-2'])
+    expect(sendSpy.mock.calls[2]![0].description).toContain('وصفٌ معدَّل')
+  })
+
+  it('ومسودةٌ مستعادة حوولت قبلُ بجسمٍ آخر: الإرسال بعد التعديل بمفتاحٍ جديد', async () => {
+    const draft: ReportDraftRecord = {
+      id: 'old-key',
+      attempted: 'hash-of-another-body',
+      createdAt: 1,
+      updatedAt: 2,
+      kind: 'bug',
+      title: 'عطل قديم',
+      what: 'وصف',
+      steps: '',
+      expected: '',
+      tool: null,
+      errorCode: null,
+      image: null,
+    }
+    mount({
+      hostGranted: () => Promise.resolve(true),
+      latestDraft: () => Promise.resolve(ok(draft)),
+      newId: () => 'fresh-key',
+    })
+    await vi.waitFor(() => expect(phase()).toBe('describe'))
+    expect(container?.querySelector<HTMLInputElement>('#report-field-title')?.value).toBe(
+      'عطل قديم',
+    )
+    button('التالي: الصورة').click()
+    await vi.waitFor(() => expect(phase()).toBe('image'))
+    button('التالي: المراجعة').click()
+    await vi.waitFor(() => expect(phase()).toBe('review'))
+    button('أرسل البلاغ').click()
+    await vi.waitFor(() => expect(phase()).toBe('sent'))
+    expect(sendSpy.mock.calls[0]![1].key).toBe('fresh-key')
+  })
+
+  it('مسار الصورة: المراجعة تعرض مصغّرة المخبوز، وتعديل الحجب بعدها يعيد الخبز', async () => {
+    const bake = vi.fn<ReportDeps['bakeWorking']>().mockImplementation((_img, _crop, redactions) =>
+      Promise.resolve({
+        ok: true,
+        image: {
+          blob: new Blob([new Uint8Array([redactions.length])], { type: 'image/png' }),
+          bytes: new Uint8Array([redactions.length]),
+          width: 400,
+          height: 200,
+        },
+      }),
+    )
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:thumb'), revokeObjectURL: vi.fn() })
+    mount(imageDeps(bake))
+    await vi.waitFor(() => expect(phase()).toBe('describe'))
+    await type('report-field-title', 'عطل')
+    await type('report-field-what', 'وصف')
+    button('التالي: الصورة').click()
+    await vi.waitFor(() => expect(phase()).toBe('image'))
+    await attach()
+    button('التالي: المراجعة').click()
+    await vi.waitFor(() => expect(phase()).toBe('review'))
+    expect(container?.querySelector('[data-report-thumb]')?.getAttribute('src')).toBe('blob:thumb')
+    expect(bake).toHaveBeenCalledTimes(1)
+
+    button('السابق').click()
+    await vi.waitFor(() => expect(phase()).toBe('image'))
+    button('التالي: المراجعة').click()
+    await vi.waitFor(() => expect(phase()).toBe('review'))
+    // لم يتغيّر شيء: المخبوز نفسه بلا خبزٍ ثانٍ.
+    expect(bake).toHaveBeenCalledTimes(1)
   })
 })

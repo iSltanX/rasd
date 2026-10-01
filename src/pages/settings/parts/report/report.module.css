@@ -111,6 +111,30 @@
   min-inline-size: 0;
 }
 
+/* النصّ الكامل صفٌّ عموديّ: الاسم فوقه والنصّ بعرض البطاقة، لا محشورًا في عمود القيمة. */
+.stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--rasd-space-6);
+}
+
+.thumbFigure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+  margin: 0;
+}
+
+.thumb {
+  display: block;
+  max-inline-size: 100%;
+  max-block-size: 30vh;
+  margin-inline: auto;
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-default);
+  background: var(--rasd-surface-sunken);
+}
+
 /* النصّ كاملًا كما يُرسَل — بأسطره، لا ملخّصًا. */
 .description {
   white-space: pre-wrap;

@@ -22,7 +22,7 @@ import {
   type SendError,
 } from '@/modules/report/client'
 import { collectDiagnostics } from '@/modules/report/diagnostics'
-import { deleteDraft, latestDraft, saveDraft } from '@/modules/report/drafts'
+import { clearDrafts, deleteDraft, latestDraft, saveDraft } from '@/modules/report/drafts'
 import { failureMessage } from '@/modules/report/messages'
 import {
   buildPayload,
@@ -30,6 +30,7 @@ import {
   formErrors,
   payloadProblems,
   reviewRows,
+  serialise,
   TITLE_MAX,
   type Diagnostics,
   type ReportForm,
@@ -67,6 +68,10 @@ export interface ReportDeps {
   readonly saveDraft: typeof saveDraft
   readonly latestDraft: typeof latestDraft
   readonly deleteDraft: typeof deleteDraft
+  /** بعد نجاح الإرسال: مسودةٌ واحدة في كل مرّة، فلا يبقى بعده شيء. */
+  readonly clearDrafts: typeof clearDrafts
+  /** بصمة الجسم المرسَل — تقرّر هل المحاولة التالية «إعادة» بالمفتاح نفسه أم بلاغٌ معدَّل بمفتاحٍ جديد. */
+  readonly digest: (text: string) => Promise<string>
   readonly importImage: typeof importImage
   readonly bakeWorking: typeof bakeWorking
   /** «الوضع المحلّي فقط» الآن، أو `null` حين تتعذّر القراءة (والمخرج يرفض حينها بسببه). */
@@ -87,6 +92,11 @@ const LIVE: ReportDeps = {
   saveDraft,
   latestDraft,
   deleteDraft,
+  clearDrafts,
+  digest: async (text) => {
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+    return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('')
+  },
   importImage,
   bakeWorking,
   localOnly: async () => {
@@ -186,7 +196,12 @@ const NOTICE: Readonly<Record<string, string>> = {
 export function ReportDialog(props: ReportDialogProps): JSX.Element {
   const deps = useMemo(() => ({ ...LIVE, ...props.deps }), [props.deps])
   const [phase, setPhase] = useState<Phase>('loading')
-  const [id, setId] = useState<string>('')
+  /** مفتاح عدم التكرار ومعرّف المسودة — مرجعٌ لا حالة: يُقرأ داخل وعودٍ قد تتجاوز إعادة الرسم. */
+  const key = useRef('')
+  /** بصمة جسم آخر محاولة خرجت بهذا المفتاح، أو `null` حين لم يخرج شيء. */
+  const attempted = useRef<string | null>(null)
+  /** محاولةٌ جارية — نقرةٌ ثانية أثناء نافذة الإذن أو الإرسال لا تُطلق أخرى. */
+  const inFlight = useRef(false)
   const [createdAt, setCreatedAt] = useState(0)
   const [form, setForm] = useState<ReportForm>(() => EMPTY_FORM(props.request))
   const [showErrors, setShowErrors] = useState(false)
@@ -203,6 +218,7 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
   const [localOnly, setLocalOnly] = useState<boolean | null>(null)
   const [granted, setGranted] = useState(false)
   const abort = useRef<AbortController | null>(null)
+  const [thumb, setThumb] = useState<string | null>(null)
 
   // البداية: التشخيص، ثمّ أحدث مسودة إن فُتحت النافذة من الإعدادات (لا من خطأ بعينه).
   useEffect(() => {
@@ -217,7 +233,8 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
       if (!live) return
       setDiag(diagnostics)
       if (draft) {
-        setId(draft.id)
+        key.current = draft.id
+        attempted.current = draft.attempted ?? null
         setCreatedAt(draft.createdAt)
         setForm({
           kind: draft.kind,
@@ -229,11 +246,11 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
           errorCode: draft.errorCode,
         })
         if (draft.image) {
-          const restored = await deps.importImage(draft.image.blob)
-          if (live && restored.ok) setImage(restored.image)
+          const restored = await deps.importImage(draft.image.blob).catch(() => null)
+          if (live && restored?.ok) setImage(restored.image)
         }
       } else {
-        setId(deps.newId())
+        key.current = deps.newId()
         setCreatedAt(deps.now())
       }
       if (live) setPhase('describe')
@@ -245,6 +262,17 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
 
   // كل تعديلٍ على الصورة يُبطل المخبوز: ما يُعرض في المراجعة يُخبز من الحالة الأخيرة.
   useEffect(() => setBaked(null), [image, crop, redactions])
+
+  // مصغّرة المخبوز في المراجعة — البكسلات التي ستخرج فعلًا بعد القصّ والحجب والتصغير (عقد القناة).
+  useEffect(() => {
+    if (!baked || typeof URL.createObjectURL !== 'function') {
+      setThumb(null)
+      return
+    }
+    const url = URL.createObjectURL(baked.blob)
+    setThumb(url)
+    return () => URL.revokeObjectURL(url)
+  }, [baked])
 
   const payload: ReportPayload | null = useMemo(
     () =>
@@ -267,7 +295,10 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
   const ensureBaked = async (): Promise<BakedImage | null | false> => {
     if (!image) return null
     if (baked) return baked
-    const out = await deps.bakeWorking(image, crop, redactions)
+    // فكٌّ أو خبزٌ يرمي (ذاكرة، صورةٌ تالفة) فشلٌ مسمّى لا نافذةٌ معلّقة في «تُجهَّز الصورة».
+    const out = await deps
+      .bakeWorking(image, crop, redactions)
+      .catch(() => ({ ok: false as const, failure: 'failed' as const }))
     if (!out.ok) {
       setNotice(NOTICE[out.failure] ?? null)
       return false
@@ -278,7 +309,8 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
 
   const persist = async (bakedNow: BakedImage | null): Promise<boolean> => {
     const record: ReportDraftRecord = {
-      id,
+      id: key.current,
+      attempted: attempted.current,
       createdAt,
       updatedAt: deps.now(),
       ...form,
@@ -310,17 +342,27 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
   const doSend = async (body: ReportPayload) => {
     setPhase('sending')
     setError(null)
+    /*
+     * المفتاح نفسه للجسم نفسه وحده. بلاغٌ عُدِّل بعد محاولةٍ خرجت (ألغاها المستخدم وقد تكون وصلت، ثمّ «أكمل البلاغ»)
+     * بلاغٌ آخر بمفتاحٍ جديد — وإلا أجاب الخادم بالرقم القديم وضاع التعديل صامتًا.
+     */
+    const fingerprint = await deps.digest(serialise(body))
+    if (attempted.current !== null && attempted.current !== fingerprint) key.current = deps.newId()
+    attempted.current = fingerprint
     const controller = new AbortController()
     abort.current = controller
-    const outcome = await deps.send(body, { key: id, signal: controller.signal })
+    const outcome = await deps.send(body, { key: key.current, signal: controller.signal })
     abort.current = null
+    inFlight.current = false
     if (outcome.ok) {
-      await deps.deleteDraft(id)
+      await deps.clearDrafts()
       setSentId(outcome.id)
       setPhase('sent')
       return
     }
     await persist(baked)
+    // إذنٌ سُحب بعد المراجعة: «أعد المحاولة» يطلبه من جديد لا يدور على الرفض نفسه.
+    if (outcome.error.failure === 'host-permission') setGranted(false)
     if (outcome.error.failure === 'local-only') {
       setLocalOnly(true)
       setPhase('local-only')
@@ -339,11 +381,20 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
    * يُمنح، ثمّ يقرّر المخرج من جديد: الوضع المحلّي من القرص، والإذن، والأصل المسمّى.
    */
   const confirm = () => {
-    if (!payload) return
+    if (!payload || inFlight.current) return
     if (localOnly === true) {
       setPhase('local-only')
       return
     }
+    // إعداداتٌ لم تُقرأ جهلٌ لا سماح: لا يُطلب إذنٌ قد لا يُحتاج — والمخرج كان سيرفض بالسبب نفسه.
+    if (localOnly === null) {
+      void persist(baked).then(() => {
+        setError({ failure: 'settings-unreadable' })
+        setPhase('failed')
+      })
+      return
+    }
+    inFlight.current = true
     if (!granted) {
       void deps.requestHost().then((outcome) => {
         if (outcome === 'granted') {
@@ -351,6 +402,7 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
           void doSend(payload)
           return
         }
+        inFlight.current = false
         void persist(baked).then(() => {
           setError({ failure: 'host-permission' })
           setPhase('failed')
@@ -369,7 +421,10 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
       setPhase('image')
       return
     }
-    const [mode, host] = await Promise.all([deps.localOnly(), deps.hostGranted()])
+    const [mode, host] = await Promise.all([
+      deps.localOnly().catch(() => null),
+      deps.hostGranted().catch(() => false),
+    ])
     setLocalOnly(mode)
     setGranted(host)
     setPhase('review')
@@ -446,7 +501,6 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
             multiline
             value={form.steps}
             onInput={field('steps')}
-            hint="اختياري"
           />
           <Field
             id="report-field-expected"
@@ -493,16 +547,19 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
           notice={notice}
           onPick={(file) => {
             setNotice(null)
-            void deps.importImage(file).then((out) => {
-              if (!out.ok) {
-                setNotice(NOTICE[out.failure] ?? null)
-                return
-              }
-              image?.bitmap.close()
-              setImage(out.image)
-              setCrop(null)
-              setRedactions([])
-            })
+            void deps
+              .importImage(file)
+              .catch(() => ({ ok: false as const, failure: 'not-image' as const }))
+              .then((out) => {
+                if (!out.ok) {
+                  setNotice(NOTICE[out.failure] ?? null)
+                  return
+                }
+                image?.bitmap.close()
+                setImage(out.image)
+                setCrop(null)
+                setRedactions([])
+              })
           }}
           onCrop={setCrop}
           onRedactions={setRedactions}
@@ -549,7 +606,11 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
             {rows
               .filter((r) => keys(r.key))
               .map((r) => (
-                <div key={r.key} class={sheet.kv} data-report-key={r.key}>
+                <div
+                  key={r.key}
+                  class={cx(sheet.kv, r.key === 'description' && styles.stacked)}
+                  data-report-key={r.key}
+                >
                   <span class={sheet.rowLabel}>{LABEL[r.key] ?? r.key}</span>
                   <span class={cx(sheet.rowValue, styles.reviewValue)}>
                     {value(r.key, r.value)}
@@ -561,6 +622,19 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
       )
       body = (
         <>
+          {thumb ? (
+            <figure class={styles.thumbFigure}>
+              <img
+                src={thumb}
+                class={styles.thumb}
+                alt="الصورة كما ستُرسَل بعد القصّ والحجب"
+                data-report-thumb=""
+              />
+              <figcaption class={cx(styles.toolHint, 't-arabic-ui-xs')}>
+                الصورة كما ستُرسَل — ما حجبته أسود في بياناتها نفسها.
+              </figcaption>
+            </figure>
+          ) : null}
           {section('البلاغ', (k) => !DIAGNOSTIC_KEYS.has(k) && !k.startsWith('diagnostics.'))}
           {section('التشخيص', (k) => DIAGNOSTIC_KEYS.has(k) || k.startsWith('diagnostics.'))}
           <div class={sheet.group}>
@@ -685,7 +759,12 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
       actions = (
         <>
           {again ? (
-            <Button size="l" icon="refresh" data-rasd-autofocus="" onClick={confirm}>
+            <Button
+              size="l"
+              icon="refresh"
+              data-rasd-autofocus=""
+              onClick={err.failure === 'settings-unreadable' ? () => void toReview() : confirm}
+            >
               أعد المحاولة
             </Button>
           ) : backToImage ? (
@@ -748,7 +827,7 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
           <Button
             variant="ghost"
             size="l"
-            onClick={() => void deps.deleteDraft(id).then(() => props.onClose())}
+            onClick={() => void deps.deleteDraft(key.current).then(() => props.onClose())}
           >
             احذف المسودة
           </Button>
