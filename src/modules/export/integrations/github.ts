@@ -2,8 +2,9 @@
  * **عميل GitHub** — محصورٌ في `api.github.com`، ولا يخرج إلا من مخرج الشبكة الواحد، ولا يقرأ رمزه إلا من الخزنة
  * ([ADR 0046](../../../../Docs/ADR/0046-named-network-services.md) §6).
  *
- * ثلاثة أفعال لا رابع لها اليوم: التحقّق من رمزٍ قبل حفظه (`connectGitHub`)، وقراءة مستودع (`getRepository`)، وفتح
- * Issue (`createIssue`). وواجهة المؤلِّف وتأكيده ورفع الصورة أصلًا في المستودع لـ`STAGES/12`.
+ * أربعة أفعال: التحقّق من رمزٍ قبل حفظه (`connectGitHub`)، وقراءة مستودع (`getRepository`)، ورفع ملفٍّ إلى المستودع
+ * (`uploadAsset` — صورة البلاغ أصلًا)، وفتح Issue (`createIssue`). **ولا يُستدعى أيٌّ من الأخيرين إلا بعد تأكيد
+ * المستخدم** — والتأكيد واجهة المؤلِّف (`pages/integrations/IssueComposer.tsx`).
  *
  * **الرمز لا يخرج من هنا إلا في ترويسة `Authorization` إلى `api.github.com`:** لا يُعاد في نتيجة، ولا يُكتب في خطأ،
  * ولا في سجلّ. والأخطاء أسبابٌ مسمّاة تقابل إطارات `24 — Integrations`: `local-only` · `host-permission` ·
@@ -35,6 +36,8 @@ export type GitHubFailure =
   | 'issues-disabled'
   /** 429، أو 403 بحدٍّ مستنفَد. */
   | 'rate-limited'
+  /** 409 — تعارضٌ مؤقّت مع التزامٍ آخر على الفرع: تُعاد المحاولة. */
+  | 'conflict'
   /** 422 — الطلب مرفوض لمحتواه. */
   | 'invalid'
   /** 5xx. */
@@ -62,6 +65,12 @@ export interface GitHubRepository {
 export interface GitHubIssue {
   readonly number: number
   readonly url: string
+}
+
+/** ملفٌّ رُفع إلى المستودع: مساره، والتزامه — عنوان الصورة يُثبَّت على الالتزام لا على الفرع. */
+export interface GitHubAsset {
+  readonly path: string
+  readonly commitSha: string
 }
 
 export interface IssueDraft {
@@ -130,7 +139,7 @@ export async function getRepository(
   })
 }
 
-/** يفتح Issue. **لا يُستدعى إلا بعد تأكيد المستخدم** — والتأكيد واجهة `STAGES/12`. */
+/** يفتح Issue. **لا يُستدعى إلا بعد تأكيد المستخدم** — والتأكيد واجهة المؤلِّف. */
 export async function createIssue(
   owner: string,
   repo: string,
@@ -147,10 +156,80 @@ export async function createIssue(
   })
   if (!response.ok) return response
   const body = response.value as { number?: unknown; html_url?: unknown } | null
-  if (typeof body?.number !== 'number' || typeof body.html_url !== 'string') {
+  if (typeof body?.number !== 'number' || !isGitHubUrl(body.html_url)) {
     return err(failure('unexpected'))
   }
   return ok({ number: body.number, url: body.html_url })
+}
+
+/**
+ * يرفع ملفًّا إلى الفرع الافتراضي للمستودع (`PUT /contents`) — صلاحية Contents على الرمز، لا Issues.
+ * **لا يُستدعى إلا بعد تأكيد المستخدم.** `path` مسارٌ نسبيّ بلا `..` — كل مقطع منه يُرمَّز.
+ */
+export async function uploadAsset(
+  owner: string,
+  repo: string,
+  path: string,
+  bytes: Uint8Array,
+  message: string,
+): Promise<Result<GitHubAsset, GitHubError>> {
+  const base = repoPath(owner, repo)
+  const segments = path.split('/')
+  if (!base || segments.some((s) => s === '' || s === '.' || s === '..')) {
+    return err(failure('malformed'))
+  }
+  const token = await storedToken()
+  if (!token.ok) return token
+
+  const response = await request(
+    'PUT',
+    `${base}/contents/${segments.map(encodeURIComponent).join('/')}`,
+    token.value,
+    { message, content: toBase64(bytes) },
+  )
+  if (!response.ok) return response
+  const body = response.value as {
+    content?: { path?: unknown } | null
+    commit?: { sha?: unknown } | null
+  } | null
+  const stored = body?.content?.path
+  const sha = body?.commit?.sha
+  if (typeof stored !== 'string' || typeof sha !== 'string' || !/^[0-9a-f]{7,64}$/u.test(sha)) {
+    return err(failure('unexpected'))
+  }
+  return ok({ path: stored, commitSha: sha })
+}
+
+/** رابط الـIssue الراجع يُعرض زرًّا يُفتح — فلا يُقبَل إلا من `github.com` بـ`https`. */
+function isGitHubUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'https:' && parsed.origin === 'https://github.com'
+  } catch {
+    return false
+  }
+}
+
+/** بايتات إلى base64 — بدفعاتٍ كي لا يتجاوز `apply` سقف المكدّس. */
+export function toBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  }
+  return btoa(binary)
+}
+
+/**
+ * مستودعٌ كما يكتبه المستخدم: `owner/repo`، أو رابطه من المتصفّح (`https://github.com/owner/repo` — بـ`.git` أو
+ * بمسارٍ بعده). **الشكل وحده** — وجوده وصلاحية الرمز عليه يقولهما GitHub عند الإرسال.
+ */
+export function parseRepoRef(input: string): { owner: string; repo: string } | null {
+  const text = input.trim().replace(/^https:\/\/github\.com\//iu, '')
+  const [owner, rawRepo] = text.split('/')
+  const repo = rawRepo?.replace(/\.git$/iu, '')
+  if (!owner || !repo) return null
+  return repoPath(owner, repo) ? { owner, repo } : null
 }
 
 function repoPath(owner: string, repo: string): string | null {
@@ -166,7 +245,7 @@ async function storedToken(): Promise<Result<string, GitHubError>> {
 }
 
 async function request(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PUT',
   path: string,
   token: string,
   payload?: unknown,
@@ -209,6 +288,7 @@ export function classify(response: Pick<Response, 'status' | 'headers'>): GitHub
   }
   if (status === 404) return failure('not-found', status)
   if (status === 410) return failure('issues-disabled', status)
+  if (status === 409) return failure('conflict', status)
   if (status === 422) return failure('invalid', status)
   if (status >= 500) return failure('server', status)
   return failure('unexpected', status)

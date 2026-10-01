@@ -156,12 +156,23 @@ function statusLine(entry: HandoffEntry): string {
   return `- الحالة: ${STATUS_LABEL[entry.status]} · ${checked}`
 }
 
+/**
+ * سطر الصفحة. **رابطٌ وعنوانٌ فارغان يحذفانه كلّه:** الـIssue تُنشر في مستودعٍ قد يراه غير صاحبه، فيطفئ المستخدم
+ * ذكر الصفحة (`STAGES/12`) — والسطر الذي يقول «الصفحة: ` `» يوهم بصفحةٍ بلا اسم.
+ */
+function pageLine(page: HandoffEntry['page']): string | null {
+  if (page.url === '' && page.title === '') return null
+  if (page.url === '') return `- الصفحة: ${loose(page.title)}`
+  return `- الصفحة: ${code(page.url)}${page.title ? ` — ${loose(page.title)}` : ''}`
+}
+
 function facts(entry: HandoffEntry): string {
   const { page, check } = entry
   const { viewport } = page
-  const lines = [
+  const where = pageLine(page)
+  const lines: string[] = [
     statusLine(entry),
-    `- الصفحة: ${code(page.url)}${page.title ? ` — ${loose(page.title)}` : ''}`,
+    ...(where === null ? [] : [where]),
     `- المقاس: ${isolate(`${viewport.width} × ${viewport.height} · DPR ${viewport.dpr}`)} · سُجّلت ${isolate(stamp(entry.createdAt))}`,
     `- المحدِّد: ${code(entry.element.selector)} — ${fragility(entry.element)}`,
   ]
@@ -212,6 +223,14 @@ function entryText(entry: HandoffEntry): string {
       : null,
   ]
   return sections.filter((s): s is string => s !== null).join('\n\n')
+}
+
+/**
+ * المشكلات بأقسامها وحدها، بلا رأس الحزمة — ما تبني منه الـIssue نصّها (`STAGES/12`): العارض نفسه لا نصٌّ موازٍ،
+ * فأي تغييرٍ في صياغة قسمٍ يصل الحزمة والـIssue معًا.
+ */
+export function renderEntries(entries: readonly HandoffEntry[]): string {
+  return entries.map(entryText).join('\n\n')
 }
 
 /** المستند كاملًا: الرأس، ثمّ المشكلات بترتيبها. */

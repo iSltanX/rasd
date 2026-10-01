@@ -41,6 +41,7 @@ import { useFocusTrap } from '@/ui/use-focus-trap'
 import { deliver, revealDownload, type Delivered } from '../export/deliver'
 import sheet from '../export/export.module.css'
 import { downloadsRefused, rememberRefusal } from '../export/permission-memory'
+import { IssueComposerLauncher } from '../integrations/IssueComposerLauncher'
 
 import {
   bakeEvidence,
@@ -121,6 +122,10 @@ export function HandoffDialog(props: HandoffDialogProps): JSX.Element {
   const [failures, setFailures] = useState<readonly EvidenceFailure[]>([])
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<Format | null>(null)
+  /** مؤلِّف البلاغ مفتوحٌ فوق هذه النافذة — `Esc` له وحده ما دام مفتوحًا. */
+  const [composing, setComposing] = useState(false)
+  const composingRef = useRef(false)
+  composingRef.current = composing
 
   const [meta] = useState<HandoffMeta>(() => ({
     source: props.source,
@@ -216,7 +221,7 @@ export function HandoffDialog(props: HandoffDialogProps): JSX.Element {
   useEffect(() => {
     closeRef.current?.focus()
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return
+      if (e.key !== 'Escape' || composingRef.current) return
       e.preventDefault()
       close()
     }
@@ -527,10 +532,31 @@ export function HandoffDialog(props: HandoffDialogProps): JSX.Element {
               >
                 {format === 'json' ? 'انسخ JSON' : 'انسخ Markdown'}
               </Button>
+              <Button
+                variant="secondary"
+                size="l"
+                icon="plug"
+                onClick={() => setComposing(true)}
+                data-handoff-issue=""
+                {...(built?.ok ? {} : { state: 'disabled' as const })}
+              >
+                افتح Issue في GitHub
+              </Button>
             </footer>
           </>
         )}
       </div>
+
+      {composing ? (
+        <IssueComposerLauncher
+          issues={list}
+          source={props.source}
+          baked={baked}
+          frames={frames}
+          onClose={() => setComposing(false)}
+          {...(props.now === undefined ? {} : { now: props.now })}
+        />
+      ) : null}
 
       {copied ? (
         <div class={styles.toastSlot}>

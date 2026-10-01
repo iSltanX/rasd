@@ -1,0 +1,139 @@
+/*
+ * التكاملات ومؤلِّف البلاغ — ما يختلف عن هيكل نوافذ التصدير وحده.
+ *
+ * الحاجب والترويسة والجسم والأفعال من `export/export.module.css` نفسها (نوافذ بهيكلٍ واحد). وكل قيمة من العقد:
+ * لا لون حرفي ولا `px` حرفية ولا خاصية فيزيائية (`left`/`right`) — وحارس `verify-tokens.mjs` يفرض الثلاثة.
+ */
+
+.modal {
+  inline-size: min(35rem, 100%);
+}
+
+/* حقل الرمز والمستودع: عنوانٌ فوق حقل، وتلميحٌ تحته. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-6);
+}
+
+.fieldLabel {
+  color: var(--rasd-text-primary);
+}
+
+.fieldHint {
+  margin: 0;
+  color: var(--rasd-text-tertiary);
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--rasd-status-danger-fg);
+}
+
+/* قيمةٌ تقنية (اسم مستودع، رمز) تُكتب من اليسار ولو كانت الصفحة من اليمين. */
+.ltr {
+  direction: ltr;
+  text-align: start;
+}
+
+/* ── الأفعال: الأساسيّ أوّلًا في DOM ─────────────────────── */
+
+.actions {
+  justify-content: flex-end;
+}
+
+/* ── الأطوار: إرسال ونجاح وإلغاء ──────────────────────────── */
+
+.center {
+  align-items: center;
+  text-align: center;
+}
+
+.badge {
+  display: grid;
+  place-items: center;
+  inline-size: var(--rasd-control-lg);
+  block-size: var(--rasd-control-lg);
+  border-radius: var(--rasd-radius-full);
+}
+
+.badgeSuccess {
+  background: var(--rasd-status-success-surface);
+  color: var(--rasd-status-success-fg);
+}
+
+.badgeWarning {
+  background: var(--rasd-status-warning-surface);
+  color: var(--rasd-status-warning-fg);
+}
+
+.phaseTitle {
+  margin: 0;
+  color: var(--rasd-text-primary);
+}
+
+.phaseText {
+  margin: 0;
+  color: var(--rasd-text-secondary);
+}
+
+.issueRef {
+  color: var(--rasd-text-brand);
+}
+
+/* ── المعاينة ─────────────────────────────────────────────── */
+
+/*
+ * نصّ البلاغ كما سيُرسل — **ارتفاعٌ ثابت و`flex: none`**: حاوية تمريرٍ داخل جسمٍ مرن حدّها الأدنى صفر، فكان
+ * الجسم الممتلئ يعصرها (`handoff.module.css`). و`unicode-bidi: plaintext` يحسم اتجاه كل سطر من أوّل حرفٍ قويّ.
+ */
+.preview {
+  flex: none;
+  margin: 0;
+  block-size: calc(var(--rasd-space-24) * 6);
+  overflow: auto;
+  padding-block: var(--rasd-space-12);
+  padding-inline: calc(var(--rasd-space-12) + var(--rasd-space-2));
+  border-radius: var(--rasd-radius-lg);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-sunken);
+  color: var(--rasd-text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-10);
+}
+
+.thumb {
+  inline-size: calc(var(--rasd-space-24) * 5);
+  max-inline-size: 100%;
+  border-radius: var(--rasd-radius-md);
+  border: var(--rasd-stroke-thin) solid var(--rasd-border-subtle);
+  background: var(--rasd-surface-sunken);
+}
+
+/* ── الإعدادات: حقل المستودع ──────────────────────────────── */
+
+.repo {
+  inline-size: calc(var(--rasd-space-24) * 9);
+  max-inline-size: 100%;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rasd-space-8);
+  align-items: center;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rasd-space-16);
+}

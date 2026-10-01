@@ -1,20 +1,13 @@
 /**
- * قسم التكاملات — GitHub وحده (`Docs/Design.md` §7 القرار 3). محرّكه في `STAGES/11` و
- * `STAGES/12`، فالقسم يقول ما سيأتي وما يحكمه، ولا يعرض زرّ اتّصال لا يتّصل.
+ * قسم التكاملات — GitHub وحده (`Docs/Design.md` §7 القرار 3). الشاشة وحالاتها الأربع في `pages/integrations/`؛
+ * وهذا القسم يضعها في صفحة الإعدادات ويصلها بقسم الخصوصية حيث يُوقَف «الوضع المحلّي فقط».
  */
-import { Chip } from '@/ui/components/Chip/Chip'
-import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
+import { ConnectionsPanel } from '../../integrations/ConnectionsPanel'
 
-import { Group } from './Group'
+export interface IntegrationsSectionProps {
+  readonly onOpenPrivacy: () => void
+}
 
-export function IntegrationsSection() {
-  return (
-    <Group title="GitHub" id="integrations-github">
-      <SettingRow
-        label="افتح Issue من اللقطة مباشرةً"
-        hint="يصل مع تكامل GitHub. لا يتّصل رصد بأي خدمة حتى توقف «الوضع المحلّي فقط» وتفعّله أنت"
-        control={<Chip tone="neutral">قريبًا</Chip>}
-      />
-    </Group>
-  )
+export function IntegrationsSection({ onOpenPrivacy }: IntegrationsSectionProps) {
+  return <ConnectionsPanel onOpenPrivacy={onOpenPrivacy} />
 }
