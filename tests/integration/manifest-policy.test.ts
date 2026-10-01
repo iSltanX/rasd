@@ -87,6 +87,34 @@ describe('سياسة الصلاحيات في البيان', () => {
   })
 })
 
+/**
+ * سجلّ الصلاحيات المشروح يطابق السياسة — ADR 0055 §5.
+ *
+ * كان `Docs/ADR/permissions.md` يقول إن `verify:dist` يُسقط صلاحية بلا سطر فيه، وقِيس في 20.3 أنه لا يفتح الملفّ.
+ * فهذا هو الحارس: أوّل خليّة في كل صفّ جدولٍ تحت عنوانَي «الدائمة» و«الاختيارية» تُطابَق بالسياسة مجموعةً.
+ */
+describe('سجلّ الصلاحيات المشروح', () => {
+  const record = readFileSync(`${root}Docs/ADR/permissions.md`, 'utf8')
+
+  /** أسماء الصلاحيات في أوّل عمود من جدول القسم الذي يبدأ عنوانه بـ`heading`، حتى العنوان التالي. */
+  const rowsUnder = (heading: string): string[] => {
+    const start = record.indexOf(`\n## ${heading}`)
+    expect(start, `القسم «${heading}» مفقود`).toBeGreaterThan(-1)
+    const rest = record.slice(start + 1)
+    const end = rest.search(/\n#{2,3} /)
+    const section = end === -1 ? rest : rest.slice(0, end)
+    return [...section.matchAll(/^\| `([A-Za-z]+)` \|/gmu)].map((m) => m[1]!)
+  }
+
+  it('جدول الدائمة صفٌّ لكل صلاحية دائمة، لا أكثر ولا أقلّ', () => {
+    expect(rowsUnder('الدائمة').sort()).toEqual([...REQUIRED_PERMISSIONS].sort())
+  })
+
+  it('جدول الاختيارية صفٌّ لكل صلاحية اختيارية، لا أكثر ولا أقلّ', () => {
+    expect(rowsUnder('الاختيارية').sort()).toEqual([...OPTIONAL_PERMISSIONS].sort())
+  })
+})
+
 describe('سياسة الحقن والأمن', () => {
   it('لا content_scripts تلقائي — الحقن يدوي (ADR 0005)', () => {
     expect(manifest.content_scripts).toBeUndefined()

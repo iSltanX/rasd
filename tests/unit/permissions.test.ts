@@ -95,13 +95,13 @@ describe('requestPermission · hasPermission · revokePermission', () => {
 
   it('يبتلع الأخطاء في الفحص ويرجع false', async () => {
     api.contains.mockRejectedValue(new Error('boom'))
-    await expect(hasPermission(['tabs'])).resolves.toBe(false)
+    await expect(hasPermission(['downloads'])).resolves.toBe(false)
     await expect(hasHostPermission('https://x.com/*')).resolves.toBe(false)
   })
 
   it('يفحص الصلاحية الممنوحة', async () => {
     api.contains.mockResolvedValue(true)
-    await expect(hasPermission(['tabs'])).resolves.toBe(true)
+    await expect(hasPermission(['downloads'])).resolves.toBe(true)
   })
 
   it('رفض الصلاحية الاختيارية → denied لا granted', async () => {
@@ -129,12 +129,12 @@ describe('requestPermission · hasPermission · revokePermission', () => {
    */
   it('يسحب الصلاحية ويقول إنها سُحبت لا إنها ممنوحة', async () => {
     api.remove.mockResolvedValue(true)
-    await expect(revokePermission(['desktopCapture'])).resolves.toBe('revoked')
+    await expect(revokePermission(['downloads'])).resolves.toBe('revoked')
   })
 
   it('السحب الذي لم يقع يُقرأ «باقية» لا «مرفوضة»', async () => {
     api.remove.mockResolvedValue(false)
-    await expect(revokePermission(['desktopCapture'])).resolves.toBe('kept')
+    await expect(revokePermission(['downloads'])).resolves.toBe('kept')
   })
 
   it('يسحب صلاحية المضيف كذلك', async () => {
@@ -150,7 +150,7 @@ describe('requestPermission · hasPermission · revokePermission', () => {
 
   it('رمي السحب يعود error في الصلاحية الاختيارية وصلاحية المضيف معًا', async () => {
     api.remove.mockRejectedValue(new Error('boom'))
-    await expect(revokePermission(['desktopCapture'])).resolves.toBe('error')
+    await expect(revokePermission(['downloads'])).resolves.toBe('error')
     await expect(revokeHostPermission(['https://x.com/*'])).resolves.toBe('error')
   })
 })
@@ -164,7 +164,7 @@ describe('grantedOrigins — ما مُنح فعلًا لا ما يُسأل عن�
   })
 
   it('لا أصول في الردّ (الحقل غائب) → قائمة فارغة لا undefined', async () => {
-    api.getAll.mockResolvedValue({ permissions: ['tabs'] })
+    api.getAll.mockResolvedValue({ permissions: ['downloads'] })
 
     await expect(grantedOrigins()).resolves.toEqual([])
   })
@@ -195,7 +195,7 @@ describe('watchPermissions', () => {
     const onAdded = api.onAdded.addListener.mock.calls[0]![0] as (p: unknown) => void
     const onRemoved = api.onRemoved.addListener.mock.calls[0]![0] as (p: unknown) => void
     // المتصفّح يمرّر الصلاحيات المتغيّرة، والمستمع لا يهتمّ بها فيُعيد القراءة.
-    onAdded({ permissions: ['tabs'] })
+    onAdded({ permissions: ['downloads'] })
     onRemoved({ origins: ['https://x.com/*'] })
 
     expect(listener).toHaveBeenCalledTimes(2)

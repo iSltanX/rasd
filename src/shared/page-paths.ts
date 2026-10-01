@@ -11,7 +11,6 @@ export const PAGE_PATHS = {
   library: 'src/pages/library/index.html',
   settings: 'src/pages/settings/index.html',
   onboarding: 'src/pages/onboarding/index.html',
-  offscreen: 'src/offscreen/index.html',
   /**
    * المرحلة 17 — `compare/index.html?a=<captureId>&b=<captureId>`. تُفتح عبر
    * `page/open` القائمة (`background/lifecycle.ts`) — لا رسالة جديدة، ولا

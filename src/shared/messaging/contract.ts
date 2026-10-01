@@ -386,8 +386,6 @@ export interface RequestMap {
   'issue/recheck-tab': { tabId: number }
   /** من الخلفية إلى الطبقة: ابدأ جولة الفحص الآن. يسجّله `content/index.ts` ما دامت الجلسة قائمة. */
   'issue/run-recheck': void
-  'offscreen/ensure': void
-  'offscreen/close': void
 }
 
 /** ما ترجعه كل رسالة. */
@@ -465,8 +463,6 @@ export interface ResponseMap {
   'issue/recheck-tab': { started: true } | { started: false; reason: ActivationFailure }
   /** عدد ما فُحص فعلًا — قد يقلّ عن مشكلات الصفحة إن بلغت الجولة حدّها. */
   'issue/run-recheck': { checked: number }
-  'offscreen/ensure': { created: boolean }
-  'offscreen/close': { closed: boolean }
 }
 
 export type MessageType = keyof RequestMap & keyof ResponseMap

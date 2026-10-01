@@ -100,7 +100,6 @@ pnpm build
 src/
   background/   Service Worker — دورة الحياة وتوجيه الرسائل
   content/      داخل صفحة الطرف الثالث — Shadow Root ومدير الأوضاع
-  offscreen/    مستند خارج الشاشة — Canvas الثقيل (لا الحافظة — ADR 0009)
   pages/        صفحات الإضافة — popup · editor · library · settings · onboarding
   modules/      الوحدات الثماني — منطق خالص بلا واجهة
   ui/           نظام التصميم — مكوّنات Preact على التوكنز الدلالية

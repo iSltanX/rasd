@@ -6,6 +6,7 @@
  *   • صحّة الحزمة (المرحلة 1) — بيان صالح، ملفات موجودة، أيقونات سليمة.
  *   • مطابقة السياسة (المرحلة 2) — الصلاحيات، الحقن، CSP، الاختصارات، اللغات.
  *   • ميزانية الحزمة (`STAGES/19`) — المحتوى والنافذة مضغوطتين، بقرار ADR 0027.
+ *   • مستهلك كل صلاحية (`STAGES/23`) — لا صلاحية معلَنة بلا نداء واجهتها في الحزمة، بقرار ADR 0055.
  *
  * القوائم تُقرأ من `src/shared/` نفسها، فلا يمكن أن تفترق السياسة عن البيان.
  */
@@ -19,6 +20,7 @@ import * as PERMS from '../src/shared/permission-policy.ts'
 
 import { BUDGETS, fmt, gzipBytes, judge, pageGraph } from './bundle-budget.mjs'
 import { judgeExtensionCsp, judgeHostPermissions } from './csp-policy.mjs'
+import { judgePermissionConsumers } from './permission-consumers.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
@@ -215,6 +217,24 @@ if (manifest) {
     : fail(
         `صلاحيات المضيف الاختيارية تخالف السياسة — زائدة: [${hosts.extra.join(', ')}] ناقصة: [${hosts.missing.join(', ')}]`,
       )
+}
+
+// ═══ مستهلك كل صلاحية ══════════════════════════════════════════════
+/*
+ * **«لا صلاحية في البيان بلا مستهلك»** (ADR 0055): مطابقة البيان للسياسة أعلاه لا تكفي — السياسة نفسها حملت
+ * `tabs` و`desktopCapture` و`offscreen` بصفر مستهلك حتى `STAGES/23`. فكل صلاحية معلَنة تشترط بصمة نداء واجهتها في
+ * ملفّات الحزمة نفسها.
+ */
+if (manifest) {
+  group('مستهلك كل صلاحية')
+
+  const jsFiles = (await walk(dist)).filter((f) => f.endsWith('.js'))
+  const consumers = judgePermissionConsumers(
+    manifest,
+    jsFiles.map((file) => ({ file: relative(dist, file), text: readFileSync(file, 'utf8') })),
+  )
+  for (const { permission, file } of consumers.matched) ok(`${permission} ← ${file}`)
+  for (const problem of consumers.problems) fail(problem)
 }
 
 // ═══ سياسة الحقن والأمن ════════════════════════════════════════════

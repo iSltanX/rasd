@@ -68,9 +68,9 @@ describe('send / onMessage', () => {
 
   it('المهلة تنتهي بـtimeout ولا تعلّق', async () => {
     // مستقبِل لا يردّ أبدًا.
-    onMessage('offscreen/ensure', () => new Promise<never>(() => {}))
+    onMessage('diagnostics/ping', () => new Promise<never>(() => {}))
 
-    const promise = send('offscreen/ensure', undefined, { timeoutMs: 50 })
+    const promise = send('diagnostics/ping', undefined, { timeoutMs: 50 })
     const result = await promise
     expect(result.ok).toBe(false)
     expect(result.ok === false && result.error.code).toBe('timeout')

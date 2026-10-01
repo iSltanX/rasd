@@ -36,7 +36,6 @@ import { PAGE_PATHS } from '@/shared/page-paths'
 import { RasdThrow } from '@/shared/result'
 import { getSettings, patchSettings, watchSettings } from '@/shared/settings'
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
-import { closeOffscreen, ensureOffscreen } from '@/shared/storage/offscreen'
 import { quotaState } from '@/shared/storage/quota'
 import { blobs, captures, colors, palettes } from '@/shared/storage/repository'
 import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
@@ -443,18 +442,6 @@ function registerRequestHandlers() {
       active: active ?? true,
     })
     return { tabId: tab.id ?? -1 }
-  })
-
-  onMessage('offscreen/ensure', async () => {
-    const result = await ensureOffscreen()
-    if (!result.ok) throw new Error(result.error.message)
-    return result.value
-  })
-
-  onMessage('offscreen/close', async () => {
-    const result = await closeOffscreen()
-    if (!result.ok) throw new Error(result.error.message)
-    return result.value
   })
 }
 
