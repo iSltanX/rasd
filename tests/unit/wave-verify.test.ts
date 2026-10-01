@@ -36,9 +36,9 @@ describe('الحرّاس المعرَّفة', () => {
     expect(allGuards(pkg)).toEqual(['colour', 'load'])
   })
 
-  it('package.json الحقيقي: الواحد والعشرون — `share` من `STAGES/10`', () => {
+  it('package.json الحقيقي: الاثنان والعشرون — `memory` من `STAGES/21`', () => {
     const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-    expect(allGuards(pkg)).toHaveLength(21)
+    expect(allGuards(pkg)).toHaveLength(22)
   })
 })
 

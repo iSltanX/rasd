@@ -270,6 +270,7 @@ jobs:
           - { guard: lifecycle, blocking: false }
           - { guard: load, blocking: false }
           - { guard: measure, blocking: false }
+          - { guard: memory, blocking: false }
           - { guard: overlay, blocking: false }
           - { guard: palette, blocking: false }
           - { guard: picker, blocking: false }

@@ -11,6 +11,7 @@
  * الاشتقاق والفكّ والإيقاف في `modules/privacy/` — هنا ما يحتاجه الحارس وحده، فـ`shared/` لا يستورد ممّا فوقه.
  */
 
+import { replaceListener } from '../listener-slot'
 import { attempt } from '../result'
 
 export const LOCK_KEY = 'rasd:lock'
@@ -69,7 +70,8 @@ function onChanged(changes: Record<string, unknown>, area: string): void {
 function listen(): void {
   const event = chrome.storage?.onChanged
   if (!event || event.hasListener(onChanged)) return
-  event.addListener(onChanged)
+  // مقعدٌ واحد لكل عالم: إعادة تنفيذ `content.js` تبني وحدةً جديدة ومستمعُ السابقة حيّ (`STAGES/21`).
+  replaceListener('lock.storage.onChanged', event, onChanged)
   forgetLockSnapshot()
 }
 

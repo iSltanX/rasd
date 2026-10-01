@@ -32,12 +32,19 @@ export const IMPACT = [
   },
   {
     match: /^src\/background\/full-page-job\.ts/u,
-    scripts: ['verify:activate', 'verify:fullpage'],
+    scripts: ['verify:activate', 'verify:fullpage', 'verify:memory'],
   },
-  { match: /^src\/content\/index\.ts/u, scripts: ['verify:activate'] },
+  /*
+   * جلسة الطبقة وتفكيكها ومضيفها (`STAGES/21`): ما يُركَّب في كل تفعيل يجب أن يُفكَّك في كل تعطيل — يحرسه
+   * `verify:memory` بخمسين دورة وعدّ المستمعين والعقد المنفصلة.
+   */
+  { match: /^src\/content\/index\.ts/u, scripts: ['verify:activate', 'verify:memory'] },
   // منطقة حسّاسة مسمّاة كانت خارج الجدول (الصفّ 114 في `Docs/Engineering.md §6`).
   { match: /^src\/background\/lifecycle\.ts/u, scripts: ['verify:lifecycle'] },
-  { match: /^src\/content\/host\.ts/u, scripts: ['verify:activate', 'verify:overlay'] },
+  {
+    match: /^src\/content\/host\.ts/u,
+    scripts: ['verify:activate', 'verify:overlay', 'verify:memory'],
+  },
   { match: /^src\/content\/tools\/compare\.ts/u, scripts: ['verify:compare'] },
   { match: /^src\/content\/tools\/measure\.ts/u, scripts: ['verify:measure'] },
   { match: /^src\/content\/tools\/eyedropper\.ts/u, scripts: ['verify:colour'] },
@@ -60,7 +67,10 @@ export const IMPACT = [
    * أثناء المسارات الثلاثة وفتح الصفحة المصدَّرة بلا إنترنت.
    */
   { match: /^src\/pages\/share\//u, scripts: ['verify:share'] },
-  { match: /^src\/shared\/messaging\//u, scripts: ['verify:activate', 'verify:capture'] },
+  {
+    match: /^src\/shared\/messaging\//u,
+    scripts: ['verify:activate', 'verify:capture', 'verify:memory'],
+  },
   { match: /^src\/shared\/storage\//u, scripts: ['verify:library', 'verify:compare'] },
   {
     match: /^(manifest\.config\.ts|src\/shared\/permission-policy\.ts)/u,
