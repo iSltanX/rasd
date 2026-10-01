@@ -131,6 +131,47 @@ describe('ما لا يُفكّ', () => {
   })
 })
 
+describe('الكتابات المتزامنة — المراجعة المستقلّة', () => {
+  it('حفظان متزامنان: يبقى آخرهما مقروءًا، لا سجلٌّ بلا مفتاحه', async () => {
+    for (let round = 0; round < 10; round++) {
+      await Promise.all([saveSecret('github', `${TOKEN}-a`), saveSecret('github', `${TOKEN}-b`)])
+      expect(await readSecret('github')).toEqual({ ok: true, value: `${TOKEN}-b` })
+      expect(await vaultKeyCount()).toBe(1)
+    }
+  })
+
+  it('النسيان أثناء حفظٍ معلّق لا يُبعث سجلًّا بلا مفتاح', async () => {
+    const local = chrome.storage.local
+    let release!: () => void
+    let entered!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const writing = new Promise<void>((resolve) => (entered = resolve))
+    Object.assign(globalThis.chrome.storage, {
+      local: {
+        ...local,
+        set: async (items: Record<string, unknown>) => {
+          entered()
+          await gate
+          return local.set(items)
+        },
+      },
+    })
+    try {
+      // الحفظ كتب مفتاحه وينتظر كتابة سجلّه، ثمّ يضغط المستخدم «اقطع الاتّصال».
+      const saving = saveSecret('github', TOKEN)
+      await writing
+      const forgetting = forgetSecret('github')
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      release()
+      await Promise.all([saving, forgetting])
+    } finally {
+      Object.assign(globalThis.chrome.storage, { local })
+    }
+    expect(await readSecret('github')).toEqual({ ok: true, value: null })
+    expect(await hasSecret('github')).toEqual({ ok: true, value: false })
+  })
+})
+
 describe('النسيان والحذف', () => {
   it('forgetSecret يزيل السجلّ والمفتاح', async () => {
     await saveSecret('github', TOKEN)

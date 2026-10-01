@@ -9,6 +9,9 @@
  *   متّجه تهيئةٍ عشوائي 12 بايتًا لكل حفظ، واسم الخانة بيانٌ مصاحب (AAD) — فنصٌّ نُقل إلى خانةٍ أخرى لا يُفكّ.
  * - **كل حفظٍ مفتاحٌ جديد:** يُكتب المفتاح، ثمّ السجلّ، ثمّ تُحذف المفاتيح السابقة. فحفظٌ تعثّر في منتصفه يترك
  *   السابق مقروءًا كما كان، لا رمزًا نصفه قديم.
+ * - **الكتابات متسلسلة بقفلٍ واحد** (`navigator.locks`، عابرٌ للسياقات): حفظان متزامنان كان ثانيهما يحذف مفتاح أوّلهما
+ *   بعد أن صار سجلّه هو الحيّ، ونسيانٌ أثناء حفظٍ كان يُبعث سجلًّا بلا مفتاح بعد «اقطع الاتّصال» — رصدتهما المراجعة
+ *   المستقلّة (`STAGES/11`). فالحفظ والنسيان وحذف القاعدة تمرّ بالقفل نفسه.
  *
  * **ما تضمنه:** الرمز لا يظهر صريحًا في `chrome.storage` ولا في تصدير الإعدادات ولا في النسخة الاحتياطية ولا في
  * سجلّ — ومن يقرأ `chrome.storage` وحده لا يملك المفتاح. **وما لا تضمنه، ويُقال:** من يملك ملفّ تعريف المتصفّح على
@@ -87,6 +90,22 @@ async function withVault<T>(work: (db: IDBPDatabase<VaultDB>) => Promise<T>): Pr
   }
 }
 
+/** اسم القفل — واحدٌ للخزنة كلّها: خانةٌ واحدة اليوم، وحذف القاعدة يمسّ الخانات كلّها. */
+const VAULT_LOCK = 'rasd-vault'
+let localChain: Promise<unknown> = Promise.resolve()
+
+/**
+ * ينفّذ العمل تحت قفل الخزنة. `navigator.locks` يسلسل عبر سياقات الأصل نفسه (الصفحات والعامل)؛ وحيث يغيب (بيئة
+ * الاختبار) سلسلةُ وعودٍ في الذاكرة تسلسل داخل السياق الواحد.
+ */
+function serialized<T>(work: () => Promise<T>): Promise<T> {
+  const locks = (globalThis.navigator as { locks?: LockManager } | undefined)?.locks
+  if (locks) return locks.request(VAULT_LOCK, work)
+  const next = localChain.then(work)
+  localChain = next.catch(() => undefined)
+  return next
+}
+
 const aad = (slot: VaultSlot) => new TextEncoder().encode(`${VAULT_PREFIX}${slot}`)
 
 /** يحفظ السرّ في خانته مشفَّرًا، ويُبطل ما كان فيها. */
@@ -113,29 +132,31 @@ export async function saveSecret(
   }
 
   const keyId = crypto.randomUUID()
-  try {
-    await withVault((db) => db.put(KEY_STORE, { id: keyId, slot, key }))
-  } catch (error) {
-    return err(fail('storage', error))
-  }
-
   const record: VaultRecord = {
     v: RECORD_VERSION,
     keyId,
     iv: bytesToBase64(iv),
     data: bytesToBase64(new Uint8Array(cipher)),
   }
-  try {
-    await chrome.storage.local.set({ [vaultKey(slot)]: record })
-  } catch (error) {
-    // السجلّ السابق باقٍ بمفتاحه؛ المفتاح الجديد يتيمٌ يُزال.
-    await removeKeys(slot, (row) => row.id === keyId).catch(() => undefined)
-    return err(fail('storage', error))
-  }
 
-  // المفاتيح السابقة لا يشير إليها سجلّ بعد الآن. تعثُّر إزالتها لا يُفشل الحفظ: تُزال في الحفظ أو النسيان التالي.
-  await removeKeys(slot, (row) => row.id !== keyId).catch(() => undefined)
-  return ok(null)
+  return serialized(async () => {
+    try {
+      await withVault((db) => db.put(KEY_STORE, { id: keyId, slot, key }))
+    } catch (error) {
+      return err(fail('storage', error))
+    }
+    try {
+      await chrome.storage.local.set({ [vaultKey(slot)]: record })
+    } catch (error) {
+      // السجلّ السابق باقٍ بمفتاحه؛ المفتاح الجديد يتيمٌ يُزال.
+      await removeKeys(slot, (row) => row.id === keyId).catch(() => undefined)
+      return err(fail('storage', error))
+    }
+    // المفاتيح السابقة لا يشير إليها سجلّ بعد الآن — والقفل يضمن ألّا يكتب غيرُنا سجلًّا بينهما. تعثُّر إزالتها لا
+    // يُفشل الحفظ: تُزال في الحفظ أو النسيان التالي.
+    await removeKeys(slot, (row) => row.id !== keyId).catch(() => undefined)
+    return ok(null)
+  })
 }
 
 /** يقرأ السرّ: `null` حين لا سجلّ أصلًا (غير متّصل)، وخطأٌ حين وُجد ولم يُفكّ. */
@@ -169,7 +190,10 @@ export async function readSecret(slot: VaultSlot): Promise<Result<string | null,
   }
 }
 
-/** هل في الخانة سجلّ؟ بلا فكّ — لتعرض الواجهة «متّصل» بلا أن يُلمس السرّ. */
+/**
+ * هل في الخانة سجلّ؟ بلا فكّ. **سجلٌّ موجود ليس رمزًا مقروءًا:** قد يكون `unreadable` — فالواجهة لا تعرض «متّصل»
+ * إلا بعد `readSecret` ناجحة، وتعرض «أعد الاتّصال» على `unreadable` (ADR 0046 §5).
+ */
 export async function hasSecret(slot: VaultSlot): Promise<Result<boolean, VaultError>> {
   try {
     return ok((await chrome.storage.local.get(vaultKey(slot)))[vaultKey(slot)] !== undefined)
@@ -179,31 +203,53 @@ export async function hasSecret(slot: VaultSlot): Promise<Result<boolean, VaultE
 }
 
 /** ينسى الخانة: السجلّ أوّلًا — فسجلٌّ بلا مفتاح «تعذّرت قراءته» لا رمزٌ باقٍ — ثمّ مفاتيحها. */
-export async function forgetSecret(slot: VaultSlot): Promise<Result<null, VaultError>> {
-  try {
-    await chrome.storage.local.remove(vaultKey(slot))
-  } catch (error) {
-    return err(fail('storage', error))
-  }
-  try {
-    await removeKeys(slot, () => true)
-  } catch (error) {
-    return err(fail('storage', error))
-  }
-  return ok(null)
+export function forgetSecret(slot: VaultSlot): Promise<Result<null, VaultError>> {
+  return serialized(async () => {
+    try {
+      await chrome.storage.local.remove(vaultKey(slot))
+    } catch (error) {
+      return err(fail('storage', error))
+    }
+    try {
+      await removeKeys(slot, () => true)
+    } catch (error) {
+      return err(fail('storage', error))
+    }
+    return ok(null)
+  })
 }
+
+/** مهلة انتظار الحذف إن حجبه اتّصالٌ مفتوح — الطلب يبقى في الطابور ويكتمل حين يُغلق (`withVault` يغلق فورًا). */
+const DELETE_BLOCKED_GRACE_MS = 3000
 
 /**
  * يحذف قاعدة المفاتيح كلّها — جزءٌ من «احذف كل البيانات» (`erase.ts`)، يليه إفراغ `local` الذي يحمل السجلّات.
- * ترمي عند الفشل أو الحجب، ونداؤها يحوّل ذلك إلى جزءٍ لم يُحذف.
+ * ترمي عند الفشل، أو عند حجبٍ لم ينفكّ في مهلته، ونداؤها يحوّل ذلك إلى جزءٍ لم يُحذف. **والحجب لا يُرفض فورًا:** طلب
+ * الحذف يبقى في الطابور ويكتمل حين يُغلق الاتّصال الحاجب، فرفضه فورًا كان يقول «لم يُحذف» عمّا حُذف بعد لحظة
+ * (المراجعة المستقلّة، `STAGES/11`).
  */
 export function deleteVaultDatabase(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(VAULT_DB_NAME)
-    request.onsuccess = () => resolve()
-    request.onerror = () => reject(request.error ?? new Error('vault-delete-failed'))
-    request.onblocked = () => reject(new Error('vault-delete-blocked'))
-  })
+  return serialized(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const request = indexedDB.deleteDatabase(VAULT_DB_NAME)
+        request.onsuccess = () => {
+          clearTimeout(timer)
+          resolve()
+        }
+        request.onerror = () => {
+          clearTimeout(timer)
+          reject(request.error ?? new Error('vault-delete-failed'))
+        }
+        request.onblocked = () => {
+          timer = setTimeout(
+            () => reject(new Error('vault-delete-blocked')),
+            DELETE_BLOCKED_GRACE_MS,
+          )
+        }
+      }),
+  )
 }
 
 async function removeKeys(slot: VaultSlot, which: (row: KeyRow) => boolean): Promise<void> {

@@ -31,6 +31,7 @@ describe('serviceFor', () => {
     expect(serviceFor('http://api.github.com/x')).toBeNull()
     expect(serviceFor('https://github.com/x')).toBeNull()
     expect(serviceFor('not a url')).toBeNull()
+    expect(serviceFor('blob:https://api.github.com/0b6e')).toBeNull()
   })
 })
 
@@ -89,6 +90,7 @@ describe('egressFetch — الطلب', () => {
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
       cache: 'no-store',
+      redirect: 'error',
     })
   })
 
@@ -102,6 +104,21 @@ describe('egressFetch — الطلب', () => {
     if (!sent.ok) {
       expect(sent.error).toEqual({ refusal: 'network', service: 'github', detail: 'TypeError' })
     }
+  })
+
+  it('«الوضع المحلّي» يُعاد من سياقٍ آخر — والمخرج يقرأ القرص لا ذاكرةً قديمة (المراجعة المستقلّة)', async () => {
+    await online()
+    const f = fetcher()
+    expect((await egressFetch(GITHUB, {}, f)).ok).toBe(true)
+    // صفحة الإعدادات في سياقٍ آخر تكتب في التخزين، وهذا السياق لم يشترك في التغيّر.
+    const KEY = 'rasd:settings'
+    const stored = (await chrome.storage.local.get(KEY))[KEY] as { privacy: object }
+    await chrome.storage.local.set({
+      [KEY]: { ...stored, privacy: { ...stored.privacy, localOnly: true } },
+    })
+    const second = await egressFetch(GITHUB, {}, f)
+    expect(second.ok ? 'sent' : second.error.refusal).toBe('local-only')
+    expect(f).toHaveBeenCalledTimes(1)
   })
 
   it('«الوضع المحلّي» يُعاد تفعيله فيُغلق من جديد', async () => {

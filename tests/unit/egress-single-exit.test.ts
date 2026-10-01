@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest'
  * **مخرج الشبكة الواحد لا يُتجاوز** — ADR 0046 §4.
  *
  * `localOnly` نافذٌ في `shared/egress.ts`، وإنفاذٌ في المخرج لا يحمي من طلبٍ لا يمرّ به. فهذا يمسح `src/` كلّه —
- * بلا تعليقاته — بحثًا عن كل بدائيّة شبكة: `fetch(` و`XMLHttpRequest` و`WebSocket` و`sendBeacon` و`EventSource`.
+ * بلا تعليقاته — بحثًا عن كل بدائيّة شبكة: `fetch` (نداءً أو اسمًا) و`XMLHttpRequest` و`WebSocket` و`sendBeacon` و
+ * `EventSource`. **وهو سلكُ إنذارٍ لا حدّ:** `window['fetch']` أو صورةٌ بعنوانٍ بعيد لا يراهما — والحدّ الثاني سياسة
+ * أمن المحتوى (ADR 0046 §4).
  * ما وُجد خارج القائمة أدناه يُسقطه، وما في القائمة يُعدّ: نداءٌ زائد في ملفٍّ مسموح يُسقطه أيضًا.
  *
  * والقائمة جلبٌ من أصل الإضافة نفسه (`chrome.runtime.getURL`) لا يخرج من الجهاز — وسياسة أمن المحتوى في الصفحة
@@ -31,7 +33,12 @@ const ALLOWED: Record<string, { count: number; why: string }> = {
   },
 }
 
-const PRIMITIVES = /\bfetch\s*\(|\bXMLHttpRequest\b|\bWebSocket\b|\bsendBeacon\b|\bEventSource\b/gu
+/**
+ * `fetch` اسمًا لا نداءً وحده: `{ fetch }` و`= fetch` و`fetch.bind` حقنُ اعتماديةٍ شائع يمرّ من `fetch(` — رصدته
+ * المراجعة المستقلّة. ومفتاح الكائن (`fetch:`) مستثنى: اسمٌ لا قيمة.
+ */
+const PRIMITIVES =
+  /\bfetch\b(?!\s*:)|\bXMLHttpRequest\b|\bWebSocket\b|\bsendBeacon\b|\bEventSource\b/gu
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -73,5 +80,14 @@ describe('بدائيّات الشبكة في src/', () => {
     expect(code("fetch('https://x.io') // تعليق").match(PRIMITIVES)).toHaveLength(1)
     expect(code('/* fetch(x) */ const a = 1 // fetch(y)').match(PRIMITIVES)).toBeNull()
     expect(code('navigator.sendBeacon(u)').match(PRIMITIVES)).toHaveLength(1)
+    for (const alias of [
+      'const f = fetch',
+      'deps = { fetch }',
+      'g(impl = fetch)',
+      'fetch.call(null, u)',
+    ]) {
+      expect(code(alias).match(PRIMITIVES), alias).toHaveLength(1)
+    }
+    expect(code('const deps = { fetch: egressFetch }').match(PRIMITIVES)).toBeNull()
   })
 })

@@ -4,11 +4,12 @@
  *
  * أربعة شروط بترتيبها، وكلٌّ يُغلق ولا يفتح:
  *   1. **الأصل مسمًّى** في `NETWORK_SERVICES`. وما سواه يُرفض قبل أن يُطلب — وسياسة أمن المحتوى ترفضه ثانيةً.
- *   2. **الإعدادات مقروءة.** قراءةٌ فشلت جهلٌ لا سماح: لا يُفترض أن «الوضع المحلّي» مطفأ.
+ *   2. **الإعدادات مقروءة من القرص لحظة الطلب** (`readSettingsFresh`) — لا من ذاكرةٍ قد تكون قديمة في سياقٍ لم
+ *      يشترك في التغيّر. وقراءةٌ فشلت جهلٌ لا سماح: لا يُفترض أن «الوضع المحلّي» مطفأ.
  *   3. **«الوضع المحلّي فقط» مطفأ.** وهو مفعَّلٌ افتراضيًّا، فلا اتّصال على تثبيتٍ جديد أصلًا.
  *   4. **صلاحية المضيف المسمّاة ممنوحة** — يمنحها المستخدم بإيماءة «اتّصل»، ويسحبها من صفحة الإضافات.
  *
- * والطلب نفسه بلا ملفّات تعريف ولا مُحيل ولا ذاكرة مخبّأة. و`tests/unit/egress-single-exit.test.ts` يمسح `src/`
+ * والطلب نفسه بلا ملفّات تعريف ولا مُحيل ولا ذاكرة مخبّأة ولا إعادة توجيه. و`tests/unit/egress-single-exit.test.ts` يمسح `src/`
  * فيُسقط أي `fetch` أو `XMLHttpRequest` أو `WebSocket` أو `sendBeacon` أو `EventSource` خارج هذا الملفّ وقائمته
  * المسمّاة — فمسار رفعٍ يُكتب غدًا لا يتجاوز الإنفاذ بنسيانه.
  *
@@ -18,7 +19,7 @@
 import { NETWORK_SERVICES, type NetworkServiceId } from './permission-policy'
 import { hasHostPermission } from './permissions'
 import { err, ok, type Result } from './result'
-import { getSettingsResult } from './settings'
+import { readSettingsFresh } from './settings'
 
 /** لماذا لم يخرج الطلب — أو لماذا لم يُكمل. كلٌّ يقابل حالةً في الواجهة لا رسالةً عامّة. */
 export type EgressRefusal =
@@ -45,13 +46,15 @@ type Fetcher = (input: string, init: RequestInit) => Promise<Response>
 
 /** الخدمة التي يتبعها عنوانٌ مطلق — بالأصل حرفًا، لا بالبادئة: `https://api.github.com.evil` ليست هي. */
 export function serviceFor(url: string): (typeof NETWORK_SERVICES)[number] | null {
-  let origin: string
+  let parsed: URL
   try {
-    origin = new URL(url).origin
+    parsed = new URL(url)
   } catch {
     return null
   }
-  return NETWORK_SERVICES.find((service) => service.origin === origin) ?? null
+  // `blob:https://api.github.com/…` أصله الداخلي هو نفسه — والمخرج لـ`https` وحده.
+  if (parsed.protocol !== 'https:') return null
+  return NETWORK_SERVICES.find((service) => service.origin === parsed.origin) ?? null
 }
 
 /**
@@ -61,7 +64,8 @@ export async function egressAllowed(id: NetworkServiceId): Promise<Result<null, 
   const service = NETWORK_SERVICES.find((s) => s.id === id)
   if (!service) return err({ refusal: 'unnamed-origin', detail: id })
 
-  const settings = await getSettingsResult()
+  // من القرص لا من الذاكرة: «الوضع المحلّي» قد أُعيد من سياقٍ آخر بعد آخر قراءة هنا.
+  const settings = await readSettingsFresh()
   if (!settings.ok) {
     return err({ refusal: 'settings-unreadable', service: id, detail: settings.error.detail })
   }
@@ -93,6 +97,8 @@ export async function egressFetch(
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
       cache: 'no-store',
+      // لا إعادة توجيه: السياسة تحجب ما خرج عن الأصل، وهنا لا يُتبَع حتى داخله — الطلب يصل حيث سُمّي أو يفشل.
+      redirect: 'error',
     })
     return ok(response)
   } catch (error) {
