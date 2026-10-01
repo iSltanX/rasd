@@ -26,7 +26,7 @@ import {
   thumbnails,
   updateIssues,
 } from '@/shared/storage/repository'
-import { DB_VERSION, STORE_NAMES } from '@/shared/storage/schema'
+import { ALL_STORE_NAMES, DB_VERSION } from '@/shared/storage/schema'
 
 import { issueFixture } from './modules/issues/fixture'
 
@@ -61,7 +61,7 @@ beforeEach(async () => {
 describe('المخطّط', () => {
   it('يُنشئ المخازن كلها', async () => {
     const db = await database()
-    expect([...db.objectStoreNames].sort()).toEqual([...STORE_NAMES].sort())
+    expect([...db.objectStoreNames].sort()).toEqual([...ALL_STORE_NAMES].sort())
     expect(db.version).toBe(DB_VERSION)
   })
 
@@ -266,7 +266,7 @@ describe('اللقطة وبايتاتها ذرّيًا', () => {
     await putCaptureWithBlob(capture('x3'), new Blob(['abc']))
     await tags.put({ name: 'وسم', count: 1 })
     const result = await clearAllStores()
-    expect(result.ok && result.value).toBe(STORE_NAMES.length)
+    expect(result.ok && result.value).toBe(ALL_STORE_NAMES.length)
     const capturesLeft = await captures.count()
     const tagsLeft = await tags.count()
     expect(capturesLeft.ok && capturesLeft.value).toBe(0)
@@ -319,7 +319,7 @@ describe('الترحيل', () => {
 
   it('الترقية من 0 إلى DB_VERSION الحالية تُنشئ البنية كاملة', async () => {
     const db = await database()
-    expect(db.objectStoreNames.length).toBe(STORE_NAMES.length)
+    expect(db.objectStoreNames.length).toBe(ALL_STORE_NAMES.length)
   })
 
   it('نسخة بلا خطوة تفشل بأمان بدل ترك القاعدة نصف مُرحَّلة', async () => {

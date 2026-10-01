@@ -6,11 +6,11 @@
  * خطوتها ساعة إضافتها.
  */
 
-import type { GuideRecord, RasdDB, ReferenceRecord, StoreName } from './schema'
+import type { AnyStoreName, GuideRecord, RasdDB, ReferenceRecord } from './schema'
 import type { IDBPDatabase, IDBPTransaction } from 'idb'
 
 /** معاملة الترقية ترى كل المخازن — `idb` يشتقّ النوع من أسمائها. */
-export type UpgradeTransaction = IDBPTransaction<RasdDB, StoreName[], 'versionchange'>
+export type UpgradeTransaction = IDBPTransaction<RasdDB, AnyStoreName[], 'versionchange'>
 
 export type MigrationStep = (db: IDBPDatabase<RasdDB>, transaction: UpgradeTransaction) => void
 
@@ -124,6 +124,15 @@ export const MIGRATIONS: Readonly<Record<number, MigrationStep>> = {
         })
       }
     })().catch(() => abortUpgrade(transaction))
+  },
+
+  /*
+   * مسودات البلاغ (ADR 0050) — مخزنٌ جديد لا يمسّ سجلًّا قائمًا، فلا نقل بيانات. فهرس `updatedAt` لأحدث مسودة.
+   * يحرسها `tests/unit/storage-upgrade-v6.test.ts`، وقد كُتب قبلها.
+   */
+  6: (db) => {
+    const drafts = db.createObjectStore('reportDrafts', { keyPath: 'id' })
+    drafts.createIndex('updatedAt', 'updatedAt')
   },
 }
 

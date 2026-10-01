@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { closeDatabase, database, setIncognitoWritePolicy } from '@/shared/storage/db'
 import { MIGRATIONS } from '@/shared/storage/migrations'
-import { DB_NAME, DB_VERSION, STORE_NAMES, type RasdDB } from '@/shared/storage/schema'
+import { ALL_STORE_NAMES, DB_NAME, DB_VERSION, type RasdDB } from '@/shared/storage/schema'
 
 /**
  * ترقية القاعدة من النسخة 4 إلى 5 ببيانات أدلّة حقيقية — كُتب **قبل** خطوة الترحيل (`AGENTS.md` §7،
@@ -99,8 +99,8 @@ describe('الترقية من النسخة 4 إلى 5', () => {
     const byId = [...legacyGuides].sort((p, q) => p.id.localeCompare(q.id))
     expect(after).toEqual(byId.map((g) => ({ ...g, stepText: {}, updatedAt: g.createdAt })))
     expect(after.find((g) => g.id === 'g-cart')?.captureIds).toEqual(['c3', 'c1', 'c2'])
-    expect(db.version).toBe(5)
-    expect(DB_VERSION).toBe(5)
+    expect(db.version).toBe(DB_VERSION)
+    expect(DB_VERSION).toBeGreaterThanOrEqual(5)
   })
 
   it('ومخزن القوالب موجودٌ فارغًا، واسم القالب فريدٌ بفهرسه', async () => {
@@ -136,7 +136,7 @@ describe('الترقية من النسخة 4 إلى 5', () => {
     ])
     expect(await db.count('captures')).toBe(3)
     expect((await db.get('references', 'r1'))?.exclusions).toEqual([])
-    expect([...db.objectStoreNames].sort()).toEqual([...STORE_NAMES].sort())
+    expect([...db.objectStoreNames].sort()).toEqual([...ALL_STORE_NAMES].sort())
   })
 
   it('ومن قاعدة جديدة (النسخة 0) تمرّ الخطوات الخمس إلى البنية نفسها', async () => {
@@ -174,7 +174,7 @@ describe('الترقية إلى 5 — كلّها أو لا شيء', () => {
     raw.close()
 
     const retried = await database()
-    expect(retried.version).toBe(5)
+    expect(retried.version).toBe(DB_VERSION)
     expect((await retried.getAll('guides')).every((g) => typeof g.updatedAt === 'number')).toBe(
       true,
     )

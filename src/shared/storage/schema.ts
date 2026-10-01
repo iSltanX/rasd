@@ -19,7 +19,7 @@ import type { IssueRecord } from '../issue-schema'
 import type { DBSchema } from 'idb'
 
 export const DB_NAME = 'rasd'
-export const DB_VERSION = 5
+export const DB_VERSION = 6
 
 export type CaptureKind = 'area' | 'element' | 'viewport' | 'full-page' | 'window'
 export type CaptureStatus = 'ready' | 'processing' | 'failed'
@@ -160,6 +160,33 @@ export interface ThumbnailRecord {
   height: number
 }
 
+/** نوع البلاغ — يقابل `kind` في عقد قناة الاستقبال (`Docs/Support.md`). */
+export type ReportKind = 'bug' | 'crash' | 'suggestion' | 'other'
+
+/**
+ * مسودة بلاغ لم تصل — تُحفظ عند الفشل أو الإلغاء، وتُحذف بعد نجاح الإرسال (النسخة 6، ADR 0050).
+ *
+ * **الصورة مخبوزة لا أصلها:** ما يُحفظ هو ما سيُرسَل، بعد القصّ والحجب من البوّابة الواحدة (ADR 0015) — فلا
+ * تبقى على القرص نسخةٌ غير محجوبة من صورةٍ أرفقها المستخدم ليُرسلها. والمعرّف نفسه مفتاح عدم التكرار الذي يُرسَل
+ * مع كل محاولة، فإعادة المحاولة بعد فشلٍ لا تفتح بلاغين.
+ */
+export interface ReportDraftRecord {
+  /** UUID عشوائي لكل بلاغ — `Idempotency-Key` في كل محاولة إرسال. لا يعرّف المستخدم ولا الجهاز. */
+  id: string
+  createdAt: number
+  updatedAt: number
+  kind: ReportKind
+  title: string
+  /** «ماذا حدث؟» */
+  what: string
+  steps: string
+  expected: string
+  /** الأداة المتأثّرة إن فُتح النموذج من رسالة خطأ. */
+  tool: string | null
+  errorCode: string | null
+  image: { blob: Blob; width: number; height: number; redactions: number } | null
+}
+
 export interface RasdDB extends DBSchema {
   captures: {
     key: string
@@ -201,6 +228,7 @@ export interface RasdDB extends DBSchema {
       captureId: string
     }
   }
+  reportDrafts: { key: string; value: ReportDraftRecord; indexes: { updatedAt: number } }
 }
 
 /**
@@ -225,3 +253,14 @@ export const STORE_NAMES = [
 ] as const
 
 export type StoreName = (typeof STORE_NAMES)[number]
+
+/**
+ * مخازن ليست من المكتبة — **لا** تُصدَّر في النسخة الاحتياطية ولا تُعدّ في عدّادات المكتبة. والحذف الكامل يمسحها
+ * لأنه يمسح بأسماء القاعدة المفتوحة (`clearAllStores`). مسودة البلاغ مؤقّتة ومحلّية وتُحذف بعد الإرسال.
+ */
+export const TRANSIENT_STORE_NAMES = ['reportDrafts'] as const
+
+/** كل مخازن القاعدة — ما يطابق `objectStoreNames` بعد آخر ترحيل. */
+export const ALL_STORE_NAMES = [...STORE_NAMES, ...TRANSIENT_STORE_NAMES] as const
+
+export type AnyStoreName = (typeof ALL_STORE_NAMES)[number]

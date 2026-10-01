@@ -248,6 +248,8 @@ export const RECORD_UPGRADES: Readonly<Record<number, (records: RawRecords) => R
       }
     }),
   }),
+  // الترحيل 6 أضاف مخزن مسودات البلاغ وحده (ADR 0050)، وهو ليس من المكتبة فلا يدخل الملفّ: لا تغيير في السجلّات.
+  6: (records) => records,
 }
 
 export interface RestorePlan {
