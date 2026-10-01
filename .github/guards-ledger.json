@@ -3,7 +3,7 @@
   "repo": "iSltanX/rasd",
   "promotionStreak": 10,
   "window": 20,
-  "capturedAt": "2026-10-01T07:13:37.232Z",
+  "capturedAt": "2026-10-01T08:08:43.547Z",
   "runs": [
     {
       "id": 36814645684,
@@ -604,7 +604,7 @@
         "37b4f71aac6b5d43b3496b5626900623614d39cf",
         "37b4f71aac6b5d43b3496b5626900623614d39cf"
       ],
-      "streak": 1,
+      "streak": 0,
       "eligible": false
     },
     "gate": {
@@ -700,7 +700,7 @@
         "b8c0363764ee7886b1cec65c09f45d721452ef7a",
         "b8c0363764ee7886b1cec65c09f45d721452ef7a"
       ],
-      "streak": 1,
+      "streak": 0,
       "eligible": false
     },
     "issues": {
@@ -796,7 +796,7 @@
         "8954cea204a1a013e8c091804c4da8f6c11248b5",
         "8954cea204a1a013e8c091804c4da8f6c11248b5"
       ],
-      "streak": 1,
+      "streak": 0,
       "eligible": false
     },
     "lifecycle": {
@@ -845,6 +845,54 @@
         "c96d5337a3bd40d4fd14241862b795b659da0604"
       ],
       "streak": 1,
+      "eligible": false
+    },
+    "lighthouse": {
+      "results": [
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole"
+      ],
+      "scripts": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "streak": 0,
       "eligible": false
     },
     "load": {
@@ -943,6 +991,54 @@
       "streak": 1,
       "eligible": false
     },
+    "memory": {
+      "results": [
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole",
+        "hole"
+      ],
+      "scripts": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "streak": 0,
+      "eligible": false
+    },
     "overlay": {
       "results": [
         "green",
@@ -988,7 +1084,7 @@
         "9dc6231210cef5b3782e7f9b2f649e86830f77c4",
         "9dc6231210cef5b3782e7f9b2f649e86830f77c4"
       ],
-      "streak": 1,
+      "streak": 0,
       "eligible": false
     },
     "palette": {
