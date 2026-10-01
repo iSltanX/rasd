@@ -84,7 +84,7 @@ pnpm build
 | `pnpm test`          | اختبارات الوحدة والتكامل                   |
 | `pnpm test:coverage` | مع تقرير التغطية                           |
 | `pnpm check`         | الفحوص الساكنة والاختبارات معًا            |
-| `pnpm zip`           | حزمة `.zip` جاهزة للرفع                    |
+| `pnpm zip`           | فحص `dist/` ثمّ حزمة `.zip` حتمية ببصمتها  |
 | `pnpm tokens:sync`   | توليد التوكنز من لقطة Figma                |
 | `pnpm gate:a`        | البوّابة المحلّية، مرّة عند إغلاق المرحلة  |
 | `pnpm stages:sync`   | اشتقاق `STATUS.md` وجدول `ROADMAP.md`      |

@@ -11,7 +11,8 @@
  *   4. `--tag vX.Y.Z` (من سير الإصدار): الوسم يطابق النسخة ولا يُنقصها.
  *
  * ثمّ `dist-zip/rasd-<النسخة>.zip` ومعه `.sha256` بصيغة `shasum -a 256 -c`. والضغط حتمي: بناءان من
- * مصدر واحد يعطيان البصمة نفسها.
+ * مصدر واحد يعطيان البصمة نفسها. و`dist-zip/` يُفرَّغ قبل أي فحص: الرفض لا يترك حزمةً سابقة باسم النسخة
+ * نفسها تُرفع ظنًّا أنها هذه.
  */
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
@@ -31,6 +32,8 @@ import { collect, pack } from './lib/release-pack.mjs'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = join(root, 'dist')
 const outDir = join(root, 'dist-zip')
+
+rmSync(outDir, { recursive: true, force: true })
 
 const refuse = (lines) => {
   console.error(`\n✗ رُفض الضغط:\n${lines.map((l) => `  · ${l}`).join('\n')}\n`)
@@ -95,7 +98,6 @@ if (result.problems) refuse(result.problems)
 
 mkdirSync(outDir, { recursive: true })
 const out = join(outDir, result.name)
-rmSync(out, { force: true })
 writeFileSync(out, result.zip)
 writeFileSync(`${out}.sha256`, `${result.sha}  ${result.name}\n`)
 
