@@ -22,21 +22,27 @@ export interface ListenerEvent<F extends (...args: never[]) => unknown> {
 
 const SLOTS = Symbol.for('rasd.listener-slots')
 
-type Slots = Map<string, () => void>
+/** المقاعد لكل كائن حدث: مفتاحٌ ← نداء إزالة مستمعه. */
+type Slots = WeakMap<object, Map<string, () => void>>
 
 function slotsOf(): Slots {
   const holder = globalThis as unknown as Record<symbol, Slots | undefined>
   const existing = holder[SLOTS]
   if (existing) return existing
-  const created: Slots = new Map<string, () => void>()
+  const created: Slots = new WeakMap()
   holder[SLOTS] = created
   return created
 }
 
 /**
- * يضيف `listener` على `event` بعد أن يُزيل ما أضافته نسخةٌ سابقة من الشيفرة تحت `key`.
+ * يضيف `listener` على `event` بعد أن يُزيل ما أضافته نسخةٌ سابقة من الشيفرة على **الحدث نفسه** تحت `key`.
  *
- * يُزال المستمع السابق بالنداء الذي سجّله هو، فلا يلزم أن يشترك الإصداران في شيء غير المفتاح.
+ * **المقعد للزوج (كائن الحدث، المفتاح) لا للمفتاح وحده.** في المتصفّح كائن `chrome.runtime.onMessage` ثابت الهوية في
+ * العالم الواحد عبر إعادة تنفيذ الحزمة، فتجد النسخةُ الجديدة مقعد القديمة. أمّا حيث تتشارك سياقاتٌ كثيرة `globalThis`
+ * واحدًا بأحداثٍ مختلفة (حزام اختبارات التكامل: الخلفية والصفحة والمحتوى في عمليةٍ واحدة) فمفتاحٌ نصّي عامّ كان
+ * يجعل تسجيل السياق الثاني يُزيل مستمع الأوّل من حدثه — فتعلّقت الرسائل حتى المهلة.
+ *
+ * يُزال المستمع السابق بالنداء الذي سجّله هو، فلا يلزم أن يشترك الإصداران في شيء غير الحدث والمفتاح.
  */
 export function replaceListener<F extends (...args: never[]) => unknown>(
   key: string,
@@ -44,11 +50,16 @@ export function replaceListener<F extends (...args: never[]) => unknown>(
   listener: F,
 ): void {
   const slots = slotsOf()
+  let byKey = slots.get(event)
+  if (!byKey) {
+    byKey = new Map()
+    slots.set(event, byKey)
+  }
   try {
-    slots.get(key)?.()
+    byKey.get(key)?.()
   } catch {
     /* حدثٌ مات مع سياقه — لا يمنع التسجيل الجديد */
   }
   event.addListener(listener)
-  slots.set(key, () => event.removeListener(listener))
+  byKey.set(key, () => event.removeListener(listener))
 }

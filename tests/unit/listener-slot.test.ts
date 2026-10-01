@@ -59,6 +59,20 @@ describe('replaceListener', () => {
     expect(live.size).toBe(2)
   })
 
+  it('سياقان يتشاركان globalThis بحدثين مختلفين لا يزيح أحدهما الآخر (حزام التكامل)', () => {
+    const background = { addListener: vi.fn(), removeListener: vi.fn() }
+    const content = { addListener: vi.fn(), removeListener: vi.fn() }
+    const fromBackground = vi.fn()
+    replaceListener('runtime.onMessage', background, fromBackground)
+    replaceListener('runtime.onMessage', content, vi.fn())
+    expect(background.removeListener).not.toHaveBeenCalled()
+    expect(content.removeListener).not.toHaveBeenCalled()
+    // والنسخة الجديدة على الحدث نفسه تزيح القديمة فيه وحده.
+    replaceListener('runtime.onMessage', background, vi.fn())
+    expect(background.removeListener).toHaveBeenCalledWith(fromBackground)
+    expect(content.removeListener).not.toHaveBeenCalled()
+  })
+
   it('إزالةٌ ترمي لا تمنع تسجيل الجديد', () => {
     const throwing = {
       addListener: vi.fn(),
