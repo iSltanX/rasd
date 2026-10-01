@@ -20,7 +20,7 @@ const root = fileURLToPath(new URL('..', import.meta.url))
  * الآمن حين لا يُعرف الأثر، لا الصمت.
  */
 export const IMPACT = [
-  { match: /^src\/background\/commands\.ts/u, scripts: ['verify:activate'] },
+  { match: /^src\/background\/commands\.ts/u, scripts: ['verify:activate', 'verify:lighthouse'] },
   /*
    * بوّابة الحقن: قرارها يسبق **كل** حقن — الاختصارات والقائمة والنافذة
    * والالتقاط والاستئناف. فمسّها يستدعي مسارَي الإقلاع والنافذة معًا، لا
@@ -38,12 +38,15 @@ export const IMPACT = [
    * جلسة الطبقة وتفكيكها ومضيفها (`STAGES/21`): ما يُركَّب في كل تفعيل يجب أن يُفكَّك في كل تعطيل — يحرسه
    * `verify:memory` بخمسين دورة وعدّ المستمعين والعقد المنفصلة.
    */
-  { match: /^src\/content\/index\.ts/u, scripts: ['verify:activate', 'verify:memory'] },
+  {
+    match: /^src\/content\/index\.ts/u,
+    scripts: ['verify:activate', 'verify:memory', 'verify:lighthouse'],
+  },
   // منطقة حسّاسة مسمّاة كانت خارج الجدول (الصفّ 114 في `Docs/Engineering.md §6`).
   { match: /^src\/background\/lifecycle\.ts/u, scripts: ['verify:lifecycle'] },
   {
     match: /^src\/content\/host\.ts/u,
-    scripts: ['verify:activate', 'verify:overlay', 'verify:memory'],
+    scripts: ['verify:activate', 'verify:overlay', 'verify:memory', 'verify:lighthouse'],
   },
   { match: /^src\/content\/tools\/compare\.ts/u, scripts: ['verify:compare'] },
   { match: /^src\/content\/tools\/measure\.ts/u, scripts: ['verify:measure'] },
@@ -72,6 +75,14 @@ export const IMPACT = [
    * أثناء المسارات الثلاثة وفتح الصفحة المصدَّرة بلا إنترنت.
    */
   { match: /^src\/pages\/share\//u, scripts: ['verify:share'] },
+  /*
+   * أثر الحقن على الصفحة (`STAGES/22`): كل ما يُحقَن في الصفحة المضيفة أو يقرّر حقنه — حزمة المحتوى والطبقة ومسار
+   * الاستئناف عند التحميل. يقيسه `verify:lighthouse` بلايتهاوس: `CLS` المضاف صفر و`LCP` و`TBT` ضمن الخمسة بالمئة.
+   */
+  {
+    match: /^(src\/content\/|src\/ui\/overlay\/|src\/background\/resume\.ts)/u,
+    scripts: ['verify:lighthouse'],
+  },
   {
     match: /^src\/shared\/messaging\//u,
     scripts: ['verify:activate', 'verify:capture', 'verify:memory'],

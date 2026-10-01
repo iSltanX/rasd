@@ -32,8 +32,8 @@ const chromeGuards = readdirSync(scripts)
   .filter((f) => f !== 'verify-dist.mjs' && f !== 'verify-tokens.mjs')
 
 describe('الحرّاس فوق النواة المشتركة', () => {
-  it('ثلاثة وعشرون حارس كروم — والعدد مثبَّت كي يظهر حارسٌ جديد (`accessibility` في `STAGES/24` و`memory` في `STAGES/21`)', () => {
-    expect(chromeGuards).toHaveLength(23)
+  it('أربعة وعشرون حارس كروم — والعدد مثبَّت كي يظهر حارسٌ جديد (`accessibility` في `STAGES/24` و`memory` في `STAGES/21` و`lighthouse` في `STAGES/22`)', () => {
+    expect(chromeGuards).toHaveLength(24)
   })
 
   it.each(chromeGuards)('%s لا يحمّل الإضافة بنفسه', (file) => {

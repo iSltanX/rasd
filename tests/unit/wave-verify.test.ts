@@ -36,9 +36,9 @@ describe('الحرّاس المعرَّفة', () => {
     expect(allGuards(pkg)).toEqual(['colour', 'load'])
   })
 
-  it('package.json الحقيقي: الثلاثة والعشرون — `accessibility` من `STAGES/24` و`memory` من `STAGES/21`', () => {
+  it('package.json الحقيقي: الأربعة والعشرون — `accessibility` من `STAGES/24` و`memory` من `STAGES/21` و`lighthouse` من `STAGES/22`', () => {
     const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-    expect(allGuards(pkg)).toHaveLength(23)
+    expect(allGuards(pkg)).toHaveLength(24)
   })
 })
 

@@ -269,6 +269,7 @@ jobs:
           - { guard: issues, blocking: false }
           - { guard: library, blocking: false }
           - { guard: lifecycle, blocking: false }
+          - { guard: lighthouse, blocking: false }
           - { guard: load, blocking: false }
           - { guard: measure, blocking: false }
           - { guard: memory, blocking: false }
