@@ -82,7 +82,7 @@ footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
 <body>
 <main>
   <h1>لوحة SS — خطّة رصد إلى الإصدار 1.0 متعدّد المتصفّحات</h1>
-  <p class="sub">مشتقّة من <code dir="ltr">Docs/SS/stages/*.md</code> و<code dir="ltr">Docs/SS/waves.json</code> ووسوم <code dir="ltr">ss-X/base</code> — ليست مصدر حالة. وُلّدت على <code dir="ltr">3e96f86</code> في <span dir="ltr">2026-10-02 07:50</span> UTC.</p>
+  <p class="sub">مشتقّة من <code dir="ltr">Docs/SS/stages/*.md</code> و<code dir="ltr">Docs/SS/waves.json</code> ووسوم <code dir="ltr">ss-X/base</code> — ليست مصدر حالة. وُلّدت على <code dir="ltr">3f042af</code> في <span dir="ltr">2026-10-02 08:04</span> UTC.</p>
   <div class="hero">
     <p class="lead">المشروع الحالي يبدأ من <span class="num">SS1</span>. المراحل 01–28 تاريخٌ مكتمل.</p>
     <p class="archive"><a href="../Waves/board.html">الأرشيف: لوحة الموجات 1–12</a> · <a href="../../ROADMAP.md">خارطة الطريق القديمة</a> · <a href="README.md">قواعد SS</a></p>
@@ -91,7 +91,7 @@ footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
     <div><b>٥</b><span>مرحلة متبقّية من ١٠</span></div>
     <div><b>٦</b><span>موجات</span></div>
     <div><b>٤</b><span>أقصى توازٍ</span></div>
-    <div><b>الموجة <span class="num">C</span> — تنتظر وسمها</b><span>الموجة الحالية</span></div>
+    <div><b>الموجة <span class="num">C</span> — مفتوحة</b><span>الموجة الحالية</span></div>
   </div>
   <div class="legend">
     <span><i style="background:var(--ready)"></i>جاهزة</span>
@@ -271,19 +271,19 @@ footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
           <p class="command"><code dir="ltr">/ss-merge B</code></p>
     </section>
     <div class="arrow" aria-hidden="true">↓</div>
-    <section class="wave upcoming current" id="wave-C">
+    <section class="wave open current" id="wave-C">
       <header>
         <h2>الموجة <span class="num">C</span> — ٢ مراحل بالتوازي</h2>
-        <span class="pill wave-pill">قادمة</span>
+        <span class="pill wave-pill">مفتوحة</span>
       </header>
-      <p class="meta">الأساس: <code dir="ltr">ss-C/base</code> — يوضع عند فتحها · الفحص عند الإغلاق: <code dir="ltr">all</code> · الجولة اليدوية: مستحقّة · ما بعدها: الموجة <span class="num">D</span></p>
+      <p class="meta">الأساس: <code dir="ltr">ss-C/base</code> · <code dir="ltr">3f042af</code> · الفحص عند الإغلاق: <code dir="ltr">all</code> · الجولة اليدوية: مستحقّة · ما بعدها: الموجة <span class="num">D</span></p>
       <p class="why">الأذونات في src/ وحرّاس Firefox في scripts/ وci.yml — لا ملفّ مشترك. SS7 أوّلًا لأنها تملك package.json وci.yml وتدخل verify:firefox في بوّابة الموجات التالية.</p>
       <div class="stages">
-      <details class="stage state-waiting" data-stage="SS7">
+      <details class="stage state-ready" data-stage="SS7">
         <summary>
           <span class="num">SS7</span>
           <span class="title">نواة BiDi وحرّاس Firefox</span>
-          <span class="pill">موجتها لم تُفتح</span>
+          <span class="pill">جاهزة</span>
           <span class="pill local" hidden>تمّت (محلّيًّا)</span>
         </summary>
         <div class="body">
@@ -305,11 +305,11 @@ footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
           <p class="command"><code dir="ltr">/ss SS7</code></p>
         </div>
       </details>
-      <details class="stage state-waiting" data-stage="SS6">
+      <details class="stage state-ready" data-stage="SS6">
         <summary>
           <span class="num">SS6</span>
           <span class="title">الأذونات والإرسال في Firefox</span>
-          <span class="pill">موجتها لم تُفتح</span>
+          <span class="pill">جاهزة</span>
           <span class="pill local" hidden>تمّت (محلّيًّا)</span>
         </summary>
         <div class="body">
