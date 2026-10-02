@@ -32,7 +32,7 @@
 
 | # | المرحلة | الموجة | تعتمد على | الحجم | النموذج | الفرع | الحالة | التسليم | الالتزام |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [SS1](stages/SS1.md) | أساس الهدفين — chromium وfirefox من مصدر واحد | A | — | S | Sonnet 5.5 | `main` | لم تبدأ | — | — |
+| [SS1](stages/SS1.md) | أساس الهدفين — chromium وfirefox من مصدر واحد | A | — | S | Sonnet 5.5 | `main` | نشطة | منفَّذة محليًّا | — |
 | [SS2](stages/SS2.md) | هوية المتصفّح في البلاغ | B | SS1 | S | Sonnet 5.5 | `ss/2-browser-identity` | لم تبدأ | — | — |
 | [SS3](stages/SS3.md) | حزم القنوات وحزمة المصدر وسير الإصدار | B | SS1 | S | Sonnet 5.5 | `ss/3-channel-packages` | لم تبدأ | — | — |
 | [SS4](stages/SS4.md) | نقاط الفرق بالكشف عن القدرة | B | SS1 | M | Sonnet 5.5 | `ss/4-capabilities` | لم تبدأ | — | — |

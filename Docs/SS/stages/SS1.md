@@ -1,8 +1,8 @@
 ---
 id: SS1
 title: أساس الهدفين — chromium وfirefox من مصدر واحد
-status: pending
-delivery: none
+status: active
+delivery: local
 wave: A
 order: 1
 depends: []
