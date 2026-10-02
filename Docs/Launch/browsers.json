@@ -23,12 +23,13 @@
       "version": "1.96.59",
       "status": "supported",
       "note": {
-        "ar": "الألوان بالبكسل: حمايته من البصمة تحرّكها درجة",
-        "en": "Pixel colours: its anti-fingerprinting shifts them by one"
+        "ar": "الألوان بالبكسل دقيقة: القطّارة تفكّ اللقطة بـImageDecoder لا بالقماش فلا يمسّها تمويه البصمة",
+        "en": "Pixel colours are exact: the eyedropper decodes the capture with ImageDecoder, not the canvas, so fingerprint farbling does not touch it"
       },
       "evidence": [
         "pnpm store:package",
-        "verify:wave 21/22 — colour: farbling يحرّك getImageData (FF0000 ← FE0100)"
+        "verify:colour في Brave 1.96.59: صفر فحص بكسل ساقط بعد أن كان سبعة (FF0000 تُقرأ FF0000 لا FE0100؛ المزج 0,255,0)",
+        "verify:colour في Brave: يعلّق قسم مسح الخمسة آلاف نصّ في تدقيق التباين عند 300ث — قبل التعديل وبعده، لا علاقة له بالقطّارة"
       ],
       "engine": "Chromium 154"
     },
