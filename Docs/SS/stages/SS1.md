@@ -57,7 +57,7 @@ resume: ابدأ بـ`src/shared/platform/target.ts` واختبار العزل،
 2. `tests/unit/platform-isolation.test.ts` على نسق `egress-single-exit.test.ts`: يمسح `src/` بلا `platform/` وبلا
    التعليقات بحثًا عن `TARGET` و`firefox` و`Firefox` و`opera` و`brave` و`vivaldi` و`edge`؛ ويُثبَت سالبه بملفّ مصنوع.
 3. `manifest.config.ts` ⇐ دالّة `buildManifest(target)` بجدول §4.4 من الدراسة: `background.scripts` و`gecko`
-   (`id` من المالك، و`strict_min_version: "140.0"`، و`data_collection_permissions`) و`incognito: "not_allowed"` وحذف
+   (`id: "rasd@bysltan.com"` المعتمد، و`strict_min_version: "140.0"`، و`data_collection_permissions`) و`incognito: "not_allowed"` وحذف
    `minimum_chrome_version` و`use_dynamic_url` لـFirefox؛ و`chromium` كما اليوم حرفًا.
 4. `vite.config.ts`: الهدف من `RASD_TARGET`، و`outDir` ⇐ `dist-firefox` للثاني، و`crx({ manifest, browser })`؛ و`vite.content.config.ts` يتبع المجلّد نفسه.
 5. `scripts/verify-dist.mjs --target firefox`: `gecko.id` و`data_collection_permissions` موجودان، ولا `service_worker`،
@@ -77,7 +77,7 @@ resume: ابدأ بـ`src/shared/platform/target.ts` واختبار العزل،
 ## المخاطر
 
 - وضع `browser: 'firefox'` في CRXJS 2.7.1 غير مجرَّب على رصد: إن أخرج ما يرفضه `web-ext lint` يُكتب البيان بعد البناء بملحق Vite صغير، لا بترقيع يدوي
-- `gecko.id` قرارٌ دائم من المالك قبل البدء (`Docs/Browsers/Architecture.md` §6)؛ وبدونه يُستعمل `rasd@bysltan.com` مؤقّتًا ويُذكر
+- `gecko.id` معتمد من المالك في 2026-10-02: `rasd@bysltan.com` — دائم، لا يُغيَّر بعد أوّل توقيع، ويُكتب حرفًا في `buildManifest('firefox')` (ويحرسه `manifest-targets.test.ts`)
 
 ## المراجع
 
