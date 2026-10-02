@@ -404,6 +404,41 @@ export async function installExtension(send, path) {
   }
 }
 
+/**
+ * ما تقوله طرفية Firefox عن الإضافة: **الأخطاء** — الاستثناءات والرفض غير الملتقَط بمصدرٍ من الإضافة (`Services.console`،
+ * ومنها `content.js` في صفحات المواقع) ونداءات `console.error` من سياقات المحتوى (الخَرْج القياسي، بلا مسجِّلات Firefox
+ * الداخلية المسمّاة) — و**تحذيرات البيان** («Reading manifest: Warning…» عند التثبيت). مشتركٌ بين الحرّاس و`store:package`
+ * كي يكون «صفر خطأ» حكمًا واحدًا.
+ */
+export async function extensionConsole(inChrome, stdout = [], extId = null) {
+  const read = JSON.parse(
+    await inChrome(`JSON.stringify((() => {
+      const errors = []
+      const manifest = []
+      for (const m of Services.console.getMessageArray()) {
+        // تحذيرات البيان يكتبها مسجِّل الإضافة (Log.sys.mjs) رسائلَ نصّية لا nsIScriptError — قِيس.
+        const text = String(m instanceof Ci.nsIScriptError ? m.errorMessage : m.message)
+        if (text.includes('Reading manifest: ')) { manifest.push(text.slice(text.indexOf('Reading manifest: '))); continue }
+        if (!(m instanceof Ci.nsIScriptError)) continue
+        if (m.flags & (Ci.nsIScriptError.warningFlag | Ci.nsIScriptError.infoFlag)) continue
+        const where = String(m.sourceName || '')
+        if (!where.startsWith(${JSON.stringify(EXT_BASE)}) && !text.includes(${JSON.stringify(EXT_BASE)})) continue
+        errors.push(text + ' @ ' + where.replace(${JSON.stringify(EXT_BASE)}, '') + ':' + m.lineNumber)
+      }
+      // والقائمة التي يحفظها Firefox للإضافة نفسها (extension.warnings) — مصدرها لا صداها.
+      if (${JSON.stringify(extId)}) {
+        const { ExtensionParent } = ChromeUtils.importESModule('resource://gre/modules/ExtensionParent.sys.mjs')
+        for (const w of ExtensionParent.GlobalManager.getExtension(${JSON.stringify(extId)})?.warnings ?? []) manifest.push(String(w))
+      }
+      return { errors, manifest: [...new Set(manifest)] }
+    })())`).catch(() => '{"errors":[],"manifest":[]}'),
+  )
+  const fromStdout = stdout.filter(
+    (l) => l.startsWith('console.error:') && !FIREFOX_LOGGERS.test(l),
+  )
+  return { errors: [...read.errors, ...fromStdout], manifestWarnings: read.manifest }
+}
+
 // ── الحارس ───────────────────────────────────────────────────────
 
 /** التقرير: أسطرٌ تتراكم وأخطاء تُعدّ — العقد نفسه في `cdp.mjs`. */
@@ -824,25 +859,14 @@ export async function startGuard(o) {
    * `console.error` من سياقات المحتوى (الخَرْج القياسي)، و`log.entryAdded` بمستوى خطأ من صفحات المواقع.
    */
   const consoleErrors = async () => {
-    const fromService = JSON.parse(
-      await inChrome(`JSON.stringify(Services.console.getMessageArray().flatMap((m) => {
-        if (!(m instanceof Ci.nsIScriptError)) return []
-        if (m.flags & (Ci.nsIScriptError.warningFlag | Ci.nsIScriptError.infoFlag)) return []
-        const where = String(m.sourceName || '')
-        if (!where.startsWith(${JSON.stringify(EXT_BASE)}) && !String(m.errorMessage).includes(${JSON.stringify(EXT_BASE)})) return []
-        return [m.errorMessage + ' @ ' + where.replace(${JSON.stringify(EXT_BASE)}, '') + ':' + m.lineNumber]
-      }))`).catch(() => '[]'),
-    )
-    const fromStdout = run
-      .stdout()
-      .filter((l) => l.startsWith('console.error:') && !FIREFOX_LOGGERS.test(l))
+    const { errors: fromExtension } = await extensionConsole(inChrome, run.stdout(), installed.id)
     const fromPages = pageLog
       .filter((e) => e.level === 'error')
       .map((e) => {
         const frame = e.stackTrace?.callFrames?.[0]
         return `${e.text}${frame ? ` @ ${frame.url}:${frame.lineNumber}:${frame.columnNumber}` : ''} (${e.type ?? 'log'})`
       })
-    return [...new Set([...fromService, ...fromStdout, ...fromPages])]
+    return [...new Set([...fromExtension, ...fromPages])]
   }
 
   const finish = async ({ success, failure } = {}) => {
@@ -899,6 +923,9 @@ export async function startGuard(o) {
     acceptSavePrompts,
     screenshot,
     consoleErrors,
+    /** تحذيرات البيان عند التثبيت («Reading manifest: …») — من قائمة Firefox للإضافة وطرفيّتها. */
+    manifestWarnings: async () =>
+      (await extensionConsole(inChrome, [], installed.id)).manifestWarnings,
     requests,
     stdout: run.stdout,
     onCleanup: (fn) => cleanups.push(fn),

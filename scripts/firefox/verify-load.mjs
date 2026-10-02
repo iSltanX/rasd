@@ -11,7 +11,7 @@
  *      وصفر موافقة جمع بيانات (`data_collection`) — لا شيء يُمنح بلا طلب.
  *   5. الاختصارات الأربعة مسجَّلة بمفاتيحها عند Firefox نفسه.
  *   6. `web-ext lint` على `dist-firefox/`: صفر خطأ، والتحذيرات المسموحة وحدها (`innerHTML` لأيقونات SVG ثابتة).
- *   7. صفر خطأ من الإضافة في الطرفية طوال الجولة.
+ *   7. صفر تحذير بيان عند التثبيت، وصفر خطأ من الإضافة في الطرفية طوال الجولة.
  *
  * نسخة الفحص بلا صلاحية مضيف — كالحزمة كما تُرفع — وفيها صفحة الفحص وحدها زيادةً (انظر ترويسة النواة).
  *
@@ -137,6 +137,10 @@ lint.problems.length === 0
   : fail(`web-ext lint:\n      ${lint.problems.join('\n      ')}`)
 
 // ── الطرفية ──────────────────────────────────────────────────────
+const warnings = await g.manifestWarnings()
+warnings.length === 0
+  ? ok('صفر تحذير بيان عند التثبيت (Reading manifest)')
+  : fail(`تحذيرات البيان: ${warnings.length}\n      ${warnings.join('\n      ')}`)
 const errors = await g.consoleErrors()
 errors.length === 0
   ? ok('صفر خطأ من الإضافة في الطرفية')
