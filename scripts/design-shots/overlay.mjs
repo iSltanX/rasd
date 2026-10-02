@@ -456,18 +456,27 @@ const openPalette = (o) => o.key('k', 'KeyK', 75, 2)
 
 const paletteReady = (o) => o.until('ألوان مستخرَجة', paletteShown)
 
-/** صورة مرجعية بحجم النافذة من الصفحة نفسها بإزاحة وصبغة، فيظهر الفرق على جانبَي التقسيم. */
+/**
+ * صورة مرجعية بحجم النافذة من الصفحة نفسها بإزاحة وصبغة، فيظهر الفرق على جانبَي التقسيم.
+ *
+ * **بالبكسل المنطقي لا بكثافة الالتقاط:** لقطة CDP بكثافة الشاشة، فتحت `--dpr=2` تخرج 2880 عرضًا — والمرجع يُعرض
+ * بمقاسه الطبيعي (`ReferenceOverlay`)، فيقع موضع الفاصل 50% على حافّة النافذة. التصغير إلى عرض النافذة يعيد
+ * المشهد كما هو في 1× (حيث النسبة 1 فلا يتغيّر شيء).
+ */
 async function loadReference(ctx, o) {
   const { data } = await ctx.send('Page.captureScreenshot', { format: 'png' }, o.page.sessionId)
   await o.ev(async (b64) => {
     const bitmap = await globalThis.createImageBitmap(
       await (await fetch(`data:image/png;base64,${b64}`)).blob(),
     )
-    const canvas = new globalThis.OffscreenCanvas(bitmap.width, bitmap.height)
+    const dpr = globalThis.devicePixelRatio || 1
+    const width = Math.round(bitmap.width / dpr)
+    const height = Math.round(bitmap.height / dpr)
+    const canvas = new globalThis.OffscreenCanvas(width, height)
     const g = canvas.getContext('2d')
-    g.drawImage(bitmap, 14, 10)
+    g.drawImage(bitmap, 14, 10, width, height)
     g.fillStyle = 'rgba(184, 68, 46, 0.12)'
-    g.fillRect(0, 0, bitmap.width, 100)
+    g.fillRect(0, 0, width, 100)
     const blob = await canvas.convertToBlob({ type: 'image/png' })
     globalThis.__rasdRefFile = new File([blob], 'reference.png', { type: 'image/png' })
   }, data)

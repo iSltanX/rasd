@@ -153,5 +153,95 @@
       "title": "Works where you work",
       "note": "The same package, tested in each"
     }
+  },
+  "readme": {
+    "$comment": "نصوص صور README كما صُمّمت في Figma (الصفحة «35 — README»، القسم «readme · الصور النهائية»). القيم الكبيرة مقروءة من اللقطة الحيّة في الصورة نفسها، فتتغيّر معها إن تغيّرت صفحة العيّنة.",
+    "hero": {
+      "ar": "قِس وافحص وقارن والتقط فوق الصفحة نفسها — عربيٌّ أوّلًا، ومحلّيٌّ على جهازك.",
+      "en": "Measure, inspect, compare and capture right on the page — Arabic-first, and local to your device."
+    },
+    "panels": {
+      "inspect": {
+        "tag": "الفحص",
+        "value": "254.66px",
+        "label": "العرض كما حسبه المتصفّح فعلًا، بكسوره — وتنزيل الأنماط CSS أو Tailwind أو JSON."
+      },
+      "colours": {
+        "tag": "الألوان",
+        "value": "#2B7FFF",
+        "label": "البكسل نفسه تحت القطّارة، وتباينه على خلفيته ⁦5.58 : 1⁩."
+      },
+      "compare": {
+        "tag": "المقارنة",
+        "value": "1.7%",
+        "label": "من البكسلات يختلف بين التنفيذ والمرجع: 17043 من 1024000."
+      },
+      "editor": {
+        "tag": "المحرّر والحجب",
+        "value": "يُخبز في البكسلات",
+        "label": "تغطية وبكسلة وضبابية لا تُستعاد من الملفّ — قبل أن تشارك أي صورة.",
+        "legend": ["تغطية", "ضبابية"]
+      },
+      "capture": {
+        "title": "الالتقاط",
+        "desc": "منطقة بأبعادها، أو عنصر، أو الصفحة كاملة"
+      },
+      "library": {
+        "title": "المكتبة",
+        "desc": "كل شيء على هذا الجهاز"
+      }
+    },
+    "workflow": [
+      ["لاحظ", "560 × 310"],
+      ["قِس", "32px"],
+      ["افحص", "254.66px"],
+      ["قارن", "1.7%"],
+      ["وثّق", "PNG · PDF"],
+      ["سلّم", "Markdown · JSON"]
+    ],
+    "privacy": {
+      "ar": {
+        "title": "ما يبقى على جهازك، وما يخرج منه",
+        "points": [
+          [
+            "0",
+            "طلب شبكة",
+            "ما دام «الوضع المحلّي فقط» مفعّلًا — وهو الافتراضي"
+          ],
+          [
+            "0",
+            "صلاحية دائمة على المواقع",
+            "يعمل على الصفحة التي تطلبه عليها بنقرتك"
+          ],
+          ["0", "حساب أو خادم", "مكتبتك في قاعدة المتصفّح المحلّية وحدها"],
+          [
+            "2",
+            "اتّصالان اختياريان",
+            "«أبلغ عن مشكلة» وGitHub — بنقرتك، بعد المراجعة"
+          ]
+        ]
+      },
+      "en": {
+        "title": "What stays on your device, and what leaves it",
+        "points": [
+          ["0", "network requests", "while “Local only” is on — the default"],
+          [
+            "0",
+            "permanent site access",
+            "works only on the page where you invoke it"
+          ],
+          [
+            "0",
+            "accounts or servers",
+            "your library lives in the browser’s local database"
+          ],
+          [
+            "2",
+            "optional connections",
+            "GitHub and “Report a problem” — your click, after review"
+          ]
+        ]
+      }
+    }
   }
 }

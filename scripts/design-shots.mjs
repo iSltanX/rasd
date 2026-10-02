@@ -15,6 +15,7 @@
  *   pnpm design:shots --axe            # ويشغّل axe-core على كل مشهد بحالته → artifacts/design/axe.json
  *   pnpm design:shots --numerals       # ويفحص سياسة الأرقام: الهندية للعدّ، والغربية معزولةً للقياس
  *   pnpm design:shots --keys           # ويمرّ بـTab على صفحات الإضافة: كل محطّة تركيز لها أثر مرئي؟
+ *   pnpm design:shots --dpr=2          # بكثافة 2× → artifacts/design/shots@2x/ — مصدر مواد الإطلاق (`launch:images`)
  *
  * **و`--axe` يرى ما داخل الطبقة فوق الصفحة.** جذر ظلّها مغلق (`content/host.ts`) فلا يبلغه axe من
  * الصفحة؛ وCDP يرى الجذور المغلقة، فيُسلَّم جذرها إلى axe عبر `shadowRoot` على عنصر المضيف في
@@ -48,7 +49,18 @@ import { baselineShots, groupsNeeded, overlayIds, sceneNames } from './lib/visua
 const root = fileURLToPath(new URL('..', import.meta.url))
 const OUT = join(root, 'artifacts', 'design')
 const EXT = join(OUT, 'ext')
-const SHOTS = join(OUT, 'shots')
+/**
+ * `--dpr=<n>` كثافة البكسل: الإطار يبقى 1440 × 900 بالبكسل المنطقي والصورة `n` أضعافه، في مجلّدها
+ * `shots@<n>x/` فلا تختلط بلقطات 1× التي تقارَن بإطاراتها. مصدر مواد الإطلاق وصور README (`launch:images`)
+ * لتبقى حادّةً حين تُصدَّر ×2 أو تُصغَّر إلى 1280. **ولا خطوط أساس بها:** خطوط `tests/visual-baselines/` بكثافة
+ * 1× وعليها يقارن `verify:visual`، فالجمع بين الخيارين يُرفض قبل أن يُقلع كروم.
+ */
+const DPR = Number(process.argv.find((a) => a.startsWith('--dpr='))?.slice(6) ?? 1)
+if (!Number.isInteger(DPR) || DPR < 1 || DPR > 3) {
+  console.error('✗ --dpr يقبل 1 أو 2 أو 3.')
+  process.exit(1)
+}
+const SHOTS = join(OUT, DPR === 1 ? 'shots' : `shots@${DPR}x`)
 const PORT = Number(process.env.RASD_DESIGN_PORT ?? 9391)
 const FIXTURES_PORT = Number(process.env.RASD_FIXTURES_PORT ?? 5399)
 const WIDTH = 1440
@@ -73,6 +85,12 @@ const only = surfacesOnly
  */
 const baselinesDirArg = args.find((a) => a.startsWith('--baselines-dir='))?.slice(16)
 const writeBaselines = args.includes('--baselines') || baselinesDirArg !== undefined
+if (writeBaselines && DPR !== 1) {
+  console.error(
+    '✗ خطوط الأساس بكثافة 1× وحدها (يقارنها `verify:visual`) — لا تجمع --dpr مع --baselines.',
+  )
+  process.exit(1)
+}
 const skipBuild = args.includes('--no-build')
 const runAxe = args.includes('--axe')
 const runKeys = args.includes('--keys')
@@ -214,7 +232,7 @@ const proc = spawn(
     '--no-default-browser-check',
     '--disable-gpu',
     '--hide-scrollbars',
-    '--force-device-scale-factor=1',
+    `--force-device-scale-factor=${DPR}`,
     `--window-size=${WIDTH},${HEIGHT}`,
     'about:blank',
   ],
@@ -303,7 +321,7 @@ async function openPage(url, mode, { beforeLoad } = {}) {
   await send('Page.enable', {}, sessionId)
   await send(
     'Emulation.setDeviceMetricsOverride',
-    { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false },
+    { width: WIDTH, height: HEIGHT, deviceScaleFactor: DPR, mobile: false },
     sessionId,
   )
   await send(

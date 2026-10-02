@@ -2,12 +2,13 @@
 /**
  * مواد الإطلاق — من لقطات الإضافة الحيّة لا من رسمٍ لها (`Docs/Launch/README.md`).
  *
- *   pnpm design:shots                 # لقطات الإضافة المبنيّة كما يرسمها Chrome → artifacts/design/shots/
+ *   pnpm design:shots --dpr=2 --only=overlay,editor,library,settings   # → artifacts/design/shots@2x/
  *   pnpm launch:images                # → Docs/Launch/{screens,promo,icons,readme}/
  *
  * **اللقطة من Chrome، والإطار وحده يُرسم هنا.** كل لقطة متجر (1280×800) شريطُ عنوانٍ بالهوية فوق لقطةٍ حيّة من
- * `design:shots` كما رسمها Chrome بالإضافة المبنيّة، مقصوصةً من أعلاها ومصغَّرةً بالنسبة نفسها في المحورين
- * (1440 → 1280) — لا تمديد ولا واجهة مصطنعة. فما تعرضه الصور هو ما يراه المستخدم، ويتغيّر بتغيّرها بإعادة الأمرين.
+ * `design:shots --dpr=2` كما رسمها Chrome بالإضافة المبنيّة، مقصوصةً من أعلاها ومصغَّرةً بالنسبة نفسها في المحورين
+ * (1440 → 1280) — لا تمديد ولا واجهة مصطنعة. **واللقطات بكثافة 2×** (`artifacts/design/shots@2x/`): التصغير إلى 1280 من
+ * 2880 حادّ، ومن 1440 ضبابي، وصور README تُلتقط ×2 فتحتاج مصدرًا بالكثافة نفسها. فما تعرضه الصور هو ما يراه المستخدم، ويتغيّر بتغيّرها بإعادة الأمرين.
  *
  * **والنصوص من ملفّ لا من الشيفرة** (`Docs/Launch/content.json`): العناوين بالعربية والإنجليزية، وترتيب اللقطات
  * ترتيب الرفع. **والمتصفّحات من نتيجة الاختبار** (`Docs/Launch/browsers.json`): لا يظهر في شريط «يعمل حيث تعمل أنت»
@@ -15,7 +16,8 @@
  *
  * والأيقونة 128 بعملٍ فنّي 96 وحاشيةٍ شفّافة 16 كما تطلب صفحة صور المتجر، من المصدر المتّجه
  * (`Docs/Brand/svg/rasd-icon-idle.svg`)، ومنه شعار Edge (300). والترويجيتان (440×280 و1400×560) من الهوية: الإرشاد
- * أن تحمل العلامة لا أن تكرّر لقطة. وصور README بكثافة 2× لتبقى حادّة على الشاشات الكثيفة.
+ * أن تحمل العلامة لا أن تكرّر لقطة. **وصور README ألواحُ التصميم المعتمد في Figma** (الصفحة `35 — README`): عرضها المنطقي
+ * 960 وتُلتقط ×2، ونصوصها في `content.json` تحت `readme`.
  *
  * **لقطات Opera (612×408) وأيقونة AMO (64)** (`opera-*` و`amo-icon-64`): من اللقطات الحيّة نفسها، بخلفية بيضاء كما تشترط
  * إرشادات نشر Opera. وتُولَّد وحدها بـ`pnpm launch:images --only=opera,amo` فلا تُمسّ بقيّة الصور (إطلاق كروم آخر قد يغيّر
@@ -31,7 +33,9 @@ import { pathToFileURL } from 'node:url'
 import { connectCdp, evaluator, findChrome, launchChrome, openTarget, ROOT } from './lib/cdp.mjs'
 
 const PORT = Number(process.env.RASD_LAUNCH_IMAGES_PORT ?? 9396)
-const SHOTS = join(ROOT, 'artifacts', 'design', 'shots')
+/** اللقطات الحيّة بكثافة 2× — `pnpm design:shots --dpr=2`. */
+const SHOT_DPR = 2
+const SHOTS = join(ROOT, 'artifacts', 'design', `shots@${SHOT_DPR}x`)
 const LAUNCH = join(ROOT, 'Docs', 'Launch')
 const FONTS = join(ROOT, 'public', 'assets', 'fonts')
 const BRAND = join(ROOT, 'Docs', 'Brand', 'svg')
@@ -143,88 +147,235 @@ const icon = (size, art) => `<!doctype html><html><head><meta charset="utf-8"><s
   img { position: absolute; left: ${(size - art) / 2}px; top: ${(size - art) / 2}px; width: ${art}px; height: ${art}px; }
 </style></head><body><img src="${file(join(BRAND, 'rasd-icon-idle.svg'))}" alt=""></body></html>`
 
-// ── README: البطل، وصورة المشاركة، وشريط المتصفّحات ─────────────
-/** نافذة متصفّحٍ مختزلة حول لقطةٍ حيّة: شريطٌ بثلاث نقاط وحافّة — إطارٌ للّقطة لا واجهةٌ بديلة. */
-const windowFrame = (shot, w, extra = '') => {
-  const h = Math.round((w * 900) / 1440)
-  return `<div class="win" style="width:${w}px;${extra}"><div class="bar"><i></i><i></i><i></i></div><img src="${shotUrl(shot)}" style="width:${w}px;height:${h}px" alt=""></div>`
-}
-const windowCss = `
-  .win { position: absolute; border-radius: 12px; overflow: hidden; background: ${INK_975}; border: 1px solid ${INK_900};
-    box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.03) inset; }
-  .win .bar { height: 26px; display: flex; gap: 7px; align-items: center; padding: 0 12px; direction: ltr; border-bottom: 1px solid ${INK_950}; }
-  .win .bar i { width: 9px; height: 9px; border-radius: 50%; background: ${INK_900}; }
-  .win img { display: block; }`
+// ── README — ألواح التصميم المعتمد في Figma (`35 — README`) ─────────
+/**
+ * **كل صورة README لوحٌ داكن مكتفٍ بخلفيته** بحافّة 1 وزوايا 16 شفّافة الأطراف، فيعمل على وضعَي GitHub بلا
+ * `<picture>`. العرض المنطقي 960 (عمود README بين 830 و880) ويُلتقط ×2، فالقيمة الكبيرة ≥ 48 والنصّ ≥ 13 داخل
+ * الصورة يبقيان مقروءين، وعلى الهاتف تبقى القيمة الكبيرة وحدها مقروءة — والقصّة صورةٌ لا نصّ.
+ *
+ * **والقصّة من اللقطة الحيّة بكثافتها** (`shots@2x`): مربّع القصّ بالبكسل المنطقي لإطار 1440 × 900 كما كُتب على
+ * طبقته في Figma، والتكبير بالبكسل (`image-rendering: pixelated`) بلا تنعيم. **ولا شعار متصفّح** حتى يأذن أصحابها
+ * (`Docs/Launch/README.md`): الاسم بخطّ الهوية وحده.
+ */
+const INK_800 = '#3c4a52'
+const INK_400 = '#9baeb9'
+const readme = content.readme
+const supportedBrowsers = browsers.browsers.filter((b) => b.status === 'supported')
 
-function heroHtml(lang, w, h, { compact = false } = {}) {
+/** المقاس المنطقي للّقطة — من ترويسة PNG مقسومةً على كثافة الالتقاط. */
+const logical = (name) => {
+  const b = readFileSync(join(SHOTS, `${name}.png`))
+  return [b.readUInt32BE(16) / SHOT_DPR, b.readUInt32BE(20) / SHOT_DPR]
+}
+/**
+ * قصّة من لقطة حيّة: `box` بالبكسل المنطقي `[x, y, w]` (والارتفاع من `dh` بالنسبة نفسها)، تُعرض بعرض `dw`. `<img>` لا خلفية — فشرط
+ * «اكتملت الصور» قبل الالتقاط يشملها. `px` للتكبير بالبكسل.
+ */
+const crop = (name, [x, y, w], dw, dh, { px = false, cls = 'crop', style = '' } = {}) => {
+  const s = dw / w
+  const [W, H] = logical(name)
+  return `<div class="${cls}" style="width:${dw}px;height:${dh}px;${style}"><img src="${shotUrl(name)}" alt="" style="width:${W * s}px;height:${H * s}px;left:${-x * s}px;top:${-y * s}px;${px ? 'image-rendering:pixelated;' : ''}"></div>`
+}
+const panelCss = (w, h) => `
+  html, body { background: transparent; }
+  .panel { position: relative; width: ${w}px; height: ${h}px; border-radius: 16px; overflow: hidden;
+    background: ${INK_1000}; border: 1px solid ${INK_900}; }
+  .crop { position: absolute; overflow: hidden; border-radius: 12px; border: 1px solid ${INK_900}; }
+  .crop img { position: absolute; max-width: none; }
+  .tick { display: inline-block; width: 20px; height: 2px; background: ${SIGNAL_300}; }
+  .tag { display: flex; align-items: center; gap: 10px; font: 700 14px/1.6 Almarai, sans-serif; color: ${INK_400}; }
+  .value { font: 400 48px/1.1 'Geist Mono', monospace; color: ${SIGNAL_300}; direction: ltr; unicode-bidi: isolate; }
+  .lead { font: 400 20px/1.8 Cairo, sans-serif; color: ${INK_300}; }
+  .pin { position: absolute; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+    background: ${INK_1000}; border: 1.5px solid ${SIGNAL_300}; color: ${SIGNAL_300}; font: 700 14px/1 Almarai, sans-serif; }
+  .label { display: inline-block; padding: 3px 8px; border-radius: 4px; font: 400 14px/1.5 'Geist Mono', monospace;
+    background: ${INK_950}; border: 1px solid ${INK_800}; color: ${INK_300}; direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  .label.brand { background: ${SIGNAL_300}; border-color: ${SIGNAL_300}; color: ${INK_1000}; }`
+const panel = (lang, w, h, css, body) =>
+  page(lang, w, h, `${panelCss(w, h)}${css}`, `<div class="panel">${body}</div>`)
+
+/** البطل — العنوان تحت حدود تحديد رصد ووسمٍ بمقاسه الحقيقي يُقاس في الصفحة نفسها، واللقطة وتكبير فجوتها. */
+function readmeHero(lang) {
+  const ar = lang === 'ar'
+  const start = ar ? 'right' : 'left'
+  const end = ar ? 'left' : 'right'
   const t = content.hero[lang]
-  const rtl = lang === 'ar'
-  const order = ['capture', 'inspect', 'measure', 'colours', 'compare', 'editor', 'library']
-  const tags = order.map(
-    (id) => `<span>${content.screens.find((s) => s.id === id).tag[lang]}</span>`,
-  )
-  // عمود النصّ والنافذتان لا يتقاطعان: النصّ في ثلث اللوحة البعيد، والنافذتان في الثلثين الآخرين.
-  const side = rtl ? 'right' : 'left'
-  const away = rtl ? 'left' : 'right'
-  const front = compact ? 560 : 540
-  const frontHeight = Math.round((front * 900) / 1440) + 26
-  return page(
+  const at = ar
+    ? { zoom: 'left:28px', big: 'left:230px' }
+    : { zoom: 'right:288px', big: 'left:712px' }
+  return panel(
     lang,
-    w,
-    h,
-    `body { position: relative; background: radial-gradient(70% 90% at ${rtl ? '20%' : '80%'} 55%, ${INK_950} 0%, ${INK_1000} 70%); }
-     .text { position: absolute; top: 0; bottom: 0; ${side}: ${compact ? 56 : 64}px; width: ${compact ? 560 : 470}px;
-       display: flex; flex-direction: column; justify-content: center; gap: ${compact ? 20 : 24}px; }
-     h1 { font: 800 ${compact ? 42 : 46}px/1.2 Almarai, sans-serif; color: ${INK_50}; }
-     p { font: 400 ${compact ? 18 : 19}px/1.65 Cairo, sans-serif; color: ${INK_300}; }
-     .tags { display: ${compact ? 'none' : 'flex'}; flex-wrap: wrap; gap: 8px; }
-     .tags span { font: 700 13px/1 Almarai, sans-serif; color: ${INK_300}; background: ${INK_975}; border: 1px solid ${INK_900};
-       border-radius: 999px; padding: 8px 12px; }
-     ${windowCss}`,
-    `<div class="text">${lockup(compact ? 180 : 200)}<h1>${t.title.replace('\n', '<br>')}</h1><p>${t.body}</p><div class="tags">${tags.join('')}</div></div>
-     ${
-       compact
-         ? windowFrame(
-             'measure_two-elements--dark',
-             front,
-             `${away}:44px;top:${(h - frontHeight) / 2}px`,
-           )
-         : windowFrame('library_grid--dark', 420, `${away}:40px;top:60px;opacity:.9`) +
-           windowFrame(
-             'measure_two-elements--dark',
-             front,
-             `${away}:110px;top:${h - frontHeight - 30}px`,
-           )
-     }`,
+    960,
+    480,
+    `.lockup { position: absolute; top: 47px; ${start}: 48px; height: 28px; }
+     .col { position: absolute; top: 118px; ${start}: 48px; width: 420px; }
+     .h1 { position: relative; }
+     h1 { font: 800 ${ar ? '48px/1.35' : '40px/1.15'} Almarai, sans-serif; color: ${INK_50}; ${ar ? '' : 'letter-spacing: -0.015em;'} }
+     .bounds { position: absolute; inset: -6px -10px; border: 1px solid ${SIGNAL_300}; }
+     .bounds i { position: absolute; width: 8px; height: 8px; background: ${SIGNAL_300}; }
+     .bounds i:nth-child(1) { top: -4px; left: -4px; } .bounds i:nth-child(2) { top: -4px; right: -4px; }
+     .bounds i:nth-child(3) { bottom: -4px; left: -4px; } .bounds i:nth-child(4) { bottom: -4px; right: -4px; }
+     .bounds b { position: absolute; top: calc(100% + 8px); ${start}: 0; padding: 2px 6px; border-radius: 4px; background: ${SIGNAL_300};
+       color: ${INK_1000}; font: 400 11px/1.4 'Geist Mono', monospace; direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+     .lead { margin-top: 44px; ${ar ? '' : 'line-height: 1.55;'} }
+     .zoom { position: absolute; overflow: hidden; border-radius: 12px; border: 2px solid ${INK_50}; }
+     .zoom img { position: absolute; max-width: none; }
+     .big { position: absolute; top: 404px; font: 400 32px/1.2 'Geist Mono', monospace; color: ${SIGNAL_300}; }`,
+    `<img class="lockup" src="${file(join(BRAND, 'rasd-lockup-horizontal-dark.svg'))}" alt="">
+     <div class="col"><div class="h1"><h1 id="h1">${t.title.replace('\n', '<br>')}</h1><span class="bounds"><i></i><i></i><i></i><i></i><b id="size"></b></span></div>
+       <p class="lead">${readme.hero[lang]}</p></div>
+     ${crop('measure_two-elements--dark', [700, 330, 400, 300], 400, 300, { style: `top:90px;${end}:48px` })}
+     ${crop('measure_two-elements--dark', [930, 500, 80, 60], 180, 135, { px: true, cls: 'zoom', style: `top:300px;${at.zoom}` })}
+     <span class="big" style="${at.big}">32px</span>
+     <script>
+       // الوسم قياسٌ حقيقي لصندوق العنوان المرسوم، لا رقمٌ مكتوب (ملاحظة القرار في Figma).
+       document.fonts.ready.then(() => {
+         const r = document.getElementById('h1').getBoundingClientRect()
+         document.getElementById('size').textContent = 'h1 · ' + Math.round(r.width) + ' × ' + Math.round(r.height)
+       })
+     </script>`,
   )
 }
 
-function browsersHtml(lang) {
+/** شريط المتصفّحات — الأسماء بخطّ الهوية بين علامات مسطرة، ممّا حالته `supported` وحده. */
+function readmeBrowsers(lang) {
+  const ar = lang === 'ar'
   const t = content.browsers[lang]
-  const supported = browsers.browsers.filter((b) => b.status === 'supported')
-  const chips = supported
+  const names = supportedBrowsers.map((b) => `<li>${b.name}</li>`).join('<li class="sep"></li>')
+  return panel(
+    lang,
+    960,
+    128,
+    `.row { position: absolute; inset: 0 48px; display: flex; align-items: center; justify-content: space-between; }
+     h2 { font: 700 28px/1.3 Almarai, sans-serif; color: ${INK_50}; }
+     small { display: block; font: 400 13px/1.6 Cairo, sans-serif; color: ${INK_400}; }
+     ul { list-style: none; padding: 0; display: flex; align-items: center; gap: 18px; }
+     li { font: 700 18px/1 Almarai, sans-serif; color: ${INK_300}; }
+     li.sep { width: 1px; height: 16px; background: ${INK_800}; }`,
+    `<div class="row"><div><h2>${t.title}</h2><small>${ar ? 'مجرَّب' : 'Tested'} <bdi dir="ltr">${browsers.tested}</bdi></small></div><ul>${names}</ul></div>`,
+  )
+}
+
+/** لوح ميزة — قصّة واحدة وقيمة واحدة كبيرة، والنصّ في جهة البداية. */
+function readmeFeature(id, visual, extra = '') {
+  const p = readme.panels[id]
+  const valueHtml =
+    id === 'editor'
+      ? `<div style="font:800 48px/1.35 Almarai,sans-serif;color:${INK_50}">${p.value}</div>`
+      : `<div class="value">${p.value}</div>`
+  return panel(
+    'ar',
+    960,
+    480,
+    `.text { position: absolute; right: 48px; top: 0; bottom: 0; width: 380px; display: flex; flex-direction: column;
+       justify-content: center; gap: 14px; }`,
+    `<div class="text"><div class="tag"><span class="tick"></span>${p.tag}</div>${valueHtml}<p class="lead">${p.label}</p></div>${visual}${extra}`,
+  )
+}
+const readmeInspect = () =>
+  readmeFeature(
+    'inspect',
+    crop('inspect_element-selected--light', [41, 186, 420, 330], 420, 330, {
+      style: 'left:56px;top:75px',
+    }),
+  )
+const readmeColours = () =>
+  readmeFeature(
+    'colours',
+    crop('colors_sampling--light', [683, 539, 40, 40], 300, 300, {
+      px: true,
+      style: `left:116px;top:90px;border-radius:50%;border:2px solid ${INK_50}`,
+    }),
+  )
+const readmeCompare = () =>
+  readmeFeature(
+    'compare',
+    crop('compare_split-reference--dark', [560, 80, 420, 330], 420, 330, {
+      style: 'left:56px;top:75px',
+    }),
+  )
+const readmeEditor = () =>
+  readmeFeature(
+    'editor',
+    crop('editor_redact--dark', [376, 187, 420, 330], 420, 330, { style: 'left:56px;top:75px' }),
+    `<span class="pin" style="left:304px;top:90px">١</span><span class="pin" style="left:258px;top:271px">٢</span>`,
+  )
+
+/** الصفّ الهادئ — صورتان صغيرتان بعنوانٍ وسطر. */
+function readmeCalm(id, shot, box) {
+  const p = readme.panels[id]
+  return panel(
+    'ar',
+    472,
+    360,
+    `.cap { position: absolute; right: 24px; left: 24px; top: 280px; text-align: right; }
+     .cap b { display: block; font: 700 28px/1.4 Almarai, sans-serif; color: ${INK_50}; }
+     .cap span { font: 400 13px/1.6 Cairo, sans-serif; color: ${INK_400}; }`,
+    `${crop(shot, box, 424, 240, { style: 'left:24px;top:24px;border-radius:10px' })}<div class="cap"><b>${p.title}</b><span>${p.desc}</span></div>`,
+  )
+}
+
+/** مسار العمل خطّ قياسٍ واحد: ستّ خطوات، ولكلٍّ قيمتها من اللقطات — الأولى من اليمين. */
+function readmeWorkflow() {
+  const seg = 144
+  const steps = readme.workflow
+    .map(([verb, value], i) => {
+      const cx = 48 + 864 - i * seg - seg / 2
+      return `<b class="verb" style="left:${cx}px">${verb}</b><span class="label${i === 1 ? ' brand' : ''}" style="position:absolute;left:${cx}px;top:128px;transform:translateX(-50%)">${value}</span>`
+    })
+    .join('')
+  const ticks = Array.from({ length: 7 }, (_, i) => {
+    const edge = i === 0 || i === 6
+    return `<i style="left:${48 + 864 - i * seg}px;top:${110 - (edge ? 11 : 7)}px;height:${edge ? 22 : 14}px;background:${i === 0 ? SIGNAL_300 : INK_500}"></i>`
+  }).join('')
+  return panel(
+    'ar',
+    960,
+    220,
+    `.line { position: absolute; left: 48px; width: 864px; top: 110px; height: 1px; background: ${INK_500}; }
+     i { position: absolute; width: 1px; }
+     .verb { position: absolute; top: 46px; transform: translateX(-50%); font: 700 28px/1.5 Almarai, sans-serif; color: ${INK_50}; white-space: nowrap; }`,
+    `<div class="line"></div>${ticks}${steps}`,
+  )
+}
+
+/** الخصوصية سطرُ قراءات: قيمة مقيسة، ووحدتها، وما تعنيه — كل سطرٍ يقابله سطرٌ في `Docs/Privacy.md`. */
+function readmePrivacy(lang) {
+  const ar = lang === 'ar'
+  const t = readme.privacy[lang]
+  const cells = t.points
     .map(
-      (b) =>
-        `<li><b>${b.name}</b><small><bdi dir="ltr">${b.version}</bdi>${b.engine ? `<br><bdi dir="ltr">${b.engine}</bdi>` : ''}</small><em>${lang === 'ar' ? 'مجرَّب' : 'Tested'} <bdi dir="ltr">${browsers.tested}</bdi></em>${b.note ? `<i>${b.note[lang]}</i>` : ''}</li>`,
+      ([v, u, c], i) =>
+        `<div class="pt"><div class="value" style="color:${i === 0 ? SIGNAL_300 : INK_50};text-align:${ar ? 'right' : 'left'}">${v}</div><small>${u}</small><p>${c}</p></div>`,
     )
     .join('')
-  return page(
+  return panel(
     lang,
-    1200,
-    300,
-    `body { padding: 24px 40px; display: flex; flex-direction: column; gap: 16px; background: ${INK_1000}; }
-     header { display: flex; align-items: baseline; gap: 16px; }
-     h2 { font: 800 30px/1.2 Almarai, sans-serif; color: ${INK_50}; }
-     header p { font: 400 17px/1.4 Cairo, sans-serif; color: ${INK_500}; }
-     ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(${supported.length}, 1fr); gap: 14px; }
-     li { background: ${INK_975}; border: 1px solid ${INK_900}; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
-     li b { font: 800 24px/1.1 Almarai, sans-serif; color: ${INK_50}; }
-     li small { font: 400 13px/1.45 'Geist Mono', monospace; color: ${INK_500}; }
-     li em { font: 700 13px/1 Almarai, sans-serif; font-style: normal; color: ${SIGNAL_300}; }
-     li i { font: 400 11.5px/1.4 Cairo, sans-serif; font-style: normal; color: ${INK_300}; border-top: 1px solid ${INK_900}; padding-top: 6px; margin-top: 1px; }`,
-    `<header><h2>${t.title}</h2><p>${t.note}</p></header><ul>${chips}</ul>`,
+    960,
+    400,
+    `h2 { position: absolute; top: 40px; left: 48px; right: 48px; font: 700 28px/1.5 Almarai, sans-serif; color: ${INK_50}; }
+     .grid { position: absolute; top: 110px; left: 48px; right: 48px; display: grid; grid-template-columns: repeat(4, 1fr); }
+     .pt { border-top: 1px solid ${INK_900}; padding: 24px 20px; display: flex; flex-direction: column; gap: 8px; }
+     .pt small { font: 700 14px/1.6 Almarai, sans-serif; color: ${INK_400}; }
+     .pt p { font: 400 18px/${ar ? '1.85' : '1.6'} Cairo, sans-serif; color: ${INK_300}; }`,
+    `<h2>${t.title}</h2><div class="grid">${cells}</div>`,
   )
 }
+
+/** صورة المشاركة — مقاس GitHub 1280 × 640، لوحٌ كامل بلا زوايا. */
+const socialPreview = page(
+  'ar',
+  1280,
+  640,
+  `body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; background: ${INK_1000}; }
+   h1 { font: 800 48px/1.35 Almarai, sans-serif; color: ${INK_50}; }
+   p { font: 400 20px/1.5 Cairo, sans-serif; color: ${INK_400}; }
+   ul { list-style: none; padding: 0; margin-top: 36px; display: flex; align-items: center; gap: 18px; direction: ltr; }
+   li { font: 700 18px/1 Almarai, sans-serif; color: ${INK_300}; }
+   li.sep { width: 1px; height: 16px; background: ${INK_800}; }`,
+  `${lockup(218)}<h1>${content.hero.ar.title.replace('\n', ' ')}</h1><p>${content.hero.en.title.replace('\n', ' ')}</p>
+   <ul>${supportedBrowsers.map((b) => `<li>${b.name}</li>`).join('<li class="sep"></li>')}</ul>`,
+)
 
 // ── المهامّ ─────────────────────────────────────────────────────
 const missing = content.screens
@@ -232,7 +383,9 @@ const missing = content.screens
   .concat(['measure_two-elements--dark', 'library_grid--dark'])
   .filter((name) => !existsSync(join(SHOTS, `${name}.png`)))
 if (missing.length > 0) {
-  console.error(`✗ لقطات حيّة ناقصة — شغّل \`pnpm design:shots\` أولًا:\n  ${missing.join('\n  ')}`)
+  console.error(
+    `✗ لقطات حيّة ناقصة بكثافة 2× — شغّل \`pnpm design:shots --dpr=2 --only=overlay,editor,library,settings\` أولًا:\n  ${missing.join('\n  ')}`,
+  )
   process.exit(1)
 }
 const chrome = findChrome()
@@ -290,45 +443,99 @@ const allJobs = [
     html: icon(64, 64),
     transparent: true,
   },
+  ...['ar', 'en'].flatMap((lang) => [
+    {
+      group: 'readme',
+      out: `readme/hero-${lang}.png`,
+      w: 960,
+      h: 480,
+      dpr: 2,
+      transparent: true,
+      html: readmeHero(lang),
+    },
+    {
+      group: 'readme',
+      out: `readme/browsers-${lang}.png`,
+      w: 960,
+      h: 128,
+      dpr: 2,
+      transparent: true,
+      html: readmeBrowsers(lang),
+    },
+    {
+      group: 'readme',
+      out: `readme/privacy-${lang}.png`,
+      w: 960,
+      h: 400,
+      dpr: 2,
+      transparent: true,
+      html: readmePrivacy(lang),
+    },
+  ]),
   {
     group: 'readme',
-    out: 'readme/hero-ar.png',
-    w: 1200,
-    h: 600,
+    out: 'readme/inspect-ar.png',
+    w: 960,
+    h: 480,
     dpr: 2,
-    html: heroHtml('ar', 1200, 600),
+    transparent: true,
+    html: readmeInspect(),
   },
   {
     group: 'readme',
-    out: 'readme/hero-en.png',
-    w: 1200,
-    h: 600,
+    out: 'readme/colours-ar.png',
+    w: 960,
+    h: 480,
     dpr: 2,
-    html: heroHtml('en', 1200, 600),
+    transparent: true,
+    html: readmeColours(),
   },
   {
     group: 'readme',
-    out: 'readme/social-preview.png',
-    w: 1280,
-    h: 640,
-    html: heroHtml('ar', 1280, 640, { compact: true }),
-  },
-  {
-    group: 'readme',
-    out: 'readme/browsers-ar.png',
-    w: 1200,
-    h: 300,
+    out: 'readme/compare-ar.png',
+    w: 960,
+    h: 480,
     dpr: 2,
-    html: browsersHtml('ar'),
+    transparent: true,
+    html: readmeCompare(),
   },
   {
     group: 'readme',
-    out: 'readme/browsers-en.png',
-    w: 1200,
-    h: 300,
+    out: 'readme/editor-ar.png',
+    w: 960,
+    h: 480,
     dpr: 2,
-    html: browsersHtml('en'),
+    transparent: true,
+    html: readmeEditor(),
   },
+  {
+    group: 'readme',
+    out: 'readme/capture-ar.png',
+    w: 472,
+    h: 360,
+    dpr: 2,
+    transparent: true,
+    html: readmeCalm('capture', 'capture_area-select--dark', [330, 180, 440, 250]),
+  },
+  {
+    group: 'readme',
+    out: 'readme/library-ar.png',
+    w: 472,
+    h: 360,
+    dpr: 2,
+    transparent: true,
+    html: readmeCalm('library', 'library_grid--dark', [1000, 560, 440, 250]),
+  },
+  {
+    group: 'readme',
+    out: 'readme/workflow-ar.png',
+    w: 960,
+    h: 220,
+    dpr: 2,
+    transparent: true,
+    html: readmeWorkflow(),
+  },
+  { group: 'readme', out: 'readme/social-preview.png', w: 1280, h: 640, html: socialPreview },
 ]
 
 // `--only=opera,amo` يولّد فئاتٍ بعينها؛ وبلا الخيار كل الصور كما كان.

@@ -487,15 +487,62 @@ describe('مواد الإطلاق — بأبعاد المتجرين (C6 · C7 ·
     ).toEqual([])
   })
 
+  /** صور README — ألواح Figma (`35 — README`) بعرضها المنطقي ×2؛ وصورة المشاركة بمقاس GitHub نفسه. */
+  const README_IMAGES: Record<string, [number, number]> = {
+    'hero-ar.png': [1920, 960],
+    'hero-en.png': [1920, 960],
+    'browsers-ar.png': [1920, 256],
+    'browsers-en.png': [1920, 256],
+    'inspect-ar.png': [1920, 960],
+    'colours-ar.png': [1920, 960],
+    'compare-ar.png': [1920, 960],
+    'editor-ar.png': [1920, 960],
+    'capture-ar.png': [944, 720],
+    'library-ar.png': [944, 720],
+    'workflow-ar.png': [1920, 440],
+    'privacy-ar.png': [1920, 800],
+    'privacy-en.png': [1920, 800],
+    'social-preview.png': [1280, 640],
+  }
+
   it('الترويجيتان والشعار وصور README', () => {
     expect(size('promo/promo-small-440x280.png')).toEqual([440, 280])
     expect(size('promo/promo-marquee-1400x560.png')).toEqual([1400, 560])
     expect(size('icons/edge-logo-300.png')).toEqual([300, 300])
-    expect(size('readme/social-preview.png')).toEqual([1280, 640])
-    for (const lang of ['ar', 'en']) {
-      expect(size(`readme/hero-${lang}.png`)).toEqual([2400, 1200])
-      expect(size(`readme/browsers-${lang}.png`)).toEqual([2400, 600])
+    expect(readdirSync(join(LAUNCH, 'readme')).sort()).toEqual(Object.keys(README_IMAGES).sort())
+    for (const [name, dims] of Object.entries(README_IMAGES))
+      expect([name, ...size(`readme/${name}`)]).toEqual([name, ...dims])
+  }, 30_000)
+
+  /** صور `Docs/Launch/readme/` التي يحيل إليها README.md. */
+  const referenced = (doc: string) =>
+    [...doc.matchAll(/Docs\/Launch\/readme\/([\w-]+\.png)/gu)].map((m) => m[1]!)
+
+  it('كل صورة يحيل إليها README موجودة، وكل صورة README مستعملة (إلا صورة المشاركة لإعدادات GitHub)', () => {
+    const used = [...new Set(referenced(read('README.md')))].sort()
+    expect(used.filter((f) => !existsSync(join(LAUNCH, 'readme', f)))).toEqual([])
+    expect(used).toEqual(
+      Object.keys(README_IMAGES)
+        .filter((f) => f !== 'social-preview.png')
+        .sort(),
+    )
+  })
+
+  it('سالب: إحالة إلى صورة غير موجودة تُرصد', () => {
+    const forged = `${read('README.md')}\n<img src="Docs/Launch/readme/ghost-ar.png">`
+    expect(referenced(forged).filter((f) => !existsSync(join(LAUNCH, 'readme', f)))).toEqual([
+      'ghost-ar.png',
+    ])
+  })
+
+  it('ألواح README بزوايا شفّافة وجسمٍ معتم — فتعمل على وضعَي GitHub بلا <picture>', () => {
+    for (const name of Object.keys(README_IMAGES).filter((f) => f !== 'social-preview.png')) {
+      const p = png(`readme/${name}`)
+      expect([name, p.alpha?.[0]]).toEqual([name, 0])
+      expect([name, p.alpha?.[(p.height >> 1) * p.width + (p.width >> 1)]]).toEqual([name, 255])
     }
+    // سالب: صورة المشاركة معتمة حتى ركنها — لا يُقبل لوحٌ بلا زوايا شفّافة.
+    expect(png('readme/social-preview.png').alpha?.[0] ?? 255).toBe(255)
   }, 30_000)
 
   it('أيقونة المتجر 128 بحاشية شفّافة 16 وعملٍ فنّي في وسطها', () => {
