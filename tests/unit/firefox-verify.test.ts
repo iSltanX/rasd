@@ -71,7 +71,7 @@ describe('الطائفتان منفصلتان', () => {
     expect(new Set(ports).size).toBe(ports.length)
     for (const port of ports) {
       expect(port).toBeGreaterThanOrEqual(9231)
-      expect(port).toBeLessThanOrEqual(9243)
+      expect(port).toBeLessThanOrEqual(9244)
     }
   })
 })

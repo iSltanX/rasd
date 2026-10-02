@@ -31,7 +31,7 @@
  * **التخريب المقصود — لإثبات السالب.** `RASD_GUARD_SABOTAGE=service-worker-loader.js,content.js` كما في كروم:
  * الملفّات المسمّاة في نسخة الفحص تصير سطرًا يرمي، والحزمة المبنيّة لا تُمسّ، والتقرير يعلن التخريب سطرًا أوّل.
  *
- * **المنافذ خاصّة:** BiDi لكل حارس في 9231–9243، وخادم العيّنات على 5420 (والأصل الثاني 5421)، وقفل المنسّق
+ * **المنافذ خاصّة:** BiDi لكل حارس في 9231–9244، وخادم العيّنات على 5420 (والأصل الثاني 5421)، وقفل المنسّق
  * 9228 — لا شيء منها من منافذ حرّاس كروم (9333–9399 و5399 و5413)، فتجري الطائفتان معًا بلا تصادم.
  */
 import { spawn, spawnSync } from 'node:child_process'
@@ -698,6 +698,65 @@ export async function startGuard(o) {
       actions: [{ type: 'pointer', id: 'mouse', parameters: { pointerType: 'mouse' }, actions }],
     }).then(() => send('input.releaseActions', { context }))
 
+  /**
+   * مؤشّرٌ أصليّ في **التبويب المحدَّد** — حيث يرفض BiDi `input.performActions` (صفحات الإضافة ونافذة المتصفّح سياقان
+   * مميَّزان — قِيس). `sendNativeMouseEvent` من نافذة المتصفّح يمرّ من عنصر واجهة Firefox كما تمرّ يد المستخدم، والنافذة
+   * بلا رأس تنفّذه: قِيس في Firefox 157 أن الأحداث تصل `isTrusted` بمعرّف مؤشّر حقيقي و`setPointerCapture` يعمل، وأن
+   * المراقِب لا يُنادى بلا رأس (فلا يُنتظر). `steps`: `{ type: 'move' | 'down' | 'up', x, y }` بإحداثيات الصفحة (CSS).
+   */
+  const nativeMouse = (steps) =>
+    inChrome(`(async () => {
+      const u = window.windowUtils
+      const browser = gBrowser.selectedBrowser
+      const box = browser.getBoundingClientRect()
+      const dpr = window.devicePixelRatio
+      const message = { move: u.NATIVE_MOUSE_MESSAGE_MOVE, down: u.NATIVE_MOUSE_MESSAGE_BUTTON_DOWN, up: u.NATIVE_MOUSE_MESSAGE_BUTTON_UP }
+      for (const s of ${JSON.stringify(steps)}) {
+        u.sendNativeMouseEvent(
+          Math.round((window.mozInnerScreenX + box.left + s.x) * dpr),
+          Math.round((window.mozInnerScreenY + box.top + s.y) * dpr),
+          message[s.type], 0, 0, browser, null,
+        )
+        await new Promise((r) => setTimeout(r, s.pause ?? 40))
+      }
+      return true
+    })()`)
+
+  /**
+   * **نافذة «احفظ باسم» يُجاب عنها كما يجيب مستخدمٌ يقبل الاسم المقترح في مجلّد التنزيلات.** التصدير ينزّل بـ`saveAs:
+   * true` قصدًا (`src/pages/export/deliver.ts`)، وFirefox يفتح منتقي ملفّات أصليًّا لا يبلغه بروتوكول ولا يُجاب عنه بلا رأس
+   * — فيبقى `downloads.download` معلَّقًا إلى الأبد (قِيس). فيُسجَّل في عملية المتصفّح منتقٍ بديل لـ`@mozilla.org/filepicker;1`
+   * يعيد «موافق» على الاسم المقترح داخل مجلّد تنزيلات الجولة. لا يمسّ الإضافة ولا قرارها، ويُعلَن في تقرير من يستعمله.
+   */
+  const acceptSavePrompts = () =>
+    inChrome(`(() => {
+      const { FileUtils } = ChromeUtils.importESModule('resource://gre/modules/FileUtils.sys.mjs')
+      const dir = ${JSON.stringify(downloads)}
+      class Picker {
+        constructor() { this.defaultString = ''; this.defaultExtension = ''; this.filterIndex = 0; this.displayDirectory = null; this.displaySpecialDirectory = ''; this.addToRecentDocs = false; this.okButtonLabel = '' }
+        QueryInterface = ChromeUtils.generateQI(['nsIFilePicker'])
+        init() {}
+        appendFilters() {}
+        appendFilter() {}
+        appendRawFilter() {}
+        get file() { const f = new FileUtils.File(dir); f.append(this.defaultString || 'rasd-download'); return f }
+        get fileURL() { return Services.io.newFileURI(this.file) }
+        get files() { return [this.file][Symbol.iterator]() }
+        get mode() { return Ci.nsIFilePicker.modeSave }
+        isModeSupported() { return true }
+        open(callback) { Services.tm.dispatchToMainThread(() => callback.done(Ci.nsIFilePicker.returnOK)) }
+        close() {}
+      }
+      const registrar = Components.manager.QueryInterface(Ci.nsIComponentRegistrar)
+      registrar.registerFactory(
+        Components.ID('{7a5d0c1e-2b3f-4c8d-9e0f-5a6b7c8d0001}'),
+        'rasd accept-save picker',
+        '@mozilla.org/filepicker;1',
+        { createInstance: (iid) => new Picker().QueryInterface(iid) },
+      )
+      return true
+    })()`)
+
   /** لقطة سياق موقع PNG — صفحات الإضافة لا تُلتقط (قِيس). */
   const screenshot = async (context) =>
     Buffer.from((await send('browsingContext.captureScreenshot', { context })).data, 'base64')
@@ -811,6 +870,8 @@ export async function startGuard(o) {
     overlay,
     settle,
     pointer,
+    nativeMouse,
+    acceptSavePrompts,
     screenshot,
     consoleErrors,
     watchRequests,
