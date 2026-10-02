@@ -1,7 +1,7 @@
 ---
 id: SS3
 title: حزم القنوات وحزمة المصدر وسير الإصدار
-status: pending
+status: active
 delivery: none
 wave: B
 order: 2

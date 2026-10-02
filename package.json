@@ -16,6 +16,7 @@
     "build:bundle": "vite build && pnpm run build:content",
     "build:content": "vite build --config vite.content.config.ts",
     "build:firefox": "RASD_TARGET=firefox pnpm run build:bundle",
+    "build:all": "pnpm run build && pnpm run build:firefox && pnpm run verify:dist --target firefox",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.node.json",
     "lint": "NODE_OPTIONS=--max-old-space-size=4096 eslint . --max-warnings=0",
@@ -76,6 +77,9 @@
     "guards:check": "node scripts/guards-sync.mjs --check",
     "gate:a": "node scripts/gate-a.mjs",
     "zip": "node scripts/zip.mjs",
+    "zip:firefox": "node scripts/zip.mjs --target firefox",
+    "zip:source": "node scripts/zip.mjs --target source",
+    "zip:all": "node scripts/zip.mjs --target all",
     "launch:images": "node scripts/launch-images.mjs",
     "store:package": "node scripts/store-package.mjs",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run tokens:check && pnpm run verify:tokens && pnpm run test:coverage"

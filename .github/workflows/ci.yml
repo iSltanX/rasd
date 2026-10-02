@@ -133,6 +133,18 @@ jobs:
       - name: Token contract gate
         run: pnpm run verify:tokens
 
+      # هدف Firefox (SS3): بناؤه وفحص حزمته ومدقّق AMO نفسه (`web-ext lint`) — ساكنٌ بلا متصفّح، ودقيقةٌ في
+      # أسوئها. `web-ext lint` يخرج بغير صفر عند أي خطأ؛ وسقف التحذيرات (تحذيرا `innerHTML` لأيقونات SVG ثابتة)
+      # يفرضه `pnpm zip:firefox` عند الإصدار.
+      - name: Firefox build
+        run: pnpm run build:firefox
+
+      - name: Firefox bundle gate
+        run: pnpm run verify:dist --target firefox
+
+      - name: Firefox add-on linter
+        run: pnpm exec web-ext lint --source-dir dist-firefox
+
       - name: Lint
         run: pnpm run lint
 

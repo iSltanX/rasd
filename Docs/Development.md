@@ -48,11 +48,27 @@ pnpm exec web-ext lint --source-dir dist-firefox   # مدقّق addons.mozilla.o
 ```
 
 - `RASD_TARGET=chromium|firefox` هو ما يختاره (الافتراضي `chromium`)، وقيمةٌ أخرى توقف البناء.
-- `build:firefox` يبني ولا يفحص: الفحص أمرٌ منفصل كما في `build:bundle` و`verify:dist`.
+- `build:firefox` يبني ولا يفحص: الفحص أمرٌ منفصل كما في `build:bundle` و`verify:dist`. و`build:all` يبني الهدفين ويفحصهما.
 - `content.js` بايتاتٌ واحدة في المجلّدين (`cmp dist/content.js dist-firefox/content.js`).
 - المعرّف `rasd@bysltan.com` في بيان Firefox **دائم** — لا يُغيَّر بعد أوّل توقيع.
 - كل معرفة بالهدف أو باسم متصفّح تُكتب في `src/shared/platform/` وحده، ويحرسه
   `tests/unit/platform-isolation.test.ts`.
+
+### الحزم والإصدار
+
+وسمٌ واحد `vX.Y.Z` يعطي ثلاث حزم ببصماتها (`.github/workflows/release.yml`، مسوَّدةً لا نشرًا):
+
+```bash
+pnpm build:all                 # dist/ و dist-firefox/ — كلٌّ بـverify:dist
+pnpm zip:all                   # الثلاث في dist-zip/ — كلٌّ معها .sha256
+pnpm zip:all --tag v1.2.3      # كما في سير الإصدار: الوسم يطابق النسخة، وحزمة المصدر من الالتزام الموسوم
+```
+
+- `rasd-<v>.zip` (Chrome وEdge وOpera) · `rasd-<v>-firefox.zip` (بعد `web-ext lint`: صفر خطأ، وتحذيرا `innerHTML` لأيقونات SVG
+  ثابتة وحدهما) · `rasd-<v>-source.zip` (`git archive HEAD` وREADME البناء `Docs/Store/source-README.md` — ما يطلبه AMO وOpera).
+  ويصلح كلٌّ وحده: `pnpm zip` · `pnpm zip:firefox` · `pnpm zip:source`.
+- `zip:source` يرفض شجرةً غير نظيفة، و`zip:firefox` يرفض بيانًا بلا `gecko.id`. وفي `zip:all` أوّل رفضٍ يمنع كتابة أيٍّ منها.
+- القنوات المنشورة وبصماتها في [`Docs/Release/channels.md`](Release/channels.md).
 
 ## التحميل في Chrome
 
@@ -87,31 +103,33 @@ pnpm exec web-ext lint --source-dir dist-firefox   # مدقّق addons.mozilla.o
 
 ## الأوامر
 
-| الأمر                | ماذا يفعل                                                                    |
-| -------------------- | ---------------------------------------------------------------------------- |
-| `pnpm dev`           | تطوير مع HMR                                                                 |
-| `pnpm build`         | بناء + فحص الحزمة                                                            |
-| `pnpm build:firefox` | بناء هدف Firefox إلى `dist-firefox/`                                         |
-| `pnpm typecheck`     | فحص الأنواع (المصدر وملفات الإعداد)                                          |
-| `pnpm lint`          | ESLint، بلا تسامح مع أي تحذير                                                |
-| `pnpm format`        | Prettier                                                                     |
-| `pnpm test`          | اختبارات الوحدة والتكامل                                                     |
-| `pnpm test:coverage` | مع تقرير التغطية                                                             |
-| `pnpm check`         | الفحوص الساكنة والاختبارات معًا                                              |
-| `pnpm zip`           | فحص `dist/` ثمّ حزمة `.zip` حتمية ببصمتها                                    |
-| `pnpm tokens:sync`   | توليد التوكنز من لقطة Figma                                                  |
-| `pnpm gate:a`        | البوّابة المحلّية، مرّة عند إغلاق المرحلة                                    |
-| `pnpm ss:sync`       | نظام SS: الكتلة المشتقّة في `Docs/SS/README.md` واللوحة `Docs/SS/board.html` |
-| `pnpm ss:check`      | قواعد SS ومطابقة المشتقّ — في البوّابة A وCI                                 |
-| `pnpm ss:prompt SS3` | البرومبت الكامل لمرحلة (أو `wave B` لإغلاق موجة)                             |
-| `pnpm stages:sync`   | أرشيف 01–34: اشتقاق `STATUS.md` وجدول `ROADMAP.md`                           |
-| `pnpm waves:check`   | اتّساق خطّة الموجات مع ترويسات المراحل                                       |
-| `pnpm waves:board`   | توليد لوحة التشغيل `Docs/Waves/board.html`                                   |
-| `pnpm verify:wave`   | حرّاس كروم لمرحلة أو لبوّابة موجة، بقفل                                      |
-| `pnpm verify:<اسم>`  | حارس متصفّح حقيقي — 26 حارسًا                                                |
-| `pnpm test:e2e`      | المسارات الأربعة بالكثافتين 1 و2، بقفل                                       |
-| `pnpm store:package` | الحزمة مفكوكةً في كل متصفّح Chromium مثبَّت                                  |
-| `pnpm launch:images` | مواد الإطلاق من لقطات `design:shots`                                         |
+| الأمر                | ماذا يفعل                                                                     |
+| -------------------- | ----------------------------------------------------------------------------- |
+| `pnpm dev`           | تطوير مع HMR                                                                  |
+| `pnpm build`         | بناء + فحص الحزمة                                                             |
+| `pnpm build:firefox` | بناء هدف Firefox إلى `dist-firefox/`                                          |
+| `pnpm build:all`     | بناء الهدفين وفحصهما                                                          |
+| `pnpm typecheck`     | فحص الأنواع (المصدر وملفات الإعداد)                                           |
+| `pnpm lint`          | ESLint، بلا تسامح مع أي تحذير                                                 |
+| `pnpm format`        | Prettier                                                                      |
+| `pnpm test`          | اختبارات الوحدة والتكامل                                                      |
+| `pnpm test:coverage` | مع تقرير التغطية                                                              |
+| `pnpm check`         | الفحوص الساكنة والاختبارات معًا                                               |
+| `pnpm zip`           | فحص `dist/` ثمّ حزمة `.zip` حتمية ببصمتها                                     |
+| `pnpm zip:firefox`   | `web-ext lint` ثمّ حزمة Firefox · `zip:source` حزمة المصدر · `zip:all` الثلاث |
+| `pnpm tokens:sync`   | توليد التوكنز من لقطة Figma                                                   |
+| `pnpm gate:a`        | البوّابة المحلّية، مرّة عند إغلاق المرحلة                                     |
+| `pnpm ss:sync`       | نظام SS: الكتلة المشتقّة في `Docs/SS/README.md` واللوحة `Docs/SS/board.html`  |
+| `pnpm ss:check`      | قواعد SS ومطابقة المشتقّ — في البوّابة A وCI                                  |
+| `pnpm ss:prompt SS3` | البرومبت الكامل لمرحلة (أو `wave B` لإغلاق موجة)                              |
+| `pnpm stages:sync`   | أرشيف 01–34: اشتقاق `STATUS.md` وجدول `ROADMAP.md`                            |
+| `pnpm waves:check`   | اتّساق خطّة الموجات مع ترويسات المراحل                                        |
+| `pnpm waves:board`   | توليد لوحة التشغيل `Docs/Waves/board.html`                                    |
+| `pnpm verify:wave`   | حرّاس كروم لمرحلة أو لبوّابة موجة، بقفل                                       |
+| `pnpm verify:<اسم>`  | حارس متصفّح حقيقي — 26 حارسًا                                                 |
+| `pnpm test:e2e`      | المسارات الأربعة بالكثافتين 1 و2، بقفل                                        |
+| `pnpm store:package` | الحزمة مفكوكةً في كل متصفّح Chromium مثبَّت                                   |
+| `pnpm launch:images` | مواد الإطلاق من لقطات `design:shots`                                          |
 
 ## البنية
 
