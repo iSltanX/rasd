@@ -9,7 +9,7 @@
  *    ورفضٌ غير ملتقَط فيه عطلٌ يُسجَّل في الخلفية بلا من يعالجه.
  */
 import { fakeBrowser } from '@webext-core/fake-browser'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mirrorToDownloads } from '@/background/capture-mirror'
 import { defaultSettings, patchSettings, resetSettingsCache } from '@/shared/settings'
@@ -66,7 +66,24 @@ function decodeDataUrl(url: string): { mime: string; data: Uint8Array } {
 let download: ReturnType<typeof vi.fn>
 let contains: ReturnType<typeof vi.fn>
 
+/**
+ * عامل Chromium بلا `URL.createObjectURL` ⇒ العنوان `data:` — وهو ما تحرسه معظم هذه الحالات. وصفحة أحداث Firefox
+ * بها ⇒ `blob:`، وله مجموعته أدناه. فكل حالة تحدّد القدرة بنفسها لا ترثها من بيئة الاختبار.
+ */
+function setCreateObjectUrl(impl: ((blob: Blob) => string) | undefined) {
+  Object.defineProperty(URL, 'createObjectURL', { value: impl, configurable: true, writable: true })
+}
+const realCreateObjectUrl = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
+const realRevokeObjectUrl = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
+
+afterEach(() => {
+  if (realCreateObjectUrl) Object.defineProperty(URL, 'createObjectURL', realCreateObjectUrl)
+  if (realRevokeObjectUrl) Object.defineProperty(URL, 'revokeObjectURL', realRevokeObjectUrl)
+  vi.useRealTimers()
+})
+
 beforeEach(() => {
+  setCreateObjectUrl(undefined)
   fakeBrowser.reset()
   resetSettingsCache()
   vi.restoreAllMocks()
@@ -204,5 +221,104 @@ describe('mirrorToDownloads — لا يُفشل الالتقاط أبدًا', ()
 
     await expect(mirrorToDownloads(record(), blob)).resolves.toBe('failed')
     expect(download).not.toHaveBeenCalled()
+  })
+})
+
+describe('mirrorToDownloads — blob: حيث تتوفّر القدرة (صفحة أحداث Firefox)', () => {
+  let onChanged: { listeners: ((delta: unknown) => void)[]; removed: number }
+  let revoke: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    revoke = vi.fn()
+    setCreateObjectUrl(() => 'blob:moz-extension://abc/1234')
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      value: revoke,
+      configurable: true,
+      writable: true,
+    })
+    onChanged = { listeners: [], removed: 0 }
+    Object.assign(globalThis.chrome.downloads, {
+      onChanged: {
+        addListener: (fn: (delta: unknown) => void) => onChanged.listeners.push(fn),
+        removeListener: () => {
+          onChanged.removed += 1
+        },
+      },
+    })
+    download.mockResolvedValue(7)
+  })
+
+  const settle = (delta: unknown) => onChanged.listeners.forEach((fn) => fn(delta))
+
+  it('التنزيل بعنوان blob: لا data:، وبنوع الصيغة الفعلية', async () => {
+    await setLocation('library-and-downloads')
+
+    const outcome = await mirrorToDownloads(record(), new Blob([bytes(64)], { type: 'image/png' }))
+
+    expect(outcome).toBe('downloaded')
+    const call = download.mock.calls[0]?.[0] as { url: string; filename: string }
+    expect(call.url).toBe('blob:moz-extension://abc/1234')
+    expect(call.filename.endsWith('.png')).toBe(true)
+  })
+
+  it('لا يُحرَّر قبل انتهاء التنزيل، ويُحرَّر بعد اكتماله مرّةً ويُنزَع المستمع', async () => {
+    await setLocation('library-and-downloads')
+    await mirrorToDownloads(record(), new Blob([bytes(64)], { type: 'image/png' }))
+
+    expect(revoke).not.toHaveBeenCalled()
+    // تغيّرٌ في تنزيلٍ آخر أو في حقلٍ غير الحالة لا يحرّر.
+    settle({ id: 99, state: { current: 'complete' } })
+    settle({ id: 7, bytesReceived: { current: 10 } })
+    expect(revoke).not.toHaveBeenCalled()
+
+    settle({ id: 7, state: { current: 'complete' } })
+    expect(revoke).toHaveBeenCalledTimes(1)
+    expect(revoke).toHaveBeenCalledWith('blob:moz-extension://abc/1234')
+    expect(onChanged.removed).toBe(1)
+  })
+
+  it('الانقطاع يحرّر كذلك', async () => {
+    await setLocation('library-and-downloads')
+    await mirrorToDownloads(record(), new Blob([bytes(64)], { type: 'image/png' }))
+
+    settle({ id: 7, state: { current: 'interrupted' } })
+
+    expect(revoke).toHaveBeenCalledTimes(1)
+  })
+
+  it('فشل بدء التنزيل يحرّر فورًا ويبقى failed بلا رمي', async () => {
+    await setLocation('library-and-downloads')
+    download.mockRejectedValue(new Error('Invalid filename'))
+
+    await expect(
+      mirrorToDownloads(record(), new Blob([bytes(64)], { type: 'image/png' })),
+    ).resolves.toBe('failed')
+
+    expect(revoke).toHaveBeenCalledTimes(1)
+  })
+
+  it('لو لم يصل الحدث قطّ تحرّره المهلة — لا تسرّب', async () => {
+    vi.useFakeTimers()
+    await setLocation('library-and-downloads')
+    await mirrorToDownloads(record(), new Blob([bytes(64)], { type: 'image/png' }))
+
+    expect(revoke).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(15 * 60 * 1000 + 1)
+
+    expect(revoke).toHaveBeenCalledTimes(1)
+    expect(onChanged.removed).toBe(1)
+  })
+
+  it('نوع فارغ ⟵ يُعاد وسمُ الـblob بـimage/png قبل أن يُسلَّم', async () => {
+    await setLocation('library-and-downloads')
+    let seen: Blob | null = null
+    setCreateObjectUrl((b) => {
+      seen = b
+      return 'blob:moz-extension://abc/9'
+    })
+
+    await mirrorToDownloads(record(), new Blob([bytes(8)], { type: '' }))
+
+    expect((seen as Blob | null)?.type).toBe('image/png')
   })
 })

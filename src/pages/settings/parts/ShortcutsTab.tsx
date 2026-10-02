@@ -16,6 +16,8 @@ import { Button } from '@/ui/components/Button/Button'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
 import { KeyCap } from '@/ui/TechnicalValue'
 
+import { AssignShortcut, useOpenShortcuts } from '../../shell/open-shortcuts'
+
 import { Group } from './Group'
 import styles from './ShortcutsTab.module.css'
 
@@ -96,9 +98,7 @@ export function ShortcutsTab({ settings, onSave, persist }: ShortcutsTabProps) {
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
   }, [listening, settings.shortcuts.toolKeys, onSave, persist])
 
-  const openChromeShortcuts = () => {
-    void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' })
-  }
+  const shortcutsPage = useOpenShortcuts()
 
   const mac = isMacPlatform()
 
@@ -122,7 +122,7 @@ export function ShortcutsTab({ settings, onSave, persist }: ShortcutsTabProps) {
                 shortcut ? (
                   <KeyCap>{shortcut}</KeyCap>
                 ) : (
-                  <span class={styles.none}>{commands ? 'بلا اختصار فعلي' : '…'}</span>
+                  <AssignShortcut ready={commands !== null} {...shortcutsPage} />
                 )
               }
             />
@@ -133,7 +133,7 @@ export function ShortcutsTab({ settings, onSave, persist }: ShortcutsTabProps) {
           label="غيّر اختصارات الالتقاط"
           hint="يحفظها المتصفّح نفسه، فتُغيَّر من صفحة اختصاراته"
           control={
-            <Button variant="secondary" size="s" onClick={openChromeShortcuts}>
+            <Button variant="secondary" size="s" onClick={shortcutsPage.open}>
               افتح صفحة الاختصارات
             </Button>
           }

@@ -10,6 +10,7 @@ import { KeyCap } from '@/ui/TechnicalValue'
 import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import { CAPTURE_COMMANDS } from './capture-commands'
+import { AssignShortcut, useOpenShortcuts } from './open-shortcuts'
 import styles from './ShortcutsSheet.module.css'
 
 import type { JSX } from 'preact'
@@ -37,6 +38,7 @@ export function ShortcutsSheet({ onClose }: ShortcutsSheetProps): JSX.Element {
   const [settings, setSettings] = useState<Settings | null>(null)
   const dialog = useRef<HTMLDivElement>(null)
   useFocusTrap(dialog)
+  const shortcutsPage = useOpenShortcuts()
 
   useEffect(() => {
     void chrome.commands.getAll().then(setCommands)
@@ -100,7 +102,7 @@ export function ShortcutsSheet({ onClose }: ShortcutsSheetProps): JSX.Element {
                       shortcut ? (
                         <KeyCap>{shortcut}</KeyCap>
                       ) : (
-                        <span class={styles.none}>{commands ? 'بلا اختصار' : '…'}</span>
+                        <AssignShortcut ready={commands !== null} {...shortcutsPage} />
                       )
                     }
                   />
@@ -133,12 +135,7 @@ export function ShortcutsSheet({ onClose }: ShortcutsSheetProps): JSX.Element {
         </div>
 
         <div class={styles.actions}>
-          <Button
-            variant="secondary"
-            size="l"
-            icon="keyboard"
-            onClick={() => void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' })}
-          >
+          <Button variant="secondary" size="l" icon="keyboard" onClick={shortcutsPage.open}>
             غيّر اختصارات الالتقاط
           </Button>
         </div>

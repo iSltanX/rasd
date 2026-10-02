@@ -124,6 +124,11 @@ export const IMPACT = [
     scripts: ['verify:activate', 'verify:capture', 'verify:memory'],
   },
   { match: /^src\/shared\/storage\//u, scripts: ['verify:library', 'verify:compare'] },
+  /*
+   * نقاط الفرق بين المتصفّحات (`SS4`): عنوان التنزيل ونافذة الاختصارات ونموذج التصفّح الخاص — يلمسها مستهلكوها في
+   * النافذة (ورقة الاختصارات) والتصدير (نسخة التنزيلات)، وكان المجلّد خارج الجدول فيطلب الطقم كاملًا.
+   */
+  { match: /^src\/shared\/platform\//u, scripts: ['verify:popup', 'verify:export'] },
   {
     match: /^(manifest\.config\.ts|src\/shared\/permission-policy\.ts)/u,
     scripts: ['verify:load', 'verify:network'],

@@ -12,8 +12,9 @@
  * ويبقى الالتقاط سليمًا — **ولا يُكتب شيء في الإعدادات** لتصحيح التعارض: قرار المستخدم
  * يبقى كما هو، وواجهة الإعدادات هي التي تُظهر أن الصلاحية غير ممنوحة.
  *
- * **ولماذا عنوان بيانات لا `blob:`.** الـservice worker بلا `URL.createObjectURL`، والمستند
- * خارج الشاشة بلا مستهلك اليوم. فتُبنى `data:<mime>;base64,…` من بايتات اللقطة.
+ * **وأي عنوان.** `downloadUrl()` في `shared/platform/capabilities.ts` يختار بالقدرة لا بالمتصفّح: `blob:` حيث
+ * تتوفّر `URL.createObjectURL` (صفحة أحداث Firefox، ويُرفض `data:` هناك)، و`data:<mime>;base64,…` حيث تغيب
+ * (عامل Chromium). و`blob:` يُحرَّر حين ينتهي التنزيل (`downloads.onChanged`) أو يفشل بدؤه — فلا يتسرّب.
  *
  * **وحجمه مقيس لا مخمَّن** (Chrome 154.0.8037.92، `chrome.downloads.download` من service worker): عنوان
  * بيانات لبايتات 1 و3 و8 و20 ميغابايت (حتى 28 مليون محرف) اكتمل تنزيله بالبايتات نفسها. فحدّ الـ2MB المعروف
@@ -23,6 +24,7 @@
 import { mirrorFilename, planMirror } from '@/modules/export/download'
 import { formatFromMime, mimeFor } from '@/modules/export/format'
 import { hasPermission } from '@/shared/permissions'
+import { downloadUrl, type DownloadUrl } from '@/shared/platform/capabilities'
 import { getSettingsResult } from '@/shared/settings'
 
 import type { CaptureRecord } from '@/shared/storage/schema'
@@ -35,22 +37,32 @@ import type { CaptureRecord } from '@/shared/storage/schema'
  */
 export type MirrorOutcome = 'off' | 'downloaded' | 'no-permission' | 'failed'
 
-/**
- * حجم قطعة `String.fromCharCode(...chunk)`.
- *
- * نشر مصفوفة كاملة في وسائط الدالّة يُسقط المكدّس فوق بضعة عشرات الآلاف من العناصر،
- * ولقطة صفحة كاملة ميغابايتات. `0x8000` حدّ معروف آمن.
- */
-const CHUNK = 0x8000
+/** أطول مدّة نبقي فيها عنوان `blob:` ننتظر انتهاء تنزيله — بعدها يُحرَّر ولو لم يصل الحدث. */
+const RELEASE_AFTER_MS = 15 * 60 * 1000
 
-/** بايتات الـblob ⟵ `data:<mime>;base64,<...>`. */
-async function toDataUrl(blob: Blob, mime: string): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer())
-  let binary = ''
-  for (let offset = 0; offset < bytes.length; offset += CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + CHUNK))
+/**
+ * يحرّر العنوان حين يبلغ التنزيل `id` نهايته (اكتمل أو انقطع). **لا يرمي:** غياب `onChanged` أو انقطاع المستمع
+ * يعنيان مهلةً تحرّره لا تسرّبًا. و`data:` لا يحتاج شيئًا فيُترك.
+ */
+function releaseWhenSettled(id: number, handle: DownloadUrl): void {
+  if (handle.kind === 'data') return
+  const onChanged = chrome.downloads.onChanged as typeof chrome.downloads.onChanged | undefined
+  if (!onChanged) {
+    // لا حدث نسمعه: التحرير الفوري يقطع التنزيل، فالمهلة وحدها.
+    setTimeout(handle.release, RELEASE_AFTER_MS)
+    return
   }
-  return `data:${mime};base64,${btoa(binary)}`
+  const done = () => {
+    clearTimeout(timer)
+    onChanged.removeListener(listener)
+    handle.release()
+  }
+  const listener = (delta: chrome.downloads.DownloadDelta) => {
+    const state = delta.state?.current
+    if (delta.id === id && (state === 'complete' || state === 'interrupted')) done()
+  }
+  const timer = setTimeout(done, RELEASE_AFTER_MS)
+  onChanged.addListener(listener)
 }
 
 /**
@@ -74,16 +86,25 @@ export async function mirrorToDownloads(record: CaptureRecord, blob: Blob): Prom
     // الصيغة من النوع الفعلي للبايتات لا من تفضيل المستخدم: الالتقاط PNG دائمًا، وما يُسمّى
     // `.webp` وبايتاته PNG ملفّ يكذب على صاحبه.
     const format = formatFromMime(blob.type) ?? 'png'
-    const url = await toDataUrl(blob, mimeFor(format))
+    // نوع الـblob هو نوع العنوان: تُعاد كتابته بالصيغة الفعلية لا بما جاء فارغًا.
+    const typed = blob.type === mimeFor(format) ? blob : blob.slice(0, blob.size, mimeFor(format))
+    const handle = await downloadUrl(typed)
 
-    await chrome.downloads.download({
-      url,
-      filename: mirrorFilename(record.title, record.createdAt, format),
-      // بلا حوار حفظ: الغرض نسخة تلقائية لكل لقطة، وحوارٌ لكل لقطة يقتل الميزة.
-      saveAs: false,
-      // خطّ الدفاع الثاني بعد الختم الزمني في الاسم — لا دهس لملفّ موجود.
-      conflictAction: 'uniquify',
-    })
+    let id: number
+    try {
+      id = await chrome.downloads.download({
+        url: handle.url,
+        filename: mirrorFilename(record.title, record.createdAt, format),
+        // بلا حوار حفظ: الغرض نسخة تلقائية لكل لقطة، وحوارٌ لكل لقطة يقتل الميزة.
+        saveAs: false,
+        // خطّ الدفاع الثاني بعد الختم الزمني في الاسم — لا دهس لملفّ موجود.
+        conflictAction: 'uniquify',
+      })
+    } catch (error) {
+      handle.release()
+      throw error
+    }
+    releaseWhenSettled(id, handle)
     return 'downloaded'
   } catch {
     return 'failed'
