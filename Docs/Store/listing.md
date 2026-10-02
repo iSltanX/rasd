@@ -18,6 +18,7 @@
 | المحتوى للبالغين  | لا                                                                                          |
 | الموقع (Homepage) | `https://www.bysltan.com` — يعيد 200 اليوم؛ ويُستبدل بصفحة رصد حين تُنشر (`owner-pages.md`) |
 | الدعم (Support)   | `https://www.bysltan.com/rasd/support` — **ينتظر المالك** (`owner-pages.md`)                |
+| بريد الدعم        | `isultanby@gmail.com` — البريد الرسمي لرصد (قرار المالك 2026-10-02)                         |
 | سياسة الخصوصية    | `https://www.bysltan.com/rasd/privacy` — **ينتظر المالك**، ونصّها في `privacy-policy.md`    |
 | الفيديو           | لا فيديو                                                                                    |
 

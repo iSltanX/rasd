@@ -35,7 +35,7 @@
 رصد ففيها رابط «أبلغ عن المشكلة» يملأ الأداة ورمز الخطأ عنك.
 
 البلاغ يحتاج أن توقف «الوضع المحلّي فقط» من «الخصوصية». وإن أردت إبقاءه مفعّلًا فانسخ البلاغ نصًّا من النافذة نفسها
-وأرسله إليّ من صفحة التواصل في هذا الموقع.
+وأرسله إليّ من صفحة التواصل في هذا الموقع أو على البريد isultanby@gmail.com.
 
 لحذف بلاغ أرسلته: أرسل بلاغًا جديدًا تكتب فيه «احذف البلاغ #رقمه».
 
@@ -51,7 +51,7 @@ support repository and are never published. Error messages in Rasd also carry a 
 the tool and error code for you.
 
 Sending a report needs "Local only" turned off in Privacy. If you prefer to keep it on, copy the report as text from the
-same dialog and send it through the contact page on this site.
+same dialog and send it through the contact page on this site or by email to isultanby@gmail.com.
 
 To delete a report you sent, send a new report saying "delete report #number".
 

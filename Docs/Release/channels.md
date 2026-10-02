@@ -15,8 +15,8 @@
 
 **مواد القنوات الأربع جاهزة ولم تُقدَّم** (SS8): Chrome وEdge في [`Docs/Store/listing.md`](../Store/listing.md)، وFirefox في
 [`Docs/Store/firefox/listing.md`](../Store/firefox/listing.md)، وOpera في [`Docs/Store/opera/listing.md`](../Store/opera/listing.md) —
-وقناة Opera **بقرار المالك** (إن لم تُفتح يثبّت مستخدموها من Chrome Web Store)، وقائمتها بنودٌ في
-[`Docs/Store/checklist.md`](../Store/checklist.md) (الصفوف 51–79). فصفّ Opera أعلاه يبقى بلا نسخة إلى أن يُقرَّر المتجر.
+وقناة Opera **ضمن 1.0 بقرار المالك 2026-10-02** ونصّ EULA في [`Docs/Store/eula.md`](../Store/eula.md)، وقائمتها بنودٌ في
+[`Docs/Store/checklist.md`](../Store/checklist.md) (الصفوف 51–79). وتبقى صفوف القنوات الأربعة بلا نسخة إلى أن يقدّم المالك في SS10.
 
 **قاعدة النسخ:** المتاجر تشترط أن تعلو النسخة على سابقتها **في المتجر نفسه**، لا على سابقتها عندنا — فإصلاحٌ يخصّ Firefox
 (`1.0.1`) يُرفع إلى AMO وحده وتبقى بقيّة القنوات على `1.0.0` حتى `1.1.0`. ولا رقم رابع ولا لاحقة لتمييز هدف.

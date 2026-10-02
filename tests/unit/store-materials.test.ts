@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest'
 import {
   OPTIONAL_HOST_PERMISSIONS,
   OPTIONAL_PERMISSIONS,
+  NETWORK_SERVICES,
   REQUIRED_PERMISSIONS,
 } from '@/shared/permission-policy'
 
@@ -266,6 +267,85 @@ export function channelRows(doc: string): string[] {
       /^\| (Chrome Web Store|Microsoft Edge Add-ons|Firefox Add-ons \(AMO\)|Opera Add-ons) +\|/gmu,
     ),
   ].map((m) => m[1]!)
+}
+
+// ── EULA (قرار المالك 2026-10-02) ───────────────────────────────
+
+/** عناوين البنود المرقَّمة `N. العنوان` في نصّ — بترتيبها. */
+export function eulaSections(text: string): { n: number; title: string }[] {
+  return [...text.matchAll(/^(\d+)\. (.+)$/gmu)].map((m) => ({
+    n: Number(m[1]),
+    title: m[2]!.trim(),
+  }))
+}
+
+/** المواضيع التي كلّفه المالك بتغطيتها — كلٌّ بكلمةٍ مفتاحية في عنوان بندٍ إنجليزي. */
+const EULA_TOPICS = [
+  'Ownership',
+  'Licence',
+  'Restrictions',
+  'Privacy',
+  'Updates',
+  'warranty',
+  'liability',
+  'termination',
+  'Stores',
+  'contact',
+]
+
+/** عيوب النصّ الإنجليزي والعربي: التغطية، والتطابق العددي، وما لا يجوز أن يقوله. */
+export function eulaProblems(en: string, ar: string, email: string, privacyUrl: string): string[] {
+  const problems: string[] = []
+  const e = eulaSections(en)
+  const a = eulaSections(ar)
+  if (e.some((x, i) => x.n !== i + 1)) problems.push('ترقيم البنود الإنجليزية غير متتابع')
+  if (e.length !== a.length) problems.push(`${e.length} بندًا إنجليزيًّا و${a.length} عربيًّا`)
+  const titles = e.map((x) => x.title).join(' | ')
+  for (const t of EULA_TOPICS) {
+    if (!new RegExp(t, 'iu').test(titles)) problems.push(`لا بند عن «${t}»`)
+  }
+  for (const [name, text] of [
+    ['الإنجليزي', en],
+    ['العربي', ar],
+  ] as const) {
+    if (!text.includes(email)) problems.push(`النصّ ${name} بلا بريد الدعم`)
+    if (!text.includes(privacyUrl)) problems.push(`النصّ ${name} بلا رابط سياسة الخصوصية`)
+  }
+  // التزاماتٌ لا وجود لها في رصد، وقانونٌ ومحكمة لم يحدّدهما المالك، واسم متصفّحٍ يربط النصّ بمتجر.
+  if (
+    /subscription|per month|premium|advertis|analytics|telemetry|account is required|you must create an account/iu.test(
+      en,
+    )
+  ) {
+    problems.push('التزام أو ميزة غير موجودة في رصد (اشتراك · إعلان · قياس · حساب)')
+  }
+  if (/governed by the laws? of|exclusive jurisdiction|courts of/iu.test(en)) {
+    problems.push('قانون واجب التطبيق أو محكمة — لم يحدّدهما المالك')
+  }
+  if (/\b(?:chrome|edge|firefox|opera|brave|vivaldi)\b/iu.test(en))
+    problems.push('اسم متصفّح في النصّ الملزِم')
+  const urls = (en.match(/https?:\/\/[^\s)]+/gu) ?? []).map((u) => u.replace(/[.,;:]+$/u, ''))
+  if (urls.some((u) => u !== privacyUrl)) problems.push('رابط غير رابط سياسة الخصوصية')
+  return problems
+}
+
+/** ترخيص المشروع في `package.json` يجب أن يطابق ما تقوله EULA (مملوكة، لا مفتوحة المصدر). */
+export function licenceConflict(packageLicense: string, en: string): string[] {
+  if (packageLicense !== 'UNLICENSED') return [`ترخيص المشروع صار «${packageLicense}» — راجع EULA`]
+  return /proprietary software/iu.test(en) && /not open-source/iu.test(en)
+    ? []
+    : ['EULA لا تقول إن رصد مملوكة وليست مفتوحة المصدر']
+}
+
+/** بريدٌ في وثيقة غير البريد الرسمي وما سُمّح به (معرّف Firefox يشبه بريدًا وليس بريدًا). */
+export function foreignEmails(
+  text: string,
+  official: string,
+  allowed: readonly string[] = [],
+): string[] {
+  return [...new Set(text.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/gu) ?? [])].filter(
+    (m) => m !== official && !allowed.includes(m),
+  )
 }
 
 // ── الوثائق الحقيقية ─────────────────────────────────────────────
@@ -596,10 +676,109 @@ describe('Opera Add-ons — مواد القائمة (O1 · O2)', () => {
     expect(doc).toContain('../listing.md')
   })
 
-  it('قرار المتجر وEULA مكتوبان كما هما: لا تقديم ولا نصٌّ قانوني بلا المالك', () => {
-    expect(doc).toContain('CC BY-NC-ND 4.0')
-    expect(doc).toContain('⏳ المالك')
-    expect(doc).toContain('بلا تقديم')
+  it('Opera ضمن 1.0 بقرار المالك، وEULA الخاصّة بدل الافتراضية، وبلا تقديم الآن', () => {
+    expect(doc).toContain('ضمن نطاق إصدار 1.0 ولا يُؤجَّل')
+    expect(doc).toContain('../eula.md')
+    expect(doc).toContain('بلا تقديم الآن')
+    expect(doc).not.toContain('إن قُرّر')
+  })
+})
+
+describe('EULA — اتفاقية ترخيص المستخدم النهائي (Opera وAMO)', () => {
+  const OFFICIAL_EMAIL = 'isultanby@gmail.com'
+  const PRIVACY_URL = 'https://www.bysltan.com/rasd/privacy'
+  const doc = read('Docs/Store/eula.md')
+  const en = fenced(doc, 'eula-en')
+  const ar = fenced(doc, 'eula-ar')
+
+  it('نسختان، وكل المواضيع مغطّاة، والبنود متطابقة عددًا، والبريد والرابط فيهما', () => {
+    expect(en).not.toBeNull()
+    expect(ar).not.toBeNull()
+    expect(eulaProblems(en!, ar!, OFFICIAL_EMAIL, PRIVACY_URL)).toEqual([])
+    expect(eulaSections(en!)).toHaveLength(12)
+  })
+
+  it('سالب: نصٌّ ناقص يُرصد على كل محور', () => {
+    const base = eulaProblems('1. Ownership', '1. a\n2. b', OFFICIAL_EMAIL, PRIVACY_URL)
+    expect(base).toContain('1 بندًا إنجليزيًّا و2 عربيًّا')
+    expect(base).toContain('لا بند عن «Licence»')
+    expect(base).toContain('النصّ الإنجليزي بلا بريد الدعم')
+    expect(base).toContain('النصّ العربي بلا رابط سياسة الخصوصية')
+    expect(eulaProblems('2. Ownership', '', OFFICIAL_EMAIL, PRIVACY_URL)).toContain(
+      'ترقيم البنود الإنجليزية غير متتابع',
+    )
+  })
+
+  it('سالب: التزام لا وجود له، وقانونٌ مختلق، واسم متصفّح، ورابط غريب تُرصد', () => {
+    const good = `${en}`
+    const bad = (extra: string) =>
+      eulaProblems(`${good}\n${extra}`, ar!, OFFICIAL_EMAIL, PRIVACY_URL)
+    expect(bad('Rasd offers a premium subscription.')).toContain(
+      'التزام أو ميزة غير موجودة في رصد (اشتراك · إعلان · قياس · حساب)',
+    )
+    expect(bad('This agreement is governed by the laws of Narnia.')).toContain(
+      'قانون واجب التطبيق أو محكمة — لم يحدّدهما المالك',
+    )
+    expect(bad('Works in Firefox.')).toContain('اسم متصفّح في النصّ الملزِم')
+    expect(bad('See https://example.com/terms')).toContain('رابط غير رابط سياسة الخصوصية')
+  })
+
+  it('تطابق ترخيص المشروع: UNLICENSED ⇒ مملوكة لا مفتوحة المصدر', () => {
+    const { license } = JSON.parse(read('package.json')) as { license: string }
+    expect(licenceConflict(license, en!)).toEqual([])
+    expect(read('README.md')).toContain('جميع الحقوق محفوظة')
+  })
+
+  it('سالب: ترخيص مفتوح أو نصٌّ لا يقول «مملوكة» يُرصد', () => {
+    expect(licenceConflict('MIT', en!)).toEqual(['ترخيص المشروع صار «MIT» — راجع EULA'])
+    expect(licenceConflict('UNLICENSED', 'Rasd is free.')).toEqual([
+      'EULA لا تقول إن رصد مملوكة وليست مفتوحة المصدر',
+    ])
+  })
+
+  it('ما تقوله عن الاتصالات يطابق الشيفرة: اتصالان اختياريان، ووثيقة الإشعارات موجودة في البناء', () => {
+    expect(NETWORK_SERVICES).toHaveLength(2)
+    expect(en).toContain('two optional connections')
+    expect(read('vite.config.ts')).toContain('THIRD_PARTY_LICENSES.txt')
+    expect(en).toContain('THIRD_PARTY_LICENSES.txt')
+  })
+
+  it('بريد الدعم واحد في كل وثائق المتجر: الرسمي وحده (ومعرّف Firefox ليس بريدًا)', () => {
+    const geckoId = (
+      buildManifest('firefox') as unknown as {
+        browser_specific_settings: { gecko: { id: string } }
+      }
+    ).browser_specific_settings.gecko.id
+    const files = [
+      'Docs/Store/eula.md',
+      'Docs/Store/listing.md',
+      'Docs/Store/firefox/listing.md',
+      'Docs/Store/opera/listing.md',
+      'Docs/Store/owner-pages.md',
+    ]
+    for (const f of files) {
+      expect([f, ...foreignEmails(read(f), OFFICIAL_EMAIL, [geckoId])]).toEqual([f])
+    }
+    for (const f of [
+      'Docs/Store/firefox/listing.md',
+      'Docs/Store/opera/listing.md',
+      'Docs/Store/listing.md',
+    ]) {
+      expect(read(f)).toContain(OFFICIAL_EMAIL)
+    }
+  })
+
+  it('سالب: بريدٌ آخر في وثيقة يُرصد', () => {
+    expect(foreignEmails(`a ${OFFICIAL_EMAIL} b other@example.com`, OFFICIAL_EMAIL)).toEqual([
+      'other@example.com',
+    ])
+    expect(foreignEmails('x rasd@bysltan.com', OFFICIAL_EMAIL)).toEqual(['rasd@bysltan.com'])
+  })
+
+  it('قائمتا Opera وAMO تحيلان إلى EULA، ولا تعتمدان الافتراضية', () => {
+    for (const f of ['Docs/Store/firefox/listing.md', 'Docs/Store/opera/listing.md']) {
+      expect(read(f)).toContain('../eula.md')
+    }
   })
 })
 
@@ -638,7 +817,7 @@ describe('قائمة المراجعة', () => {
     const known = [...section.matchAll(/^\| ([AO]\d) +\|/gmu)].map((m) => m[1]!)
     expect(known).toEqual(['A1', 'A2', 'A3', 'A4', 'A5', 'O1', 'O2', 'O3'])
     expect(unknownSources(section, known)).toEqual([])
-    expect([...section.matchAll(/^\| (\d+) +\|/gmu)]).toHaveLength(29)
+    expect([...section.matchAll(/^\| (\d+) +\|/gmu)]).toHaveLength(30)
   })
 
   it('سالب: بندٌ يحيل إلى مصدرٍ غير مقروء يُرصد', () => {
