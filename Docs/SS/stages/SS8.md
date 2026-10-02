@@ -1,8 +1,8 @@
 ---
 id: SS8
 title: مواد المتاجر الأربعة والقائمة اليدوية
-status: pending
-delivery: none
+status: active
+delivery: local
 wave: D
 order: 1
 depends: [SS6, SS7]
