@@ -15,6 +15,7 @@
     "build": "pnpm run typecheck && pnpm run build:bundle && pnpm run verify:dist",
     "build:bundle": "vite build && pnpm run build:content",
     "build:content": "vite build --config vite.content.config.ts",
+    "build:firefox": "RASD_TARGET=firefox pnpm run build:bundle",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.node.json",
     "lint": "NODE_OPTIONS=--max-old-space-size=4096 eslint . --max-warnings=0",
@@ -112,6 +113,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.68.0",
     "vite": "8.2.2",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "web-ext": "10.7.0"
   }
 }

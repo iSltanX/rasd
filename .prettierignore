@@ -1,4 +1,5 @@
 dist/
+dist-firefox/
 coverage/
 artifacts/
 node_modules/

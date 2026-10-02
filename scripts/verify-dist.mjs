@@ -9,21 +9,60 @@
  *   • مستهلك كل صلاحية (`STAGES/23`) — لا صلاحية معلَنة بلا نداء واجهتها في الحزمة، بقرار ADR 0055.
  *
  * القوائم تُقرأ من `src/shared/` نفسها، فلا يمكن أن تفترق السياسة عن البيان.
+ *
+ * **`--target chromium|firefox`** (الافتراضي `chromium` كما كان): الهدف يحدّد المجلّد (`dist/` أو `dist-firefox/`)
+ * وتوقّعات البيان — الجدول في `Docs/Browsers/Architecture.md` §4.4، والفحوص كلّها بعده مشتركة. هذا فحصٌ ثانٍ على ما
+ * يفرضه `tests/unit/build/manifest-targets.test.ts` على المصدر، فلا ينجو بيانٌ مبنيّ مخالف.
  */
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
+import { isDeepStrictEqual } from 'node:util'
 
 import * as PAGES from '../src/shared/page-paths.ts'
 import * as PERMS from '../src/shared/permission-policy.ts'
 
+import { OUT_DIRS, parseBuildTarget } from './build-target.ts'
 import { BUDGETS, fmt, gzipBytes, judge, pageGraph } from './bundle-budget.mjs'
 import { judgeExtensionCsp, judgeHostPermissions } from './csp-policy.mjs'
 import { judgePermissionConsumers } from './permission-consumers.mjs'
+import { CHROMIUM_MIN_VERSION, FIREFOX_SETTINGS } from './target-manifest.ts'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const dist = join(root, 'dist')
+
+/** `--target <هدف>` أو `--target=<هدف>`. غيابه ⇐ `chromium`؛ وقيمةٌ ناقصة أو مجهولة ⇐ خروج بخطأ لا ضمنًا إلى الافتراضي. */
+function targetFromArgs(argv) {
+  const at = argv.findIndex((a) => a === '--target' || a.startsWith('--target='))
+  if (at === -1) return parseBuildTarget(undefined)
+  const raw = argv[at].includes('=') ? argv[at].slice(argv[at].indexOf('=') + 1) : argv[at + 1]
+  if (raw === undefined || raw === '' || raw.startsWith('--')) {
+    throw new Error('--target بلا قيمة — المسموح: chromium · firefox')
+  }
+  return parseBuildTarget(raw, '--target')
+}
+
+let target
+try {
+  target = targetFromArgs(process.argv.slice(2))
+  /*
+   * **لا نجاح زائف على حزمةٍ قديمة:** `RASD_TARGET=firefox pnpm build` يبني `dist-firefox/` ثمّ يفحص — بلا علَم — `dist/`
+   * التي بُنيت قبل أسبوع فتمرّ. فمتغيّرٌ يسمّي هدفًا غير المفحوص، بلا علَمٍ يحسم، التباسٌ يُرفض لا يُخمَّن.
+   */
+  const fromEnv = parseBuildTarget(process.env.RASD_TARGET)
+  const explicit = process.argv.slice(2).some((a) => a === '--target' || a.startsWith('--target='))
+  if (!explicit && fromEnv !== target) {
+    throw new Error(
+      `RASD_TARGET = ${fromEnv} لكن الفحص بلا --target فيقع على ${target} — مرّر --target ${fromEnv} صراحةً (أو أزل المتغيّر)`,
+    )
+  }
+} catch (e) {
+  console.error(`✗ ${e.message}`)
+  process.exit(2)
+}
+const FIREFOX = target === 'firefox'
+const outDirName = OUT_DIRS[target]
+const dist = join(root, outDirName)
 
 const errors = []
 const lines = []
@@ -35,7 +74,9 @@ const fail = (m) => {
 const group = (title) => lines.push(`\n  ── ${title} ──`)
 
 if (!existsSync(dist)) {
-  console.error('dist/ غير موجود — شغّل `pnpm build` أولًا.')
+  console.error(
+    `${outDirName}/ غير موجود — شغّل \`${FIREFOX ? 'pnpm build:firefox' : 'pnpm build'}\` أولًا.`,
+  )
   process.exit(1)
 }
 
@@ -45,7 +86,7 @@ group('صحّة الحزمة')
 const manifestPath = join(dist, 'manifest.json')
 let manifest = null
 if (!existsSync(manifestPath)) {
-  fail('dist/manifest.json غير موجود')
+  fail(`${outDirName}/manifest.json غير موجود`)
 } else {
   try {
     manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
@@ -70,7 +111,7 @@ if (manifest) {
     : fail(`النسخة ${manifest.version} لا تطابق package.json (${pkg.version})`)
 
   manifest.background?.type === 'module'
-    ? ok('service worker من نوع module')
+    ? ok(`${FIREFOX ? 'صفحة الأحداث' : 'service worker'} من نوع module`)
     : fail('background.type يجب أن يكون "module"')
 
   // كل ملف يشير إليه البيان موجود فعلًا
@@ -78,6 +119,7 @@ if (manifest) {
   for (const p of Object.values(manifest.icons ?? {})) referenced.add(p)
   for (const p of Object.values(manifest.action?.default_icon ?? {})) referenced.add(p)
   if (manifest.background?.service_worker) referenced.add(manifest.background.service_worker)
+  for (const script of manifest.background?.scripts ?? []) referenced.add(script)
   if (manifest.action?.default_popup) referenced.add(manifest.action.default_popup)
 
   let missingRefs = 0
@@ -237,6 +279,67 @@ if (manifest) {
   for (const problem of consumers.problems) fail(problem)
 }
 
+// ═══ بيان الهدف ═════════════════════════════════════════════════════
+/*
+ * جدول `Docs/Browsers/Architecture.md` §4.4 حرفًا: ما يفرضه كل هدف، وما يُحظر عليه. الفحص بالقيمتين معًا — `chromium`
+ * بلا `gecko` وبـ`service_worker` و`minimum_chrome_version`، و`firefox` بالعكس — فلا يتسرّب مفتاح هدفٍ إلى الآخر.
+ */
+if (manifest) {
+  group(`بيان الهدف (${target})`)
+
+  const gecko = manifest.browser_specific_settings?.gecko
+  const hasWorker = typeof manifest.background?.service_worker === 'string'
+  const scripts = manifest.background?.scripts
+  const hasScripts = Array.isArray(scripts) && scripts.length > 0
+  const hasMinChrome = manifest.minimum_chrome_version !== undefined
+
+  if (FIREFOX) {
+    typeof gecko?.id === 'string' && gecko.id.includes('@')
+      ? ok(`gecko.id = ${gecko.id}`)
+      : fail('browser_specific_settings.gecko.id مفقود — إلزامي للتوقيع في MV3')
+    typeof gecko?.strict_min_version === 'string'
+      ? ok(`gecko.strict_min_version = ${gecko.strict_min_version}`)
+      : fail('gecko.strict_min_version مفقود — موافقة جمع البيانات المضمَّنة تُعرض من Firefox 140')
+    Array.isArray(gecko?.data_collection_permissions?.required)
+      ? ok('gecko.data_collection_permissions موجود — إلزامي للإضافات الجديدة منذ 2025-11-03')
+      : fail('gecko.data_collection_permissions مفقود')
+    /*
+     * **المطابقة حرفًا لا حضورًا:** المعرّف دائم بقرار المالك، وحضور `@` لا يمسك معرّفًا آخر ولا حدًّا أدنى خاطئًا ولا فئة
+     * بيانات تُضاف. فالمبنيّ يُقارَن بما يبنيه `manifest.config.ts` نفسه (`scripts/target-manifest.ts`) — فيمسك ما يطرأ
+     * بعد المصدر أو داخل البناء.
+     */
+    isDeepStrictEqual(manifest.browser_specific_settings, FIREFOX_SETTINGS)
+      ? ok(
+          'browser_specific_settings تطابق ما يبنيه البيان حرفًا (المعرّف الدائم والحدّان الأدنيان وفئات البيانات)',
+        )
+      : fail(
+          `browser_specific_settings تخالف المصدر — المبنيّ: ${JSON.stringify(manifest.browser_specific_settings)} · المتوقَّع: ${JSON.stringify(FIREFOX_SETTINGS)}`,
+        )
+    hasScripts
+      ? ok(`background.scripts موجود (${scripts.length})`)
+      : fail('background.scripts مفقود — Firefox لا يشغّل service_worker')
+    !hasWorker
+      ? ok('لا background.service_worker')
+      : fail('background.service_worker موجود — يُرفض في Firefox')
+    !hasMinChrome
+      ? ok('لا minimum_chrome_version')
+      : fail('minimum_chrome_version موجود — بلا معنى في Firefox ويحذّر المدقّق')
+  } else {
+    hasWorker
+      ? ok('background.service_worker موجود')
+      : fail('background.service_worker مفقود — Chromium MV3 يشترطه')
+    !hasScripts ? ok('لا background.scripts') : fail('background.scripts موجود في بيان Chromium')
+    manifest.minimum_chrome_version === CHROMIUM_MIN_VERSION
+      ? ok(`minimum_chrome_version = ${manifest.minimum_chrome_version}`)
+      : fail(
+          `minimum_chrome_version = ${manifest.minimum_chrome_version ?? 'مفقود'} — المطلوب ${CHROMIUM_MIN_VERSION}`,
+        )
+    manifest.browser_specific_settings === undefined
+      ? ok('لا browser_specific_settings — لا يُشحن ما لا يقرؤه Chrome')
+      : fail('browser_specific_settings موجود في بيان Chromium — مفتاحُ Firefox تسرّب')
+  }
+}
+
 // ═══ سياسة الحقن والأمن ════════════════════════════════════════════
 if (manifest) {
   group('الحقن والأمن')
@@ -260,14 +363,25 @@ if (manifest) {
     for (const problem of cspVerdict.problems) fail(`CSP: ${problem} — "${csp}"`)
   }
 
-  manifest.incognito === 'split'
-    ? ok('incognito = split')
-    : fail(`incognito = ${manifest.incognito} — المطلوب "split"`)
+  // Firefox لا يعرف `split` (يُثبَّته `not_allowed` ويحذّر المدقّق)، و`use_dynamic_url` بلا معنى فيه: مضيف
+  // `moz-extension://<UUID>` عشوائي لكل تثبيت أصلًا. فتوقّعه للهدف الثاني العكس صراحةً (§4.4).
+  const wantIncognito = FIREFOX ? 'not_allowed' : 'split'
+  manifest.incognito === wantIncognito
+    ? ok(`incognito = ${wantIncognito}`)
+    : fail(`incognito = ${manifest.incognito} — المطلوب "${wantIncognito}"`)
 
   const war = manifest.web_accessible_resources ?? []
-  war.length > 0 && war.every((e) => e.use_dynamic_url === true)
-    ? ok(`web_accessible_resources بعناوين ديناميكية (${war.length} مجموعة)`)
-    : fail('web_accessible_resources يجب أن تستخدم use_dynamic_url لمنع التبصيم')
+  if (FIREFOX) {
+    war.length > 0 && war.every((e) => !('use_dynamic_url' in e))
+      ? ok(`web_accessible_resources بلا use_dynamic_url (${war.length} مجموعة)`)
+      : fail(
+          'web_accessible_resources في Firefox بلا use_dynamic_url — لا معنى له فيه ويحذّر المدقّق',
+        )
+  } else {
+    war.length > 0 && war.every((e) => e.use_dynamic_url === true)
+      ? ok(`web_accessible_resources بعناوين ديناميكية (${war.length} مجموعة)`)
+      : fail('web_accessible_resources يجب أن تستخدم use_dynamic_url لمنع التبصيم')
+  }
 
   const cmds = Object.entries(manifest.commands ?? {})
   const suggested = cmds.filter(([, c]) => c.suggested_key)

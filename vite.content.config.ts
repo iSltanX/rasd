@@ -2,6 +2,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 
+import { resolveBuildTarget } from './scripts/build-target.ts'
 import { thirdPartyLicenses } from './scripts/third-party-licenses.ts'
 
 /**
@@ -18,6 +19,9 @@ import { thirdPartyLicenses } from './scripts/third-party-licenses.ts'
  * الأدوات كلّها في هذا الملفّ، و`import()` في مصدرها يُضمَّن فيه صامتًا ولا يقسم.
  * وحجمه مضغوطًا ≤ 120,000 بايت يفرضه `verify:dist`. ومن أراد التقسيم فطريقه ADR
  * يستبدل ذاك، لا تعديل هذا الملفّ وحده.
+ *
+ * **بايتاتٌ واحدة في الهدفين:** مجلّد الخرج وحده يتبع `RASD_TARGET`. لا `define` للهدف هنا ولا `target` يتغيّر، فـ`content.js`
+ * في `dist-firefox/` مطابقٌ بايتًا لـ`dist/content.js` — يثبته `cmp` في معايير SS1، وهو شرط «شيفرةٌ واحدة».
  */
 export default defineConfig(({ mode }) => ({
   // JSX عبر Preact لا React — كما في بقيّة المشروع.
@@ -30,8 +34,8 @@ export default defineConfig(({ mode }) => ({
     thirdPartyLicenses({ root: fileURLToPath(new URL('.', import.meta.url)), mode: 'merge' }),
   ],
   build: {
-    outDir: 'dist',
-    // لا يمسح `dist`: هذا بناء ثانٍ يضيف إلى ناتج البناء الأوّل.
+    outDir: resolveBuildTarget().outDir,
+    // لا يمسح مجلّد الخرج: هذا بناء ثانٍ يضيف إلى ناتج البناء الأوّل.
     emptyOutDir: false,
     target: 'chrome116',
     sourcemap: mode !== 'production',

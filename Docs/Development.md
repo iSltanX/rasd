@@ -35,6 +35,25 @@ pnpm build
 البيان ووجود كل ملف يشير إليه ومطابقة أبعاد الأيقونات وعدم تسرّب ملفات المصدر.
 فشل الفحص يعني أن صفحة الإضافات سترفض الحزمة.
 
+### هدف Firefox
+
+شيفرةٌ واحدة وهدفا بناء: `pnpm build` لـ**Chromium** (`dist/`)، و`pnpm build:firefox` لـ**Firefox** (`dist-firefox/`).
+البيانان من دالّة واحدة (`buildManifest(target)` في `manifest.config.ts`) والفرق خمسة مفاتيح فيهما — جدولها في
+[`Docs/Browsers/Architecture.md`](Browsers/Architecture.md) §4.4.
+
+```bash
+pnpm build:firefox
+pnpm verify:dist --target firefox            # فحص البيان والحزمة بتوقّعات Firefox
+pnpm exec web-ext lint --source-dir dist-firefox   # مدقّق addons.mozilla.org نفسه
+```
+
+- `RASD_TARGET=chromium|firefox` هو ما يختاره (الافتراضي `chromium`)، وقيمةٌ أخرى توقف البناء.
+- `build:firefox` يبني ولا يفحص: الفحص أمرٌ منفصل كما في `build:bundle` و`verify:dist`.
+- `content.js` بايتاتٌ واحدة في المجلّدين (`cmp dist/content.js dist-firefox/content.js`).
+- المعرّف `rasd@bysltan.com` في بيان Firefox **دائم** — لا يُغيَّر بعد أوّل توقيع.
+- كل معرفة بالهدف أو باسم متصفّح تُكتب في `src/shared/platform/` وحده، ويحرسه
+  `tests/unit/platform-isolation.test.ts`.
+
 ## التحميل في Chrome
 
 1. افتح `chrome://extensions`.
@@ -72,6 +91,7 @@ pnpm build
 | -------------------- | ---------------------------------------------------------------------------- |
 | `pnpm dev`           | تطوير مع HMR                                                                 |
 | `pnpm build`         | بناء + فحص الحزمة                                                            |
+| `pnpm build:firefox` | بناء هدف Firefox إلى `dist-firefox/`                                         |
 | `pnpm typecheck`     | فحص الأنواع (المصدر وملفات الإعداد)                                          |
 | `pnpm lint`          | ESLint، بلا تسامح مع أي تحذير                                                |
 | `pnpm format`        | Prettier                                                                     |

@@ -333,6 +333,7 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      'dist-firefox/**',
       'dist-zip/**',
       // مخرَجات محلّية مُستبعَدة من Git — بناء التطوير في `artifacts/design/ext` لأداة `design-shots`.
       'artifacts/**',
