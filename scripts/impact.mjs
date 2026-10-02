@@ -128,7 +128,10 @@ export const IMPACT = [
    * نقاط الفرق بين المتصفّحات (`SS4`): عنوان التنزيل ونافذة الاختصارات ونموذج التصفّح الخاص — يلمسها مستهلكوها في
    * النافذة (ورقة الاختصارات) والتصدير (نسخة التنزيلات)، وكان المجلّد خارج الجدول فيطلب الطقم كاملًا.
    */
-  { match: /^src\/shared\/platform\//u, scripts: ['verify:popup', 'verify:export'] },
+  {
+    match: /^src\/shared\/platform\//u,
+    scripts: ['verify:popup', 'verify:export', 'firefox:popup', 'firefox:export'],
+  },
   {
     match: /^(manifest\.config\.ts|src\/shared\/permission-policy\.ts)/u,
     scripts: ['verify:load', 'verify:network'],
@@ -159,6 +162,16 @@ export const IMPACT = [
     scripts: ['verify:visual'],
   },
   { match: /^scripts\/verify-([a-z-]+)\.mjs$/u, scripts: (m) => [`verify:${m[1]}`] },
+  /*
+   * حرّاس Firefox (SS7): حارسٌ عُدّل ملفّه يلزمه هو (`firefox:<name>`)، ونواتها (`bidi.mjs`) ومنسّقها يلزمهما طقمها
+   * (`verify:firefox`) — **لا طقم كروم**: لا يستورد حارس كروم منهما شيئًا، ومدخل `scripts/lib/` أدناه كان سيطلب
+   * الستّة والعشرين لتعديلٍ لا يبلغ أيًّا منها. وأسماء `firefox:*` خارج `allGuards` فلا يشغّلها `verify:wave` إلا بـ`--firefox`.
+   */
+  { match: /^scripts\/firefox\/verify-([a-z-]+)\.mjs$/u, scripts: (m) => [`firefox:${m[1]}`] },
+  {
+    match: /^scripts\/(lib\/bidi\.mjs|firefox-verify\.mjs|firefox-ledger\.mjs)$/u,
+    scripts: ['verify:firefox'],
+  },
   {
     match:
       /^(scripts\/lib\/|scripts\/runtime-budgets\.mjs$|scripts\/fixtures-serve\.mjs$|tests\/fixtures\/sites\/)/u,

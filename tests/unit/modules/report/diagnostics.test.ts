@@ -49,6 +49,18 @@ describe('collectDiagnostics', () => {
     expect(d.osVersion).toBe('15.3.0')
   })
 
+  /*
+   * **Firefox يسمّي ARM64 `aarch64`** لا `arm64` (`runtime.PlatformArch` في Firefox) — قِيس في Firefox 157 على ماك
+   * Apple Silicon: `getPlatformInfo()` ⇐ `{ os: 'mac', arch: 'aarch64' }`. وكانت المعمارية تصل `unknown` في بلاغات
+   * Firefox (#10 في app-reports) بينما بلاغ كروم من الجهاز نفسه يحمل `arm64` (SS7). فالقيمتان تصيران `arm64` كما يرسلها كروم.
+   */
+  it('Firefox على ARM64: aarch64 ⇒ arm64، كما يرسلها كروم من الجهاز نفسه', async () => {
+    const d = await collectDiagnostics(
+      sources({ platformInfo: () => Promise.resolve({ os: 'mac', arch: 'aarch64' }) }),
+    )
+    expect(d.arch).toBe('arm64')
+  })
+
   it('سالب: platformInfo ترفض ⇒ unknown للنظام والمعمارية والهوية سليمة', async () => {
     const d = await collectDiagnostics(
       sources({ platformInfo: () => Promise.reject(new Error('x')) }),

@@ -84,7 +84,7 @@
 | **Opera**   | 136.0 · Chromium 152       | ✓ مدعوم — يحجز ثلاثة من الاختصارات الأربعة، فتُسند يدويًّا                         |
 | **Vivaldi** | 8.2.4133.80 · Chromium 152 | ✓ مدعوم                                                                            |
 | Arc         | 1.167.0                    | لم يُتحقَّق منه — لا يعمل بملفّ تعريفٍ معزول، والتجربة في ملفّ المستخدم تمسّ حسابه |
-| Firefox     | 157.0                      | غير مدعوم حاليًّا — [الدراسة والخطّة](Docs/Firefox/firefox_rasd.md)                |
+| **Firefox** | 157.0 · Gecko              | ✓ مدعوم — بحزمته `rasd-<النسخة>-firefox.zip`، ولا يعمل في النوافذ الخاصّة          |
 | Safari      | 27.0.1                     | خارج النطاق — يحتاج تحويل الإضافة إلى تطبيق macOS                                  |
 
 ## التثبيت
@@ -117,9 +117,13 @@ Preact وTypeScript وVite فوق Manifest V3، بلا خادم ولا حساب.
 
 ## Firefox
 
-**غير مدعوم حاليًّا.** الحزمة الحالية يرفضها Firefox لأن خلفيتها عامل خدمة. وقِيس أن نسخةً تجريبية بثلاثة مفاتيح
-في البيان وحدها تعمل فيه — الطبقة والقياس والفحص والألوان والالتقاط والمكتبة — والطريق إلى نسخةٍ تُنشر مكتوبٌ بمراحله في
-[`Docs/Firefox/firefox_rasd.md`](Docs/Firefox/firefox_rasd.md).
+**مدعوم** بحزمةٍ خاصّة من المصدر نفسه: `pnpm build:firefox && pnpm zip:firefox` ⇐ `dist-zip/rasd-<النسخة>-firefox.zip`.
+والدعم مقيسٌ بالمعيار نفسه الذي يُقاس به Chromium: أربعة عشر حارسًا في Firefox حقيقي (`pnpm verify:firefox`) — التثبيت
+ومدقّق addons.mozilla.org، والنافذة، والتفعيل والقياس والفحص والألوان، والالتقاط الظاهر والكامل ونسخة التنزيلات، والمحرّر
+والحجب، والتصدير PNG وPDF، والمكتبة، وتشخيص البلاغ، وبقاء الخلفية، وصفر طلب شبكة. والفروق: لا يعمل في النوافذ الخاصّة،
+وإصدار النظام لا يكشفه Firefox فيصل في البلاغ `unknown`. التجربة قبل النشر في المتجر: `about:debugging` ← «This Firefox» ←
+«Load Temporary Add-on» ← `manifest.json` من الحزمة مفكوكة. الدراسة والقياس في
+[`Docs/Firefox/firefox_rasd.md`](Docs/Firefox/firefox_rasd.md)، والحرّاس في [`Docs/Development.md`](Docs/Development.md).
 
 ---
 
@@ -139,7 +143,8 @@ your device, and hand developers what they need — CSS, Tailwind, JSON, Markdow
 
 <p><img src="Docs/Launch/readme/browsers-en.png" alt="Browsers the Rasd package was tested in" width="100%"></p>
 
-Firefox is not supported yet; the study and plan are in [`Docs/Firefox/firefox_rasd.md`](Docs/Firefox/firefox_rasd.md).
+Firefox is supported with its own package from the same source (`pnpm zip:firefox`), proven by fourteen guards in real
+Firefox (`pnpm verify:firefox`); it does not run in private windows.
 Store links will be added here once Rasd is published.
 
 ---

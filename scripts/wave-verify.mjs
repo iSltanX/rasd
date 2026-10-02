@@ -10,6 +10,7 @@
  *   pnpm verify:wave --base wave-03/base    فحص مرحلة: مخروط الأثر وحده
  *   pnpm verify:wave --wave 03 --list       يطبع الخطّة ولا يشغّل شيئًا
  *   pnpm verify:wave --base wave-03/base --only colour,measure   حرّاسٌ بأسمائها أثناء الدفعة، بالقفل نفسه
+ *   pnpm verify:wave --base ss-C/base --firefox   ثمّ حرّاس Firefox كلّها (`verify:firefox`) بعد حرّاس كروم
  *
  * الأحجام: `cone` مخروط الأثر (`impact.mjs`)، وملفٌّ خارج جدوله يرفعه إلى `all` · `blocking` المخروط
  * ومعه الحاجبة في `ci.yml` · `all` كل `verify:*` في `package.json` عدا `dist` و`tokens` و`wave`.
@@ -44,8 +45,11 @@ export const LOCK_PORT = Number(process.env.RASD_GUARDS_LOCK_PORT ?? 9329)
 /** مهلة الحارس الواحد — مرآة `timeout-minutes: 6` على خطوة الحارس في `ci.yml`. */
 const GUARD_TIMEOUT_MS = Number(process.env.RASD_GUARD_TIMEOUT_MS ?? 6 * 60 * 1000)
 
-/** سكربتات `verify:*` ليست حرّاس كروم: `dist` و`tokens` في البوّابة A، و`wave` هذا نفسه. */
-const NOT_GUARDS = new Set(['dist', 'tokens', 'wave'])
+/**
+ * سكربتات `verify:*` ليست حرّاس كروم: `dist` و`tokens` في البوّابة A، و`wave` هذا نفسه، و`firefox` منسّق طائفة
+ * Firefox (`firefox-verify.mjs`، SS7) — حرّاسها خارج `allGuards` فلا يطول زمن بوّابة كروم ولا تتغيّر قائمتها.
+ */
+const NOT_GUARDS = new Set(['dist', 'tokens', 'wave', 'firefox'])
 
 /** مدخلات الحزمة — حزمةٌ أقدم من أحدثها تُفحَص كأنها الشيفرة وليست هي. */
 const BUILD_INPUTS = [
@@ -301,8 +305,12 @@ async function main() {
     `  المخروط: ${cone.needed.length > 0 ? cone.needed.join(' · ') : 'لا شيء'}${cone.unmapped > 0 ? ` · ${cone.unmapped} ملفًّا خارج جدوله ⇐ all` : ''}`,
   )
   console.log(`  الحرّاس (${guards.length}): ${guards.length > 0 ? guards.join(' · ') : '—'}`)
-  if (process.argv.includes('--list') || guards.length === 0) {
-    if (guards.length === 0) console.log('\n✓ لا حارس يلزم لهذا التغيير.\n')
+  const firefox = process.argv.includes('--firefox')
+  if (firefox) console.log('  ثمّ حرّاس Firefox: pnpm verify:firefox')
+  if (process.argv.includes('--list')) return
+  if (guards.length === 0) {
+    console.log('\n✓ لا حارس كروم يلزم لهذا التغيير.\n')
+    if (firefox) process.exit(await runFirefox())
     return
   }
   const manifest = join(root, 'dist', 'manifest.json')
@@ -367,13 +375,31 @@ async function main() {
       )
     }
   }
+  // حرّاس Firefox بعد كروم ولو سقط كروم: الخلاصتان معًا خيرٌ من جولةٍ ثانية لتُعرف الأخرى.
+  const firefoxCode = firefox ? await runFirefox() : 0
   if (failed.length > 0) {
     console.error(
       `\n✗ بوّابة الموجة: ${failed.length} حارسًا أحمر — ${failed.map((r) => r.guard).join(' · ')}\n`,
     )
     process.exit(1)
   }
-  console.log('\n✓ حرّاس بوّابة الموجة خضراء.\n')
+  if (firefoxCode !== 0) {
+    console.error('\n✗ بوّابة الموجة: حرّاس كروم خضراء وحرّاس Firefox حمراء — الخلاصة أعلاه.\n')
+    process.exit(firefoxCode)
+  }
+  console.log(`\n✓ حرّاس بوّابة الموجة خضراء${firefox ? ' — كروم وFirefox' : ''}.\n`)
+}
+
+/**
+ * `--firefox`: منسّق طائفة Firefox بقفله ومنافذه (`firefox-verify.mjs`) — خَرْجه يُطبع كما هو، ورمز خروجه الحكم.
+ * لا يمسك قفل كروم شيئًا يحتاجه: المنافذ والعيّنات منفصلة.
+ */
+function runFirefox() {
+  return new Promise((resolve) => {
+    const child = spawn('pnpm', ['run', 'verify:firefox'], { cwd: root, stdio: 'inherit' })
+    child.on('error', () => resolve(1))
+    child.on('close', (code) => resolve(code ?? 1))
+  })
 }
 
 const indent = (text) =>

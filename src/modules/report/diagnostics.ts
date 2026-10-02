@@ -23,9 +23,14 @@ const OS: Readonly<Record<string, string>> = {
   fuchsia: 'fuchsia',
 }
 
+/**
+ * `runtime.PlatformArch` ← قيم العقد. وFirefox يسمّي ARM64 `aarch64` حيث يسمّيه كروم `arm64` (قِيس في Firefox 157 على
+ * Apple Silicon، SS7) — فالاسمان قيمةٌ واحدة كما يرسلها كروم من الجهاز نفسه.
+ */
 const ARCH: Readonly<Record<string, string>> = {
   arm: 'arm',
   arm64: 'arm64',
+  aarch64: 'arm64',
   'x86-32': 'x86',
   'x86-64': 'x86_64',
   mips: 'mips',

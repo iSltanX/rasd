@@ -67,8 +67,16 @@
     {
       "name": "Firefox",
       "version": "157.0",
-      "status": "unsupported",
-      "evidence": ["node scripts/firefox-probe.mjs — الحزمة تُرفض"]
+      "status": "supported",
+      "note": {
+        "ar": "حزمتها الخاصّة من المصدر نفسه، ولا تعمل في النوافذ الخاصّة",
+        "en": "Its own package from the same source; does not run in private windows"
+      },
+      "evidence": [
+        "pnpm store:package --browser=firefox — rasd-0.1.0-firefox.zip: web-ext lint صفر خطأ · صفر تحذير بيان · صفر خطأ تشغيل",
+        "pnpm verify:firefox 14/14 — مرّتان متتاليتان على macOS (SS7)"
+      ],
+      "engine": "Gecko 157"
     },
     {
       "name": "Safari",
