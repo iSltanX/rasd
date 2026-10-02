@@ -27,8 +27,8 @@
  * صورة عيّنة من 32 بكسلًا. أمّا `ImageDecoder` من WebCodecs فليس في ما
  * يموّهه، وقِيس في Brave 1.96 بايتاتٍ مطابقةً للمصدر بالضبط في كل بكسلٍ معتم
  * (`VideoFrame.copyTo` بصيغة RGBA). فتُقرأ البايتات الخام كاملةً مرّة عند
- * الفكّ ثمّ تُفهرَس بلا قماش. والقماش بديلٌ حين لا تتوفّر الواجهة (Firefox)
- * أو يفشل الفكّ — النتيجة نفسها خارج Brave.
+ * الفكّ ثمّ تُفهرَس بلا قماش. والقماش بديلٌ حين لا تتوفّر الواجهة أو يفشل الفكّ
+ * — النتيجة نفسها خارج Brave. (وFirefox 157 فيه الواجهة ويأخذ مسارها — قِيس في SS7.)
  */
 
 import { dataUrlMime, dataUrlToBlob, dataUrlToBytes } from '@/shared/data-url'
@@ -102,7 +102,15 @@ async function decodeRaw(dataUrl: string): Promise<RawPixels | null> {
   if (typeof ImageDecoder !== 'function') return null
   let decoder: ImageDecoder | null = null
   try {
-    decoder = new ImageDecoder({ data: dataUrlToBytes(dataUrl), type: dataUrlMime(dataUrl) })
+    /*
+     * المخزن لا العرض عليه: في Firefox `ImageDecoder` من حجرة الصفحة و`Uint8Array` من حجرة سكربت المحتوى، فيُبلَغ
+     * «Permission denied to access object» خطأً غير ملتقَط عند المُنشئ وإن نجح الفكّ — والمخزن لا يُبلغه (قِيس في
+     * Firefox 157، SS7). والعرض يغطّي مخزنه كلّه (`dataUrlToBytes`)، فالبايتات نفسها.
+     */
+    decoder = new ImageDecoder({
+      data: dataUrlToBytes(dataUrl).buffer,
+      type: dataUrlMime(dataUrl),
+    })
     const { image } = await decoder.decode()
     try {
       const width = image.codedWidth

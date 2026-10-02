@@ -32,7 +32,13 @@ const canvasReads = vi.fn()
 /** إعداد `ImageDecoder` البديل: يعطي الصورة، أو يرمي، أو يعطي صفًّا محشوًّا. */
 let decoderMode: 'ok' | 'throws' | 'padded' = 'ok'
 
+/** ما مُرِّر إلى المُنشئ — نوع `data` هو موضع عطل Firefox أدناه. */
+const constructedWith: Array<{ data: unknown; type: string }> = []
+
 class FakeImageDecoder {
+  constructor(init: { data: unknown; type: string }) {
+    constructedWith.push(init)
+  }
   decode() {
     if (decoderMode === 'throws') return Promise.reject(new Error('unsupported'))
     const padded = decoderMode === 'padded'
@@ -88,6 +94,7 @@ async function sampler(): Promise<Sampler> {
 
 beforeEach(() => {
   closed.image = closed.decoder = closed.bitmap = 0
+  constructedWith.length = 0
   canvasMade.mockClear()
   canvasReads.mockClear()
   decoderMode = 'ok'
@@ -117,6 +124,19 @@ describe('sampler — فكّ بلا قماش حين تتوفّر ImageDecoder', 
   it('يحرّر الصورة والمفكِّك بعد القراءة', async () => {
     await sampler()
     expect(closed).toEqual({ image: 1, decoder: 1, bitmap: 0 })
+  })
+
+  /*
+   * **Firefox: `ArrayBuffer` لا عرضٌ عليه.** `ImageDecoder` في سكربت المحتوى من حجرة الصفحة، و`Uint8Array` من حجرة
+   * سكربت المحتوى؛ فيُبلغ Firefox «Permission denied to access object» خطأً غير ملتقَط عند المُنشئ — والفكّ نفسه
+   * ينجح. قِيس في Firefox 157 بسبع صيغ: العرض يُبلغ الخطأ في كلٍّ منها، و`ArrayBuffer` بلا خطأ (SS7، حارس Firefox
+   * `colour` شاهده الحيّ). والمخزن يغطّي العرض كلّه (`dataUrlToBytes` ينشئه بطوله) فلا بايت يُفقد.
+   */
+  it('يمرّر إلى المُنشئ ArrayBuffer لا عرضًا عليه (Firefox)', async () => {
+    await sampler()
+    expect(constructedWith).toHaveLength(1)
+    expect(constructedWith[0]!.data).toBeInstanceOf(ArrayBuffer)
+    expect(constructedWith[0]!.type).toBe('image/png')
   })
 
   it('خارج الحدود: null لا بكسلٌ مجاور', async () => {
@@ -155,7 +175,7 @@ describe('sampler — المسار الخام والقماش يعطيان الب
 })
 
 describe('sampler — العودة إلى القماش', () => {
-  it('ImageDecoder غير متاحة (Firefox)', async () => {
+  it('ImageDecoder غير متاحة', async () => {
     vi.stubGlobal('ImageDecoder', undefined)
     const s = await sampler()
     expect(s.pixelAt(2, 1)).toEqual(rgba(2, 1))

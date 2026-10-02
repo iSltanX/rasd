@@ -664,6 +664,33 @@ export async function startGuard(o) {
       ms,
     )
 
+  /**
+   * يقرأ من جلسة الطبقة **القائمة** دون أن يقلع واحدة: `read` نصّ دالّة `(session) => قيمة` تجري في العالم المعزول
+   * وتُعاد JSON. وبلا جلسة يعيد `{ __none: true }` — فلا يُخفي القارئ تفعيلًا لم يقع بإقلاعه هو (`startOverlay`
+   * يبني جلسة إن لم يجدها، والجلسة على `window.__rasdSession` وعدًا، `src/content/index.ts`).
+   */
+  const overlay = async (tabId, read, ms) => {
+    const raw = await inContent(
+      tabId,
+      `async () => {
+        const running = window.__rasdSession
+        if (!running) return JSON.stringify({ __none: true })
+        const r = await running
+        if (!r.ok) return JSON.stringify({ __none: true, error: String(r.error?.message ?? '') })
+        return JSON.stringify((${read})(r.value) ?? null)
+      }`,
+      ms,
+    )
+    return raw === undefined || raw === null ? { __none: true } : JSON.parse(raw)
+  }
+
+  /** إطاران في الصفحة — ما وصلها من حدثٍ رُسم. */
+  const settle = (context) =>
+    evaluator(
+      send,
+      context,
+    )('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))')
+
   /** مؤشّرٌ حقيقي في صفحة موقع — أحداثٌ موثوقة كيد المستخدم. */
   const pointer = (context, actions) =>
     send('input.performActions', {
@@ -692,7 +719,10 @@ export async function startGuard(o) {
     const fromStdout = run.stdout().filter((l) => l.startsWith('console.error:'))
     const fromPages = pageLog
       .filter((e) => e.level === 'error')
-      .map((e) => `${e.text} (${e.source?.context ?? '?'})`)
+      .map((e) => {
+        const frame = e.stackTrace?.callFrames?.[0]
+        return `${e.text}${frame ? ` @ ${frame.url}:${frame.lineNumber}:${frame.columnNumber}` : ''} (${e.type ?? 'log'})`
+      })
     return [...new Set([...fromService, ...fromStdout, ...fromPages])]
   }
 
@@ -778,6 +808,8 @@ export async function startGuard(o) {
     openExtensionPage,
     activate,
     inContent,
+    overlay,
+    settle,
     pointer,
     screenshot,
     consoleErrors,
