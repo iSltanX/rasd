@@ -1,8 +1,8 @@
 ---
 id: SS1
 title: أساس الهدفين — chromium وfirefox من مصدر واحد
-status: active
-delivery: local
+status: done
+delivery: merged
 wave: A
 order: 1
 depends: []
@@ -10,9 +10,9 @@ model: Sonnet 5.5
 size: S
 branch: main
 gate: all
-commit: —
+commit: 071cd77
 updated: 2026-10-02
-resume: ابدأ بـ`src/shared/platform/target.ts` واختبار العزل، ثمّ `buildManifest(target)` وبصمة حزمة Chromium قبل أي تعديل.
+resume: المرحلة مغلقة — لا استئناف. ما تنقله إلى SS2 وSS3 وSS4 وSS6 في سجلّ التنفيذ؛ والمهمّة 7 (تثبيت Firefox الحيّ) غير متحقَّقة ويغلقها SS7 أو إذنٌ صريح من المالك.
 ---
 
 # SS1 — أساس الهدفين
