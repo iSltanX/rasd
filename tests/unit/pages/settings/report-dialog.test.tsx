@@ -27,6 +27,10 @@ const DIAG: Diagnostics = {
   arch: 'arm64',
   browser: 'Google Chrome',
   browserVersion: '153.0.7990.12',
+  browserId: 'chrome',
+  engine: 'Chromium 153.0.7990.12',
+  buildTarget: 'chromium',
+  installSource: 'chrome-web-store',
 }
 const KEY = '4c1a0e8e-2a9f-4b1e-9f61-6a2b8d1c7e55'
 

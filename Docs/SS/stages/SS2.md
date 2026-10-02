@@ -1,7 +1,7 @@
 ---
 id: SS2
 title: هوية المتصفّح في البلاغ
-status: pending
+status: active
 delivery: none
 wave: B
 order: 1

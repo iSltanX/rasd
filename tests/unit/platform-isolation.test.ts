@@ -33,13 +33,9 @@ const ALLOWED: Record<string, { count: number; why: string }> = {
     count: 5,
     why: 'دالّة `edge` الهندسية لحافّة صندوق CSS — اسمٌ لا متصفّح',
   },
-  'modules/report/diagnostics.ts': {
-    count: 1,
-    why: 'علامة `Chromium` في `userAgentData.brands` تُستبعَد لتسمية المتصفّح — هويّته تنتقل إلى `platform/identity.ts` (SS2)',
-  },
   'pages/editor/page-meta.ts': {
     count: 3,
-    why: 'تعبير UA الذي يسمّي المتصفّح لبيانات صفحة المحرّر — هويّته تنتقل إلى `platform/identity.ts` (SS2)',
+    why: 'تعبير UA الذي يسمّي المتصفّح في بطاقة بيانات صفحة المحرّر (ويرجع إلى `userAgent` عند غياب العلامات) — تسمية عرضٍ لا هويّة تشخيص، فلم تنتقل إلى `platform/identity.ts` في SS2',
   },
 }
 
@@ -195,6 +191,6 @@ describe('الحارس يسقط على ما يجب أن يسقط عليه — م
     ])
     expect(verdict.drifted).toContain('shared/restricted.ts: متوقَّع 4 وُجد 1')
     // والبنود الأخرى لم تُقدَّم ملفّاتها فهي «وُجد 0» — بندٌ ميّت يُرى
-    expect(verdict.drifted).toContain('modules/report/diagnostics.ts: متوقَّع 1 وُجد 0')
+    expect(verdict.drifted).toContain('pages/editor/page-meta.ts: متوقَّع 3 وُجد 0')
   })
 })

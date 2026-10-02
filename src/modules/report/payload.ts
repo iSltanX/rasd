@@ -53,6 +53,14 @@ export interface Diagnostics {
   readonly arch: string
   readonly browser: string
   readonly browserVersion: string
+  /** القاموس المغلق للوسم عند الخادم — `firefox` · `chrome` · … · `unknown`. */
+  readonly browserId: string
+  /** `Gecko 157.0` · `Chromium 152.0.7977.134`. */
+  readonly engine: string
+  /** أيّ حزمةٍ شُحنت: `chromium` · `firefox`. */
+  readonly buildTarget: string
+  /** من أيّ متجرٍ ثُبّتت: `chrome-web-store` · … · `unpacked` · `unknown`. */
+  readonly installSource: string
 }
 
 export interface ReportImage {
@@ -117,11 +125,18 @@ export function formErrors(form: ReportForm): FieldError[] {
   return errors
 }
 
-/** التشخيص المرسَل: المتصفّح وإصداره، والأداة ورمز الخطأ إن وُجدا. لا رابط ولا عنوان ولا مشروع. */
+/**
+ * التشخيص المرسَل: المتصفّح وإصداره ومحرّكه وهدف بناء رصد ومصدر تثبيتها، والأداة ورمز الخطأ إن وُجدا. لا رابط ولا
+ * عنوان ولا مشروع. و`browser_id` و`build_target` يقرؤهما الخادم وسمًا وعنوانًا (`Docs/Support.md`).
+ */
 export function diagnosticsFor(form: ReportForm, diag: Diagnostics): Record<string, string> {
   const out: Record<string, string> = {
     browser: clip(diag.browser, 32),
     browser_version: clip(diag.browserVersion, 32),
+    browser_id: clip(diag.browserId, 16),
+    engine: clip(diag.engine, 48),
+    build_target: clip(diag.buildTarget, 16),
+    install_source: clip(diag.installSource, 24),
   }
   const tool = safeTool(form.tool)
   if (tool) out.tool = tool

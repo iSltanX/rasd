@@ -8,6 +8,8 @@
  * بلاغٍ يرفضه الخادم.
  */
 
+import { detectIdentity, type BrowserIdentity } from '@/shared/platform/identity'
+
 import type { Diagnostics } from './payload'
 
 /** `chrome.runtime.PlatformOs` ← قيم العقد (`macos` · `windows` · …). */
@@ -30,54 +32,47 @@ const ARCH: Readonly<Record<string, string>> = {
   mips64: 'mips64',
 }
 
-interface Brand {
-  readonly brand: string
-  readonly version: string
-}
-
 interface HighEntropy {
   readonly platformVersion?: string
-  readonly fullVersionList?: readonly Brand[]
 }
 
 interface UaData {
-  readonly brands?: readonly Brand[]
   getHighEntropyValues?(hints: string[]): Promise<HighEntropy>
-}
-
-/** العلامة التي تسمّي المتصفّح: لا «Chromium» ولا علامة التمويه («Not A;Brand» بأشكالها). */
-export function pickBrowser(brands: readonly Brand[] | undefined): Brand | null {
-  const list = brands ?? []
-  const real = list.filter((b) => !/not.?a.?brand/iu.test(b.brand))
-  return real.find((b) => b.brand !== 'Chromium') ?? real[0] ?? null
 }
 
 export interface DiagnosticsSources {
   readonly manifestVersion: () => string
   readonly platformInfo: () => Promise<{ os: string; arch: string }>
   readonly uaData: () => UaData | undefined
+  /** هوية المتصفّح (`platform/identity.ts`) — تُحقن في الاختبار. */
+  readonly identity: () => Promise<BrowserIdentity>
 }
 
 const live: DiagnosticsSources = {
   manifestVersion: () => chrome.runtime.getManifest().version,
   platformInfo: () => chrome.runtime.getPlatformInfo(),
   uaData: () => (navigator as Navigator & { userAgentData?: UaData }).userAgentData,
+  identity: () => detectIdentity(),
 }
 
 export async function collectDiagnostics(sources: DiagnosticsSources = live): Promise<Diagnostics> {
   const platform = await sources.platformInfo().catch(() => ({ os: 'unknown', arch: 'unknown' }))
   const ua = sources.uaData()
   const high: HighEntropy = await (
-    ua?.getHighEntropyValues?.(['platformVersion', 'fullVersionList']) ?? Promise.resolve({})
+    ua?.getHighEntropyValues?.(['platformVersion']) ?? Promise.resolve({})
   ).catch(() => ({}))
-  const browser = pickBrowser(high.fullVersionList ?? ua?.brands)
+  const identity = await sources.identity()
 
   return {
     appVersion: sources.manifestVersion(),
     os: OS[platform.os] ?? 'unknown',
     osVersion: high.platformVersion?.trim() || 'unknown',
     arch: ARCH[platform.arch] ?? 'unknown',
-    browser: browser?.brand ?? 'unknown',
-    browserVersion: browser?.version ?? 'unknown',
+    browser: identity.browser,
+    browserVersion: identity.browserVersion,
+    browserId: identity.browserId,
+    engine: identity.engine,
+    buildTarget: identity.buildTarget,
+    installSource: identity.installSource,
   }
 }

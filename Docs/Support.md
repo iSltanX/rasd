@@ -30,6 +30,28 @@
 1. الوسم `product:rasd` في `iSltanX/app-reports` — بلاه يردّ الخادم `400 unknown_product` على كل بلاغ.
 2. صفّ رصد في جدول «Products» في `README` القناة (الالتزام `152a6cb`).
 
+## عقد 1.1 — هوية المتصفّح في البلاغ (للمالك، لا ينتظره العميل)
+
+كل بلاغٍ من رصد يحمل في `diagnostics` نفسها (قاموسٌ حرّ، فلا يتغيّر العقد) أربعة حقولٍ جديدة بجانب `browser` و
+`browser_version`: `browser_id` و`engine` و`build_target` و`install_source`. القيم المغلقة لما يقرؤه الخادم:
+
+| الحقل            | القيم                                                                          |
+| ---------------- | ------------------------------------------------------------------------------ |
+| `browser_id`     | `firefox` · `chrome` · `edge` · `brave` · `opera` · `chromium` · `unknown`     |
+| `build_target`   | `chromium` · `firefox`                                                         |
+| `install_source` | `chrome-web-store` · `edge-add-ons` · `opera-add-ons` · `unpacked` · `unknown` |
+| `engine`         | نصٌّ حرّ للقراءة: `Gecko 157.0` · `Chromium 152.0.7977.134` · `unknown`        |
+
+**المطلوب من خادم `iSltanX/app-reports`** (بيد المالك، متوافقٌ رجعيًّا — حقلٌ غائب ⇒ لا وسم ولا بادئة، فبلاغات
+الإصدارات القديمة تعمل كما هي):
+
+1. **العنوان:** `Rasd / <المتصفّح>: <أوّل سطر من الوصف>` — الاسم المعروض من `browser_id` (`firefox` ⇒ Firefox …).
+2. **الوسوم:** `browser:<browser_id>` و`target:<build_target>`، فتُصفّى بلاغات Firefox بـ`label:browser:firefox`.
+3. **ما لا يُطلب:** لا وسم من `engine` ولا من `install_source` (للقراءة في النصّ)، ولا تحليل نصٍّ حرّ.
+
+العنوان **لا يُبنى في العميل**: سطره الأوّل ملك المستخدم وحدّه 60 حرفًا. وإن لم يُرد المالك مسّ الخادم فالبديل الموثَّق
+في `Docs/Browsers/Architecture.md` §4.11 بادئة `[<browser_id>]` من العميل، ولم تُنفَّذ.
+
 ## التشغيل
 
 - **متابعة البلاغات:** GitHub Issues في `iSltanX/app-reports`، مصفّاةً بـ`label:product:rasd`؛ والإشعارات بالبريد من
