@@ -23,7 +23,7 @@
  *   (`devtools.console.stdout.content`) — نظير `developerPrivate.runtimeErrors` في كروم.
  * - **BiDi `network.*` لا يرى طلبات الإضافة** (قِيس: `fetch` من صفحة إضافة ومن الخلفية بلا حدث، وطلب التبويب
  *   بحدثه). فمراقبة الشبكة شاهدان: `network.*` لسياقات المواقع، ومراقِب `http-on-opening-request` في المتصفّح لكل
- *   طلب — `watchRequests` أدناه، نظير NetLog في `verify:network`.
+ *   طلب — `o.network` أدناه، نظير NetLog في `verify:network`.
  *
  * **بصمة الحارس تشمل النواة.** على قاعدة ADR 0042: سجلّ ترقية حرّاس Firefox (`scripts/firefox-ledger.mjs`)
  * يحسب بصمة كل حارس من ملفّه وما يستورده من `scripts/` — فتعديلٌ هنا يبدأ سلاسلها كلّها من الصفر.
@@ -69,6 +69,14 @@ export const HARNESS = '__rasd-harness.html'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+/**
+ * مسجِّلات Firefox الداخلية التي تطبع في الخَرْج القياسي نفسه — `console.error: <الوحدة>: …` من شيفرة المتصفّح لا من
+ * الإضافة. بالاسم لا بالنمط: `RSLoader` محمّل تجارب Nimbus (`RemoteSettingsExperimentLoader.sys.mjs`) يشكو حين يُلغى
+ * طلبه البعيد (قِيس في `firefox:network`)، ولا يُطفأ من ملفّ التعريف (سياسة `FirefoxLabs` لا تفضيل). وكل اسمٍ يُضاف
+ * هنا بقياسه؛ وما سواه يبقى خطأً يُحاكَم.
+ */
+const FIREFOX_LOGGERS = /^console\.error: (RSLoader): /u
+
 // ── Firefox ──────────────────────────────────────────────────────
 
 export const FIREFOX_CANDIDATES = [
@@ -100,6 +108,11 @@ export function basePrefs({ geckoId, downloads }) {
     'browser.download.alwaysOpenPanel': false,
     'browser.startup.page': 0,
     'browser.shell.checkDefaultBrowser': false,
+    // صفحة البداية فارغة لا `about:home`: تلك تجلب إعدادات Mozilla البعيدة وتطبع أخطاءها (`RSLoader`) في الطرفية
+    // نفسها التي يُحاكَم بها رصد — ضجيجٌ من Firefox لا من الإضافة (قِيس في `firefox:network`).
+    'browser.startup.homepage': 'about:blank',
+    'browser.newtabpage.enabled': false,
+    'browser.newtab.preload': false,
   }
 }
 
@@ -420,6 +433,7 @@ export const DEFAULT_HARD_TIMEOUT_MS = 300_000
  * @param {number} o.port                منفذ BiDi — ثابت لكل حارس.
  * @param {string} o.title               عنوان التقرير.
  * @param {boolean} [o.fixtures]         يضمن خادم العيّنات على منفذه الخاص.
+ * @param {boolean} [o.network]          يراقب الشبكة من قبل التثبيت ويلغي ما ليس محلّيًّا (`requests()`).
  * @param {{ hostPermissions?: string[], permissions?: string[], manifest?: (m: any) => void, patch?: (path: string) => void }} [o.stage]
  * @param {number} [o.hardTimeoutMs]
  */
@@ -559,6 +573,50 @@ export async function startGuard(o) {
 
   const inChrome = async (expression, ms) =>
     evaluator(send, await conn.chromeContext())(expression, ms)
+
+  /**
+   * **مراقب الشبكة من قبل التثبيت** (`o.network`): كل قناة HTTP(S) يفتحها المتصفّح — مراقِب `http-on-opening-request` في
+   * عملية المتصفّح، يرى طلبات الإضافة وخلفيتها التي لا يراها BiDi `network.*` (قِيس) — ومعه `network.beforeRequestSent`
+   * لسياقات المواقع. ويُسجَّل لكل طلب عنوانه ومبدؤه (`triggeringPrincipal`) ومحمّله. **وما ليس الحلقة المحلّية يُلغى
+   * لحظة فتحه** (`NS_BINDING_ABORTED`) بعد تسجيله: لا شيء يغادر الجهاز أثناء الفحص ولو حاول — نظير
+   * `--host-resolver-rules` في `verify:network`. والحكم للحارس: النواة تجمع ولا تصنّف.
+   */
+  const watchNetwork = async () => {
+    await inChrome(`(() => {
+      const seen = (globalThis.__rasdRequests = [])
+      const observer = {
+        observe(subject) {
+          try {
+            const channel = subject.QueryInterface(Ci.nsIHttpChannel)
+            const info = channel.loadInfo
+            const host = channel.URI.host
+            const local = host === '127.0.0.1' || host === 'localhost' || host === '[::1]'
+            seen.push({
+              url: channel.URI.spec,
+              by: info?.triggeringPrincipal?.isSystemPrincipal ? 'system' : (info?.triggeringPrincipal?.originNoSuffix ?? ''),
+              loading: info?.loadingPrincipal?.originNoSuffix ?? '',
+              cancelled: !local,
+            })
+            if (!local) channel.cancel(Cr.NS_BINDING_ABORTED)
+          } catch {}
+        },
+      }
+      Services.obs.addObserver(observer, 'http-on-opening-request')
+      return true
+    })()`)
+    const tabs = []
+    await send('session.subscribe', { events: ['network.beforeRequestSent'] })
+    conn.onEvent((msg) => {
+      if (msg.method === 'network.beforeRequestSent') {
+        tabs.push({ url: msg.params.request.url, context: msg.params.context })
+      }
+    })
+    return async () => ({
+      browser: JSON.parse(await inChrome(`JSON.stringify(globalThis.__rasdRequests)`)),
+      tabs: [...tabs],
+    })
+  }
+  const requests = o.network ? await watchNetwork() : null
 
   const installed = await installExtension(send, staged.path)
   if (installed.error) report.fail(`Firefox رفض الحزمة: ${installed.error}`)
@@ -775,7 +833,9 @@ export async function startGuard(o) {
         return [m.errorMessage + ' @ ' + where.replace(${JSON.stringify(EXT_BASE)}, '') + ':' + m.lineNumber]
       }))`).catch(() => '[]'),
     )
-    const fromStdout = run.stdout().filter((l) => l.startsWith('console.error:'))
+    const fromStdout = run
+      .stdout()
+      .filter((l) => l.startsWith('console.error:') && !FIREFOX_LOGGERS.test(l))
     const fromPages = pageLog
       .filter((e) => e.level === 'error')
       .map((e) => {
@@ -783,41 +843,6 @@ export async function startGuard(o) {
         return `${e.text}${frame ? ` @ ${frame.url}:${frame.lineNumber}:${frame.columnNumber}` : ''} (${e.type ?? 'log'})`
       })
     return [...new Set([...fromService, ...fromStdout, ...fromPages])]
-  }
-
-  /**
-   * يراقب كل طلب شبكة يفتحه المتصفّح — مراقِب `http-on-opening-request` في سياق المتصفّح (يرى طلبات الإضافة
-   * وخلفيتها التي لا يراها `network.*`) ومعه `network.beforeRequestSent` لسياقات المواقع. يعيد دالّةً تقرأ ما جُمع.
-   */
-  const watchRequests = async () => {
-    await inChrome(`(() => {
-      const seen = (globalThis.__rasdRequests = [])
-      const observer = {
-        observe(subject) {
-          try {
-            const channel = subject.QueryInterface(Ci.nsIChannel)
-            const info = channel.loadInfo
-            const by = info?.triggeringPrincipal?.originNoSuffix ?? ''
-            const loading = info?.loadingPrincipal?.originNoSuffix ?? ''
-            seen.push({ url: channel.URI.spec, by, loading, type: info?.externalContentPolicyType ?? null })
-          } catch {}
-        },
-      }
-      Services.obs.addObserver(observer, 'http-on-opening-request')
-      globalThis.__rasdRequestObserver = observer
-      return true
-    })()`)
-    const tabs = []
-    await send('session.subscribe', { events: ['network.beforeRequestSent'] })
-    conn.onEvent((msg) => {
-      if (msg.method === 'network.beforeRequestSent') {
-        tabs.push({ url: msg.params.request.url, context: msg.params.context })
-      }
-    })
-    return async () => ({
-      browser: JSON.parse(await inChrome(`JSON.stringify(globalThis.__rasdRequests)`)),
-      tabs: [...tabs],
-    })
   }
 
   const finish = async ({ success, failure } = {}) => {
@@ -874,7 +899,7 @@ export async function startGuard(o) {
     acceptSavePrompts,
     screenshot,
     consoleErrors,
-    watchRequests,
+    requests,
     stdout: run.stdout,
     onCleanup: (fn) => cleanups.push(fn),
     finish,
