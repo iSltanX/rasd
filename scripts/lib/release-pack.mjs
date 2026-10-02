@@ -56,9 +56,10 @@ export function chromeVersionProblem(version) {
 
 /**
  * عيوب الحزمة — قائمة فارغة تعني أنها قابلة للضغط.
- * `version` نسخة `package.json`، و`dependencies` أسماء تبعياته.
+ * `version` نسخة `package.json`، و`dependencies` أسماء تبعياته، و`target` هدف البناء (`chromium` أو `firefox`).
+ * وحزمة Firefox بلا `browser_specific_settings.gecko.id` تُرفض: التوقيع في MV3 يشترطه، ومعرّفٌ ضائع يُكتشف عند التقديم.
  */
-export function packageProblems(files, { version, dependencies }) {
+export function packageProblems(files, { version, dependencies, target = 'chromium' }) {
   const problems = []
   const byPath = new Map(files.map((f) => [f.path, f]))
 
@@ -77,9 +78,17 @@ export function packageProblems(files, { version, dependencies }) {
   if (!manifest) problems.push('لا manifest.json في الحزمة')
   else {
     try {
-      const built = JSON.parse(manifest.data.toString('utf8')).version
-      if (built !== version) {
-        problems.push(`نسخة البيان «${built}» لا تطابق package.json «${version}» — المصدر واحد`)
+      const parsed = JSON.parse(manifest.data.toString('utf8'))
+      if (parsed.version !== version) {
+        problems.push(
+          `نسخة البيان «${parsed.version}» لا تطابق package.json «${version}» — المصدر واحد`,
+        )
+      }
+      if (target === 'firefox') {
+        const id = parsed.browser_specific_settings?.gecko?.id
+        if (typeof id !== 'string' || id === '') {
+          problems.push('حزمة Firefox بلا browser_specific_settings.gecko.id — التوقيع يشترطه')
+        }
       }
     } catch {
       problems.push('manifest.json ليس JSON صالحًا')
@@ -211,14 +220,30 @@ export const sha256 = (data) => createHash('sha256').update(data).digest('hex')
 
 // ═══ الحزمة كاملة ═══════════════════════════════════════════════════
 
+/** اسم ملفّ الحزمة: `rasd-<نسخة>.zip` لـChromium، و`rasd-<نسخة>-firefox.zip` لـFirefox، و`rasd-<نسخة>-source.zip` للمصدر. */
+export function packageName(label, kind = 'chromium') {
+  return kind === 'chromium' ? `rasd-${label}.zip` : `rasd-${label}-${kind}.zip`
+}
+
 /**
  * يفحص `files` ثمّ يضغطها. `verify` فحص الحزمة المبنيّة (`verify:dist` في السطر) — يُستدعى أوّلًا،
- * وسقوطه يرفض الضغط. يعيد `{ problems }` عند الرفض، أو `{ zip, sha, name, prerelease }`.
+ * وسقوطه يرفض الضغط. و`lint` (اختياري) فحصٌ ثانٍ يعيد قائمة عيوب — مدقّق AMO لحزمة Firefox. و`target`
+ * هدف البناء. يعيد `{ problems }` عند الرفض، أو `{ zip, sha, name, prerelease }`.
  */
-export function pack({ files, version, dependencies, tag = null, tags = [], verify }) {
+export function pack({
+  files,
+  version,
+  dependencies,
+  target = 'chromium',
+  tag = null,
+  tags = [],
+  verify,
+  lint = null,
+}) {
   if (!verify()) return { problems: ['فحص الحزمة (verify:dist) سقط — لا ضغط'] }
   const problems = [
-    ...packageProblems(files, { version, dependencies }),
+    ...packageProblems(files, { version, dependencies, target }),
+    ...(lint ? lint() : []),
     ...(tag ? tagProblems(tag, version, tags) : []),
   ]
   if (problems.length > 0) return { problems }
@@ -227,7 +252,134 @@ export function pack({ files, version, dependencies, tag = null, tags = [], veri
   return {
     zip: archive,
     sha: sha256(archive),
-    name: `rasd-${label}.zip`,
+    name: packageName(label, target === 'firefox' ? 'firefox' : 'chromium'),
     prerelease: tag ? parseTag(tag)?.prerelease !== null : false,
+  }
+}
+
+// ═══ مدقّق AMO ══════════════════════════════════════════════════════
+
+/**
+ * التحذيرات التي يقبلها `web-ext lint` وعددها الأقصى. `UNSAFE_VAR_ASSIGNMENT` هو `innerHTML` على أيقونات SVG ثابتة
+ * (علامة رصد وأيقونات الواجهة) لا على نصٍّ من صفحة — قيس في `content.js` وقطعة العلامة: تحذيران، وتُكتب في README المصدر
+ * ملاحظةً للمراجع. تحذيرٌ ثالث أو من نوعٍ آخر يُرفض ليُقرأ لا ليمرّ.
+ */
+export const LINT_ALLOWED_WARNINGS = { UNSAFE_VAR_ASSIGNMENT: 2 }
+
+/**
+ * عيوب تقرير `web-ext lint --output json`: صفر خطأ وصفر ملاحظة، والتحذيرات المسموحة بعدّها وحدها.
+ * التقرير الفاسد (لا `summary` ولا قوائم) يُرفض: غياب الأخطاء ليس غياب التقرير.
+ */
+export function lintProblems(report) {
+  const lists = ['errors', 'warnings', 'notices']
+  if (!report || typeof report !== 'object' || lists.some((k) => !Array.isArray(report[k]))) {
+    return ['تقرير web-ext lint فاسد — لا أخطاء ولا تحذيرات مقروءة']
+  }
+  const where = (m) => `${m.code} (${m.file ?? '؟'}): ${String(m.message ?? '').slice(0, 80)}`
+  const problems = [
+    ...report.errors.map((m) => `web-ext lint — خطأ ${where(m)}`),
+    ...report.notices.map((m) => `web-ext lint — ملاحظة ${where(m)}`),
+  ]
+  const counts = new Map()
+  for (const m of report.warnings) counts.set(m.code, (counts.get(m.code) ?? 0) + 1)
+  for (const [code, count] of counts) {
+    const allowed = LINT_ALLOWED_WARNINGS[code] ?? 0
+    if (count > allowed) {
+      problems.push(`web-ext lint — ${count} تحذير ${code} والمسموح ${allowed}`)
+    }
+  }
+  return problems
+}
+
+// ═══ حزمة المصدر ════════════════════════════════════════════════════
+
+/** اسم README البناء في جذر حزمة المصدر — ولا يُسمّى README.md لأن في المصدر README.md للمشروع. */
+export const SOURCE_README = 'SOURCE-README.md'
+
+/**
+ * عيوب بناء حزمة المصدر: شجرةٌ غير نظيفة تُنتج حزمةً لا تطابق أي التزام، ووسمٌ لا يشير إلى `HEAD` يعني أن الحزمة
+ * من التزامٍ غير الموسوم. `head` و`tagCommit` بصمتا الالتزامين (`tagCommit` فارغ بلا وسم).
+ */
+export function sourceProblems({ dirty, tag = null, head, tagCommit = null }) {
+  const problems = []
+  if (dirty.length > 0) {
+    problems.push(
+      `الشجرة غير نظيفة (${dirty.length} مدخلًا) — حزمة المصدر من الالتزام لا من الشجرة: ${dirty.slice(0, 3).join(' · ')}`,
+    )
+  }
+  if (tag && tagCommit !== head) {
+    problems.push(`الوسم «${tag}» لا يشير إلى HEAD — حزمة المصدر من التزامٍ غير الموسوم`)
+  }
+  return problems
+}
+
+const readString = (block, start, length) => {
+  const end = block.indexOf(0, start)
+  return block.toString('utf8', start, end === -1 || end > start + length ? start + length : end)
+}
+
+/** قيمة `path` من ترويسة pax الممتدّة — سطورها `<الطول> <مفتاح>=<قيمة>\n` والطول بالبايتات. */
+function paxPath(data) {
+  let at = 0
+  while (at < data.length) {
+    const space = data.indexOf(0x20, at)
+    const length = Number.parseInt(data.toString('ascii', at, space), 10)
+    if (!Number.isInteger(length) || length <= 0) break
+    const record = data.toString('utf8', space + 1, at + length - 1)
+    const eq = record.indexOf('=')
+    if (record.slice(0, eq) === 'path') return record.slice(eq + 1)
+    at += length
+  }
+  return null
+}
+
+/**
+ * الملفّات العادية من أرشيف `tar` الذي يكتبه `git archive` (ustar مع pax للأسماء الطويلة). المجلّدات والترويسة
+ * العامّة تُتخطّى، والرابط الرمزي أو غير ذلك من الأنواع يُرمى به: حزمة المصدر ملفّاتٌ عادية وحدها، وما سواها لا يُفكّ
+ * بالطريقة نفسها على كل نظام.
+ */
+export function tarFiles(tar) {
+  const files = []
+  let pendingPath = null
+  let at = 0
+  while (at + 512 <= tar.length) {
+    const header = tar.subarray(at, at + 512)
+    if (header.every((b) => b === 0)) break
+    const size = Number.parseInt(readString(header, 124, 12).trim() || '0', 8)
+    const type = String.fromCharCode(header[156] || 0x30)
+    const body = tar.subarray(at + 512, at + 512 + size)
+    at += 512 + Math.ceil(size / 512) * 512
+    if (type === 'g') continue
+    if (type === 'x') {
+      pendingPath = paxPath(body)
+      continue
+    }
+    const prefix = readString(header, 345, 155)
+    const path = pendingPath ?? (prefix ? `${prefix}/` : '') + readString(header, 0, 100)
+    pendingPath = null
+    if (type === '5') continue
+    if (type !== '0') throw new Error(`مدخل غير عادي في أرشيف المصدر: ${path} (نوع ${type})`)
+    files.push({ path, data: Buffer.from(body) })
+  }
+  return files
+}
+
+/**
+ * حزمة المصدر من أرشيف `tar` ونصّ README البناء: ملفّات الالتزام كما هي، وREADME البناء في الجذر. الضغط هو
+ * الضغط الحتمي نفسه، فبصمة المصدر دالّة الالتزام وحده.
+ */
+export function packSource({ tar, readme, version, tag = null, tags = [] }) {
+  const problems = tag ? tagProblems(tag, version, tags) : []
+  if (problems.length > 0) return { problems }
+  const files = tarFiles(tar).filter((f) => f.path !== SOURCE_README)
+  files.push({ path: SOURCE_README, data: Buffer.from(readme, 'utf8') })
+  const archive = zip(files)
+  const label = tag ? tag.slice(1) : version
+  return {
+    zip: archive,
+    sha: sha256(archive),
+    name: packageName(label, 'source'),
+    prerelease: tag ? parseTag(tag)?.prerelease !== null : false,
+    count: files.length,
   }
 }

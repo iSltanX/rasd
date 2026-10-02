@@ -1,14 +1,17 @@
 name: Release
 
-# أتمتة الإصدار (`STAGES/27`): وسمٌ `vX.Y.Z` يبني الحزمة ويفحصها ويرفقها ببصمتها بإصدار GitHub.
+# أتمتة الإصدار (`STAGES/27`، وSS3 للقنوات): وسمٌ `vX.Y.Z` يبني الحزم الثلاث — `rasd-<v>.zip` (Chrome وEdge وOpera)
+# و`rasd-<v>-firefox.zip` (AMO، بعد `web-ext lint`) و`rasd-<v>-source.zip` (ما يطلبه AMO وOpera للحزمة المصغَّرة) —
+# ويفحصها ويرفقها ببصماتها بإصدار GitHub.
 #
 # **مسوَّدةٌ لا إصدارٌ منشور.** نشر الإصدار وتقديم الإضافة للمتجر بأمر المالك وحده (`AGENTS.md` §0)، فالسير
 # يُعدّ المسوَّدة كاملةً — الحزمة وملفّ بصمتها — ولا ينشرها. والوسم بلاحقةٍ (`v0.1.0-trial.1`) تجريبيٌّ يُعلَّم
 # «إصدارًا مسبقًا» ولا يُقاس بسلسلة النسخ.
 #
-# والفحوص كلّها في `pnpm build` و`pnpm zip`، لا هنا: الأوّل `typecheck` والبناء و`verify:dist`، والثاني
-# يعيد `verify:dist` ثمّ فحص الإصدار والوسم (`scripts/lib/release-pack.mjs`) ثمّ الضغط الحتمي. فما يُرفق
-# هنا هو ما يُنتجه الأمر نفسه على أي جهاز، ببصمته نفسها.
+# والفحوص كلّها في `pnpm build:all` و`pnpm zip:all`، لا هنا: الأوّل `typecheck` والبناء و`verify:dist` للهدفين،
+# والثاني يعيد `verify:dist` ثمّ فحص الإصدار والوسم (`scripts/lib/release-pack.mjs`) و`web-ext lint` لحزمة Firefox
+# ثمّ الضغط الحتمي، وحزمة المصدر من `git archive` للالتزام الموسوم نفسه. فما يُرفق هنا هو ما يُنتجه الأمر نفسه
+# على أي جهاز، ببصماته نفسها.
 
 on:
   push:
@@ -23,7 +26,7 @@ concurrency:
 
 jobs:
   release:
-    name: بناء الحزمة وفحصها وإرفاقها
+    name: بناء الحزم الثلاث وفحصها وإرفاقها
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -44,26 +47,35 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm run build
+        run: pnpm run build:all
 
       - name: Package
-        run: pnpm run zip --tag "$GITHUB_REF_NAME"
+        run: pnpm run zip:all --tag "$GITHUB_REF_NAME"
 
+      # الحزم الثلاث وبصماتها في المسوَّدة، ولا نشر: الإصدار والتقديم للمتاجر بيد المالك.
       - name: Draft release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          zip=$(ls dist-zip/*.zip)
-          sha=$(cut -d' ' -f1 "$zip.sha256")
+          shopt -s nullglob
+          zips=(dist-zip/*.zip)
+          [ "${#zips[@]}" -eq 3 ] || { echo "المتوقَّع ثلاث حزم وُجد ${#zips[@]}: ${zips[*]}"; exit 1; }
+          assets=()
+          sums=""
+          for zip in "${zips[@]}"; do
+            assets+=("$zip" "$zip.sha256")
+            sums+="- \`$(basename "$zip")\` — SHA-256 \`$(cut -d' ' -f1 "$zip.sha256")\`"$'\n'
+          done
           case "$TAG" in *-*) pre="--prerelease" ;; *) pre="" ;; esac
-          gh release create "$TAG" "$zip" "$zip.sha256" \
+          gh release create "$TAG" "${assets[@]}" \
             --draft $pre --verify-tag \
             --title "رصد ${TAG#v}" \
-            --notes "حزمة رصد ${TAG#v} — بُنيت وفُحصت من الوسم \`$TAG\`.
+            --notes "حزم رصد ${TAG#v} — بُنيت وفُحصت من الوسم \`$TAG\`:
 
-          SHA-256: \`$sha\`
-
-          تُطابَق بـ\`shasum -a 256 -c $(basename "$zip").sha256\`."
-          echo "### $(basename "$zip")" >> "$GITHUB_STEP_SUMMARY"
-          echo "SHA-256 \`$sha\`" >> "$GITHUB_STEP_SUMMARY"
+          $sums
+          تُطابَق بـ\`shasum -a 256 -c <اسم الحزمة>.sha256\`. حزمة المصدر لـAMO وOpera، وفيها أوامر إعادة البناء."
+          {
+            echo "### الحزم"
+            echo "$sums"
+          } >> "$GITHUB_STEP_SUMMARY"
