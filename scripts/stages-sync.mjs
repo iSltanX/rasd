@@ -49,6 +49,8 @@ const STATUSES = {
   active: 'نشطة',
   paused: 'متوقّفة قبل الاكتمال',
   done: 'مكتملة',
+  // نُقلت إلى نظام SS (Docs/SS/) في 2026-10-02 — تبقى بملفّها كي لا تنكسر الإحالات، ولا تدخل الموجات ولا «التالية».
+  superseded: 'نُقلت إلى SS',
 }
 const DELIVERIES = {
   none: '—',
@@ -215,7 +217,7 @@ function validate(stages, ordered) {
         fail(`${stage.file}: تعتمد على ${pad(dep)} وهي بعدها في ترتيب التنفيذ`)
       }
     }
-    if (stage.status !== 'done' && stage.wave === null) {
+    if (stage.status !== 'done' && stage.status !== 'superseded' && stage.wave === null) {
       fail(`${stage.file}: ليست done وبلا wave — كل مرحلة متبقّية في موجة (Docs/Waves.md)`)
     }
     if (stage.wave !== null) {
@@ -302,6 +304,7 @@ function currentWave(stages) {
 
 function renderStatus(stages, baseline) {
   const done = stages.filter((stage) => stage.status === 'done')
+  const superseded = stages.filter((stage) => stage.status === 'superseded')
   const last = [...done].sort((a, b) => a.updated.localeCompare(b.updated) || a.id - b.id).at(-1)
   const next = nextStage(stages)
   const lastLine = last
@@ -321,9 +324,14 @@ function renderStatus(stages, baseline) {
     `- **آخر إنجاز مثبت:** ${lastLine}`,
     `- **المرحلة النشطة:** ${active.length > 0 ? active.map((stage) => `${link(stage, '')} — ${stage.title} (${STATUSES[stage.status]})`).join(' · ') : 'لا مرحلة نشطة — بانتظار أمر «ابدأ مرحلة X» أو `/stage NN`'}`,
     `- **الموجة الحالية:** ${waveLine}`,
+    ...(superseded.length > 0
+      ? [
+          '- **الخطّة النشطة:** نظام SS — [`Docs/SS/README.md`](Docs/SS/README.md) ولوحته `Docs/SS/board.html`. هذا الملفّ وجدول `ROADMAP.md` أرشيف المراحل 01–34.',
+        ]
+      : []),
     `- **الفرع المعتمد:** \`main\` على \`origin\` (${baseline.repo}) — وفروع \`stage/NN-slug\` لمراحل الموجة المفتوحة حتى دمجها`,
-    `- **المكتمل:** ${done.length} من ${stages.length} مرحلة`,
-    `- **المرحلة التالية:** ${next ? `${link(next, '')} — ${next.title}` : 'لا مرحلة مفتوحة الاعتماديات'}`,
+    `- **المكتمل:** ${done.length} من ${stages.length} مرحلة${superseded.length > 0 ? ` (و${superseded.map((stage) => pad(stage.id)).join(' و')} نُقلت إلى SS)` : ''}`,
+    `- **المرحلة التالية:** ${next ? `${link(next, '')} — ${next.title}` : superseded.length > 0 ? 'لا شيء هنا — التالية في `Docs/SS/README.md`' : 'لا مرحلة مفتوحة الاعتماديات'}`,
     `- **الخطوة التالية:** ${next ? next.resume : '—'}`,
     '',
     '## المراحل',

@@ -32,3 +32,7 @@ ROADMAP.md
 
 # لوحة موجات التوازي — يولّدها `waves-board.mjs` من الخطّة والترويسات والوسوم
 Docs/Waves/board.html
+
+# نظام SS: الكتلة المشتقّة في README (يكتبها `ss.mjs`) واللوحة المولَّدة
+Docs/SS/README.md
+Docs/SS/board.html

@@ -68,27 +68,30 @@ pnpm build
 
 ## الأوامر
 
-| الأمر                | ماذا يفعل                                   |
-| -------------------- | ------------------------------------------- |
-| `pnpm dev`           | تطوير مع HMR                                |
-| `pnpm build`         | بناء + فحص الحزمة                           |
-| `pnpm typecheck`     | فحص الأنواع (المصدر وملفات الإعداد)         |
-| `pnpm lint`          | ESLint، بلا تسامح مع أي تحذير               |
-| `pnpm format`        | Prettier                                    |
-| `pnpm test`          | اختبارات الوحدة والتكامل                    |
-| `pnpm test:coverage` | مع تقرير التغطية                            |
-| `pnpm check`         | الفحوص الساكنة والاختبارات معًا             |
-| `pnpm zip`           | فحص `dist/` ثمّ حزمة `.zip` حتمية ببصمتها   |
-| `pnpm tokens:sync`   | توليد التوكنز من لقطة Figma                 |
-| `pnpm gate:a`        | البوّابة المحلّية، مرّة عند إغلاق المرحلة   |
-| `pnpm stages:sync`   | اشتقاق `STATUS.md` وجدول `ROADMAP.md`       |
-| `pnpm waves:check`   | اتّساق خطّة الموجات مع ترويسات المراحل      |
-| `pnpm waves:board`   | توليد لوحة التشغيل `Docs/Waves/board.html`  |
-| `pnpm verify:wave`   | حرّاس كروم لمرحلة أو لبوّابة موجة، بقفل     |
-| `pnpm verify:<اسم>`  | حارس متصفّح حقيقي — 26 حارسًا               |
-| `pnpm test:e2e`      | المسارات الأربعة بالكثافتين 1 و2، بقفل      |
-| `pnpm store:package` | الحزمة مفكوكةً في كل متصفّح Chromium مثبَّت |
-| `pnpm launch:images` | مواد الإطلاق من لقطات `design:shots`        |
+| الأمر                | ماذا يفعل                                                                    |
+| -------------------- | ---------------------------------------------------------------------------- |
+| `pnpm dev`           | تطوير مع HMR                                                                 |
+| `pnpm build`         | بناء + فحص الحزمة                                                            |
+| `pnpm typecheck`     | فحص الأنواع (المصدر وملفات الإعداد)                                          |
+| `pnpm lint`          | ESLint، بلا تسامح مع أي تحذير                                                |
+| `pnpm format`        | Prettier                                                                     |
+| `pnpm test`          | اختبارات الوحدة والتكامل                                                     |
+| `pnpm test:coverage` | مع تقرير التغطية                                                             |
+| `pnpm check`         | الفحوص الساكنة والاختبارات معًا                                              |
+| `pnpm zip`           | فحص `dist/` ثمّ حزمة `.zip` حتمية ببصمتها                                    |
+| `pnpm tokens:sync`   | توليد التوكنز من لقطة Figma                                                  |
+| `pnpm gate:a`        | البوّابة المحلّية، مرّة عند إغلاق المرحلة                                    |
+| `pnpm ss:sync`       | نظام SS: الكتلة المشتقّة في `Docs/SS/README.md` واللوحة `Docs/SS/board.html` |
+| `pnpm ss:check`      | قواعد SS ومطابقة المشتقّ — في البوّابة A وCI                                 |
+| `pnpm ss:prompt SS3` | البرومبت الكامل لمرحلة (أو `wave B` لإغلاق موجة)                             |
+| `pnpm stages:sync`   | أرشيف 01–34: اشتقاق `STATUS.md` وجدول `ROADMAP.md`                           |
+| `pnpm waves:check`   | اتّساق خطّة الموجات مع ترويسات المراحل                                       |
+| `pnpm waves:board`   | توليد لوحة التشغيل `Docs/Waves/board.html`                                   |
+| `pnpm verify:wave`   | حرّاس كروم لمرحلة أو لبوّابة موجة، بقفل                                      |
+| `pnpm verify:<اسم>`  | حارس متصفّح حقيقي — 26 حارسًا                                                |
+| `pnpm test:e2e`      | المسارات الأربعة بالكثافتين 1 و2، بقفل                                       |
+| `pnpm store:package` | الحزمة مفكوكةً في كل متصفّح Chromium مثبَّت                                  |
+| `pnpm launch:images` | مواد الإطلاق من لقطات `design:shots`                                         |
 
 ## البنية
 
@@ -122,12 +125,13 @@ tests/
 مدخل أي جلسة جديدة، من أي جهاز أو حساب له صلاحية على المستودع:
 
 1. [`AGENTS.md`](../AGENTS.md) — قواعد التنفيذ والتحقّق والالتزام والرفع.
-2. [`STATUS.md`](../STATUS.md) — آخر إنجاز مثبت، والمرحلة النشطة، والخطوة التالية.
-3. [`ROADMAP.md`](../ROADMAP.md) — المراحل واعتمادياتها، وما بُني فعلًا.
-4. [`STAGES/NN.md`](../STAGES/) — مواصفة المرحلة وسجلّ تنفيذها ونقطة استئنافها.
-5. [`Docs/Waves.md`](Waves.md) — موجات التوازي وأدوارها، ولوحتها
-   [`Docs/Waves/board.html`](Waves/board.html): تُفتح بـ`open Docs/Waves/board.html`، ومنها
-   يُنسخ أمر كل جلسة (`/stage NN` أو `/wave-merge XX`).
+2. [`Docs/SS/README.md`](SS/README.md) — **الخطّة النشطة**: مراحل SS وموجاتها وأدوارها، ولوحتها
+   [`Docs/SS/board.html`](SS/board.html): تُفتح بـ`open Docs/SS/board.html`، ومنها يُنسخ أمر كل جلسة
+   (`/ss SSn` أو `/ss-merge X`) أو البرومبت الكامل.
+3. [`Docs/SS/stages/SSn.md`](SS/stages/) — مواصفة المرحلة وسجلّ تنفيذها ونقطة استئنافها.
+4. [`Docs/Browsers/Architecture.md`](Browsers/Architecture.md) — «ماذا ولماذا» لدعم المتصفّحات.
+5. الأرشيف (01–34): [`STATUS.md`](../STATUS.md) و[`ROADMAP.md`](../ROADMAP.md) و[`STAGES/`](../STAGES/) و
+   [`Docs/Waves.md`](Waves.md) ولوحته [`Docs/Waves/board.html`](Waves/board.html).
 
 ```bash
 git clone https://github.com/iSltanX/rasd.git && cd rasd

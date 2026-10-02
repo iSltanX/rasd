@@ -87,6 +87,9 @@ jobs:
       - name: حارس مزامنة المراحل
         run: pnpm run stages:check
 
+      - name: نظام SS — القواعد والمشتقّ
+        run: pnpm run ss:check
+
       - name: حارس سجلّ القرارات
         run: pnpm run docs:lint
 
@@ -152,6 +155,9 @@ jobs:
       # `ROADMAP.md` مشتقّان. الفحص هنا يحرس الفرع لا جهاز المؤلِّف وحده.
       - name: حارس مزامنة المراحل
         run: pnpm run stages:check
+
+      - name: نظام SS — القواعد والمشتقّ
+        run: pnpm run ss:check
 
       - name: حارس سجلّ القرارات
         run: pnpm run docs:lint

@@ -50,24 +50,25 @@ describe('الخطّة الحقيقية', () => {
     const planned = plan.waves.flatMap((wave: { stages: number[] }) => wave.stages).sort()
     // المكتملة في موجةٍ أُغلقت تبقى في صفّها وترويستها تحمل `wave`؛ والمكتملة قبل الخطّة بلا `wave`.
     const inPlan = stages
-      .filter((stage) => stage.status !== 'done' || stage.wave !== null)
+      .filter(
+        (stage) =>
+          (stage.status !== 'done' && stage.status !== 'superseded') || stage.wave !== null,
+      )
       .map((stage) => stage.id)
       .sort()
     expect(planned).toEqual(inPlan)
     expect(planned).not.toContain(4)
   })
 
-  it('29 و30 في آخر موجتين، وكل اعتمادياتهما قبلهما', () => {
+  it('29 و30 خارج الخطّة منذ نقلهما إلى SS — الموجات اثنتا عشرة', () => {
     const plan = readPlan()
-    const last = plan.waves.length
-    const waveOf = (id: number) =>
-      (
-        plan.waves.find((wave: { stages: number[] }) => wave.stages.includes(id)) as {
-          wave: number
-        }
-      ).wave
-    expect(waveOf(29)).toBe(last - 1)
-    expect(waveOf(30)).toBe(last)
+    expect(plan.waves).toHaveLength(12)
+    const planned = plan.waves.flatMap((wave: { stages: number[] }) => wave.stages)
+    expect(planned).not.toContain(29)
+    expect(planned).not.toContain(30)
+    for (const stage of readStages()) {
+      if (stage.id === 29 || stage.id === 30) expect(stage.wave).toBeNull()
+    }
   })
 })
 

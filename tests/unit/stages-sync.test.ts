@@ -18,7 +18,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 
 type Stage = {
   id: number
-  status?: 'pending' | 'active' | 'paused' | 'done'
+  status?: 'pending' | 'active' | 'paused' | 'done' | 'superseded'
   delivery?: 'none' | 'local' | 'branch' | 'merged'
   depends?: number[]
   wave?: number | string
@@ -176,5 +176,29 @@ describe('حقل wave نفسه', () => {
     const result = run([done(1), { id: 2, status: 'done', depends: [1], wave: 1 }], true)
     expect(result.status).toBe(0)
     expect(result.read('STATUS.md')).toContain('لا موجة مفتوحة')
+  })
+})
+
+describe('superseded — نُقلت إلى نظام SS', () => {
+  it('تمرّ بلا wave، ولا تُعدّ «التالية»، وتُشير STATUS.md إلى SS', () => {
+    const result = run([done(1), { id: 2, status: 'superseded', depends: [1] }], true)
+    expect(result.status).toBe(0)
+    const status = result.read('STATUS.md')
+    expect(status).toContain('نُقلت إلى SS')
+    expect(status).toContain('**الخطّة النشطة:** نظام SS')
+    expect(status).toContain('(و02 نُقلت إلى SS)')
+    expect(status).toContain('التالية في `Docs/SS/README.md`')
+  })
+
+  it('pending بلا wave تبقى مخالفة كما كانت', () => {
+    const result = run([done(1), { id: 2, status: 'pending', depends: [1] }])
+    expect(result.status).toBe(1)
+    expect(result.output).toContain('بلا wave')
+  })
+
+  it('بلا superseded لا سطر «الخطّة النشطة»', () => {
+    const result = run([done(1), { id: 2, status: 'pending', depends: [1], wave: 1 }], true)
+    expect(result.status).toBe(0)
+    expect(result.read('STATUS.md')).not.toContain('الخطّة النشطة')
   })
 })

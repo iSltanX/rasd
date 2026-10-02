@@ -429,7 +429,8 @@ footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
 </head>
 <body>
 <main>
-  <h1>خطّة تنفيذ رصد بالتوازي</h1>
+  <h1>أرشيف خطّة رصد بالتوازي — الموجات 1–12</h1>
+  <p class="sub"><strong>أرشيف منذ 2026-10-02:</strong> الخطّة النشطة في <a href="../SS/board.html">لوحة SS</a> (<code dir="ltr">Docs/SS/board.html</code>). والمرحلتان 29 و30 نُقلتا إلى SS9 وSS10.</p>
   <p class="sub">مشتقّة من <code dir="ltr">Docs/Waves.md</code> وترويسات <code dir="ltr">STAGES/</code> ووسوم الأساس — ليست مصدر حالة. وُلّدت على <code dir="ltr">${escape(model.head)}</code> في <span dir="ltr">${escape(model.generated)}</span> UTC.</p>
   <div class="summary">
     <div><b>${count(model.remaining)}</b><span>مرحلة متبقّية</span></div>
