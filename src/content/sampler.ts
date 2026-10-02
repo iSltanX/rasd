@@ -20,9 +20,18 @@
  * **و`OffscreenCanvas` لا عنصر `<canvas>` في DOM الصفحة:** لا نُدخل عنصرًا
  * في مستند لا نملكه، ولا نمرّ بـ`img-src` في سياسة أمن الصفحة المضيفة —
  * `createImageBitmap` على `Blob` لا يمرّ بطبقة تحميل موارد أصلًا.
+ *
+ * **ولماذا `ImageDecoder` أوّلًا لا القماش:** Brave يضيف ضجيجًا بتّيًّا على
+ * `getImageData` في كل صفحة ويب (حماية البصمة بـ«farbling»)، وسكربت المحتوى
+ * في مستند الصفحة فيصيبه — قِيس: `#FF0000` ⇐ `#FE0100`، و55 بايتًا من 128 في
+ * صورة عيّنة من 32 بكسلًا. أمّا `ImageDecoder` من WebCodecs فليس في ما
+ * يموّهه، وقِيس في Brave 1.96 بايتاتٍ مطابقةً للمصدر بالضبط في كل بكسلٍ معتم
+ * (`VideoFrame.copyTo` بصيغة RGBA). فتُقرأ البايتات الخام كاملةً مرّة عند
+ * الفكّ ثمّ تُفهرَس بلا قماش. والقماش بديلٌ حين لا تتوفّر الواجهة (Firefox)
+ * أو يفشل الفكّ — النتيجة نفسها خارج Brave.
  */
 
-import { dataUrlToBlob } from '@/shared/data-url'
+import { dataUrlMime, dataUrlToBlob, dataUrlToBytes } from '@/shared/data-url'
 import { send } from '@/shared/messaging'
 import { errText, ok, type Result } from '@/shared/result'
 
@@ -78,12 +87,48 @@ export interface SamplerOptions {
   win?: Window
 }
 
+/** بايتات RGBA خام بصفّ كل `width` بكسل — مخرج الفكّ بلا قماش. */
+interface RawPixels {
+  readonly data: Uint8Array
+  readonly width: number
+  readonly height: number
+}
+
+/**
+ * يفكّ اللقطة بـ`ImageDecoder` ويقرأ بايتاتها الخام بلا قماش — `null` حين لا
+ * تتوفّر الواجهة أو يفشل الفكّ، فيأخذ الأمر مسار القماش.
+ */
+async function decodeRaw(dataUrl: string): Promise<RawPixels | null> {
+  if (typeof ImageDecoder !== 'function') return null
+  let decoder: ImageDecoder | null = null
+  try {
+    decoder = new ImageDecoder({ data: dataUrlToBytes(dataUrl), type: dataUrlMime(dataUrl) })
+    const { image } = await decoder.decode()
+    try {
+      const width = image.codedWidth
+      const height = image.codedHeight
+      const data = new Uint8Array(image.allocationSize({ format: 'RGBA' }))
+      // الطول يفرض أن الصفّ بلا حشو، وإلا فالفهرسة أدناه تنزاح — فيذهب الأمر للقماش.
+      if (width <= 0 || height <= 0 || data.byteLength !== width * height * 4) return null
+      await image.copyTo(data, { format: 'RGBA' })
+      return { data, width, height }
+    } finally {
+      image.close()
+    }
+  } catch {
+    return null
+  } finally {
+    decoder?.close()
+  }
+}
+
 export function createSampler(options: SamplerOptions = {}): Sampler {
   const win = options.win ?? window
 
   let bitmap: ImageBitmap | null = null
   let canvas: OffscreenCanvas | null = null
   let ctx: OffscreenCanvasRenderingContext2D | null = null
+  let raw: RawPixels | null = null
   let current: Frame | null = null
   let stale = true
   let inflight: Promise<Result<Frame>> | null = null
@@ -94,6 +139,7 @@ export function createSampler(options: SamplerOptions = {}): Sampler {
     bitmap = null
     canvas = null
     ctx = null
+    raw = null
     current = null
   }
 
@@ -108,30 +154,43 @@ export function createSampler(options: SamplerOptions = {}): Sampler {
       if (!reply.ok) return reply
 
       try {
-        const blob = dataUrlToBlob(reply.value.dataUrl)
-        const next = await createImageBitmap(blob)
+        const decoded = await decodeRaw(reply.value.dataUrl)
+        let next: ImageBitmap | null = null
+        if (!decoded) next = await createImageBitmap(dataUrlToBlob(reply.value.dataUrl))
 
         // التفكيك قد ينتهي بعد الإغلاق — الصورة تُحرَّر ولا تُحتجَز.
         if (disposed) {
-          next.close()
+          next?.close()
           return errText('cancelled', 'أداة اللون أُغلقت.')
         }
 
         release()
-        bitmap = next
-        canvas = new OffscreenCanvas(next.width, next.height)
-        ctx = canvas.getContext('2d', { willReadFrequently: true })
-        if (!ctx) return errText('handler-failed', 'تعذّر إنشاء سياق القماش للعيّنة.')
-        ctx.drawImage(next, 0, 0)
+        let width: number
+        let height: number
+        if (decoded) {
+          raw = decoded
+          width = decoded.width
+          height = decoded.height
+        } else if (next) {
+          bitmap = next
+          width = next.width
+          height = next.height
+          canvas = new OffscreenCanvas(width, height)
+          ctx = canvas.getContext('2d', { willReadFrequently: true })
+          if (!ctx) return errText('handler-failed', 'تعذّر إنشاء سياق القماش للعيّنة.')
+          ctx.drawImage(next, 0, 0)
+        } else {
+          return errText('handler-failed', 'تعذّر فكّ لقطة العيّنة.')
+        }
 
         const vw = win.innerWidth
         const vh = win.innerHeight
         current = {
-          width: next.width,
-          height: next.height,
+          width,
+          height,
           // مقاس نافذة صفري لا يقع عمليًّا؛ الحارس يمنع القسمة على صفر.
-          scaleX: vw > 0 ? next.width / vw : 1,
-          scaleY: vh > 0 ? next.height / vh : 1,
+          scaleX: vw > 0 ? width / vw : 1,
+          scaleY: vh > 0 ? height / vh : 1,
           at: Date.now(),
         }
         stale = false
@@ -154,10 +213,16 @@ export function createSampler(options: SamplerOptions = {}): Sampler {
     iy: Math.floor(y * f.scaleY),
   })
 
-  const readRect = (ix: number, iy: number, w: number, h: number): Uint8ClampedArray | null => {
+  /** بكسل واحد بإحداثيات **الصورة** — من البايتات الخام إن فُكّت بلا قماش، وإلا من القماش. */
+  const readPixel = (ix: number, iy: number): Uint8ClampedArray | Uint8Array | null => {
+    if (raw) {
+      if (ix < 0 || iy < 0 || ix >= raw.width || iy >= raw.height) return null
+      const at = (iy * raw.width + ix) * 4
+      return raw.data.subarray(at, at + 4)
+    }
     if (!ctx) return null
     try {
-      return ctx.getImageData(ix, iy, w, h).data
+      return ctx.getImageData(ix, iy, 1, 1).data
     } catch {
       // قماش ملوَّث أو أبعاد غير صالحة — لا يقع مع لقطة `data:` لكن
       // الفشل هنا لا يجوز أن يُسقط الأداة.
@@ -180,7 +245,7 @@ export function createSampler(options: SamplerOptions = {}): Sampler {
       if (!f) return null
       const { ix, iy } = toImage(x, y, f)
       if (ix < 0 || iy < 0 || ix >= f.width || iy >= f.height) return null
-      const d = readRect(ix, iy, 1, 1)
+      const d = readPixel(ix, iy)
       if (!d) return null
       return { r: d[0] ?? 0, g: d[1] ?? 0, b: d[2] ?? 0, a: d[3] ?? 255 }
     },
@@ -208,7 +273,7 @@ export function createSampler(options: SamplerOptions = {}): Sampler {
             out.push({ r: 0, g: 0, b: 0, a: 0 })
             continue
           }
-          const d = readRect(px, py, 1, 1)
+          const d = readPixel(px, py)
           out.push(
             d
               ? { r: d[0] ?? 0, g: d[1] ?? 0, b: d[2] ?? 0, a: d[3] ?? 255 }
