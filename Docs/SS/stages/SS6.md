@@ -1,8 +1,8 @@
 ---
 id: SS6
 title: الأذونات والإرسال في Firefox
-status: active
-delivery: branch
+status: done
+delivery: merged
 wave: C
 order: 2
 depends: [SS2, SS4]
@@ -10,9 +10,9 @@ model: Sonnet 5.5
 size: M
 branch: ss/6-firefox-permissions
 gate: all
-commit: a339c54
+commit: e7a9974
 updated: 2026-10-02
-resume: لا متبقّي في المرحلة؛ تنتظر الدمج في إغلاق الموجة C (`/ss-merge C`).
+resume: المرحلة مغلقة — دُمجت في الموجة C.
 ---
 
 # SS6 — الأذونات والإرسال في Firefox

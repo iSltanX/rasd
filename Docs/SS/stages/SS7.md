@@ -1,8 +1,8 @@
 ---
 id: SS7
 title: نواة BiDi وحرّاس Firefox
-status: active
-delivery: branch
+status: done
+delivery: merged
 wave: C
 order: 1
 depends: [SS3, SS4]
@@ -11,9 +11,9 @@ why_model: أكبر بند في الخطّة — نواة اختبار جديد�
 size: L
 branch: ss/7-firefox-guards
 gate: all
-commit: cd5617c
+commit: a54a2c4
 updated: 2026-10-02
-resume: تسليمٌ على الفرع ينتظر دمج الموجة C؛ المتبقّي جولة لينكس لوظيفة `firefox` في الجولة اليدوية ثمّ `pnpm guards:firefox-sync` — تقرير التسليم أسفل السجلّ.
+resume: المرحلة مغلقة — دُمجت في الموجة C. المتبقّي جولة لينكس لوظيفة `firefox` في الجولة اليدوية ثمّ `pnpm guards:firefox-sync` والتزامه (ينتظر الجولة اليدوية).
 ---
 
 # SS7 — نواة BiDi وحرّاس Firefox
