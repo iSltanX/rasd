@@ -22,6 +22,7 @@ pnpm vitest run tests/unit/store-materials.test.ts   # المقاسات والم
 | [`browsers.json`](browsers.json)  | المتصفّحات المجرَّبة ونتيجتها — لا يظهر في شريط «يعمل حيث تعمل أنت» إلا ما حالته `supported` |
 | `scripts/launch-images.mjs`       | التكوين (HTML يرسمه Chrome)، بإطلاقٍ واحد لكل الصور                                          |
 | `artifacts/design/shots@2x/*.png` | اللقطات الحيّة بكثافة 2× — تُولَّد ولا تُحفظ في Git                                          |
+| `scripts/site-images.mjs`         | قصّات صفحة رصد في الموقع (`bysltan.com/rasd`) من اللقطات نفسها، بمربّعات Figma (الصفحة 28) — إلى `public/rasd/shots/` في مستودع الموقع |
 
 ## اللقطات — `screens/` · 1280×800
 

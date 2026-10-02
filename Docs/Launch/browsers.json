@@ -7,7 +7,8 @@
       "name": "Chrome",
       "version": "154.0.8037.93",
       "status": "supported",
-      "evidence": ["pnpm store:package", "verify:wave 22/22"]
+      "evidence": ["pnpm store:package", "verify:wave 22/22"],
+      "engine": "Chromium 154"
     },
     {
       "name": "Edge",
@@ -16,7 +17,8 @@
       "evidence": [
         "pnpm store:package",
         "verify:wave 21/22 — network: تبويب edge://sync-confirmation-dialog يفتحه Edge بلا أي إضافة"
-      ]
+      ],
+      "engine": "Chromium 154"
     },
     {
       "name": "Brave",

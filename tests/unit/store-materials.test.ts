@@ -564,9 +564,12 @@ describe('المتصفّحات المدعومة — من الاختبار لا �
   }
   const supported = data.browsers.filter((b) => b.status === 'supported')
   const readme = read('README.md')
-  /** أسماء المتصفّحات في جدول «المتصفّحات» في README بعلامة ✓ — ما يقول README إنه مدعوم. */
+  /**
+   * أسماء المتصفّحات في جدول «يعمل حيث تعمل أنت» في README — ما يقول README إنه مدعوم. الجدول `<table dir="rtl">` (GitHub
+   * لا يقلب جداول Markdown — قرار Figma في `35 — README`)، وكل صفٍّ فيه ادّعاء دعم باسمه العريض في خليّته الأولى.
+   */
   const claimed = (doc: string) =>
-    [...doc.matchAll(/^\| \*\*([^*]+)\*\* +\|[^\n]*✓/gmu)].map((m) => m[1]!.trim())
+    [...doc.matchAll(/<tr><td><b>([^<]+)<\/b><\/td>/gu)].map((m) => m[1]!.trim())
 
   it('لكل متصفّح «مدعوم» دليلٌ مسجَّل', () => {
     expect(supported.length).toBeGreaterThan(0)
@@ -578,7 +581,7 @@ describe('المتصفّحات المدعومة — من الاختبار لا �
   })
 
   it('سالب: متصفّحٌ يُضاف إلى README بلا اختبار يُرصد', () => {
-    const forged = `${readme}\n| **Netscape** | 4 | ✓ |\n`
+    const forged = readme.replace('</tbody>', '<tr><td><b>Netscape</b></td><td>4</td></tr>\n</tbody>')
     expect(claimed(forged)).toContain('Netscape')
     expect(claimed(forged).sort()).not.toEqual(supported.map((b) => b.name).sort())
   })
