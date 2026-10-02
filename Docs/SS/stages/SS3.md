@@ -1,8 +1,8 @@
 ---
 id: SS3
 title: حزم القنوات وحزمة المصدر وسير الإصدار
-status: active
-delivery: branch
+status: done
+delivery: merged
 wave: B
 order: 2
 depends: [SS1]
@@ -10,9 +10,9 @@ model: Sonnet 5.5
 size: S
 branch: ss/3-channel-packages
 gate: cone
-commit: 6c19915
+commit: 10056cb
 updated: 2026-10-02
-resume: منفَّذة ومُسلَّمة على الفرع — لا شيء متبقٍّ في النطاق؛ تنتظر دمج منسّق الموجة B (ويطبّق المالك ملاحظة جولة CI أدناه إن أراد).
+resume: المرحلة مغلقة — دُمجت في الموجة B. خارج النطاق ومسجَّل في سجلّها: توحيد سقف تحذيرات web-ext بين ci.yml وzip:firefox، وتشغيل الحزمة في Firefox حقيقي (SS7).
 ---
 
 # SS3 — حزم القنوات وحزمة المصدر وسير الإصدار

@@ -1,8 +1,8 @@
 ---
 id: SS4
 title: نقاط الفرق بالكشف عن القدرة
-status: active
-delivery: branch
+status: done
+delivery: merged
 wave: B
 order: 3
 depends: [SS1]
@@ -10,9 +10,9 @@ model: Sonnet 5.5
 size: M
 branch: ss/4-capabilities
 gate: all
-commit: 81affe0
+commit: c7b25d8
 updated: 2026-10-02
-resume: سُلِّمت — تنتظر دمج منسّق الموجة B. ما لم يُقَس: الاختصارات في Opera وVivaldi وخطوة التنزيل في Firefox (غير مثبّتَين على هذا الجهاز).
+resume: المرحلة مغلقة — دُمجت في الموجة B. قياس Opera وVivaldi وFirefox لم يُجرَ (غير مثبّتة) ويُغلقه SS7 أو جهازٌ بها؛ والإسناد الحيّ وطلب الأذونات في SS6.
 ---
 
 # SS4 — نقاط الفرق بالكشف عن القدرة

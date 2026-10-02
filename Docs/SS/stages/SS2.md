@@ -1,8 +1,8 @@
 ---
 id: SS2
 title: هوية المتصفّح في البلاغ
-status: active
-delivery: branch
+status: done
+delivery: merged
 wave: B
 order: 1
 depends: [SS1]
@@ -10,9 +10,9 @@ model: Sonnet 5.5
 size: S
 branch: ss/2-browser-identity
 gate: cone
-commit: c5c60e4
+commit: b85289e
 updated: 2026-10-02
-resume: المرحلة مسلَّمة على الفرع وتنتظر دمج منسّق الموجة B؛ المتبقّي على المالك أو المنسّق تشغيل `node scripts/chromium-probe.mjs --browser=opera` على جهازٍ فيه Opera.
+resume: المرحلة مغلقة — دُمجت في الموجة B. خارج النطاق ومسجَّل في سجلّها: تسمية page-meta.ts، وVivaldi يُقرأ chromium، ومسبار Opera لم يُشغَّل (غير مثبّت)، وخادم app-reports (عقد 1.1) ينتظر المالك.
 ---
 
 # SS2 — هوية المتصفّح في البلاغ

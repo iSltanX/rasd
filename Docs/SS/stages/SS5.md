@@ -1,8 +1,8 @@
 ---
 id: SS5
 title: Brave — قراءة البكسل بلا تمويه
-status: active
-delivery: branch
+status: done
+delivery: merged
 wave: B
 order: 4
 depends: []
@@ -10,9 +10,9 @@ model: Sonnet 5.5
 size: S
 branch: ss/5-brave-pixels
 gate: cone
-commit: 3b1dc52
+commit: 3e96f86
 updated: 2026-10-02
-resume: المسار (أ) منفَّذ ومسلَّم على الفرع — ينتظر دمج منسّق الموجة B. لا شيء متبقٍّ في النطاق.
+resume: المرحلة مغلقة — دُمجت في الموجة B. معيار «colour أخضر في Brave» حُكم عليه بسجلّها: فحوص البكسل كلّها خضراء في Brave، والتعليق عند 300ث سابقٌ على المرحلة ومن الحارس لا القطّارة (ترتيب أهداف CDP في Brave، تثبيت البصمة يمنع تعديله) — يُغلق بتعديلٍ وظيفي للحارس بقرار المالك.
 ---
 
 # SS5 — Brave: قراءة البكسل بلا تمويه
