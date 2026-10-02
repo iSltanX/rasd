@@ -216,6 +216,40 @@ try {
       await shot(s, path.split('/')[2])
     }
 
+    // هوية المتصفّح في البلاغ (SS2): تُقرأ من صفّ «ما سيُرسَل» في نافذة البلاغ نفسها لا من استنتاجٍ خارجها — ما يراه
+    // المستخدم هو ما يُرسَل. لا إرسال هنا: الخطوة الثالثة مراجعةٌ فقط.
+    const reportTab = await step(
+      'نافذة البلاغ تُفتح من رابط الإعدادات',
+      async () =>
+        (await open(`${base}src/pages/settings/index.html?section=about&report=1`)).sessionId,
+    )
+    if (reportTab) {
+      await sleep(1500)
+      await step('هوية المتصفّح في «ما سيُرسَل»', () =>
+        evaluate(
+          reportTab,
+          `(async () => {
+            const wait = async (ok, label) => { for (let i = 0; i < 100; i++) { if (ok()) return; await new Promise((r) => setTimeout(r, 100)) } throw new Error('لا ' + label) }
+            const fill = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })) }
+            const click = (text) => [...document.querySelectorAll('button')].find((b) => b.textContent.includes(text))?.click()
+            await wait(() => document.getElementById('report-field-title'), 'نموذج البلاغ')
+            fill('report-field-title', 'مسبار هوية المتصفّح'); fill('report-field-what', 'قراءةٌ فقط — لا إرسال')
+            await new Promise((r) => setTimeout(r, 100))
+            click('التالي: الصورة')
+            await wait(() => [...document.querySelectorAll('button')].some((b) => b.textContent.includes('التالي: المراجعة')), 'خطوة الصورة')
+            click('التالي: المراجعة')
+            await wait(() => document.querySelector('[data-report-key="diagnostics.browser_id"]'), 'صفّ browser_id')
+            const row = (k) => document.querySelector('[data-report-key="diagnostics.' + k + '"]')?.lastElementChild.textContent.replace(/[\u2066-\u2069]/g, '')
+            const out = { browser: row('browser'), browser_id: row('browser_id'), engine: row('engine'), build_target: row('build_target'), install_source: row('install_source') }
+            const expected = ${JSON.stringify(name === 'vivaldi' ? 'chromium' : (name ?? null))}
+            if (!out.browser_id || out.browser_id === 'unknown' || (expected && out.browser_id !== expected)) throw new Error('browser_id ' + out.browser_id + ' والمتوقَّع ' + (expected ?? 'معروف') + ': ' + JSON.stringify(out))
+            return JSON.stringify(out)
+          })()`,
+          30_000,
+        ),
+      )
+    }
+
     const page = await step('صفحة موقعٍ عاديّ (http)', async () => open(PAGE))
     if (page && popup) {
       const tabId = await step('معرّف التبويب', () =>

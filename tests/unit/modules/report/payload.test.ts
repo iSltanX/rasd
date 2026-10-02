@@ -26,6 +26,10 @@ const diag: Diagnostics = {
   arch: 'arm64',
   browser: 'Google Chrome',
   browserVersion: '153.0.7990.12',
+  browserId: 'chrome',
+  engine: 'Chromium 153.0.7990.12',
+  buildTarget: 'chromium',
+  installSource: 'chrome-web-store',
 }
 
 const form: ReportForm = {
@@ -107,11 +111,15 @@ describe('ما يُعرض هو ما يُرسَل', () => {
     }
   })
 
-  it('والتشخيص المرسَل هو المعروض: المتصفّح وإصداره والأداة ورمز الخطأ، لا غيرها', () => {
+  it('والتشخيص المرسَل هو المعروض: المتصفّح ومحرّكه وهدف البناء ومصدر التثبيت والأداة ورمز الخطأ، لا غيرها', () => {
     const payload = buildPayload(form, diag, null)
     expect(payload.diagnostics).toEqual({
       browser: 'Google Chrome',
       browser_version: '153.0.7990.12',
+      browser_id: 'chrome',
+      engine: 'Chromium 153.0.7990.12',
+      build_target: 'chromium',
+      install_source: 'chrome-web-store',
       tool: 'full-page',
       error_code: 'CAPTURE_STITCH_TIMEOUT',
     })
@@ -134,12 +142,52 @@ describe('لا رابط ولا عنوان صفحة ولا اسم مشروع', ()
     expect(buildPayload(hostile, diag, null).diagnostics).toEqual({
       browser: 'Google Chrome',
       browser_version: '153.0.7990.12',
+      browser_id: 'chrome',
+      engine: 'Chromium 153.0.7990.12',
+      build_target: 'chromium',
+      install_source: 'chrome-web-store',
     })
   })
 
   it('لا حقل في الجسم يحمل رابطًا أو عنوانًا أو مشروعًا — المفاتيح معدودة', () => {
     const keys = Object.keys(leaves(buildPayload(form, diag, null)))
     expect(keys.filter((k) => /url|title|page|project|origin|href/iu.test(k))).toEqual([])
+  })
+})
+
+describe('هوية المتصفّح مقصوصة كبقيّة التشخيص', () => {
+  it('كل حقلٍ جديد يُقصّ لسقفه ولا يتجاوزه', () => {
+    const long = 'x'.repeat(200)
+    const d = buildPayload(
+      form,
+      { ...diag, browserId: long, engine: long, buildTarget: long, installSource: long },
+      null,
+    ).diagnostics
+    expect(d.browser_id).toHaveLength(16)
+    expect(d.engine).toHaveLength(48)
+    expect(d.build_target).toHaveLength(16)
+    expect(d.install_source).toHaveLength(24)
+  })
+
+  it('والحقول الأربعة حاضرة دائمًا ولو بـunknown — العقد يشترطها', () => {
+    const unknown = 'unknown'
+    const d = buildPayload(
+      { ...form, tool: null, errorCode: null },
+      {
+        ...diag,
+        browserId: unknown,
+        engine: unknown,
+        buildTarget: 'firefox',
+        installSource: unknown,
+      },
+      null,
+    ).diagnostics
+    expect(d).toMatchObject({
+      browser_id: unknown,
+      engine: unknown,
+      build_target: 'firefox',
+      install_source: unknown,
+    })
   })
 })
 

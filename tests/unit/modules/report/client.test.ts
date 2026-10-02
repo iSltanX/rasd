@@ -33,6 +33,10 @@ const diag: Diagnostics = {
   arch: 'arm64',
   browser: 'Google Chrome',
   browserVersion: '153',
+  browserId: 'chrome',
+  engine: 'Chromium 153.0.7990.12',
+  buildTarget: 'chromium',
+  installSource: 'chrome-web-store',
 }
 const form: ReportForm = {
   kind: 'bug',

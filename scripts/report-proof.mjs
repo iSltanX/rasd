@@ -194,6 +194,14 @@ if (shown['diagnostics.tool'] !== 'full-page' || shown['diagnostics.error_code']
   g.fail('التشخيص المعروض بلا الأداة أو الرمز من الرابط')
 }
 if (shown.test !== 'true') g.fail('البناء ليس تجريبيًّا — ابنِ بـVITE_RASD_REPORT_TEST=1')
+// هوية المتصفّح (SS2): الحقول الأربعة معروضةٌ قبل النقرة، وتصل بقيمها نفسها.
+const IDENTITY = ['browser_id', 'engine', 'build_target', 'install_source']
+for (const key of IDENTITY) {
+  if (!shown[`diagnostics.${key}`]) g.fail(`حقل الهوية ${key} غير معروض في المراجعة`)
+}
+if (!/^(chrome|edge|brave|opera|chromium)$/u.test(shown['diagnostics.browser_id'] ?? '')) {
+  g.fail(`browser_id غير معروف: ${shown['diagnostics.browser_id']}`)
+}
 
 // ── ٦. «أرسل البلاغ» ─────────────────────────────────────────────────────────────────
 await click('أرسل البلاغ')
@@ -238,6 +246,12 @@ for (const label of ['product:rasd', 'kind:bug', 'test']) {
 }
 for (const needle of [stamp, 'PROOF_TEST', 'full-page', 'browser_version']) {
   if (!issue.body.includes(needle)) g.fail(`نصّ البلاغ أو تشخيصه بلا «${needle}»`)
+}
+for (const key of IDENTITY) {
+  const value = shown[`diagnostics.${key}`]
+  if (!issue.body.includes(key) || !issue.body.includes(value)) {
+    g.fail(`الحقل ${key}=${value} لم يصل في نصّ البلاغ`)
+  }
 }
 if (labels.includes('attachment-failed')) g.fail('القناة سجّلت فشل المرفق')
 const path = /reports\/rasd\/\d+\/[\w.-]+\.(?:png|jpg)/u.exec(issue.body)?.[0]

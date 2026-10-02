@@ -170,6 +170,10 @@ const LABEL: Readonly<Record<string, string>> = {
   locale: 'اللغة',
   'diagnostics.browser': 'المتصفّح',
   'diagnostics.browser_version': 'إصدار المتصفّح',
+  'diagnostics.browser_id': 'معرّف المتصفّح',
+  'diagnostics.engine': 'محرّك المتصفّح',
+  'diagnostics.build_target': 'هدف بناء رصد',
+  'diagnostics.install_source': 'مصدر تثبيت رصد',
   'diagnostics.tool': 'الأداة المتأثّرة',
   'diagnostics.error_code': 'رمز الخطأ',
 }
