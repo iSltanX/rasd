@@ -224,7 +224,7 @@ jobs:
       # `include-hidden-files`: الأثر يطابق مخرَج البناء ملفًّا ملفًّا، فما يحمّله
       # الحارس هو ما بُني لا مجموعة جزئية منه.
       - name: Upload extension bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rasd-dist-${{ github.sha }}
           path: dist/
@@ -376,7 +376,7 @@ jobs:
       # الأثر يحمل اسم الحارس لأن `upload-artifact@v4` يرفض تكرار الاسم بين وظائف المصفوفة.
       - name: Upload visual review shots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rasd-live-shots-${{ matrix.guard }}-${{ github.sha }}
           path: artifacts/
@@ -387,7 +387,7 @@ jobs:
       # يُختبَر ضدّها. أمّا صور المجلّد نفسه فيقارنها `visual`.
       - name: Upload accessibility tree baselines
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rasd-a11y-baselines-${{ matrix.guard }}-${{ github.sha }}
           path: tests/visual-baselines/
@@ -538,7 +538,7 @@ jobs:
       # لقطات الطبقة (`artifacts/firefox/`) — تُرفع لتُقرأ بالعين، ولا تُقارَن آليًّا.
       - name: Upload Firefox review shots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rasd-firefox-shots-${{ github.sha }}
           path: artifacts/firefox/
@@ -605,7 +605,7 @@ jobs:
       # أثر Playwright (تتبّعٌ ولقطةٌ للساقط) ولقطات المراجعة — تُرفع ولا تُقارَن آليًّا.
       - name: Upload e2e artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rasd-e2e-${{ github.sha }}
           path: artifacts/e2e/
