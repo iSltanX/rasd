@@ -13,6 +13,15 @@
 
 لا قناة منشورة بعد. النشر لكل متجر بيد المالك وحده (`AGENTS.md` §7)، ويُملأ السطر بعد الرفع لا قبله.
 
+**حزم `v1.0.0` جاهزة للرفع** (SS10، 2026-10-02) في مسوَّدة إصدار GitHub للوسم `v1.0.0` (مسوَّدة غير منشورة؛ بُنيت محلّيًّا
+لحجب الفوترة في Actions، بأمرَي `release.yml` نفسيهما):
+
+| الحزمة                   | SHA-256                                                            |
+| ------------------------ | ------------------------------------------------------------------ |
+| `rasd-1.0.0.zip`         | `35ef926a0b20d993e38a3ff97b2e6b416da203256991a01b74b3f0bcace4ed2a` |
+| `rasd-1.0.0-firefox.zip` | `2be3fd250b698a19f669e9479b621c7bcd8050bfa05066a292529d000b696b3d` |
+| `rasd-1.0.0-source.zip`  | `73d99efe47ea95eb109569702c39a63c15e11d523a206de70d8813ea37aa4540` |
+
 **مواد القنوات الأربع جاهزة ولم تُقدَّم** (SS8): Chrome وEdge في [`Docs/Store/listing.md`](../Store/listing.md)، وFirefox في
 [`Docs/Store/firefox/listing.md`](../Store/firefox/listing.md)، وOpera في [`Docs/Store/opera/listing.md`](../Store/opera/listing.md) —
 وقناة Opera **ضمن 1.0 بقرار المالك 2026-10-02** ونصّ EULA في [`Docs/Store/eula.md`](../Store/eula.md)، وقائمتها بنودٌ في

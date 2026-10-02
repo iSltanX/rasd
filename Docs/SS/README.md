@@ -41,7 +41,7 @@
 | [SS6](stages/SS6.md) | الأذونات والإرسال في Firefox | C | SS2 · SS4 | M | Sonnet 5.5 | `ss/6-firefox-permissions` | مكتملة | مدمجة في main | `e7a9974` |
 | [SS8](stages/SS8.md) | مواد المتاجر الأربعة والقائمة اليدوية | D | SS6 · SS7 | M | Sonnet 5.5 | `main` | مكتملة | مدمجة في main | `bad0ce4` |
 | [SS9](stages/SS9.md) | مرشَّح الإصدار ومصفوفة القبول متعدّدة المتصفّحات | E | SS5 · SS8 | M | Sonnet 5.5 | `main` | مكتملة | مدمجة في main | `9a97c55` |
-| [SS10](stages/SS10.md) | نشر رصد 1.0 — متعدّد المتصفّحات | F | SS9 | S | Sonnet 5.5 | `main` | نشطة | منفَّذة محليًّا | — |
+| [SS10](stages/SS10.md) | نشر رصد 1.0 — متعدّد المتصفّحات | F | SS9 | S | Sonnet 5.5 | `main` | نشطة | مدمجة في main | — |
 
 <!-- ss:end -->
 
