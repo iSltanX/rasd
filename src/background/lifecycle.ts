@@ -47,6 +47,7 @@ import { canOperateOnTab } from './gate'
 import { registerInstallFlow } from './install-flow'
 import { registerIssues } from './issues'
 import { extractFromCapture, extractFromViewport } from './palette-service'
+import { fromExtensionPage } from './sender'
 
 import type { PageKey } from '@/modules/compare/reference'
 import type { InspectSnapshot } from '@/shared/inspect-schema'
@@ -195,10 +196,10 @@ function registerRequestHandlers() {
      *
      * التمييز بالأصل: مُرسِل من أصلنا صفحةُ إضافة تعرف أي تبويب تقصد
      * (النافذة تمرّره صراحةً)؛ وأي مُرسِل آخر سكربتُ محتوى **لا يُصدَّق** في
-     * تحديد تبويب غير تبويبه.
+     * تحديد تبويب غير تبويبه. و«أصلنا» من `getURL` لا مخطّطٌ مكتوب — في
+     * Firefox هو `moz-extension://` (`./sender.ts`).
      */
-    const fromOwnPage = context.origin?.startsWith('chrome-extension://') ?? false
-    const target = fromOwnPage ? (tabId ?? context.tabId) : (context.tabId ?? tabId)
+    const target = fromExtensionPage(context) ? (tabId ?? context.tabId) : (context.tabId ?? tabId)
     if (target === undefined) throw new Error('لا تبويب مستهدَف للالتقاط.')
     const result = await runCapture({ tabId: target, kind, rect, dpr })
     // `RasdThrow` لا `Error`: الرسالة المحدَّدة يجب أن تصل إلى المستخدم كما

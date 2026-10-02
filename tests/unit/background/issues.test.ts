@@ -39,8 +39,11 @@ const { registerIssues, setIssueIds } = await import('@/background/issues')
 const PAGE_URL = 'https://northwind.example/pricing#plans'
 type Sender = Partial<chrome.runtime.MessageSender>
 const SITE = { tab: { id: 4 }, origin: 'https://northwind.example' } as unknown as Sender
-/** أصل الإضافة كما يملؤه المتصفّح لصفحاتها — من `getURL` لا ثابتًا مكتوبًا. */
-const POPUP = (): Sender => ({ origin: new URL(chrome.runtime.getURL('')).origin })
+/**
+ * أصل الإضافة كما يملؤه المتصفّح لصفحاتها — من `getURL` لا ثابتًا مكتوبًا، وبلا شرطته الأخيرة. لا `new URL(…).origin`:
+ * هو `"null"` لمخطّط الإضافة هنا، فيقارن الحكم `"null"` بـ`"null"` (`src/background/sender.ts`).
+ */
+const POPUP = (): Sender => ({ origin: chrome.runtime.getURL('').replace(/\/$/u, '') })
 
 function captureRecord(): CaptureRecord {
   return {

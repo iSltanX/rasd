@@ -28,6 +28,7 @@ import { issues, projects, putIssueWithEvidence, updateIssues } from '@/shared/s
 
 import { shootCapture } from './capture-service'
 import { activateTool } from './commands'
+import { fromExtensionPage } from './sender'
 
 import type { IssueObservation, IssueRecord } from '@/shared/issue-schema'
 import type { AnnotationRecord } from '@/shared/storage/schema'
@@ -73,13 +74,6 @@ async function noteStyle(): Promise<NoteStyle> {
     pinStart: annotation.pinStart,
   }
 }
-
-/**
- * مصدر الرسالة صفحةٌ من **هذه** الإضافة — النافذة أو صفحةٌ منها في تبويب — لا سكربت محتوى (أصله أصل الصفحة)
- * ولا إضافةٌ أخرى. الأصل يملؤه المتصفّح من إطار المُرسِل، لا الحمولة.
- */
-const fromExtensionPage = (context: MessageContext): boolean =>
-  context.origin === new URL(chrome.runtime.getURL('')).origin
 
 export function registerIssues(): void {
   onMessage('issue/page', async (_payload, context) => {
