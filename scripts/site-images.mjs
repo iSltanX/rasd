@@ -29,11 +29,21 @@ export const SITE_IMAGES = [
   { name: 'hero-measure', shot: 'measure_two-elements--dark', crop: [580, 330, 600, 420] },
   // النموذج الإنجليزي (445:12) يضيّق اللقطة إلى 520: قصٌّ أضيق من الموضع نفسه، لا تصغير (قاعدة Product Shot).
   { name: 'hero-measure-en', shot: 'measure_two-elements--dark', crop: [580, 330, 520, 420] },
-  { name: 'hero-measure-zoom', shot: 'measure_two-elements--dark', crop: [930, 500, 80, 60], zoom: [240, 180] },
+  {
+    name: 'hero-measure-zoom',
+    shot: 'measure_two-elements--dark',
+    crop: [930, 500, 80, 60],
+    zoom: [240, 180],
+  },
   { name: 'inspect', shot: 'inspect_element-selected--light', crop: [30, 55, 820, 645] },
   { name: 'capture', shot: 'capture_area-select--dark', crop: [310, 190, 760, 420] },
   { name: 'colors-panel', shot: 'colors_sampling--light', crop: [36, 42, 368, 524] },
-  { name: 'colors-loupe', shot: 'colors_sampling--light', crop: [683, 539, 40, 40], zoom: [280, 280] },
+  {
+    name: 'colors-loupe',
+    shot: 'colors_sampling--light',
+    crop: [683, 539, 40, 40],
+    zoom: [280, 280],
+  },
   { name: 'compare-split', shot: 'compare_split-reference--dark', crop: [390, 60, 720, 500] },
   { name: 'compare-diff', shot: 'compare_two-captures--dark', crop: [12, 156, 290, 124] },
   { name: 'editor', shot: 'editor_redact--dark', crop: [0, 70, 720, 720] },
@@ -81,16 +91,20 @@ function main() {
   const arg = process.argv.find((a) => a.startsWith('--out='))
   if (!arg) throw new Error('حدّد مجلّد الإخراج: --out=<public/rasd/shots في مستودع الموقع>')
   const out = resolve(arg.slice('--out='.length))
-  if (!existsSync(SHOTS)) throw new Error(`لا لقطات في ${SHOTS} — شغّل pnpm design:shots --dpr=2 أوّلًا`)
+  if (!existsSync(SHOTS))
+    throw new Error(`لا لقطات في ${SHOTS} — شغّل pnpm design:shots --dpr=2 أوّلًا`)
   mkdirSync(out, { recursive: true })
   const cache = new Map()
   for (const spec of SITE_IMAGES) {
-    if (!cache.has(spec.shot)) cache.set(spec.shot, decodePng(readFileSync(join(SHOTS, `${spec.shot}.png`))))
+    if (!cache.has(spec.shot))
+      cache.set(spec.shot, decodePng(readFileSync(join(SHOTS, `${spec.shot}.png`))))
     const [x, y, w, h] = spec.crop.map((v) => v * DPR)
     let img = crop(cache.get(spec.shot), x, y, w, h)
     if (spec.zoom) img = nearest(img, spec.zoom[0] * DPR, spec.zoom[1] * DPR)
     writeFileSync(join(out, `${spec.name}.png`), encodePng(img))
-    console.log(`✓ ${spec.name}.png  ${img.width}×${img.height}  ← ${spec.shot} ${spec.crop.join(',')}`)
+    console.log(
+      `✓ ${spec.name}.png  ${img.width}×${img.height}  ← ${spec.shot} ${spec.crop.join(',')}`,
+    )
   }
 }
 

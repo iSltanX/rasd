@@ -581,7 +581,10 @@ describe('المتصفّحات المدعومة — من الاختبار لا �
   })
 
   it('سالب: متصفّحٌ يُضاف إلى README بلا اختبار يُرصد', () => {
-    const forged = readme.replace('</tbody>', '<tr><td><b>Netscape</b></td><td>4</td></tr>\n</tbody>')
+    const forged = readme.replace(
+      '</tbody>',
+      '<tr><td><b>Netscape</b></td><td>4</td></tr>\n</tbody>',
+    )
     expect(claimed(forged)).toContain('Netscape')
     expect(claimed(forged).sort()).not.toEqual(supported.map((b) => b.name).sort())
   })

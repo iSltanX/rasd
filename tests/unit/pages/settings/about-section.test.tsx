@@ -78,9 +78,15 @@ describe('AboutSection — سياسة الخصوصية', () => {
     [...support(root).querySelectorAll('span')].find((el) => el.textContent === 'سياسة الخصوصية')!
       .parentElement!.parentElement!
 
-  it('ما دامت صفحات المالك غير منشورة: «قريبًا» ولا زرّ', () => {
-    expect(OWNER_PAGES_LIVE).toBe(false)
+  it('صفحات المالك منشورة: الافتراضي «اقرأها» لا «قريبًا»', () => {
+    expect(OWNER_PAGES_LIVE).toBe(true)
     const root = mount()
+    expect(privacyRow(root).textContent).not.toContain('قريبًا')
+    expect(button(root, 'اقرأها')).toBeDefined()
+  })
+
+  it('إن غابت الصفحة (null): «قريبًا» ولا زرّ', () => {
+    const root = mount({ privacyPolicyUrl: null })
     expect(privacyRow(root).textContent).toContain('قريبًا')
     expect(button(root, 'اقرأها')).toBeUndefined()
   })

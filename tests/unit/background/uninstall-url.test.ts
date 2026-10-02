@@ -1,8 +1,8 @@
 /**
  * رابط ما بعد الإزالة — `STAGES/28`.
  *
- * مطفأٌ ما دامت صفحات المالك غير منشورة (`OWNER_PAGES_LIVE` — لا رابط يعطي 404)، وحين يُشعل يُمرَّر حرفًا كما هو: لا معرّف ولا
- * نسخة ولا لغة تُلحق به. والإطفاء يمحو رابطًا ضبطه بناءٌ سابق.
+ * مشتعلٌ منذ نُشرت صفحات المالك (`OWNER_PAGES_LIVE`، SS10)، ويُمرَّر حرفًا كما هو: لا معرّف ولا نسخة ولا لغة تُلحق به.
+ * والإطفاء — إن غابت الصفحة — يمحو رابطًا ضبطه بناءٌ سابق فلا يُفتح بعد الإزالة رابطٌ يعطي 404.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -22,11 +22,11 @@ afterEach(() => {
 })
 
 describe('رابط ما بعد الإزالة', () => {
-  it('مطفأٌ ما دامت صفحات المالك غير منشورة', () => {
-    expect(OWNER_PAGES_LIVE).toBe(false)
+  it('صفحات المالك منشورة: الاستدعاء الافتراضي يضبط الرابط', () => {
+    expect(OWNER_PAGES_LIVE).toBe(true)
     const fn = stub()
     registerUninstallUrl()
-    expect(fn).toHaveBeenCalledWith('')
+    expect(fn).toHaveBeenCalledWith(UNINSTALL_SURVEY_URL)
   })
 
   it('حين يُشعل يُمرَّر الرابط كما هو — https في موقع المالك، بلا استعلام ولا جزء', () => {

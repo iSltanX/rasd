@@ -32,7 +32,7 @@ pnpm vitest run tests/unit/store-materials.test.ts  # الحدود والمطا�
 
 ## ما ينتظر المالك قبل التقديم
 
-1. نشر الصفحات الثلاث في `https://www.bysltan.com/rasd/` ثمّ قلب `OWNER_PAGES_LIVE` — [`owner-pages.md`](owner-pages.md).
+1. ~~نشر الصفحات الثلاث ثمّ قلب `OWNER_PAGES_LIVE`~~ — **تمّ في SS10** (قِيس 2026-10-02)، [`owner-pages.md`](owner-pages.md).
 2. المستودع خاصّ (`https://github.com/iSltanX/rasd` يعيد 404 لزائرٍ غير مسجَّل)، فرابطه في التذييل مخفيّ. إظهاره
    قرار المالك: إن جُعل عامًّا وأعاد 200 يُبنى بـ`VITE_RASD_SHOW_REPO=1`.
 3. حسابا المطوّر في المتجرين، والتقديم — `STAGES/30`.

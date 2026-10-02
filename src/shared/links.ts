@@ -24,11 +24,11 @@ export const SHOW_REPO_LINK: boolean = import.meta.env.VITE_RASD_SHOW_REPO === '
  * **صفحات رصد في موقع المالك** — سياسة الخصوصية والدعم وما بعد الإزالة (`STAGES/28`، نصوصها في
  * `Docs/Store/owner-pages.md`).
  *
- * **ثابتٌ ملتزَم لا متغيّر بيئة، قيمته «غير منشورة».** الصفحات لا توجد بعد، ولا يُعرض في الواجهة رابطٌ يعطي
- * 404 ولا يُفتح بعد الإزالة (`AGENTS.md` §7). يُقلب `true` بالتزامٍ بعد أن يعيد كلٌّ من الروابط الثلاثة 200 لزائرٍ
- * غير مسجَّل — وبالتزامٍ لا بمتغيّر بناء كي لا تُشحن حزمة الإصدار بقيمةٍ نسيها أمر البناء.
+ * **ثابتٌ ملتزَم لا متغيّر بيئة، قيمته «منشورة» منذ SS10.** قُلب `true` بالتزامٍ بعد أن أعاد كلٌّ من الروابط الثلاثة
+ * 200 لزائرٍ غير مسجَّل (القياس في `Docs/Store/owner-pages.md`) — وبالتزامٍ لا بمتغيّر بناء كي لا تُشحن حزمة الإصدار
+ * بقيمةٍ نسيها أمر البناء. ويُعاد `false` إن غابت صفحةٌ منها: لا يُعرض في الواجهة رابطٌ يعطي 404 (`AGENTS.md` §7).
  */
-export const OWNER_PAGES_LIVE: boolean = false
+export const OWNER_PAGES_LIVE: boolean = true
 
 export const PRIVACY_POLICY_URL = 'https://www.bysltan.com/rasd/privacy'
 export const SUPPORT_URL = 'https://www.bysltan.com/rasd/support'
