@@ -13,14 +13,14 @@
 import { useEffect, useState } from 'preact/hooks'
 
 import { disconnectGitHub, parseRepoRef } from '@/modules/export/integrations/github'
-import { requestHostPermission } from '@/shared/permissions'
+import { primeDataConsent, requestWithConsent } from '@/shared/permissions'
 import { Banner, Button, Chip, Input, Select, SettingRow } from '@/ui/components'
 import { cx } from '@/ui/cx'
 
 import { Group } from '../settings/parts/Group'
 
 import { ConnectDialog } from './ConnectDialog'
-import { GITHUB_HOST_PATTERN, useConnection, type Connection } from './connection'
+import { GITHUB_ACCESS, useConnection, type Connection } from './connection'
 import styles from './integrations.module.css'
 import { clearPrefs, savePrefs, type GitHubPrefs } from './preferences'
 
@@ -94,6 +94,10 @@ export function ConnectionsPanel({ onOpenPrivacy }: ConnectionsPanelProps): JSX.
   const [connecting, setConnecting] = useState(false)
   const [busy, setBusy] = useState<'disconnect' | 'host' | null>(null)
   const [disconnectFailed, setDisconnectFailed] = useState(false)
+  // دعم الموافقة يُقرأ عند الفتح لا في النقرة: `await` قبل الطلب يُسقط الإيماءة.
+  useEffect(() => {
+    void primeDataConsent()
+  }, [])
 
   if (connection.kind === 'loading') return null
 
@@ -120,7 +124,7 @@ export function ConnectionsPanel({ onOpenPrivacy }: ConnectionsPanelProps): JSX.
   /** **من النقرة مباشرةً** — الصلاحية تشترط إيماءة. */
   const grantHost = (): void => {
     setBusy('host')
-    void requestHostPermission([GITHUB_HOST_PATTERN]).finally(() => {
+    void requestWithConsent(GITHUB_ACCESS).finally(() => {
       setBusy(null)
       refresh()
     })

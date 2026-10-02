@@ -1,7 +1,7 @@
 ---
 id: SS6
 title: الأذونات والإرسال في Firefox
-status: pending
+status: active
 delivery: none
 wave: C
 order: 2

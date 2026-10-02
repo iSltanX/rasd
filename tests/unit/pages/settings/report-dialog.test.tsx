@@ -156,6 +156,8 @@ describe('لا طلب قبل التأكيد، ولا لقطة', () => {
     button('أرسل البلاغ').click()
     await vi.waitFor(() => expect(phase()).toBe('sent'))
     expect(requestHost).toHaveBeenCalledTimes(1)
+    // بلا صورة: لا موافقة على محتوى لا يُرسَل.
+    expect(requestHost).toHaveBeenCalledWith(false)
     expect(sendSpy).toHaveBeenCalledTimes(1)
     expect(sendSpy.mock.calls[0]?.[1].key).toBe(KEY)
     expect(text()).toContain('#12')
@@ -375,6 +377,31 @@ describe('مراجعة المراجعة المستقلّة — كل ملاحظة
     button('التالي: المراجعة').click()
     await vi.waitFor(() => expect(text()).toContain('تعذّر تجهيز الصورة'))
     expect(phase()).toBe('image')
+  })
+
+  it('بصورة مرفقة: الطلب يحمل موافقتها (withImage)، والمراجعة تسأل عنها كذلك', async () => {
+    const hostGranted = vi.fn<ReportDeps['hostGranted']>().mockResolvedValue(false)
+    const bake = vi.fn<ReportDeps['bakeWorking']>().mockResolvedValue({
+      ok: true,
+      image: {
+        blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+        bytes: new Uint8Array([1]),
+        width: 400,
+        height: 200,
+      },
+    } as never)
+    mount({ ...imageDeps(bake), hostGranted })
+    await vi.waitFor(() => expect(phase()).toBe('describe'))
+    await type('report-field-title', 'عطل')
+    await type('report-field-what', 'وصف')
+    button('التالي: الصورة').click()
+    await vi.waitFor(() => expect(phase()).toBe('image'))
+    await attach()
+    button('التالي: المراجعة').click()
+    await vi.waitFor(() => expect(phase()).toBe('review'))
+    expect(hostGranted).toHaveBeenCalledWith(true)
+    button('أرسل البلاغ').click()
+    await vi.waitFor(() => expect(requestHost).toHaveBeenCalledWith(true))
   })
 
   it('نقرتان على «أرسل» أثناء نافذة الإذن: طلب إذنٍ واحد وإرسالٌ واحد', async () => {

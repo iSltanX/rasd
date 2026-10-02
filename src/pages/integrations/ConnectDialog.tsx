@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { connectGitHub } from '@/modules/export/integrations/github'
-import { requestHostPermission } from '@/shared/permissions'
+import { primeDataConsent, requestWithConsent } from '@/shared/permissions'
 import { Banner, Button, Input } from '@/ui/components'
 import { cx } from '@/ui/cx'
 import { Icon } from '@/ui/icons/Icon'
@@ -23,7 +23,7 @@ import { useFocusTrap } from '@/ui/use-focus-trap'
 
 import sheet from '../export/export.module.css'
 
-import { GITHUB_HOST_PATTERN } from './connection'
+import { GITHUB_ACCESS } from './connection'
 import styles from './integrations.module.css'
 import { savePrefs } from './preferences'
 import { failureText, failureTitle } from './text'
@@ -69,13 +69,17 @@ export function ConnectDialog({ onClose, onConnected }: ConnectDialogProps): JSX
     },
     [],
   )
+  // دعم الموافقة يُقرأ عند الفتح لا في النقرة: `await` قبل الطلب يُسقط الإيماءة.
+  useEffect(() => {
+    void primeDataConsent()
+  }, [])
 
   /** **يُستدعى متزامنًا من النقرة** — لا `await` قبل طلب الصلاحية. */
   const connect = (): void => {
     if (busy || token.trim() === '') return
     setBusy(true)
     setError(null)
-    void requestHostPermission([GITHUB_HOST_PATTERN]).then(async (outcome) => {
+    void requestWithConsent(GITHUB_ACCESS).then(async (outcome) => {
       if (!live.current) return
       if (outcome !== 'granted') {
         setError({ title: failureTitle('connect'), text: HOST_DENIED })

@@ -9,6 +9,8 @@
 
 export * from './permission-policy'
 
+import { dataConsentSupported } from './platform/capabilities'
+
 import type { OptionalPermission } from './permission-policy'
 
 /** نتيجة طلب صلاحية — لا استثناءات، ولا تعليق. */
@@ -28,6 +30,82 @@ export async function requestHostPermission(
     return granted ? 'granted' : 'denied'
   } catch {
     return 'error'
+  }
+}
+
+/** فئات موافقة جمع البيانات التي يعلنها البيان اختيارية — ما يقابل التشخيص والصورة وما يُرسَل إلى GitHub. */
+export type DataCollectionCategory = 'technicalAndInteraction' | 'websiteContent'
+
+/** `@types/chrome` لا تعرف `data_collection` — واجهةٌ ضيّقة بحجم ما نستعمله فقط. */
+interface ConsentPermissions {
+  origins?: string[]
+  data_collection?: string[]
+}
+interface ConsentPermissionsApi {
+  request(permissions: ConsentPermissions): Promise<boolean>
+  contains(permissions: ConsentPermissions): Promise<boolean>
+}
+const consentApi = (): ConsentPermissionsApi => chrome.permissions
+
+/** أصلٌ مع ما يلزمه من موافقة جمع البيانات حين يعرفها المتصفّح. */
+export interface ConsentRequest {
+  readonly origins: readonly string[]
+  readonly dataCollection?: readonly DataCollectionCategory[]
+}
+
+/**
+ * هل يعرف المتصفّح الموافقة؟ — **مخبوءٌ قبل النقرة لا مسؤولٌ داخلها.**
+ * `dataConsentSupported()` غير متزامنة، و`permissions.request` يُسقط صفة الإيماءة بعد أي `await` (Firefox).
+ * فالواجهة تنادي `primeDataConsent()` عند فتح النافذة، ويقرأ `requestWithConsent` القيمة المخبوءة متزامنًا.
+ * ولم تُقرأ بعدُ ⇐ لا موافقة تُطلب (الأصل وحده) — الإخفاق إلى الأضيق.
+ */
+let consentSupport: boolean | undefined
+
+/** يقرأ دعم الموافقة ويخبؤه. يُنادى عند فتح النافذة، **قبل** أي نقرة. */
+export async function primeDataConsent(): Promise<boolean> {
+  consentSupport = await dataConsentSupported()
+  return consentSupport
+}
+
+/**
+ * يطلب أصلًا مع موافقته من إيماءة المستخدم — **نداءٌ واحد** بالمفتاحين حين تُدعم `data_collection`، وإلا بالأصل وحده.
+ * يجب أن يُنادى متزامنًا داخل معالج النقرة: لا `await` قبله (`tests/unit/permissions-gesture.test.ts`).
+ *
+ * رفض Firefox شكل النداء المدمج (يرمي) ⇐ يُطلبان متتاليين: الأصل ثمّ الموافقة، وكلاهما شرط `granted`.
+ */
+export async function requestWithConsent(request: ConsentRequest): Promise<PermissionOutcome> {
+  const categories = consentSupport === true ? [...(request.dataCollection ?? [])] : []
+  const origins = [...request.origins]
+  try {
+    if (categories.length === 0) {
+      return (await consentApi().request({ origins })) ? 'granted' : 'denied'
+    }
+    try {
+      const both = await consentApi().request({ origins, data_collection: categories })
+      return both ? 'granted' : 'denied'
+    } catch {
+      // الشكل المدمج مرفوض: الأصل أوّلًا، ثمّ الموافقة إن مُنح.
+      if (!(await consentApi().request({ origins }))) return 'denied'
+      return (await consentApi().request({ data_collection: categories })) ? 'granted' : 'denied'
+    }
+  } catch {
+    return 'error'
+  }
+}
+
+/**
+ * هل الأصل **وموافقته** ممنوحان؟ — يقرّر هل يُطلب شيء عند «أرسل». ويخبؤ دعم الموافقة في الطريق
+ * (`primeDataConsent`)، فمن نادى هذه عند فتح النافذة صار الطلب بعدها متزامنًا.
+ */
+export async function hasWithConsent(request: ConsentRequest): Promise<boolean> {
+  const supported = await primeDataConsent()
+  try {
+    if (!(await chrome.permissions.contains({ origins: [...request.origins] }))) return false
+    const categories = request.dataCollection ?? []
+    if (!supported || categories.length === 0) return true
+    return await consentApi().contains({ data_collection: [...categories] })
+  } catch {
+    return false
   }
 }
 
