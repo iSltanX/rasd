@@ -203,7 +203,16 @@ describe('نسخة التنزيلات — saveLocation يغيّر وجهة ال�
    * مسار فشل القصّ عمدًا. هنا نحتاج المسار الناجح إلى الحفظ، فيُزيَّف فكّ الترميز وحده؛ والقصّ
    * بلا مستطيل يُعيد بايتات المتصفّح كما هي (`cropCapture`)، فالمحفوظ حقيقي.
    */
+  const realCreateObjectUrl = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
+
   beforeEach(() => {
+    // عامل Chromium بلا `URL.createObjectURL` ⟵ النسخة بعنوان `data:`؛ وhappy-dom يعرضها فتُنزَع هنا
+    // (الفرع `blob:` في `capture-mirror.test.ts`).
+    Object.defineProperty(URL, 'createObjectURL', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    })
     vi.stubGlobal(
       'createImageBitmap',
       vi.fn(() => Promise.resolve({ width: 4, height: 3, close: vi.fn() })),
@@ -219,6 +228,7 @@ describe('نسخة التنزيلات — saveLocation يغيّر وجهة ال�
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    if (realCreateObjectUrl) Object.defineProperty(URL, 'createObjectURL', realCreateObjectUrl)
   })
 
   async function setLocation(saveLocation: 'library' | 'library-and-downloads') {

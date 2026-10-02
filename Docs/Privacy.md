@@ -56,6 +56,10 @@
 أصلًا (البوّابة تقرأ `Tab.incognito`)؛ أو «يعمل ويحفظ». وقِيس أن النسخة الخاصّة تعرف نفسها: `inIncognitoContext`
 ‏`true` في عاملها و`false` في العادي (`node scripts/incognito-probe.mjs`، الصفّ 121 في `Docs/Engineering.md §6`).
 
+**في Firefox لا خيار.** المتصفّح يرفض `incognito: "split"` فيُثبَّت `not_allowed`: **لا يعمل رصد في النوافذ الخاصّة في
+Firefox** — لا حقن ولا حفظ ولا نسخة ثانية من الإضافة. فيحلّ هذه الجملة صفُّ «التصفّح الخاص» في «الخصوصية» بدل الخيارات
+الثلاثة (`privateBrowsingModel()` في `src/shared/platform/capabilities.ts`)، وما اختاره المستخدم في متصفّح آخر لا يُطبَّق هنا.
+
 ## بعد إزالة الإضافة
 
 حين تُزال رصد يفتح المتصفّح صفحةً في موقع المالك (`https://www.bysltan.com/rasd/uninstall`) تسأل سؤالًا واحدًا

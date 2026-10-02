@@ -13,9 +13,15 @@
  *   البيانات» انتقل إلى قسم البيانات.
  *
  * والتصفّح الخاص قائمة منسدلة كما في الإطار، وتلميحها يصف الخيار المحدَّد بنصوص صفحة
- * `privacy / incognito` نفسها — فالصفحة الفرعية لا تلزم.
+ * `privacy / incognito` نفسها — فالصفحة الفرعية لا تلزم. **وحيث لا تعمل الإضافة في النوافذ الخاصّة أصلًا**
+ * (`privateBrowsingModel() === 'not_allowed'`) يُستبدل الصفّ بجملةٍ صادقة بدل خيارات لا تفعل شيئًا
+ * (`Docs/Design.md` §7 الاختلاف المقصود).
  */
 import { formatHuman, plural } from '@/shared/bidi'
+import {
+  PRIVATE_BROWSING_UNAVAILABLE_NOTE,
+  privateBrowsingModel,
+} from '@/shared/platform/capabilities'
 import { Button } from '@/ui/components/Button/Button'
 import { Select } from '@/ui/components/Select/Select'
 import { SettingRow } from '@/ui/components/SettingRow/SettingRow'
@@ -179,20 +185,28 @@ export function PrivacyTab({
             </Button>
           }
         />
-        <SettingRow
-          id="privacy-incognito"
-          label="سلوك رصد في التصفّح الخاص"
-          hint={INCOGNITO_HINT[privacy.incognito]}
-          control={
-            <Select
-              value={privacy.incognito}
-              options={INCOGNITO_OPTIONS}
-              aria-label="سلوك رصد في التصفّح الخاص"
-              aria-describedby="privacy-incognito-hint"
-              onChange={(v) => save({ incognito: v as Settings['privacy']['incognito'] })}
-            />
-          }
-        />
+        {privateBrowsingModel() === 'split' ? (
+          <SettingRow
+            id="privacy-incognito"
+            label="سلوك رصد في التصفّح الخاص"
+            hint={INCOGNITO_HINT[privacy.incognito]}
+            control={
+              <Select
+                value={privacy.incognito}
+                options={INCOGNITO_OPTIONS}
+                aria-label="سلوك رصد في التصفّح الخاص"
+                aria-describedby="privacy-incognito-hint"
+                onChange={(v) => save({ incognito: v as Settings['privacy']['incognito'] })}
+              />
+            }
+          />
+        ) : (
+          <SettingRow
+            id="privacy-incognito"
+            label="التصفّح الخاص"
+            hint={PRIVATE_BROWSING_UNAVAILABLE_NOTE}
+          />
+        )}
       </Group>
 
       <Group title="الصلاحيات" id="privacy-permissions">

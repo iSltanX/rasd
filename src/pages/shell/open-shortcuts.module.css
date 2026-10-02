@@ -1,0 +1,22 @@
+.none {
+  color: var(--rasd-text-tertiary);
+  font-size: var(--rasd-font-size-sm);
+}
+
+/* رابطٌ نصّي لا زرّ: يقع في خانة الاختصار فلا يزاحم مفاتيح الصفوف المسنَدة. */
+.link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--rasd-font-family-text);
+  font-weight: 600;
+  color: var(--rasd-text-brand);
+  font-size: var(--rasd-font-size-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link:focus-visible {
+  outline: var(--rasd-stroke-thick) solid var(--rasd-border-focus);
+  outline-offset: var(--rasd-stroke-thin);
+  border-radius: var(--rasd-radius-xs);
+}

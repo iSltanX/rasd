@@ -1,7 +1,7 @@
 ---
 id: SS4
 title: نقاط الفرق بالكشف عن القدرة
-status: pending
+status: active
 delivery: none
 wave: B
 order: 3

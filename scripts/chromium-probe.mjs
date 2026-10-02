@@ -216,6 +216,50 @@ try {
       await shot(s, path.split('/')[2])
     }
 
+    // SS4: كل أمرٍ بلا اختصار فعلي يعرض رابط «أسنده من صفحة الاختصارات»، والرابط يفتح صفحة الاختصارات في هذا المتصفّح
+    // (Opera وEdge وVivaldi تحوّل `chrome://` — يُقاس هنا لا يُفترض).
+    const sheet = await step(
+      'ورقة الاختصارات: الأوامر غير المسنَدة تعرض الرابط',
+      async () => (await open(`${base}src/pages/library/index.html`)).sessionId,
+    )
+    if (sheet) {
+      await sleep(1500)
+      await step('عدد الروابط = عدد الأوامر بلا اختصار', () =>
+        evaluate(
+          sheet,
+          `chrome.commands.getAll().then(async (all) => {
+            const names = ['capture-area', 'capture-element', 'capture-viewport', 'capture-full-page']
+            const unassigned = names.filter((n) => !all.find((c) => c.name === n)?.shortcut).length
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true }))
+            await new Promise((r) => setTimeout(r, 500))
+            const links = [...document.querySelectorAll('button')].filter((b) => b.textContent === 'أسنده من صفحة الاختصارات').length
+            if (links !== unassigned) throw new Error('روابط ' + links + ' وأوامر بلا اختصار ' + unassigned)
+            return JSON.stringify({ unassigned, links })
+          })`,
+        ),
+      )
+      await shot(sheet, 'shortcuts-sheet')
+      await step('الرابط يفتح صفحة الاختصارات', async () => {
+        const clicked = await evaluate(
+          sheet,
+          `(() => { const all = [...document.querySelectorAll('button')]; const link = all.find((x) => x.textContent === 'أسنده من صفحة الاختصارات'); const b = link ?? all.find((x) => x.textContent.includes('غيّر اختصارات الالتقاط')); if (!b) throw new Error('لا رابط ولا زرّ التغيير'); b.click(); return link ? 'نُقر الرابط' : 'نُقر زرّ التغيير (كلّها مسنَدة)' })()`,
+        )
+        await sleep(2500)
+        const { targetInfos } = await send('Target.getTargets')
+        const hit = targetInfos.find((t) =>
+          /^(chrome|opera|edge|vivaldi|brave):\/\/extensions\/shortcuts/u.test(t.url),
+        )
+        if (!hit)
+          throw new Error(
+            `لا تبويب لصفحة الاختصارات — ${targetInfos
+              .map((t) => t.url)
+              .filter((u) => !u.startsWith('http'))
+              .join(' · ')}`,
+          )
+        return `${clicked} ⇐ ${hit.url}`
+      })
+    }
+
     const page = await step('صفحة موقعٍ عاديّ (http)', async () => open(PAGE))
     if (page && popup) {
       const tabId = await step('معرّف التبويب', () =>

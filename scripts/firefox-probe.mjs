@@ -506,6 +506,15 @@ async function probeVariant() {
           `chrome.tabs.get(${tabId}).then((t) => chrome.tabs.captureVisibleTab(t.windowId, { format: 'png' })).then((u) => u.slice(0, 22) + '… ' + u.length + ' حرفًا')`,
         ),
       )
+      // «احفظ نسخة في مجلّد التنزيلات» (SS4): تُقلب في التخزين كما تكتبها صفحة الإعدادات، ثمّ يُقاس أن الالتقاط
+      // التالي يُنزِّل ملفًّا فعلًا — عنوان `blob:` بالقدرة لا `data:` الذي يرفضه Firefox.
+      await step('تفعيل «احفظ نسخة في مجلّد التنزيلات» (capture.saveLocation)', () =>
+        evaluate(
+          ff.send,
+          popup,
+          `chrome.storage.local.set({ 'rasd:settings': { capture: { saveLocation: 'library-and-downloads' } } }).then(() => 'كُتب')`,
+        ),
+      )
       await step('التقاط الجزء الظاهر كما تفعل النافذة (tool/activate viewport)', () =>
         evaluate(
           ff.send,
@@ -515,6 +524,18 @@ async function probeVariant() {
         ),
       )
       await sleep(4000)
+      await step('«احفظ نسخة في التنزيلات» تُنزِّل ملفًّا (blob: عبر downloadUrl)', async () => {
+        const found = await evaluate(
+          ff.send,
+          popup,
+          `chrome.downloads.search({}).then((d) => JSON.stringify(d.map((x) => ({ state: x.state, error: x.error ?? null, filename: x.filename, bytes: x.fileSize }))))`,
+        )
+        const list = JSON.parse(found ?? '[]')
+        const copy = list.find((d) => d.state === 'complete' && /\.png$/u.test(d.filename))
+        if (!copy) throw new Error(`لا تنزيلٌ مكتمل — ${found}`)
+        if (!existsSync(copy.filename)) throw new Error(`الملفّ غائب على القرص: ${copy.filename}`)
+        return `${copy.filename.split('/').slice(-2).join('/')} · ${copy.bytes} بايت`
+      })
       const latest = await step('آخر لقطة في المكتبة بعد الالتقاط', () =>
         evaluate(
           ff.send,
