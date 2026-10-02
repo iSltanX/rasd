@@ -117,6 +117,29 @@ describe('مخروط الأثر', () => {
     expect(coneOf(['src/ui/overlay/measure/Panel.tsx']).needed).toContain('verify:visual')
   })
 
+  it('حرّاس Firefox (SS7): حارسٌ عُدّل يلزمه هو، والنواة والمنسّق طقمها — ولا حارس كروم', () => {
+    expect(coneOf(['scripts/firefox/verify-load.mjs'])).toEqual({
+      needed: ['firefox:load'],
+      unmapped: 0,
+    })
+    for (const file of [
+      'scripts/lib/bidi.mjs',
+      'scripts/firefox-verify.mjs',
+      'scripts/firefox-ledger.mjs',
+    ]) {
+      expect(coneOf([file]), file).toEqual({ needed: ['verify:firefox'], unmapped: 0 })
+    }
+    // نقاط الفرق بين المتصفّحات يحرسها مستهلكاها في الطائفتين.
+    expect(coneOf(['src/shared/platform/capabilities.ts']).needed).toEqual([
+      'verify:popup',
+      'verify:export',
+      'firefox:popup',
+      'firefox:export',
+    ])
+    // ونواة كروم تبقى تطلب طقمها كاملًا — مدخل Firefox لا يبتلع `scripts/lib/`.
+    expect(coneOf(['scripts/lib/cdp.mjs']).unmapped).toBe(1)
+  })
+
   it('كل مدخلٍ مصفوفةٌ أو دالّة أو null صريح', () => {
     for (const entry of IMPACT as Array<{ scripts: unknown }>) {
       expect(

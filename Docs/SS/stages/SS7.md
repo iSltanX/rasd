@@ -1,7 +1,7 @@
 ---
 id: SS7
 title: نواة BiDi وحرّاس Firefox
-status: pending
+status: active
 delivery: none
 wave: C
 order: 1
