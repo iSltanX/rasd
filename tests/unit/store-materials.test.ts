@@ -17,6 +17,13 @@ import {
   REQUIRED_PERMISSIONS,
 } from '@/shared/permission-policy'
 
+import { buildManifest } from '../../manifest.config'
+// @ts-expect-error — سكربت أدوات بلا تعريفات أنواع؛ يُستورَد لثابته وحده.
+import { LINT_ALLOWED_WARNINGS as rawLintAllowed } from '../../scripts/lib/release-pack.mjs'
+
+/** التحذيرات التي يقبلها مدقّق AMO وعددها (`release-pack.mjs`). */
+const LINT_ALLOWED_WARNINGS = rawLintAllowed as Record<string, number>
+
 const root = process.cwd()
 const read = (p: string) => readFileSync(join(root, p), 'utf8')
 
@@ -72,6 +79,8 @@ interface Png {
   height: number
   /** قناة الشفافية لكل بكسل، أو `null` لصورةٍ بلا قناة. */
   alpha: Uint8Array | null
+  /** لون بكسلٍ واحد `[r, g, b]` (الإحداثيان من الزاوية العليا اليسرى). */
+  rgb(x: number, y: number): [number, number, number]
 }
 
 /** فكّ PNG بثمانية بتّات غير متداخل (RGB أو RGBA) — ما يكتبه Chrome. يكفي لقياس الأبعاد والشفافية. */
@@ -112,10 +121,14 @@ export function decodePng(bytes: Buffer): Png {
       out[y * stride + x] = (value + predictor) & 0xff
     }
   }
-  if (channels === 3) return { width, height, alpha: null }
+  const rgb = (x: number, y: number): [number, number, number] => {
+    const at = (y * width + x) * channels
+    return [out[at]!, out[at + 1]!, out[at + 2]!]
+  }
+  if (channels === 3) return { width, height, alpha: null, rgb }
   const alpha = new Uint8Array(width * height)
   for (let i = 0; i < alpha.length; i++) alpha[i] = out[i * 4 + 3]!
-  return { width, height, alpha }
+  return { width, height, alpha, rgb }
 }
 
 /** بكسلاتٌ غير شفّافة في حاشيةٍ بعرض `pad` حول الصورة (C6: العمل الفنّي 96 في 128، والحاشية 16 شفّافة). */
@@ -129,6 +142,130 @@ export function opaqueInPadding({ width, height, alpha }: Png, pad: number): num
     }
   }
   return n
+}
+
+// ── AMO وOpera (SS8) — حدودٌ مقروءةٌ من مصادرها يوم 2026-10-02 ───────
+
+/** ملخّص AMO (A1·A2): 250 حرفًا على الأكثر، سطرٌ واحد. */
+export function amoSummaryProblems(text: string): string[] {
+  const problems: string[] = []
+  const length = [...text].length
+  if (length === 0 || length > 250) problems.push(`الملخّص ${length} حرفًا — المسموح 1–250`)
+  if (/\n/u.test(text)) problems.push('الملخّص أكثر من سطر')
+  return problems
+}
+
+/** فئات AMO لإضافة (A5 — الواجهة البرمجية للفئات، type=extension). */
+const AMO_CATEGORIES = [
+  'Feeds, News & Blogging',
+  'Web Development',
+  'Download Management',
+  'Privacy & Security',
+  'Search Tools',
+  'Appearance',
+  'Bookmarks',
+  'Language Support',
+  'Photos, Music & Videos',
+  'Social & Communication',
+  'Alerts & Updates',
+  'Other',
+  'Tabs',
+  'Shopping',
+  'Games & Entertainment',
+]
+/** فئات Opera (O1). */
+const OPERA_CATEGORIES = [
+  'Accessibility',
+  'Appearance',
+  'Entertainment',
+  'Games',
+  'Music',
+  'News & Blogging',
+  'Pictures',
+  'Productivity',
+  'Reference',
+  'Shopping',
+  'Social',
+  'Travel',
+  'Weather',
+  'Web Development',
+]
+
+/** حتى `max` فئات، كلٌّ من القائمة الرسمية. */
+export function categoryProblems(
+  chosen: readonly string[],
+  allowed: readonly string[],
+  max: number,
+): string[] {
+  const problems: string[] = []
+  if (chosen.length === 0 || chosen.length > max)
+    problems.push(`${chosen.length} فئة — المسموح 1–${max}`)
+  for (const c of chosen) if (!allowed.includes(c)) problems.push(`«${c}» ليست فئة رسمية`)
+  return problems
+}
+
+/** النسخة عند Opera (O1): من عدد إلى أربعة أعداد بنقاط، بلا صفر بادئ. */
+export function operaVersionOk(version: string): boolean {
+  return /^(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*)){0,3}$/u.test(version)
+}
+
+/** لقطة Opera (O1): 612×408 المفضَّل وأقصاها 800×600، على أبيض في زواياها الأربع. */
+export function operaShotProblems(png: Png): string[] {
+  const problems: string[] = []
+  if (png.width !== 612 || png.height !== 408)
+    problems.push(`${png.width}×${png.height} — المفضَّل 612×408`)
+  if (png.width > 800 || png.height > 600) problems.push('فوق الأقصى 800×600')
+  const corners: [number, number][] = [
+    [0, 0],
+    [png.width - 1, 0],
+    [0, png.height - 1],
+    [png.width - 1, png.height - 1],
+  ]
+  if (corners.some(([x, y]) => png.rgb(x, y).some((v) => v !== 255)))
+    problems.push('الخلفية ليست بيضاء')
+  return problems
+}
+
+/** سطور الوصف الطويل (60 حرفًا فأكثر) التي تكرّرت حرفًا في وثيقةٍ أخرى — نسخةٌ تنحرف. */
+export function copiedLines(doc: string, longDescription: string): string[] {
+  const lines = new Set(longDescription.split('\n').filter((l) => [...l].length >= 60))
+  return doc.split('\n').filter((l) => lines.has(l))
+}
+
+/** صفوف جدول المفاتيح `| \`required\` | \`none\` |` — حقل البيان وقيمته. */
+export function dataCollectionRows(doc: string): { required: string[]; optional: string[] } {
+  const out = { required: [] as string[], optional: [] as string[] }
+  for (const [, key, value] of doc.matchAll(/^\| `(required|optional)` +\| `([^`]+)`/gmu)) {
+    out[key as 'required' | 'optional'].push(value!)
+  }
+  return out
+}
+
+/** ملاحظة المراجعين تذكر عدد تحذيرات `innerHTML` المقبولة كما في `LINT_ALLOWED_WARNINGS`. */
+export function noteWarningProblems(note: string, allowed: number): string[] {
+  const word = { 1: 'one', 2: 'two', 3: 'three' }[allowed as 1 | 2 | 3]
+  return note.includes(`exactly ${word} UNSAFE_VAR_ASSIGNMENT`)
+    ? []
+    : [`الملاحظة لا تذكر ${allowed} تحذيرات UNSAFE_VAR_ASSIGNMENT كما يقبل المدقّق`]
+}
+
+/** صفوف قائمة المراجعة التي تحيل إلى رمز مصدرٍ غير موجود في جدول المصادر. */
+export function unknownSources(section: string, known: readonly string[]): string[] {
+  const bad: string[] = []
+  for (const [, n, , source] of section.matchAll(/^\| (\d+) +\|([^|]*)\| ([^|]*?) +\|/gmu)) {
+    const codes = (source ?? '').match(/\b[AO]\d\b/gu) ?? []
+    for (const c of codes) if (!known.includes(c)) bad.push(`${n}: ${c}`)
+  }
+  return bad
+}
+
+/** قنوات النشر الأربع في `channels.md` — صفٌّ لكلٍّ بترتيبها. */
+export function channelRows(doc: string): string[] {
+  return [
+    ...doc.matchAll(
+      /^\| (Chrome Web Store|Microsoft Edge Add-ons|Firefox Add-ons \(AMO\)|Opera Add-ons) +\|/gmu,
+    ),
+  ].map((m) => m[1]!)
 }
 
 // ── الوثائق الحقيقية ─────────────────────────────────────────────
@@ -251,7 +388,13 @@ describe('مواد الإطلاق — بأبعاد المتجرين (C6 · C7 ·
     const expected = content.screens.flatMap((s, i) =>
       ['ar', 'en'].map((lang) => `${lang}-${String(i + 1).padStart(2, '0')}-${s.id}.png`),
     )
-    expect(readdirSync(join(LAUNCH, 'screens')).sort()).toEqual(expected.sort())
+    // لقطات Opera (612×408) في المجلّد نفسه بادئتها `opera-`، وتُقاس في اختبارها أدناه.
+    const opera = content.screens
+      .slice(0, 5)
+      .flatMap((s, i) =>
+        ['ar', 'en'].map((lang) => `opera-${lang}-${String(i + 1).padStart(2, '0')}-${s.id}.png`),
+      )
+    expect(readdirSync(join(LAUNCH, 'screens')).sort()).toEqual([...expected, ...opera].sort())
     for (const f of expected) expect([f, ...size(`screens/${f}`)]).toEqual([f, 1280, 800])
   })
 
@@ -312,16 +455,194 @@ describe('المتصفّحات المدعومة — من الاختبار لا �
   })
 })
 
+describe('Firefox Add-ons (AMO) — مواد القائمة (A1 · A2 · A4 · A5)', () => {
+  const doc = read('Docs/Store/firefox/listing.md')
+  const gecko = (
+    buildManifest('firefox') as unknown as {
+      browser_specific_settings: {
+        gecko: {
+          id: string
+          data_collection_permissions: { required: string[]; optional: string[] }
+        }
+      }
+    }
+  ).browser_specific_settings.gecko
+
+  for (const lang of ['ar', 'en']) {
+    it(`الملخّص ${lang}: حتى 250 حرفًا`, () => {
+      const text = fenced(doc, `summary-${lang}`)
+      expect(text).not.toBeNull()
+      expect(amoSummaryProblems(text!)).toEqual([])
+    })
+  }
+
+  it('سالب: ملخّص طويل ومتعدّد الأسطر يُرصد', () => {
+    expect(amoSummaryProblems('x'.repeat(251))).toEqual(['الملخّص 251 حرفًا — المسموح 1–250'])
+    expect(amoSummaryProblems('a\nb')).toEqual(['الملخّص أكثر من سطر'])
+    expect(amoSummaryProblems('')).toEqual(['الملخّص 0 حرفًا — المسموح 1–250'])
+  })
+
+  it('الفئتان من القائمة الرسمية، حتى اثنتين', () => {
+    const row = /^\| Firefox \(سطح المكتب\) +\| `([^`]+)` · `([^`]+)`/mu.exec(doc)
+    expect(row).not.toBeNull()
+    expect(categoryProblems([row![1]!, row![2]!], AMO_CATEGORIES, 2)).toEqual([])
+  })
+
+  it('سالب: ثلاث فئات وفئةٌ مختلقة تُرصدان', () => {
+    expect(categoryProblems(['Other', 'Tabs', 'Appearance'], AMO_CATEGORIES, 2)).toEqual([
+      '3 فئة — المسموح 1–2',
+    ])
+    expect(categoryProblems(['Developer Tools'], AMO_CATEGORIES, 2)).toEqual([
+      '«Developer Tools» ليست فئة رسمية',
+    ])
+  })
+
+  it('إفصاح البيانات في القائمة = ما في بيان Firefox', () => {
+    const rows = dataCollectionRows(doc)
+    expect(rows.required).toEqual(gecko.data_collection_permissions.required)
+    expect(rows.optional).toEqual(gecko.data_collection_permissions.optional)
+  })
+
+  it('سالب: فئة إفصاح زائدة في الوثيقة تنحرف عن البيان', () => {
+    const forged = `${doc}\n| \`optional\` | \`browsingActivity\` | x |\n`
+    expect(dataCollectionRows(forged).optional).not.toEqual(
+      gecko.data_collection_permissions.optional,
+    )
+  })
+
+  it('المعرّف في القائمة هو معرّف البيان', () => {
+    expect(doc).toContain(`\`${gecko.id}\``)
+  })
+
+  it('لا نسخة ثانية من الوصف الطويل — يحيل إلى listing.md', () => {
+    const long = `${fenced(listing, '## الوصف الطويل — العربية')}\n${fenced(listing, '## Long description — English')}`
+    expect(copiedLines(doc, long)).toEqual([])
+    expect(doc).toContain('../listing.md')
+  })
+
+  it('سالب: وثيقةٌ تنسخ سطرًا من الوصف تُرصد', () => {
+    const long = fenced(listing, '## Long description — English')!
+    const line = long.split('\n').find((l) => [...l].length >= 60)!
+    expect(copiedLines(`x\n${line}\ny`, long)).toEqual([line])
+  })
+
+  it('ملاحظات المراجعين: المصدر والتحذيران المقبولان كما يقبلهما المدقّق', () => {
+    const note = fenced(doc, 'reviewer-notes')
+    expect(note).not.toBeNull()
+    expect(note).toContain('rasd-<version>-source.zip')
+    expect(note).toContain('pnpm-lock.yaml')
+    expect(noteWarningProblems(note!, LINT_ALLOWED_WARNINGS['UNSAFE_VAR_ASSIGNMENT']!)).toEqual([])
+  })
+
+  it('سالب: عدد تحذيراتٍ لا يطابق المدقّق يُرصد', () => {
+    expect(noteWarningProblems('exactly two UNSAFE_VAR_ASSIGNMENT', 3)).toHaveLength(1)
+  })
+
+  it('أيقونة AMO 64×64 تملأ مربّعها؛ وأيقونة 128 للمتجر ليست هي (سالب)', () => {
+    const icon = decodePng(readFileSync(join(root, 'Docs', 'Launch', 'icons', 'amo-icon-64.png')))
+    expect([icon.width, icon.height]).toEqual([64, 64])
+    expect(opaqueInPadding(icon, 4)).toBeGreaterThan(0)
+    const store = decodePng(
+      readFileSync(join(root, 'Docs', 'Launch', 'icons', 'store-icon-128.png')),
+    )
+    expect([store.width, store.height]).not.toEqual([64, 64])
+  })
+})
+
+describe('Opera Add-ons — مواد القائمة (O1 · O2)', () => {
+  const doc = read('Docs/Store/opera/listing.md')
+  const LAUNCH = join(root, 'Docs', 'Launch', 'screens')
+  const shots = readdirSync(LAUNCH).filter((f) => f.startsWith('opera-'))
+
+  it('الفئة Web Development من القائمة الرسمية', () => {
+    const row = /^\| الفئة +\| `([^`]+)`/mu.exec(doc)
+    expect(row).not.toBeNull()
+    expect(categoryProblems([row![1]!], OPERA_CATEGORIES, 1)).toEqual([])
+  })
+
+  it('سالب: فئةٌ من فئات AMO لا تُقبل عند Opera', () => {
+    expect(categoryProblems(['Developer Tools'], OPERA_CATEGORIES, 1)).toEqual([
+      '«Developer Tools» ليست فئة رسمية',
+    ])
+  })
+
+  it('النسخة الحالية تصلح عند Opera؛ وبصفر بادئ أو خمسة أعداد (سالب) لا', () => {
+    const { version } = JSON.parse(read('package.json')) as { version: string }
+    expect(operaVersionOk(version)).toBe(true)
+    expect(operaVersionOk('01.2')).toBe(false)
+    expect(operaVersionOk('1.2.3.4.5')).toBe(false)
+    expect(operaVersionOk('1.0.0.0')).toBe(true)
+  })
+
+  it('خمس لقطات لكل لغة، كلٌّ 612×408 على أبيض', () => {
+    expect(shots).toHaveLength(10)
+    for (const f of shots) {
+      expect([f, ...operaShotProblems(decodePng(readFileSync(join(LAUNCH, f))))]).toEqual([f])
+    }
+  })
+
+  it('سالب: لقطة Chrome 1280×800 الداكنة تسقط على الأبعاد والخلفية والأقصى', () => {
+    const chrome = decodePng(readFileSync(join(LAUNCH, 'ar-01-inspect.png')))
+    expect(operaShotProblems(chrome)).toEqual([
+      '1280×800 — المفضَّل 612×408',
+      'فوق الأقصى 800×600',
+      'الخلفية ليست بيضاء',
+    ])
+  })
+
+  it('لا نسخة ثانية من الوصف الطويل — يحيل إلى listing.md', () => {
+    const long = `${fenced(listing, '## الوصف الطويل — العربية')}\n${fenced(listing, '## Long description — English')}`
+    expect(copiedLines(doc, long)).toEqual([])
+    expect(doc).toContain('../listing.md')
+  })
+
+  it('قرار المتجر وEULA مكتوبان كما هما: لا تقديم ولا نصٌّ قانوني بلا المالك', () => {
+    expect(doc).toContain('CC BY-NC-ND 4.0')
+    expect(doc).toContain('⏳ المالك')
+    expect(doc).toContain('بلا تقديم')
+  })
+})
+
+describe('سجلّ القنوات', () => {
+  const channels = read('Docs/Release/channels.md')
+
+  it('صفٌّ لكل قناة من الأربع بترتيبها', () => {
+    expect(channelRows(channels)).toEqual([
+      'Chrome Web Store',
+      'Microsoft Edge Add-ons',
+      'Firefox Add-ons (AMO)',
+      'Opera Add-ons',
+    ])
+  })
+
+  it('سالب: جدولٌ ينقصه صفّ Opera يُرصد', () => {
+    expect(channelRows(channels.replace(/^\| Opera Add-ons.*$/mu, ''))).toHaveLength(3)
+  })
+})
+
 describe('قائمة المراجعة', () => {
   const checklist = read('Docs/Store/checklist.md')
 
-  it('المصادر قُرئت بتاريخٍ مكتوب، وكل بندٍ بحالةٍ من الثلاث', () => {
+  it('المصادر قُرئت بتاريخٍ مكتوب، وكل بندٍ بحالةٍ من الأربع', () => {
     expect(checklist).toMatch(/قُرئت 2026-\d\d-\d\d/u)
     const rows = [...checklist.matchAll(/^\| (\d+) +\|(.*)$/gmu)]
-    expect(rows.length).toBeGreaterThanOrEqual(40)
+    expect(rows.length).toBeGreaterThanOrEqual(70)
     const bad = rows.filter(
-      ([, , rest]) => !/\| (?:✓|⏳ المالك|⏳ 30|✓ · ⏳ المالك) +\|/u.test(rest!),
+      ([, , rest]) => !/\| (?:✓|⏳ المالك|⏳ 30|⏳ 10|✓ · ⏳ المالك) +\|/u.test(rest!),
     )
     expect(bad.map(([, n]) => n)).toEqual([])
+  })
+
+  it('قسما AMO وOpera: كل بندٍ يحيل إلى مصدرٍ مقروء في جدول المصادر', () => {
+    const section = checklist.slice(checklist.indexOf('# Firefox Add-ons (AMO) وOpera Add-ons'))
+    const known = [...section.matchAll(/^\| ([AO]\d) +\|/gmu)].map((m) => m[1]!)
+    expect(known).toEqual(['A1', 'A2', 'A3', 'A4', 'A5', 'O1', 'O2', 'O3'])
+    expect(unknownSources(section, known)).toEqual([])
+    expect([...section.matchAll(/^\| (\d+) +\|/gmu)]).toHaveLength(29)
+  })
+
+  it('سالب: بندٌ يحيل إلى مصدرٍ غير مقروء يُرصد', () => {
+    const forged = '| 80 | بند | A9 | ✓ | x |\n'
+    expect(unknownSources(forged, ['A1'])).toEqual(['80: A9'])
   })
 })

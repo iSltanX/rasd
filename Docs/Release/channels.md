@@ -13,5 +13,10 @@
 
 لا قناة منشورة بعد. النشر لكل متجر بيد المالك وحده (`AGENTS.md` §7)، ويُملأ السطر بعد الرفع لا قبله.
 
+**مواد القنوات الأربع جاهزة ولم تُقدَّم** (SS8): Chrome وEdge في [`Docs/Store/listing.md`](../Store/listing.md)، وFirefox في
+[`Docs/Store/firefox/listing.md`](../Store/firefox/listing.md)، وOpera في [`Docs/Store/opera/listing.md`](../Store/opera/listing.md) —
+وقناة Opera **بقرار المالك** (إن لم تُفتح يثبّت مستخدموها من Chrome Web Store)، وقائمتها بنودٌ في
+[`Docs/Store/checklist.md`](../Store/checklist.md) (الصفوف 51–79). فصفّ Opera أعلاه يبقى بلا نسخة إلى أن يُقرَّر المتجر.
+
 **قاعدة النسخ:** المتاجر تشترط أن تعلو النسخة على سابقتها **في المتجر نفسه**، لا على سابقتها عندنا — فإصلاحٌ يخصّ Firefox
 (`1.0.1`) يُرفع إلى AMO وحده وتبقى بقيّة القنوات على `1.0.0` حتى `1.1.0`. ولا رقم رابع ولا لاحقة لتمييز هدف.

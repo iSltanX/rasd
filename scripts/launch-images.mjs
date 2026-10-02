@@ -17,6 +17,10 @@
  * (`Docs/Brand/svg/rasd-icon-idle.svg`)، ومنه شعار Edge (300). والترويجيتان (440×280 و1400×560) من الهوية: الإرشاد
  * أن تحمل العلامة لا أن تكرّر لقطة. وصور README بكثافة 2× لتبقى حادّة على الشاشات الكثيفة.
  *
+ * **لقطات Opera (612×408) وأيقونة AMO (64)** (`opera-*` و`amo-icon-64`): من اللقطات الحيّة نفسها، بخلفية بيضاء كما تشترط
+ * إرشادات نشر Opera. وتُولَّد وحدها بـ`pnpm launch:images --only=opera,amo` فلا تُمسّ بقيّة الصور (إطلاق كروم آخر قد يغيّر
+ * بايتات ما لم يتغيّر). الفئات: `screens` `promo` `icons` `readme` `opera` `amo`.
+ *
  * إطلاقٌ واحد لكروم لكل الصور (`Docs/Brand` — الإطلاق لكل صورة يعلّق). منفذه 9396، ليس من منافذ الحرّاس.
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -88,6 +92,24 @@ function screenHtml(shot, [title, sub], lang, index) {
      .shot img { position: absolute; left: 0; top: 0; width: ${1440 * scale}px; height: ${900 * scale}px; }`,
     `<header>${symbol(44)}<div><h1>${title}</h1><p>${sub}</p></div><span class="n">${String(index).padStart(2, '0')}</span></header>
      <div class="shot"><img src="${shotUrl(shot)}" alt=""></div>`,
+  )
+}
+
+// ── لقطات Opera — 612×408 على أبيض ──────────────────────────────
+/** إرشادات النشر: «الخلفية بيضاء» و612×408 المفضَّل (الأقصى 800×600). اللقطة الحيّة نفسها مصغَّرةً بنسبتها (1.6) في وسط اللوحة. */
+function operaHtml(shot, [title], lang) {
+  const width = 540
+  const height = (width * 900) / 1440
+  return page(
+    lang,
+    612,
+    408,
+    `body { background: #ffffff; display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 14px; }
+     h1 { font: 800 19px/1.3 Almarai, sans-serif; color: ${INK_975}; }
+     .shot { width: ${width}px; height: ${height}px; border-radius: 8px; overflow: hidden; border: 1px solid ${INK_300};
+       box-shadow: 0 6px 18px rgba(7,11,13,.16); }
+     .shot img { display: block; width: ${width}px; height: ${height}px; }`,
+    `<h1>${title}</h1><div class="shot"><img src="${shotUrl(shot)}" alt=""></div>`,
   )
 }
 
@@ -190,16 +212,16 @@ function browsersHtml(lang) {
     lang,
     1200,
     300,
-    `body { padding: 36px 56px; display: flex; flex-direction: column; gap: 22px; background: ${INK_1000}; }
+    `body { padding: 24px 40px; display: flex; flex-direction: column; gap: 16px; background: ${INK_1000}; }
      header { display: flex; align-items: baseline; gap: 16px; }
      h2 { font: 800 30px/1.2 Almarai, sans-serif; color: ${INK_50}; }
      header p { font: 400 17px/1.4 Cairo, sans-serif; color: ${INK_500}; }
      ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(${supported.length}, 1fr); gap: 14px; }
-     li { background: ${INK_975}; border: 1px solid ${INK_900}; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+     li { background: ${INK_975}; border: 1px solid ${INK_900}; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
      li b { font: 800 24px/1.1 Almarai, sans-serif; color: ${INK_50}; }
      li small { font: 400 13px/1.45 'Geist Mono', monospace; color: ${INK_500}; }
      li em { font: 700 13px/1 Almarai, sans-serif; font-style: normal; color: ${SIGNAL_300}; }
-     li i { font: 400 12px/1.45 Cairo, sans-serif; font-style: normal; color: ${INK_300}; border-top: 1px solid ${INK_900}; padding-top: 7px; margin-top: 1px; }`,
+     li i { font: 400 11.5px/1.4 Cairo, sans-serif; font-style: normal; color: ${INK_300}; border-top: 1px solid ${INK_900}; padding-top: 6px; margin-top: 1px; }`,
     `<header><h2>${t.title}</h2><p>${t.note}</p></header><ul>${chips}</ul>`,
   )
 }
@@ -219,30 +241,108 @@ if (!chrome) {
   process.exit(1)
 }
 
-const jobs = [
+/** عدد لقطات Opera لكل لغة — الإرشادات تقترح لقطتين، وهذه الخمس بترتيب الرفع. */
+const OPERA_SHOTS = 5
+
+const allJobs = [
   ...content.screens.flatMap((s, i) =>
     ['ar', 'en'].map((lang) => ({
+      group: 'screens',
       out: `screens/${lang}-${String(i + 1).padStart(2, '0')}-${s.id}.png`,
       w: 1280,
       h: 800,
       html: screenHtml(s.shot, s[lang], lang, i + 1),
     })),
   ),
-  { out: 'promo/promo-small-440x280.png', w: 440, h: 280, html: promoSmall },
-  { out: 'promo/promo-marquee-1400x560.png', w: 1400, h: 560, html: promoMarquee },
-  { out: 'icons/store-icon-128.png', w: 128, h: 128, html: icon(128, 96), transparent: true },
-  { out: 'icons/edge-logo-300.png', w: 300, h: 300, html: icon(300, 300), transparent: true },
-  { out: 'readme/hero-ar.png', w: 1200, h: 600, dpr: 2, html: heroHtml('ar', 1200, 600) },
-  { out: 'readme/hero-en.png', w: 1200, h: 600, dpr: 2, html: heroHtml('en', 1200, 600) },
+  ...content.screens.slice(0, OPERA_SHOTS).flatMap((s, i) =>
+    ['ar', 'en'].map((lang) => ({
+      group: 'opera',
+      out: `screens/opera-${lang}-${String(i + 1).padStart(2, '0')}-${s.id}.png`,
+      w: 612,
+      h: 408,
+      html: operaHtml(s.shot, s[lang], lang),
+    })),
+  ),
+  { group: 'promo', out: 'promo/promo-small-440x280.png', w: 440, h: 280, html: promoSmall },
+  { group: 'promo', out: 'promo/promo-marquee-1400x560.png', w: 1400, h: 560, html: promoMarquee },
   {
+    group: 'icons',
+    out: 'icons/store-icon-128.png',
+    w: 128,
+    h: 128,
+    html: icon(128, 96),
+    transparent: true,
+  },
+  {
+    group: 'icons',
+    out: 'icons/edge-logo-300.png',
+    w: 300,
+    h: 300,
+    html: icon(300, 300),
+    transparent: true,
+  },
+  // AMO: أيقونة 64 تملأ مربّعها كأيقونة الشريط (لا حاشية الـ128 لمتجر Chrome)
+  {
+    group: 'amo',
+    out: 'icons/amo-icon-64.png',
+    w: 64,
+    h: 64,
+    html: icon(64, 64),
+    transparent: true,
+  },
+  {
+    group: 'readme',
+    out: 'readme/hero-ar.png',
+    w: 1200,
+    h: 600,
+    dpr: 2,
+    html: heroHtml('ar', 1200, 600),
+  },
+  {
+    group: 'readme',
+    out: 'readme/hero-en.png',
+    w: 1200,
+    h: 600,
+    dpr: 2,
+    html: heroHtml('en', 1200, 600),
+  },
+  {
+    group: 'readme',
     out: 'readme/social-preview.png',
     w: 1280,
     h: 640,
     html: heroHtml('ar', 1280, 640, { compact: true }),
   },
-  { out: 'readme/browsers-ar.png', w: 1200, h: 300, dpr: 2, html: browsersHtml('ar') },
-  { out: 'readme/browsers-en.png', w: 1200, h: 300, dpr: 2, html: browsersHtml('en') },
+  {
+    group: 'readme',
+    out: 'readme/browsers-ar.png',
+    w: 1200,
+    h: 300,
+    dpr: 2,
+    html: browsersHtml('ar'),
+  },
+  {
+    group: 'readme',
+    out: 'readme/browsers-en.png',
+    w: 1200,
+    h: 300,
+    dpr: 2,
+    html: browsersHtml('en'),
+  },
 ]
+
+// `--only=opera,amo` يولّد فئاتٍ بعينها؛ وبلا الخيار كل الصور كما كان.
+const only = process.argv
+  .find((a) => a.startsWith('--only='))
+  ?.slice('--only='.length)
+  .split(',')
+const groups = new Set(allJobs.map((j) => j.group))
+const unknownGroups = (only ?? []).filter((g) => !groups.has(g))
+if (unknownGroups.length > 0) {
+  console.error(`✗ فئة مجهولة: ${unknownGroups.join('، ')} — المتاحة: ${[...groups].join(' ')}`)
+  process.exit(1)
+}
+const jobs = only ? allJobs.filter((j) => only.includes(j.group)) : allJobs
 
 const work = mkdtempSync(join(tmpdir(), 'rasd-launch-images-'))
 const run = launchChrome({
