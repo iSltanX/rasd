@@ -37,8 +37,9 @@ import {
   type ReportPayload,
 } from '@/modules/report/payload'
 import {
-  hasHostPermission,
-  requestHostPermission,
+  hasWithConsent,
+  requestWithConsent,
+  type ConsentRequest,
   type PermissionOutcome,
 } from '@/shared/permissions'
 import { getSettingsResult } from '@/shared/settings'
@@ -76,14 +77,25 @@ export interface ReportDeps {
   readonly bakeWorking: typeof bakeWorking
   /** «الوضع المحلّي فقط» الآن، أو `null` حين تتعذّر القراءة (والمخرج يرفض حينها بسببه). */
   readonly localOnly: () => Promise<boolean | null>
-  readonly hostGranted: () => Promise<boolean>
-  /** يُنادى **متزامنًا** داخل نقرة «أرسل» — الطلب يرمي خارج سلسلة الإيماءة. */
-  readonly requestHost: () => Promise<PermissionOutcome>
+  /** أصل القناة **وموافقة جمع البيانات** ممنوحان؟ — `withImage`: الصورة مرفقة فتلزم موافقتها. تخبؤ دعم الموافقة قبل النقرة. */
+  readonly hostGranted: (withImage: boolean) => Promise<boolean>
+  /** يُنادى **متزامنًا** داخل نقرة «أرسل» — الطلب يرمي خارج سلسلة الإيماءة. أصلٌ مع موافقته في نداءٍ واحد. */
+  readonly requestHost: (withImage: boolean) => Promise<PermissionOutcome>
   readonly copy: (text: string) => Promise<boolean>
   readonly newId: () => string
   readonly now: () => number
   /** بناءٌ تجريبي يرسل `test: true` (`VITE_RASD_REPORT_TEST=1`). */
   readonly test: boolean
+}
+
+/** ما يلزم البلاغ: أصل القناة، والتشخيص دائمًا، والصورة حين تُرفق — لا موافقةَ على ما لا يُرسَل. */
+function reportAccess(withImage: boolean): ConsentRequest {
+  return {
+    origins: [REPORTS_HOST_PATTERN],
+    dataCollection: withImage
+      ? ['technicalAndInteraction', 'websiteContent']
+      : ['technicalAndInteraction'],
+  }
 }
 
 const LIVE: ReportDeps = {
@@ -103,8 +115,8 @@ const LIVE: ReportDeps = {
     const settings = await getSettingsResult()
     return settings.ok ? settings.value.privacy.localOnly : null
   },
-  hostGranted: () => hasHostPermission(REPORTS_HOST_PATTERN),
-  requestHost: () => requestHostPermission([REPORTS_HOST_PATTERN]),
+  hostGranted: (withImage) => hasWithConsent(reportAccess(withImage)),
+  requestHost: (withImage) => requestWithConsent(reportAccess(withImage)),
   copy: async (text) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -400,7 +412,7 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
     }
     inFlight.current = true
     if (!granted) {
-      void deps.requestHost().then((outcome) => {
+      void deps.requestHost(baked !== null).then((outcome) => {
         if (outcome === 'granted') {
           setGranted(true)
           void doSend(payload)
@@ -427,7 +439,7 @@ export function ReportDialog(props: ReportDialogProps): JSX.Element {
     }
     const [mode, host] = await Promise.all([
       deps.localOnly().catch(() => null),
-      deps.hostGranted().catch(() => false),
+      deps.hostGranted(out !== null).catch(() => false),
     ])
     setLocalOnly(mode)
     setGranted(host)

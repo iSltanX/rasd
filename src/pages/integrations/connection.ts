@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from 'preact/hooks'
 
 import { NETWORK_SERVICES } from '@/shared/permission-policy'
-import { hasHostPermission, watchPermissions } from '@/shared/permissions'
+import { hasHostPermission, watchPermissions, type ConsentRequest } from '@/shared/permissions'
 import { getSettingsResult, watchSettings } from '@/shared/settings'
 import { hasSecret, readSecret } from '@/shared/storage/vault'
 
@@ -35,6 +35,12 @@ const GITHUB = NETWORK_SERVICES.find((service) => service.id === 'github')
 
 /** نمط صلاحية المضيف الذي يُطلب من «اتّصل». */
 export const GITHUB_HOST_PATTERN: string = GITHUB?.hostPattern ?? ''
+
+/** ما يلزم «اتّصل»: أصل GitHub، وموافقة `websiteContent` حين يعرفها المتصفّح — نداءٌ واحد داخل النقرة. */
+export const GITHUB_ACCESS: ConsentRequest = {
+  origins: [GITHUB_HOST_PATTERN],
+  dataCollection: ['websiteContent'],
+}
 
 export async function readConnection(): Promise<Connection> {
   const [settings, prefs, stored] = await Promise.all([
