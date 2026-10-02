@@ -1,0 +1,108 @@
+# جولتا CI اليدويتان — SS9 (2026-10-02)
+
+## 37017912970 على f67371b — failure
+failure	Firefox حقيقي · حرّاس BiDi
+failure	فحوص ساكنة · typecheck · lint · test · coverage
+failure	كروم حقيقي · verify:accessibility
+failure	كروم حقيقي · verify:capture
+failure	كروم حقيقي · verify:colour
+failure	كروم حقيقي · verify:compare
+failure	كروم حقيقي · verify:inspect
+failure	كروم حقيقي · verify:library
+failure	كروم حقيقي · verify:measure
+failure	كروم حقيقي · verify:overlay
+failure	كروم حقيقي · verify:palette
+skipped	توثيق فقط · فحوص ساكنة
+success	بناء الحزمة المشتركة
+success	تصنيف التغيير
+success	كروم حقيقي · verify:activate
+success	كروم حقيقي · verify:capturing
+success	كروم حقيقي · verify:compare-diff
+success	كروم حقيقي · verify:editor
+success	كروم حقيقي · verify:export
+success	كروم حقيقي · verify:fullpage
+success	كروم حقيقي · verify:gate
+success	كروم حقيقي · verify:issues
+success	كروم حقيقي · verify:lifecycle
+success	كروم حقيقي · verify:lighthouse
+success	كروم حقيقي · verify:load
+success	كروم حقيقي · verify:memory
+success	كروم حقيقي · verify:network
+success	كروم حقيقي · verify:picker
+success	كروم حقيقي · verify:popup
+success	كروم حقيقي · verify:share
+success	كروم حقيقي · verify:visual
+success	مسارات E2E · الكثافتان 1 و2
+
+السبب في «فحوص ساكنة» (حاجبة): tests/unit/store-materials.test.ts — «Test timed out in 5000ms» (فكّ 16 صورة 1280×800 تحت التغطية: 2.2s محلّيًّا). أُصلح بمهلة 30ث في 68993de.
+
+## 37019661267 على 68993de — success (الوظائف الحاجبة خضراء)
+failure	Firefox حقيقي · حرّاس BiDi
+failure	كروم حقيقي · verify:accessibility
+failure	كروم حقيقي · verify:capture
+failure	كروم حقيقي · verify:compare-diff
+failure	كروم حقيقي · verify:fullpage
+failure	كروم حقيقي · verify:issues
+failure	كروم حقيقي · verify:picker
+failure	كروم حقيقي · verify:popup
+failure	كروم حقيقي · verify:share
+skipped	توثيق فقط · فحوص ساكنة
+success	بناء الحزمة المشتركة
+success	تصنيف التغيير
+success	فحوص ساكنة · typecheck · lint · test · coverage
+success	كروم حقيقي · verify:activate
+success	كروم حقيقي · verify:capturing
+success	كروم حقيقي · verify:colour
+success	كروم حقيقي · verify:compare
+success	كروم حقيقي · verify:editor
+success	كروم حقيقي · verify:export
+success	كروم حقيقي · verify:gate
+success	كروم حقيقي · verify:inspect
+success	كروم حقيقي · verify:library
+success	كروم حقيقي · verify:lifecycle
+success	كروم حقيقي · verify:lighthouse
+success	كروم حقيقي · verify:load
+success	كروم حقيقي · verify:measure
+success	كروم حقيقي · verify:memory
+success	كروم حقيقي · verify:network
+success	كروم حقيقي · verify:overlay
+success	كروم حقيقي · verify:palette
+success	كروم حقيقي · verify:visual
+success	مسارات E2E · الكثافتان 1 و2
+
+## ما سقط في الحرّاس غير الحاجبة في الجولة الثانية (عَرَضها)
+Firefox حقيقي · حرّاس BiDi |   ✗ زمن أوّل عرض تجاوز 100ms — المتوسّط 138.0ms عبر 5 محاولات (213ms · 153ms · 117ms · 106ms · 101ms)
+Firefox حقيقي · حرّاس BiDi | ✗ فشل الفحص — 1 مشكلة.
+كروم حقيقي · verify:accessibility | ✗ تجاوز الفحص الحدّ الأقصى 330 ثانية — علّق بعد آخر سطر أعلاه.
+كروم حقيقي · verify:fullpage |   ✗ فشل الالتقاط: timeout — انتهت المهلة قبل وصول الردّ.
+كروم حقيقي · verify:fullpage |   ✗ الموضع لم يُستعد: 1200 بدل 0
+كروم حقيقي · verify:fullpage | ✗ فشل الفحص — 2 مشكلة.
+كروم حقيقي · verify:issues | ✗ تجاوز الفحص الحدّ الأقصى 300 ثانية — علّق بعد آخر سطر أعلاه.
+كروم حقيقي · verify:capture |   ✗ الالتقاط فشل: انتقل التبويب إلى الخلفية. اعرضه ثم أعد المحاولة.
+كروم حقيقي · verify:capture |   ✗ نجح 0/6 فقط · 0 منها بخطأ تجاوز الحدّ · 70ms
+كروم حقيقي · verify:capture |   ✗ ستّة نداءات في 70ms فقط — المُنظِّم لم يعمل
+كروم حقيقي · verify:capture | ✗ فشل الفحص — 3 مشكلة.
+كروم حقيقي · verify:compare-diff |   ✗ تعذّر زرع اللقطتين: SecurityError: Failed to execute 'databases' on 'IDBFactory': Access to the IndexedDB API is denied in this context.
+كروم حقيقي · verify:compare-diff |   ✗ لم يقع حسابٌ على بكسلات فعلية — بقي العدّ «من 0» حتى المهلة
+كروم حقيقي · verify:compare-diff | ✗ 2 إخفاق.
+كروم حقيقي · verify:popup |   ✗ زمن أول عرض تجاوز 100ms — المتوسّط 112.7ms عبر 5 محاولات (148.4ms · 127.2ms · 114.3ms · 88.4ms · 85.0ms)
+كروم حقيقي · verify:popup | ✗ فشل الفحص — 1 مشكلة.
+كروم حقيقي · verify:share |   ✗ الحافظة: {"types":[]}
+كروم حقيقي · verify:share | ✗ فشل الفحص — 1 مشكلة.
+كروم حقيقي · verify:picker | ✗ تجاوز الفحص الحدّ الأقصى 300 ثانية — علّق بعد آخر سطر أعلاه.
+
+## الحرّاس الخمسة المعنيّة بالصفّ 150 عبر آخر 20 جولة تُحكم فيها (حكم الوظيفة لا الجولة)
+20 rounds with the five guards judged
+popup 7/20 green streak from latest: 0
+compare 14/20 green streak from latest: 1
+library 19/20 green streak from latest: 1
+measure 13/20 green streak from latest: 1
+picker 12/20 green streak from latest: 0
+37019661267 10-02T14:24 68993de popup=✗ compare=✓ library=✓ measure=✓ picker=✗
+37017912970 10-02T14:09 f67371b popup=✓ compare=✗ library=✗ measure=✗ picker=✓
+37001717139 10-02T11:34 b0b3ece popup=✓ compare=✗ library=✓ measure=✗ picker=✗
+36999335859 10-02T11:08 d63f356 popup=✓ compare=✓ library=✓ measure=✓ picker=✓
+36996275334 10-02T10:35 f1617ca popup=✗ compare=✗ library=✓ measure=✓ picker=✓
+36994466099 10-02T10:15 bbbdaa1 popup=✓ compare=✗ library=✓ measure=✓ picker=✗
+36982427638 10-02T08:09 b6a78fd popup=✗ compare=✓ library=✓ measure=✓ picker=✓
+36969274768 10-02T05:30 77e53de popup=✓ compare=✓ library=✓ measure=✗ picker=✓
