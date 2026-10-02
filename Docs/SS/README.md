@@ -35,7 +35,7 @@
 | [SS1](stages/SS1.md) | أساس الهدفين — chromium وfirefox من مصدر واحد | A | — | S | Sonnet 5.5 | `main` | مكتملة | مدمجة في main | `071cd77` |
 | [SS2](stages/SS2.md) | هوية المتصفّح في البلاغ | B | SS1 | S | Sonnet 5.5 | `ss/2-browser-identity` | لم تبدأ | — | — |
 | [SS3](stages/SS3.md) | حزم القنوات وحزمة المصدر وسير الإصدار | B | SS1 | S | Sonnet 5.5 | `ss/3-channel-packages` | لم تبدأ | — | — |
-| [SS4](stages/SS4.md) | نقاط الفرق بالكشف عن القدرة | B | SS1 | M | Sonnet 5.5 | `ss/4-capabilities` | نشطة | — | — |
+| [SS4](stages/SS4.md) | نقاط الفرق بالكشف عن القدرة | B | SS1 | M | Sonnet 5.5 | `ss/4-capabilities` | نشطة | منشورة على فرع | `81affe0` |
 | [SS5](stages/SS5.md) | Brave — قراءة البكسل بلا تمويه | B | — | S | Sonnet 5.5 | `ss/5-brave-pixels` | لم تبدأ | — | — |
 | [SS7](stages/SS7.md) | نواة BiDi وحرّاس Firefox | C | SS3 · SS4 | L | Opus 5.5 | `ss/7-firefox-guards` | لم تبدأ | — | — |
 | [SS6](stages/SS6.md) | الأذونات والإرسال في Firefox | C | SS2 · SS4 | M | Sonnet 5.5 | `ss/6-firefox-permissions` | لم تبدأ | — | — |
