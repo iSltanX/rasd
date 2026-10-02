@@ -1,0 +1,39 @@
+$ node scripts/store-package.mjs --browser=chrome,edge,brave
+
+حزمة المتجر: rasd-0.1.0.zip · SHA-256 5258f7e33350…
+
+Chrome:
+  المتصفّح: Chrome/154.0.8037.93
+  ✓ قبِل الحزمة — المعرّف flbfffmmdmhacmhphpbfdflbobdnhpjo
+  ✓ ‏‫رصد‬‏ 0.1.0 · الحالة ENABLED
+  ✓ النسخة 0.1.0 تطابق package.json
+  ✓ تحذيرات التثبيت: صفر
+  ✓ أخطاء البيان: صفر
+  ✓ أخطاء التشغيل: صفر
+  ✓ الاختصارات الأربعة مُسنَدة: area=⇧⌘T · element=⇧⌘E · full-page=⇧⌘S · viewport=⇧⌘V
+  ✓ تحذيرات الطرفية: صفر
+
+Edge:
+  المتصفّح: Edg/154.0.4258.53
+  ✓ قبِل الحزمة — المعرّف flbfffmmdmhacmhphpbfdflbobdnhpjo
+  ✓ ‏‫رصد‬‏ 0.1.0 · الحالة ENABLED
+  ✓ النسخة 0.1.0 تطابق package.json
+  ✓ تحذيرات التثبيت: صفر
+  ✓ أخطاء البيان: صفر
+  ✓ أخطاء التشغيل: صفر
+  ✓ الاختصارات الأربعة مُسنَدة: area=⇧⌘T · element=⇧⌘E · full-page=⇧⌘S · viewport=⇧⌘V
+  ✓ تحذيرات الطرفية: صفر
+
+Brave:
+  المتصفّح: Chrome/154.0.8037.93
+  ✓ قبِل الحزمة — المعرّف flbfffmmdmhacmhphpbfdflbobdnhpjo
+  ✓ ‏‫رصد‬‏ 0.1.0 · الحالة ENABLED
+  ✓ النسخة 0.1.0 تطابق package.json
+  ✓ تحذيرات التثبيت: صفر
+  ✓ أخطاء البيان: صفر
+  ✓ أخطاء التشغيل: صفر
+  ✓ الاختصارات الأربعة مُسنَدة: area=⇧⌘T · element=⇧⌘E · full-page=⇧⌘S · viewport=⇧⌘V
+  ✓ تحذيرات الطرفية: صفر
+
+✓ الحزمة المفكوكة تُحمَّل بلا تحذير ولا خطأ.
+

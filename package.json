@@ -99,6 +99,7 @@
     "zip:all": "node scripts/zip.mjs --target all",
     "launch:images": "node scripts/launch-images.mjs",
     "store:package": "node scripts/store-package.mjs",
+    "release:upgrade": "node scripts/release-upgrade.mjs",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run tokens:check && pnpm run verify:tokens && pnpm run test:coverage"
   },
   "dependencies": {

@@ -1,0 +1,26 @@
+── بوّابة الموجة: حرّاس كروم ──
+  ✓ activate       19s
+  ✓ capture        7s
+  ✓ capturing      4s
+  ✓ colour         6s
+  ✓ compare        11s
+  ✓ compare-diff   16s
+  ✓ editor         20s
+  ✓ export         6s
+  ✓ fullpage       29s
+  ✓ gate           5s
+  ✓ inspect        6s
+  ✓ issues         4s
+  ✓ library        14s
+  ✓ lifecycle      48s
+  ✓ load           3s
+  ✓ measure        3s
+  ✗ network        43s
+  ✓ overlay        23s
+  ✓ palette        10s
+  ✓ picker         5s
+  ✓ popup          3s
+  ✓ share          7s
+  22 حارسًا في 5.6 دقيقة · أخضر 21
+  ✗ network سقط مرّتين:
+✗ بوّابة الموجة: 1 حارسًا أحمر — network

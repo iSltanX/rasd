@@ -1,0 +1,15 @@
+$ node scripts/store-package.mjs --browser=firefox
+
+حزمة Firefox: rasd-0.1.0-firefox.zip · SHA-256 b62306e07d91…
+
+Firefox:
+  ✓ web-ext lint: صفر خطأ، والتحذيرات المسموحة وحدها (2 تحذير)
+  المتصفّح: Firefox 157.0
+  ✓ قبِل الحزمة — المعرّف rasd@bysltan.com (gecko.id المعلن)
+  ✓ النسخة 0.1.0 تطابق package.json
+  ✓ الاختصارات الأربعة مُسنَدة: area=Command+Shift+T · element=Command+Shift+E · viewport=Command+Shift+V · full-page=Command+Shift+S
+  ✓ تحذيرات البيان: صفر
+  ✓ أخطاء التشغيل: صفر
+
+✓ الحزمة المفكوكة تُحمَّل بلا تحذير ولا خطأ.
+

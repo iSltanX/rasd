@@ -1,0 +1,33 @@
+
+مسبار Chromium — Chrome/152.0.7977.134 · HeadlessChrome/152.0.0.0
+  ✓ التحميل — bgmacfknafnobnfiglmniafdaheljdga
+  ✓ صفحة الإضافات تُفتح — 0953FC9713FDF0930D666F198C48A5AF
+  ✓ وضع المطوّر لجمع أخطاء التشغيل — true
+  ✓ النافذة تُفتح في تبويب — 53E6B2B600446D2B6C0D674A4095D0FE
+  ✓ النافذة ترسم واجهتها — {"title":"رصد — النافذة","text":175,"dir":"rtl","buttons":4}
+  ✓ الخلفية تردّ على رسائل رصد (capture/latest) — {"ok":true,"value":null}
+  ✓ الاختصارات المسجَّلة — _execute_action=∅ · capture-area=∅ · capture-element=∅ · capture-full-page=∅ · capture-viewport=⇧⌘V
+  ✓ المكتبة تُفتح — 6A731FE1016A8DC8BC86AF22ACA0BAA1
+  ✓ المكتبة ترسم واجهتها — {"title":"رصد — المكتبة","text":575}
+  ✓ الإعدادات تُفتح — E5E0976BCFF4688A6E65F9F248CCD263
+  ✓ الإعدادات ترسم واجهتها — {"title":"رصد — الإعدادات","text":807}
+  ✓ نافذة البلاغ تُفتح من رابط الإعدادات — EB7A2D9A733D4119A4BB16C27FA429AE
+  ✓ هوية المتصفّح في «ما سيُرسَل» — {"browser":"Opera","browser_id":"opera","engine":"Chromium 152.0.7977.134","build_target":"chromium","install_source":"unpacked"}
+  ✓ ورقة الاختصارات: الأوامر غير المسنَدة تعرض الرابط — 159C616F640038ED8857B6CB0BCE5EFB
+  ✓ عدد الروابط = عدد الأوامر بلا اختصار — {"unassigned":3,"links":3}
+  ✓ الرابط يفتح صفحة الاختصارات — نُقر الرابط ⇐ chrome://extensions/shortcuts
+  ✓ صفحة موقعٍ عاديّ (http) — {"targetId":"CC440D44B145D230A99809500E04443A","sessionId":"302A6E6494131CC51A2836A990ADF656"}
+  ✓ معرّف التبويب — 223686209
+  ✓ تفعيل القياس كما تفعل النافذة (tool/activate) — {"ok":true,"value":{"started":true,"mode":"measure"}}
+  ✓ الطبقة في الصفحة — [{"open":true,"w":1291}]
+  ✓ بطاقتان في العيّنة — [[916,471],[646,471]]
+  ✓ القياس: نقرٌ على عنصر ثمّ مرورٌ فوق آخر
+  ✓ تبديل الأداة إلى الفحص — {"ok":true,"value":{"started":true,"mode":"inspect"}}
+  ✓ الفحص: مرورٌ ثمّ نقر
+  ✓ التقاط الجزء الظاهر كما تفعل النافذة — {"ok":true,"value":{"started":true,"mode":null}}
+  ✓ آخر لقطة في المكتبة — {"ok":true,"value":{"id":"8ad16e19-0461-4428-99aa-cb88c290e318","width":1306,"height":649}}
+  ✓ التقاط الصفحة كاملة — {"ok":true,"value":{"started":true,"mode":null}}
+  ✓ آخر لقطة بعد الالتقاط الكامل — {"ok":true,"value":{"id":"b9eafc49-8ce5-4294-9d1d-b03ddefec731","width":1291,"height":1180}}
+  ✓ المحرّر يفتح اللقطة — 33E9D347ACE8F1A724852F8F90F1A763
+  ✓ المحرّر يرسم اللقطة — {"title":"رصد — المحرر","canvases":["862×526","862×526"]}
+  ✓ بعد الرحلة: تحذيرات التثبيت وأخطاء البيان والتشغيل — {"state":"ENABLED","installWarnings":0,"manifestErrors":0,"runtimeErrors":0,"consoleWarnings":100,"distinct":["The resource chrome-extension://bgmacfknafnobnfiglmniafdaheljdga/assets/exclusion-schema-BKjc2v93.js was preloaded using link preload but not used within a few seconds from the window's load event. Please make

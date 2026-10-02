@@ -1,0 +1,49 @@
+── بوّابة الموجة: حرّاس كروم ──
+  الحرّاس (26): accessibility · activate · capture · capturing · colour · compare · compare-diff · editor · export · fullpage · gate · inspect · issues · library · lifecycle · lighthouse · load · measure · memory · network · overlay · palette · picker · popup · share · visual
+  ثمّ حرّاس Firefox: pnpm verify:firefox
+  ✓ accessibility  102s
+  ✓ activate       17s
+  ✓ capture        5s
+  ✓ capturing      3s
+  ✓ colour         5s
+  ✓ compare        10s
+  ✓ compare-diff   14s
+  ✓ editor         19s
+  ✓ export         4s
+  ✓ fullpage       27s
+  ✓ gate           3s
+  ✓ inspect        5s
+  ✓ issues         2s
+  ✓ library        12s
+  ✓ lifecycle      46s
+  ✓ lighthouse     227s
+  ✓ load           1s
+  ✓ measure        2s
+  ✓ memory         26s
+  ✓ network        28s
+  ✓ overlay        22s
+  ✓ palette        8s
+  ✓ picker         4s
+  ✓ popup          2s
+  ✓ share          5s
+  ✓ visual         69s
+  26 حارسًا في 11.1 دقيقة · أخضر 26
+── حرّاس Firefox ──
+  الحرّاس (14): load · popup · activate · measure · inspect · colour · capture · fullpage · editor · export · library · report · lifecycle · network
+  ✓ load         6s
+  ✓ popup        5s
+  ✓ activate     6s
+  ✓ measure      5s
+  ✓ inspect      5s
+  ✓ colour       8s
+  ✓ capture      5s
+  ✓ fullpage     12s
+  ✓ editor       8s
+  ✓ export       6s
+  ✓ library      6s
+  ✓ report       4s
+  ✓ lifecycle    53s
+  ✓ network      23s
+  14 حارسًا في 2.5 دقيقة · أخضر 14
+✓ حرّاس Firefox خضراء.
+✓ حرّاس بوّابة الموجة خضراء — كروم وFirefox.

@@ -1,0 +1,33 @@
+
+مسبار Chromium — Chrome/154.0.8037.93 · HeadlessChrome/154.0.0.0
+  ✓ التحميل — eggdejbdgjcndjnmakdaniojocigilpk
+  ✓ صفحة الإضافات تُفتح — 521F9CD97A4EC7E5880A11A6E1EC1D30
+  ✓ وضع المطوّر لجمع أخطاء التشغيل — true
+  ✓ النافذة تُفتح في تبويب — 0B23AC222184D81775434C87C719EA25
+  ✓ النافذة ترسم واجهتها — {"title":"رصد — النافذة","text":254,"dir":"rtl","buttons":4}
+  ✓ الخلفية تردّ على رسائل رصد (capture/latest) — {"ok":true,"value":null}
+  ✓ الاختصارات المسجَّلة — _execute_action=∅ · capture-area=⇧⌘T · capture-element=⇧⌘E · capture-full-page=⇧⌘S · capture-viewport=⇧⌘V
+  ✓ المكتبة تُفتح — 9CCDF3D2D3CC0D491E101DF7A91F26BC
+  ✓ المكتبة ترسم واجهتها — {"title":"رصد — المكتبة","text":575}
+  ✓ الإعدادات تُفتح — 007826DD35F772326ECE555BCA2A3B51
+  ✓ الإعدادات ترسم واجهتها — {"title":"رصد — الإعدادات","text":807}
+  ✓ نافذة البلاغ تُفتح من رابط الإعدادات — 95775C53DF7D8BDD5E124544F52BEBA1
+  ✓ هوية المتصفّح في «ما سيُرسَل» — {"browser":"Brave","browser_id":"brave","engine":"Chromium 154.0.0.0","build_target":"chromium","install_source":"unpacked"}
+  ✓ ورقة الاختصارات: الأوامر غير المسنَدة تعرض الرابط — 34F3EE9A0B1D4D53856FFADB6EC021EB
+  ✓ عدد الروابط = عدد الأوامر بلا اختصار — {"unassigned":0,"links":0}
+  ✓ الرابط يفتح صفحة الاختصارات — نُقر زرّ التغيير (كلّها مسنَدة) ⇐ chrome://extensions/shortcuts
+  ✓ صفحة موقعٍ عاديّ (http) — {"targetId":"3707ADBC003AED5F401CCDD0151C130C","sessionId":"326CF0D0AC1117919F5F5E132C6E8883"}
+  ✓ معرّف التبويب — 589584604
+  ✓ تفعيل القياس كما تفعل النافذة (tool/activate) — {"ok":true,"value":{"started":true,"mode":"measure"}}
+  ✓ الطبقة في الصفحة — [{"open":true,"w":1351}]
+  ✓ بطاقتان في العيّنة — [[946,471],[676,471]]
+  ✓ القياس: نقرٌ على عنصر ثمّ مرورٌ فوق آخر
+  ✓ تبديل الأداة إلى الفحص — {"ok":true,"value":{"started":true,"mode":"inspect"}}
+  ✓ الفحص: مرورٌ ثمّ نقر
+  ✓ التقاط الجزء الظاهر كما تفعل النافذة — {"ok":true,"value":{"started":true,"mode":null}}
+  ✓ آخر لقطة في المكتبة — {"ok":true,"value":{"id":"142017e7-4d30-4694-92f8-5c91097e66b3","width":1366,"height":687}}
+  ✓ التقاط الصفحة كاملة — {"ok":true,"value":{"started":true,"mode":null}}
+  ✓ آخر لقطة بعد الالتقاط الكامل — {"ok":true,"value":{"id":"be61cb34-9071-43a2-8f40-e9c64f819eb4","width":1351,"height":1180}}
+  ✓ المحرّر يفتح اللقطة — 279928B59E528F330EE78449A66C0A64
+  ✓ المحرّر يرسم اللقطة — {"title":"رصد — المحرر","canvases":["922×564","922×564"]}
+  ✓ بعد الرحلة: تحذيرات التثبيت وأخطاء البيان والتشغيل — {"state":"ENABLED","installWarnings":0,"manifestErrors":0,"runtimeErrors":0,"consoleWarnings":0,"distinct":[]}

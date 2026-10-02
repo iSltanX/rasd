@@ -80,6 +80,8 @@ const dir = realpathSync(mkdtempSync(join(tmpdir(), 'rasd-chromium-probe-')))
 execFileSync('unzip', ['-q', zip, '-d', dir])
 const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))
 manifest.host_permissions = ['<all_urls>']
+// ما يغطّيه <all_urls> المطلوب يصير اختياريُّه «زائدًا» فيسجّل المتصفّح خطأ بيان من أثر الأداة لا من المنتَج (قِيس في Chrome وEdge وBrave).
+delete manifest.optional_host_permissions
 writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2))
 
 const report = []
