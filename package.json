@@ -87,7 +87,7 @@
     "pdf-lib": "1.17.1",
     "pixelmatch": "6.0.0",
     "preact": "10.29.8",
-    "valibot": "1.4.2"
+    "valibot": "1.5.0"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "2.7.1",
