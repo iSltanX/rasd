@@ -21,8 +21,16 @@ import {
  */
 const yml = readFileSync('.github/workflows/ci.yml', 'utf8')
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-const entry = (streak = 0) => ({ results: [], scripts: [], streak, eligible: false })
-const ledgerOf = (guards: string[]) => ({
+interface Entry {
+  results: string[]
+  scripts: string[]
+  streak: number
+  eligible: boolean
+}
+const entry = (streak = 0): Entry => ({ results: [], scripts: [], streak, eligible: false })
+const ledgerOf = (
+  guards: string[],
+): { promotionStreak: number; guards: Record<string, Entry> } => ({
   promotionStreak: 10,
   guards: Object.fromEntries(guards.map((g) => [g, entry()])),
 })
