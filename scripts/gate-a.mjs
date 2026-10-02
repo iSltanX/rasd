@@ -85,6 +85,15 @@ const STEPS = [
         stdio: 'inherit',
       }),
   },
+  {
+    // حرّاس Firefox في سجلّهم المستقلّ (SS7، ADR 0059): الحرّاس المعرَّفة وخطوات وظيفة `firefox` وبصماتها — بلا شبكة.
+    name: 'حارس سجلّ حرّاس Firefox',
+    run: () =>
+      execFileSync(process.execPath, ['scripts/firefox-ledger.mjs', '--check'], {
+        cwd: root,
+        stdio: 'inherit',
+      }),
+  },
 ]
 
 const started = Date.now()

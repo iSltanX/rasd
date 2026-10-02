@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "repo": "iSltanX/rasd",
+  "job": "Firefox حقيقي · حرّاس BiDi",
+  "promotionStreak": 10,
+  "window": 20,
+  "capturedAt": "2026-10-02T09:24:26.911Z",
+  "runs": [],
+  "guards": {
+    "load": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "popup": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "activate": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "measure": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "inspect": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "colour": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "capture": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "fullpage": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "editor": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "export": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "library": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "report": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "lifecycle": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    },
+    "network": {
+      "results": [],
+      "scripts": [],
+      "streak": 0,
+      "eligible": false
+    }
+  }
+}

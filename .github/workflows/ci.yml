@@ -163,6 +163,10 @@ jobs:
       - name: حارس سجلّ ترقية الحرّاس
         run: pnpm run guards:check
 
+      # سجلّ حرّاس Firefox في ملفّه (ADR 0059) — يطابق خطوات وظيفة `firefox` أدناه والحرّاس المعرَّفة وبصماتها.
+      - name: حارس سجلّ حرّاس Firefox
+        run: pnpm run guards:firefox-check
+
       # الحالة تُكتب في ترويسات `STAGES/NN.md` وحدها، و`STATUS.md` وجدول
       # `ROADMAP.md` مشتقّان. الفحص هنا يحرس الفرع لا جهاز المؤلِّف وحده.
       - name: حارس مزامنة المراحل
@@ -387,6 +391,157 @@ jobs:
         with:
           name: rasd-a11y-baselines-${{ matrix.guard }}-${{ github.sha }}
           path: tests/visual-baselines/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ── حرّاس Firefox في Firefox حقيقي (SS7، ADR 0059) ─────────────────
+  #
+  # **وظيفةٌ واحدة بخطوةٍ لكل حارس، لا مصفوفة:** Firefox يُثبَّت مرّة ويُبنى `dist-firefox/` مرّة، والحرّاس الأربعة عشر
+  # تجري تباعًا كما تجري محلّيًّا تحت `pnpm verify:firefox`. وكل خطوة باسم حارسها (`firefox:<name>`) فيقرأ سجلّ الترقية
+  # (`scripts/firefox-ledger.mjs`) خاتمتها هي — اسم الوظيفة والخطوات مرجعٌ هناك وفي اختباره، تغييرها يُغيَّر معه.
+  #
+  # **غير حاجبة كلّها** (`continue-on-error: true`، ADR 0026: CI استشاري): وظيفة Firefox تُقرأ ولا تُنتظر، والترقية قرار
+  # المالك بعد عشر جولات خضراء في السجلّ. و`if: !cancelled()` على كل خطوة كي لا يُسكت سقوطُ حارسٍ ما بعده، ومهلةٌ لكل
+  # خطوة دون مهلة الوظيفة كي يسقط المعلَّق فشلًا لا إلغاءً (الدرس نفسه على خطوة حرّاس كروم أعلاه). وبناءٌ ساقط يُخطّي
+  # الحرّاس فتُسجَّل ثغرةً لا حمرة: لم تُفحص حزمةٌ لم تُبنَ.
+  firefox:
+    name: Firefox حقيقي · حرّاس BiDi
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - uses: browser-actions/setup-firefox@v1
+        id: firefox
+        with:
+          firefox-version: latest
+
+      - name: Firefox version
+        run: ${{ steps.firefox.outputs.firefox-path }} --version
+
+      - name: Build Firefox target
+        id: build
+        run: pnpm run build:firefox
+
+      - name: firefox:load
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:load
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:popup
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:popup
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:activate
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:activate
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:measure
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:measure
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:inspect
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:inspect
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:colour
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:colour
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:capture
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:capture
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:fullpage
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:fullpage
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:editor
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:editor
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:export
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:export
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:library
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:library
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:report
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:report
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:lifecycle
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:lifecycle
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      - name: firefox:network
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm run firefox:network
+        timeout-minutes: 6
+        env:
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+
+      # لقطات الطبقة (`artifacts/firefox/`) — تُرفع لتُقرأ بالعين، ولا تُقارَن آليًّا.
+      - name: Upload Firefox review shots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rasd-firefox-shots-${{ github.sha }}
+          path: artifacts/firefox/
           retention-days: 14
           if-no-files-found: ignore
 

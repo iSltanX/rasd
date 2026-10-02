@@ -90,6 +90,8 @@
     "design:shots": "node scripts/design-shots.mjs",
     "guards:sync": "node scripts/guards-sync.mjs",
     "guards:check": "node scripts/guards-sync.mjs --check",
+    "guards:firefox-sync": "node scripts/firefox-ledger.mjs",
+    "guards:firefox-check": "node scripts/firefox-ledger.mjs --check",
     "gate:a": "node scripts/gate-a.mjs",
     "zip": "node scripts/zip.mjs",
     "zip:firefox": "node scripts/zip.mjs --target firefox",
