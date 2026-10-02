@@ -12,7 +12,7 @@ branch: ss/6-firefox-permissions
 gate: all
 commit: a339c54
 updated: 2026-10-02
-resume: المتبقّي بندٌ يدوي واحد: Firefox — نافذة الإذن الحقيقية ثمّ بلاغٌ بوسم `test` من `dist-firefox/` (البندان في `Docs/Firefox/checklist.md`). ثمّ تُغلَق المرحلة بدمج الموجة C.
+resume: لا متبقّي في المرحلة؛ تنتظر الدمج في إغلاق الموجة C (`/ss-merge C`).
 ---
 
 # SS6 — الأذونات والإرسال في Firefox
@@ -78,6 +78,7 @@ resume: المتبقّي بندٌ يدوي واحد: Firefox — نافذة ال
 | 2026-10-02 | **الخصوصية:** فقرة «في Firefox موافقةٌ مضمَّنة على جمع البيانات» في `Docs/Privacy.md` §الصلاحيات. و`Docs/Firefox/checklist.md` أُنشئ ببندَي SS6 (حالتهما «لم يُجرَّب») — SS8 تكمله                                                                                                                                                                                                                                                                                                                                                                                        | —                                                                                    |
 | 2026-10-02 | **الإثبات الحيّ في Chrome:** `VITE_RASD_REPORT_TEST=1 pnpm build && node scripts/report-proof.mjs` بموافقة المالك ⇐ بلاغ **#8** وصل بنصّه وتشخيصه وصورته، والمنطقة المحجوبة سوداء 14400/14400                                                                                                                                                                                                                                                                                                                                                                             | [`iSltanX/app-reports#8`](https://github.com/iSltanX/app-reports/issues/8)           |
 | 2026-10-02 | **البوّابة:** `RASD_GATE_BASE=ss-C/base pnpm gate:a` أخضر عدا `ss:check` (نسيتُ `ss:sync` — رُمّم وأخضر) والزمن 100ث فوق السقف 48 (موروث، سُجّل في الموجة B). `pnpm verify:wave --base ss-C/base --size all` ⇐ 26/26 أخضر في 11.2 دقيقة (`RASD_FIXTURES_PORT=5481`). وبناء `dist-firefox/` بعلم الاختبار و`verify:dist --target firefox` أخضر                                                                                                                                                                                                                             | —                                                                                    |
+| 2026-10-02 | **Firefox يدويًّا (المالك):** ظهرت نافذة الإذن الحقيقية عند «أرسل البلاغ» وقُبلت، ووصل البلاغ [`iSltanX/app-reports#10`](https://github.com/iSltanX/app-reports/issues/10) من `dist-firefox/`. قُرئ الإصدار بـ`gh issue view`: الوسمان `kind:bug` و`product:rasd` **بلا `test`** (العنوان «تجربة») — أي أن الحزمة المجرَّبة لم تكن ببناء `VITE_RASD_REPORT_TEST=1`؛ فالمعيار «بوسم `test`» تحقّق جوهرًا (نافذة حقيقية ووصول) لا حرفًا، والبلاغ يبقى في القناة بلا وسم التجربة                                                                                             | `Docs/Firefox/checklist.md`                                                          |
 
 ### تقرير التسليم — SS6
 
@@ -87,12 +88,12 @@ resume: المتبقّي بندٌ يدوي واحد: Firefox — نافذة ال
 - معايير الإغلاق:
   - `pnpm vitest run tests/unit/permissions-gesture.test.ts tests/unit/shared/permissions.test.ts` ⇐ 24 أخضر، وسالب كلٍّ ثابت
   - `VITE_RASD_REPORT_TEST=1 pnpm build && node scripts/report-proof.mjs` ⇐ #8 كما في Chrome
-  - Firefox يدويًّا ⇐ **لم يُجرَّب**: نافذة الإذن من المتصفّح نفسه ولا تُنقر من سكربت. الحزمة جاهزة في `dist-firefox/`
+  - Firefox يدويًّا ⇐ **نجح** (المالك): نافذة إذن حقيقية ثمّ بلاغ #10 وصل — بلا وسم `test` (انظر السجلّ)
   - `pnpm verify:wave --base ss-C/base --size all` ⇐ 26/26
 - مخروط الأثر: verify:accessibility · visual · network · editor · library · export · share + «1 ملفًّا خارج الجدول ⇒ all» · `verify:wave --size all` أخضر 26/26
 - المراجعة المستقلّة: لم تلزم (لا ملفّ حسّاس)
 - أعطال متقطّعة مسجَّلة: لا شيء
 - خارج النطاق — مسجَّل لا منفَّذ: `ReportDialog` في `pages/compare` ليس هذا البلاغ ولا يطلب موافقة (يطلب `downloads` وحدها)
-- ما يحتاجه منسّق الإغلاق: لا اعتمادية ولا حارس ولا صفوف §6/ADR. `Docs/Firefox/checklist.md` ملفٌّ جديد تُكمله SS8 (إن أنشأته SS8 أيضًا فيُضمّ). **ينتظر المالك:** بندا Firefox اليدويّان
+- ما يحتاجه منسّق الإغلاق: لا اعتمادية ولا حارس ولا صفوف §6/ADR. `Docs/Firefox/checklist.md` ملفٌّ جديد تُكمله SS8 (إن أنشأته SS8 أيضًا فيُضمّ). لا شيء ينتظر المالك
 
-**المتبقّي:** البند اليدوي في Firefox (نافذة الإذن الحقيقية ثمّ بلاغ `test` برقمه).
+**المتبقّي:** لا شيء — تنتظر دمج الموجة C.
