@@ -2,7 +2,12 @@
 /**
  * نظام SS (`scripts/ss.mjs`) — كل قاعدة بعيّنة تمرّ وعيّنة تسقط، والمشتقّات تُبنى من المصدر وحده.
  */
-import { describe, expect, it } from 'vitest'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   buildModel,
@@ -335,6 +340,98 @@ describe('المستودع الحقيقي', () => {
         expect(item.copy.full).not.toMatch(/‹[A-Z_]+›/u)
       }
       if (!wave.solo) expect(wave.copy.full).not.toMatch(/‹[A-Z_]+›/u)
+    }
+  })
+})
+
+/**
+ * CI يسحب الشيفرة بـ`actions/checkout` بعمق 1: نسخة ضحلة بلا وسوم `ss-X/base` ولا فروع `origin/ss/*`.
+ * فما يُشتقّ من git لا يُحكم عليه هناك — وكل ما يُشتقّ من المصدر يُحكم عليه حرفيًّا كما في النسخة الكاملة.
+ * يُبنى مستودع مؤقّت بالسكربت نفسه ومصدرٍ بموجتين، تُفتح A بوسمها ويُزامَن، ثمّ يُنسخ ضحلًا بلا وسوم.
+ */
+describe('ss:check بلا مراجع git (نسخة CI الضحلة)', () => {
+  const here = join(import.meta.dirname, '..', '..')
+  let dir = ''
+  let full = ''
+  let shallow = ''
+  const run = (cwd: string, ...args: string[]) =>
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+  const ss = (cwd: string, command: string) =>
+    spawnSync(process.execPath, ['scripts/ss.mjs', command], { cwd, encoding: 'utf8' })
+  const readme = (cwd: string) => join(cwd, 'Docs', 'SS', 'README.md')
+  const edit = (cwd: string, from: string, to: string) => {
+    const text = readFileSync(readme(cwd), 'utf8')
+    expect(text).toContain(from)
+    writeFileSync(readme(cwd), text.replace(from, to))
+  }
+
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), 'rasd-ss-'))
+    full = join(dir, 'full')
+    shallow = join(dir, 'shallow')
+    mkdirSync(join(full, 'scripts'), { recursive: true })
+    mkdirSync(join(full, 'Docs', 'SS', 'stages'), { recursive: true })
+    for (const file of ['ss.mjs', 'waves-plan.mjs'])
+      copyFileSync(join(here, 'scripts', file), join(full, 'scripts', file))
+    // القوالب من README الحقيقي؛ والمراحل عيّنة ثابتة كي لا يتعلّق الاختبار بتقدّم الخطّة.
+    copyFileSync(join(here, 'Docs', 'SS', 'README.md'), readme(full))
+    writeFileSync(join(full, 'Docs', 'SS', 'waves.json'), JSON.stringify(WAVES))
+    writeFileSync(join(full, 'Docs', 'SS', 'stages', 'SS1.md'), stageText({ id: 'SS1' }))
+    writeFileSync(
+      join(full, 'Docs', 'SS', 'stages', 'SS2.md'),
+      stageText({ id: 'SS2', wave: 'B', depends: ['SS1'] }),
+    )
+    run(full, 'init', '-q', '-b', 'main')
+    run(full, 'add', '-A')
+    run(full, 'commit', '-q', '--no-gpg-sign', '-m', 'المصدر')
+    run(full, 'tag', 'ss-A/base')
+    expect(ss(full, 'sync').status).toBe(0)
+    run(full, 'add', '-A')
+    run(full, 'commit', '-q', '--no-gpg-sign', '-m', 'اللوحة')
+    expect(readFileSync(readme(full), 'utf8')).toContain('مفتوحة على `ss-A/base`')
+    run(dir, 'clone', '-q', '--no-tags', '--depth', '1', `file://${full}`, shallow)
+    expect(run(shallow, 'tag', '-l')).toBe('')
+  }, 60_000)
+  afterAll(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('النسخة الكاملة والضحلة بلا وسوم تعطيان الحكم نفسه', () => {
+    expect(ss(full, 'check').status).toBe(0)
+    const result = ss(shallow, 'check')
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+  })
+
+  it('في الضحلة: مخالفة مشتقّة من المصدر تسقط', () => {
+    run(shallow, 'checkout', '-q', '--', '.')
+    edit(shallow, '| [SS2](stages/SS2.md) | مرحلة SS2 |', '| [SS2](stages/SS2.md) | عنوان آخر |')
+    expect(ss(shallow, 'check').status).toBe(1)
+  })
+
+  it('في الضحلة: حقل git بقيمة ليست من بدائله يسقط', () => {
+    run(shallow, 'checkout', '-q', '--', '.')
+    edit(shallow, '| مفتوحة على `ss-A/base` |', '| شيء آخر |')
+    expect(ss(shallow, 'check').status).toBe(1)
+  })
+
+  it('في الضحلة: مخالفة قاعدة في المصدر تسقط كما كانت', () => {
+    run(shallow, 'checkout', '-q', '--', '.')
+    const file = join(shallow, 'Docs', 'SS', 'stages', 'SS2.md')
+    writeFileSync(file, readFileSync(file, 'utf8').replace('depends: [SS1]', 'depends: [SS9]'))
+    expect(ss(shallow, 'check').status).toBe(1)
+  })
+
+  it('في الكاملة: حقول git تُقارَن — وسمٌ غائب يُسقط ما يدّعي فتح موجته', () => {
+    run(full, 'tag', '-d', 'ss-A/base')
+    try {
+      expect(ss(full, 'check').status).toBe(1)
+    } finally {
+      run(full, 'tag', 'ss-A/base')
     }
   })
 })

@@ -275,6 +275,14 @@ const git = (args) => {
   }
 }
 
+/**
+ * الوسوم وفروع `origin/ss/*` لا تُرى إلا في نسخة كاملة. ونسخة CI ضحلة (`actions/checkout` بعمق 1، بلا
+ * وسوم ولا فروع أخرى)، فغيابها هناك ليس دليلًا — والحقول المشتقّة منها لا يُحكم عليها (`matchesIgnoringGit`).
+ */
+function refsComplete() {
+  return git(['rev-parse', '--is-shallow-repository']) === 'false'
+}
+
 function baseTags() {
   const out = new Map()
   for (const line of git([
@@ -429,9 +437,14 @@ export function buildModel({
 
 // ── الكتلة المشتقّة في README ────────────────────────────────────
 
-export function renderBlock(model) {
+/**
+ * `fromGit(value, options)` يمرّ عليه كل حقل مشتقّ من الوسوم أو الفروع، بقيمته وبدائله الممكنة (`null`:
+ * لا تُحصى). الافتراضي يعيد القيمة؛ و`matchesIgnoringGit` يجعله ثقبًا يقبل أحد البدائل.
+ */
+export function renderBlock(model, fromGit = (value) => value) {
+  const opened = (letter) => `مفتوحة على \`ss-${letter}/base\``
   const state = (w) =>
-    w.closed ? 'مغلقة' : w.open ? `مفتوحة على \`ss-${w.letter}/base\`` : 'قادمة'
+    w.closed ? 'مغلقة' : fromGit(w.open ? opened(w.letter) : 'قادمة', [opened(w.letter), 'قادمة'])
   const wavesTable = [
     '| الموجة | المراحل بترتيب الدمج | التوازي | الفحص | الجولة اليدوية | الحالة | لماذا معًا |',
     '| --- | --- | --- | --- | --- | --- | --- |',
@@ -457,8 +470,8 @@ export function renderBlock(model) {
   const nextNote = next && next.state === 'waiting' ? ' — بعد وسم موجتها' : ''
   const lines = [
     `- **المتبقّي:** ${model.remaining} من ${model.total} مرحلة · **الموجات:** ${model.waves.length} · **أقصى توازٍ:** ${model.widest}`,
-    `- **الموجة الحالية:** ${model.current ? `${model.current.letter} — ${model.current.open ? `مفتوحة على \`ss-${model.current.letter}/base\`` : 'تنتظر وسمها'}` : 'اكتملت الموجات'}`,
-    `- **المرحلة التالية:** ${next ? `[${next.id}](stages/${next.id}.md) — ${next.title} · \`/ss ${next.id}\`${nextNote}` : 'لا مرحلة جاهزة'}`,
+    `- **الموجة الحالية:** ${model.current ? `${model.current.letter} — ${fromGit(model.current.open ? opened(model.current.letter) : 'تنتظر وسمها', [opened(model.current.letter), 'تنتظر وسمها'])}` : 'اكتملت الموجات'}`,
+    `- **المرحلة التالية:** ${fromGit(next ? `[${next.id}](stages/${next.id}.md) — ${next.title} · \`/ss ${next.id}\`${nextNote}` : 'لا مرحلة جاهزة', null)}`,
     '',
     '### الموجات',
     '',
@@ -476,6 +489,31 @@ export function renderReadme(current, block) {
   const end = current.indexOf(END)
   if (start === -1 || end === -1 || end < start) return null
   return `${current.slice(0, start + BEGIN.length)}\n\n${block}\n\n${current.slice(end)}`
+}
+
+/**
+ * مطابقة README حين لا تكتمل المراجع: كل ما يُشتقّ من المصدر حرفيًّا، وكل حقل git أحدُ بدائله (أو سطرٌ
+ * أيًّا كان حين لا تُحصى بدائله). القواعد على المصدر لا تمرّ من هنا — `validate` قبلها كما هي.
+ */
+export function matchesIgnoringGit(model, readmeNow) {
+  // الثقب بين محرفين من المنطقة الخاصّة: لا يقعان في نصّ الوثائق.
+  const holes = []
+  const block = renderBlock(model, (value, options = null) => {
+    holes.push(options)
+    return `\uE000${holes.length - 1}\uE001`
+  })
+  const expected = renderReadme(readmeNow, block)
+  if (expected === null) return false
+  const literal = (text) => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+  const pattern = expected
+    .split(/\uE000(\d+)\uE001/u)
+    .map((part, index) => {
+      if (index % 2 === 0) return literal(part)
+      const options = holes[Number(part)]
+      return options ? `(?:${options.map(literal).join('|')})` : '[^\\n]*'
+    })
+    .join('')
+  return new RegExp(`^${pattern}$`, 'u').test(readmeNow)
 }
 
 // ── اللوحة ───────────────────────────────────────────────────────
@@ -834,7 +872,8 @@ if (invokedDirectly) {
     process.exit(1)
   }
   if (command === 'check') {
-    if (readme !== readmeNow) {
+    const complete = refsComplete()
+    if (complete ? readme !== readmeNow : !matchesIgnoringGit(model, readmeNow)) {
       console.error('  ✗ الكتلة المشتقّة في Docs/SS/README.md لا تطابق المصدر — شغّل pnpm ss:sync')
       process.exit(1)
     }
@@ -843,7 +882,7 @@ if (invokedDirectly) {
       process.exit(1)
     }
     console.log(
-      `✓ SS: ${loaded.stages.length} مرحلة في ${model.waves.length} موجات، والمشتقّ يطابق المصدر.`,
+      `✓ SS: ${loaded.stages.length} مرحلة في ${model.waves.length} موجات، والمشتقّ يطابق المصدر.${complete ? '' : ' (نسخة ضحلة: حقول الوسوم والفروع لم تُقارَن.)'}`,
     )
   } else if (command === 'sync') {
     writeFileSync(README_PATH, readme)
