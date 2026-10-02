@@ -476,7 +476,9 @@ describe('مواد الإطلاق — بأبعاد المتجرين (C6 · C7 ·
       )
     expect(readdirSync(join(LAUNCH, 'screens')).sort()).toEqual([...expected, ...opera].sort())
     for (const f of expected) expect([f, ...size(`screens/${f}`)]).toEqual([f, 1280, 800])
-  })
+    // فكّ ستّ عشرة صورة 1280×800 بالجافاسكربت الصرف: 2.2s محلّيًّا تحت التغطية، فيعبر حدّ الخمس ثوانٍ على عدّاء بنواتين
+    // (سقط في جولتين من CI على التوالي؛ المرحلة SS9).
+  }, 30_000)
 
   it('كل لقطة تأتي من لقطةٍ حيّة لها حارس أو اختبار في جدول المطابقة', () => {
     const features = read('Docs/Store/features.md')
@@ -494,7 +496,7 @@ describe('مواد الإطلاق — بأبعاد المتجرين (C6 · C7 ·
       expect(size(`readme/hero-${lang}.png`)).toEqual([2400, 1200])
       expect(size(`readme/browsers-${lang}.png`)).toEqual([2400, 600])
     }
-  })
+  }, 30_000)
 
   it('أيقونة المتجر 128 بحاشية شفّافة 16 وعملٍ فنّي في وسطها', () => {
     const icon = png('icons/store-icon-128.png')
