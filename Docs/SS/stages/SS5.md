@@ -1,7 +1,7 @@
 ---
 id: SS5
 title: Brave — قراءة البكسل بلا تمويه
-status: pending
+status: active
 delivery: none
 wave: B
 order: 4

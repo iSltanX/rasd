@@ -36,7 +36,7 @@
 | [SS2](stages/SS2.md) | هوية المتصفّح في البلاغ | B | SS1 | S | Sonnet 5.5 | `ss/2-browser-identity` | لم تبدأ | — | — |
 | [SS3](stages/SS3.md) | حزم القنوات وحزمة المصدر وسير الإصدار | B | SS1 | S | Sonnet 5.5 | `ss/3-channel-packages` | لم تبدأ | — | — |
 | [SS4](stages/SS4.md) | نقاط الفرق بالكشف عن القدرة | B | SS1 | M | Sonnet 5.5 | `ss/4-capabilities` | لم تبدأ | — | — |
-| [SS5](stages/SS5.md) | Brave — قراءة البكسل بلا تمويه | B | — | S | Sonnet 5.5 | `ss/5-brave-pixels` | لم تبدأ | — | — |
+| [SS5](stages/SS5.md) | Brave — قراءة البكسل بلا تمويه | B | — | S | Sonnet 5.5 | `ss/5-brave-pixels` | نشطة | — | — |
 | [SS7](stages/SS7.md) | نواة BiDi وحرّاس Firefox | C | SS3 · SS4 | L | Opus 5.5 | `ss/7-firefox-guards` | لم تبدأ | — | — |
 | [SS6](stages/SS6.md) | الأذونات والإرسال في Firefox | C | SS2 · SS4 | M | Sonnet 5.5 | `ss/6-firefox-permissions` | لم تبدأ | — | — |
 | [SS8](stages/SS8.md) | مواد المتاجر الأربعة والقائمة اليدوية | D | SS6 · SS7 | M | Sonnet 5.5 | `main` | لم تبدأ | — | — |
