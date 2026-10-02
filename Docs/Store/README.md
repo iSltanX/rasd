@@ -11,16 +11,16 @@
 | [`features.md`](features.md)             | كل بندٍ في الوصف وحارسه أو اختباره، وكل صورة ولقطتها الحيّة                                                  |
 | [`privacy-policy.md`](privacy-policy.md) | نصّ سياسة الخصوصية العامّة بالعربية والإنجليزية                                                              |
 | [`owner-pages.md`](owner-pages.md)       | الصفحات الثلاث في موقع المالك (الخصوصية والدعم وما بعد الإزالة) وخطوات تفعيلها                               |
-| [`images/`](images/)                     | خمس لقطات لكل لغة 1280×800، والصورتان الترويجيتان، والأيقونة 128، وشعار Edge 300                             |
-| [`evidence/`](evidence/)                 | صفحة الإضافات في Chrome وEdge بعد تحميل الحزمة المفكوكة                                                      |
+| [`../Launch/`](../Launch/README.md)      | الصور كلّها — اللقطات والترويجيتان والأيقونة وشعار Edge — ومصادرها وفهرسها                                   |
+| [`evidence/`](evidence/)                 | صفحة الإضافات في Chrome وEdge وBrave وOpera بعد تحميل الحزمة المفكوكة، ومسارها محجوب                         |
 
 ## الأوامر
 
 ```text
 pnpm build:bundle && pnpm zip                     # الحزمة: dist-zip/rasd-<النسخة>.zip وبصمتها
-pnpm store:package --shots                        # تُفكّ وتُحمَّل في Chrome وEdge نظيفين: صفر تحذير؟ ولقطة evidence/
-pnpm design:shots --only=overlay,library,editor   # اللقطات الحيّة من الإضافة المبنيّة
-pnpm store:images                                 # صور المتجر منها → images/
+pnpm store:package --shots                        # تُفكّ وتُحمَّل في كل Chromium مثبَّت: صفر تحذير؟ ولقطة evidence/
+pnpm design:shots                                 # اللقطات الحيّة من الإضافة المبنيّة
+pnpm launch:images                                # مواد الإطلاق منها → ../Launch/
 pnpm vitest run tests/unit/store-materials.test.ts  # الحدود والمطابقة: صلاحيات، أطوال، صور، أدلّة
 ```
 

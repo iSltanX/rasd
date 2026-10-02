@@ -18,7 +18,6 @@ import {
 } from '@/shared/permission-policy'
 
 const root = process.cwd()
-const STORE = join(root, 'Docs', 'Store')
 const read = (p: string) => readFileSync(join(root, p), 'utf8')
 
 // ── المساعدات — بيانات خالصة، وسالبها أدناه ───────────────────────
@@ -235,32 +234,47 @@ describe('جدول المطابقة — كل دليلٍ يحيل إلى ما ي�
   })
 })
 
-describe('الصور — بأبعاد المتجرين (C6 · C7 · E1)', () => {
-  const images = readdirSync(join(STORE, 'images'))
-  const png = (name: string) => decodePng(readFileSync(join(STORE, 'images', name)))
-
-  for (const lang of ['ar', 'en']) {
-    it(`لقطات ${lang}: بين واحدة وخمس، 1280×800`, () => {
-      const shots = images.filter((f) => f.startsWith(`screenshot-${lang}-`))
-      expect(shots.length).toBeGreaterThanOrEqual(1)
-      expect(shots.length).toBeLessThanOrEqual(5)
-      for (const s of shots) expect([s, png(s).width, png(s).height]).toEqual([s, 1280, 800])
-    })
+describe('مواد الإطلاق — بأبعاد المتجرين (C6 · C7 · E1) ومن مصدرها', () => {
+  const LAUNCH = join(root, 'Docs', 'Launch')
+  const content = JSON.parse(read('Docs/Launch/content.json')) as {
+    screens: { id: string; shot: string; ar: string[]; en: string[] }[]
+  }
+  const png = (path: string) => decodePng(readFileSync(join(LAUNCH, path)))
+  const size = (path: string) => {
+    const { width, height } = png(path)
+    return [width, height]
   }
 
-  it('الترويجيتان والشعار', () => {
-    expect([png('promo-small-440x280.png').width, png('promo-small-440x280.png').height]).toEqual([
-      440, 280,
-    ])
-    expect([
-      png('promo-marquee-1400x560.png').width,
-      png('promo-marquee-1400x560.png').height,
-    ]).toEqual([1400, 560])
-    expect([png('logo-300.png').width, png('logo-300.png').height]).toEqual([300, 300])
+  it('لقطةٌ لكل بندٍ في content.json باللغتين، كلٌّ 1280×800 — وما يُرفع منها في حدود المتجرين', () => {
+    // Chrome يقبل خمسًا على الأكثر وEdge ستًّا: الرفع بالترتيب، فيكفي أن تبلغ القائمة ستًّا.
+    expect(content.screens.length).toBeGreaterThanOrEqual(6)
+    const expected = content.screens.flatMap((s, i) =>
+      ['ar', 'en'].map((lang) => `${lang}-${String(i + 1).padStart(2, '0')}-${s.id}.png`),
+    )
+    expect(readdirSync(join(LAUNCH, 'screens')).sort()).toEqual(expected.sort())
+    for (const f of expected) expect([f, ...size(`screens/${f}`)]).toEqual([f, 1280, 800])
   })
 
-  it('الأيقونة 128 بحاشية شفّافة 16 وعملٍ فنّي في وسطها', () => {
-    const icon = png('icon-128.png')
+  it('كل لقطة تأتي من لقطةٍ حيّة لها حارس أو اختبار في جدول المطابقة', () => {
+    const features = read('Docs/Store/features.md')
+    expect(
+      content.screens.filter((s) => !features.includes(`\`${s.shot}\``)).map((s) => s.id),
+    ).toEqual([])
+  })
+
+  it('الترويجيتان والشعار وصور README', () => {
+    expect(size('promo/promo-small-440x280.png')).toEqual([440, 280])
+    expect(size('promo/promo-marquee-1400x560.png')).toEqual([1400, 560])
+    expect(size('icons/edge-logo-300.png')).toEqual([300, 300])
+    expect(size('readme/social-preview.png')).toEqual([1280, 640])
+    for (const lang of ['ar', 'en']) {
+      expect(size(`readme/hero-${lang}.png`)).toEqual([2400, 1200])
+      expect(size(`readme/browsers-${lang}.png`)).toEqual([2400, 600])
+    }
+  })
+
+  it('أيقونة المتجر 128 بحاشية شفّافة 16 وعملٍ فنّي في وسطها', () => {
+    const icon = png('icons/store-icon-128.png')
     expect([icon.width, icon.height]).toEqual([128, 128])
     expect(opaqueInPadding(icon, 16)).toBe(0)
     expect(icon.alpha![64 * 128 + 64]).toBe(255)
@@ -270,11 +284,31 @@ describe('الصور — بأبعاد المتجرين (C6 · C7 · E1)', () => 
     const toolbar = decodePng(readFileSync(join(root, 'public', 'icons', 'icon-128.png')))
     expect(opaqueInPadding(toolbar, 16)).toBeGreaterThan(0)
   })
+})
 
-  it('لا صورة غير مسمّاة في المجلّد', () => {
-    const known =
-      /^(?:screenshot-(?:ar|en)-[1-5]|promo-small-440x280|promo-marquee-1400x560|icon-128|logo-300)\.png$/u
-    expect(images.filter((f) => !known.test(f))).toEqual([])
+describe('المتصفّحات المدعومة — من الاختبار لا من الذاكرة', () => {
+  const data = JSON.parse(read('Docs/Launch/browsers.json')) as {
+    browsers: { name: string; status: string; evidence: string[] }[]
+  }
+  const supported = data.browsers.filter((b) => b.status === 'supported')
+  const readme = read('README.md')
+  /** أسماء المتصفّحات في جدول «المتصفّحات» في README بعلامة ✓ — ما يقول README إنه مدعوم. */
+  const claimed = (doc: string) =>
+    [...doc.matchAll(/^\| \*\*([^*]+)\*\* +\|[^\n]*✓/gmu)].map((m) => m[1]!.trim())
+
+  it('لكل متصفّح «مدعوم» دليلٌ مسجَّل', () => {
+    expect(supported.length).toBeGreaterThan(0)
+    expect(supported.filter((b) => b.evidence.length === 0).map((b) => b.name)).toEqual([])
+  })
+
+  it('README لا يقول «مدعوم» إلا عمّا أثبته الاختبار، ولا يُسقط منه شيئًا', () => {
+    expect(claimed(readme).sort()).toEqual(supported.map((b) => b.name).sort())
+  })
+
+  it('سالب: متصفّحٌ يُضاف إلى README بلا اختبار يُرصد', () => {
+    const forged = `${readme}\n| **Netscape** | 4 | ✓ |\n`
+    expect(claimed(forged)).toContain('Netscape')
+    expect(claimed(forged).sort()).not.toEqual(supported.map((b) => b.name).sort())
   })
 })
 

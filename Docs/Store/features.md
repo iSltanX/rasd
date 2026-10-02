@@ -1,7 +1,7 @@
 # مطابقة الوصف بالدليل — كل ميزة في قائمة المتجر يقابلها ما يُشغَّل
 
 > معيار قبول [`STAGES/28`](../../STAGES/28.md): «كل ميزة مذكورة في الوصف يقابلها حارس أخضر أو اختبار». الصفوف بترتيب
-> بنود الوصف الطويل في [`listing.md`](listing.md)، والصور بترتيب اللقطات في [`images/`](images/).
+> بنود الوصف الطويل في [`listing.md`](listing.md)، والصور بترتيب اللقطات في [`Docs/Launch/screens/`](../Launch/screens/).
 >
 > **يحرسه `tests/unit/store-materials.test.ts`:** كل مسار اختبارٍ هنا موجود، وكل `pnpm verify:*` سكربتٌ في
 > `package.json`. فإعادة تسمية اختبارٍ أو حذف حارس يُسقط هذا الجدول قبل أن يكذب الوصف. وخضرة الحرّاس نفسها تحكمها
@@ -38,15 +38,19 @@
 
 ## الصور
 
-| الصورة                                        | لقطتها الحيّة (`pnpm design:shots`) | ما تُظهره                               |
-| --------------------------------------------- | ----------------------------------- | --------------------------------------- |
-| `screenshot-ar-1.png` · `screenshot-en-1.png` | `measure_two-elements--dark`        | القياس بين عنصرين                       |
-| `screenshot-ar-2.png` · `screenshot-en-2.png` | `inspect_element-selected--light`   | فحص العنصر وتنزيل أنماطه                |
-| `screenshot-ar-3.png` · `screenshot-en-3.png` | `compare_split-reference--dark`     | المقارنة بالمرجع بأوضاعها الأربعة       |
-| `screenshot-ar-4.png` · `screenshot-en-4.png` | `editor_redact--dark`               | المحرّر والحجب                          |
-| `screenshot-ar-5.png` · `screenshot-en-5.png` | `library_grid--dark`                | المكتبة على الجهاز                      |
-| `promo-small-440x280.png`                     | —                                   | الهوية: الشعار الأفقي وعبارة واحدة      |
-| `promo-marquee-1400x560.png`                  | `measure_two-elements--dark`        | الهوية ولقطة القياس                     |
-| `icon-128.png`                                | —                                   | الأيقونة 96 في وسط 128 بحاشية شفّافة 16 |
+اللقطات في [`Docs/Launch/screens/`](../Launch/screens/) بترتيب الرفع، ونصوصها في
+[`Docs/Launch/content.json`](../Launch/content.json). وفهرس المواد كلّها ومكان كلٍّ منها في
+[`Docs/Launch/README.md`](../Launch/README.md).
 
-وتُعاد كلّها بأمرين: `pnpm design:shots --only=overlay,library,editor` ثمّ `pnpm store:images`.
+| اللقطة (`ar-` و`en-`) | لقطتها الحيّة (`pnpm design:shots`) | ما تُظهره                                | دليلها في الجدول أعلاه         |
+| --------------------- | ----------------------------------- | ---------------------------------------- | ------------------------------ |
+| `01-inspect`          | `inspect_element-selected--light`   | فحص العنصر وتنزيل أنماطه                 | فحص العنصر · تنزيل أنماطه      |
+| `02-measure`          | `measure_two-elements--dark`        | القياس بين عنصرين                        | القياس                         |
+| `03-compare`          | `compare_split-reference--dark`     | المقارنة بالمرجع بأوضاعها الأربعة        | المقارنة بالمرجع               |
+| `04-editor`           | `editor_redact--dark`               | المحرّر والحجب                           | المحرّر · الحجب                |
+| `05-library`          | `library_grid--dark`                | المكتبة على الجهاز                       | المكتبة                        |
+| `06-local-only`       | `privacy_controls--dark`            | «الوضع المحلّي فقط» مفعّلًا في الإعدادات | «الوضع المحلّي فقط» افتراضيًّا |
+| `07-colours`          | `colors_sampling--light`            | القطّارة بصيغها ومتغيّرها وتباينها       | قطّارة الألوان                 |
+| `08-capture`          | `capture_area-select--dark`         | تحديد منطقةٍ للالتقاط بأبعادها           | الالتقاط                       |
+
+وتُعاد كلّها بأمرين: `pnpm design:shots` ثمّ `pnpm launch:images`.

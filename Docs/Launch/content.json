@@ -1,0 +1,157 @@
+{
+  "$comment": "مصدر نصوص مواد الإطلاق كلّها — يقرؤه scripts/launch-images.mjs. كل لقطة فكرةٌ واحدة من ميزة منفَّذة، ودليلها في Docs/Store/features.md. الترتيب ترتيب الرفع: Chrome يأخذ الخمس الأولى، وEdge الستّ الأولى.",
+  "screens": [
+    {
+      "id": "inspect",
+      "shot": "inspect_element-selected--light",
+      "ar": [
+        "افحص أي عنصر",
+        "الأنماط المحسوبة والصندوق والخط واللون والإتاحة — وتنزيلها CSS أو Tailwind أو JSON"
+      ],
+      "en": [
+        "Inspect any element",
+        "Computed styles, box, type, colour and accessibility — download as CSS, Tailwind or JSON"
+      ],
+      "tag": {
+        "ar": "الفحص",
+        "en": "Inspect"
+      }
+    },
+    {
+      "id": "measure",
+      "shot": "measure_two-elements--dark",
+      "ar": [
+        "قِس المسافات بين العناصر",
+        "اختر عنصرين فترى الفجوة بينهما وأبعاد كلٍّ منهما بالبكسل"
+      ],
+      "en": [
+        "Measure the space between elements",
+        "Pick two elements to see the gap between them and the size of each, in pixels"
+      ],
+      "tag": {
+        "ar": "القياس",
+        "en": "Measure"
+      }
+    },
+    {
+      "id": "compare",
+      "shot": "compare_split-reference--dark",
+      "ar": [
+        "قارن التنفيذ بالمرجع",
+        "تقسيم وتراكب وشفافية ووميض فوق الصفحة الحيّة، مع فرق البكسلات"
+      ],
+      "en": [
+        "Compare the build with its reference",
+        "Split, overlay, opacity and blink over the live page, with the pixel difference"
+      ],
+      "tag": {
+        "ar": "المقارنة",
+        "en": "Compare"
+      }
+    },
+    {
+      "id": "editor",
+      "shot": "editor_redact--dark",
+      "ar": [
+        "علّق واحجب قبل أن تشارك",
+        "ملاحظات مرقّمة وأسهم ونصوص، وحجبٌ يُخبز في بكسلات الصورة فلا يُستعاد من الملفّ"
+      ],
+      "en": [
+        "Annotate and redact before you share",
+        "Numbered notes, arrows and text — redactions are baked into the pixels and cannot be recovered"
+      ],
+      "tag": {
+        "ar": "المحرّر والحجب",
+        "en": "Annotate & redact"
+      }
+    },
+    {
+      "id": "library",
+      "shot": "library_grid--dark",
+      "ar": [
+        "مكتبتك على جهازك",
+        "لقطات ومشاريع ولوحات ألوان ومراجع وأدلّة خطوات — بلا حساب ولا خادم"
+      ],
+      "en": [
+        "Your library stays on your device",
+        "Captures, projects, palettes, references and step guides — no account, no server"
+      ],
+      "tag": {
+        "ar": "المكتبة",
+        "en": "Library"
+      }
+    },
+    {
+      "id": "local-only",
+      "shot": "privacy_controls--dark",
+      "ar": [
+        "محلّيٌّ من أوّل تشغيل",
+        "«الوضع المحلّي فقط» مفعّلٌ افتراضيًّا: لا يخرج من رصد طلب شبكة واحد ما دام مفعّلًا"
+      ],
+      "en": [
+        "Local by default",
+        "“Local only” is on from the first run — while it is on, Rasd sends no network request at all"
+      ],
+      "tag": {
+        "ar": "محلّي افتراضيًّا",
+        "en": "Local by default"
+      }
+    },
+    {
+      "id": "colours",
+      "shot": "colors_sampling--light",
+      "ar": [
+        "اقرأ اللون كما يُرسم",
+        "بصيغه HEX · RGB · HSL · OKLCH · Tailwind، ومتغيّر CSS الذي جاء منه، وتباينه على خلفيته"
+      ],
+      "en": [
+        "Read colour as it is rendered",
+        "HEX, RGB, HSL, OKLCH and Tailwind, the CSS variable it came from, and its contrast"
+      ],
+      "tag": {
+        "ar": "الألوان",
+        "en": "Colour"
+      }
+    },
+    {
+      "id": "capture",
+      "shot": "capture_area-select--dark",
+      "ar": [
+        "التقط ما تريد بالضبط",
+        "منطقةٌ تحدّدها بأبعادها، أو عنصر، أو الجزء الظاهر، أو الصفحة كاملة"
+      ],
+      "en": [
+        "Capture exactly what you need",
+        "A region with live dimensions, an element, the visible area or the full page"
+      ],
+      "tag": {
+        "ar": "الالتقاط",
+        "en": "Capture"
+      }
+    }
+  ],
+  "hero": {
+    "ar": {
+      "title": "افحص الواجهة\nكما تُرسم",
+      "body": "قِس وافحص وقارن والتقط فوق الصفحة نفسها، وسلّم المطوّر ما يحتاجه — عربيٌّ أوّلًا، ومحلّيٌّ على جهازك."
+    },
+    "en": {
+      "title": "Inspect the interface\nas it renders",
+      "body": "Measure, inspect, compare and capture right on the page, then hand developers what they need — Arabic-first, and local to your device."
+    }
+  },
+  "promo": {
+    "small": "الفحص البصري في متصفّحك",
+    "marquee": "قِس وافحص وقارن، ومكتبتك على جهازك وحده"
+  },
+  "browsers": {
+    "ar": {
+      "title": "يعمل حيث تعمل أنت",
+      "note": "الحزمة نفسها، مجرَّبةً في كلٍّ منها"
+    },
+    "en": {
+      "title": "Works where you work",
+      "note": "The same package, tested in each"
+    }
+  }
+}

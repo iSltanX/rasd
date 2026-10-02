@@ -1,0 +1,79 @@
+{
+  "$comment": "نتيجة اختبار المتصفّحات — مصدر شريط «يعمل حيث تعمل أنت» وجدول README. لا يُضاف متصفّح بحالة supported بلا دليلٍ يُعاد (Docs/Launch/browsers.md). يحرسه tests/unit/store-materials.test.ts.",
+  "tested": "2026-10-02",
+  "package": "rasd-0.1.0.zip · 65cd1726",
+  "browsers": [
+    {
+      "name": "Chrome",
+      "version": "154.0.8037.93",
+      "status": "supported",
+      "evidence": ["pnpm store:package", "verify:wave 22/22"]
+    },
+    {
+      "name": "Edge",
+      "version": "154.0.4258.53",
+      "status": "supported",
+      "evidence": [
+        "pnpm store:package",
+        "verify:wave 21/22 — network: تبويب edge://sync-confirmation-dialog يفتحه Edge بلا أي إضافة"
+      ]
+    },
+    {
+      "name": "Brave",
+      "version": "1.96.59",
+      "status": "supported",
+      "note": {
+        "ar": "الألوان بالبكسل: حمايته من البصمة تحرّكها درجة",
+        "en": "Pixel colours: its anti-fingerprinting shifts them by one"
+      },
+      "evidence": [
+        "pnpm store:package",
+        "verify:wave 21/22 — colour: farbling يحرّك getImageData (FF0000 ← FE0100)"
+      ],
+      "engine": "Chromium 154"
+    },
+    {
+      "name": "Opera",
+      "version": "136.0.6008.80",
+      "status": "supported",
+      "note": {
+        "ar": "ثلاثة اختصارات يحجزها فتُسند يدويًّا",
+        "en": "Three shortcuts are reserved — assign them manually"
+      },
+      "evidence": [
+        "pnpm store:package",
+        "node scripts/chromium-probe.mjs --browser=opera — الرحلة كاملة",
+        "verify:wave 17/22 — popup: اختصارات يحجزها Opera · network: صفحة بداية Opera · colour/library/editor: تبويب الحارس يُخفى (ترتيب التبويبات)"
+      ],
+      "engine": "Chromium 152"
+    },
+    {
+      "name": "Vivaldi",
+      "version": "8.2.4133.80",
+      "status": "supported",
+      "evidence": [
+        "pnpm store:package",
+        "node scripts/chromium-probe.mjs --browser=vivaldi — الرحلة كاملة"
+      ],
+      "engine": "Chromium 152"
+    },
+    {
+      "name": "Arc",
+      "version": "1.167.0",
+      "status": "not-verified",
+      "evidence": []
+    },
+    {
+      "name": "Firefox",
+      "version": "157.0",
+      "status": "unsupported",
+      "evidence": ["node scripts/firefox-probe.mjs — الحزمة تُرفض"]
+    },
+    {
+      "name": "Safari",
+      "version": "27.0.1",
+      "status": "out-of-scope",
+      "evidence": []
+    }
+  ]
+}

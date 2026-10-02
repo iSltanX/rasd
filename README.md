@@ -1,159 +1,150 @@
-# رصد — Rasd
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Docs/Brand/svg/rasd-lockup-horizontal-dark.svg">
+    <img src="Docs/Brand/svg/rasd-lockup-horizontal-light.svg" alt="رصد" width="220">
+  </picture>
+</p>
 
-> أداة فحص بصري للمتصفح: التقاط الصفحات والعناصر، قياس المسافات، استخراج الألوان،
-> مقارنة التنفيذ بالمرجع، وتوثيق الملاحظات ومشاركتها من مكان واحد.
+<h3 align="center">افحص الواجهة كما تُرسم</h3>
 
-**شاهد المشكلة، حدّدها، قِسها، وقارنها ثم أرسلها.**
+<p align="center">
+  أداة فحص بصري عربية أوّلًا لواجهات الويب: تلتقط وتقيس وتفحص وتقارن فوق الصفحة نفسها،<br>
+  وتحفظ ما وجدته على جهازك، وتسلّمه للمطوّر بصيغٍ يفهمها.
+</p>
 
-إضافة متصفح عربية RTL بـManifest V3. الواجهة عربية، والمصطلحات التقنية إنجليزية.
+<p align="center">
+  <a href="https://bysltan.com">bysltan.com</a> ·
+  <a href="https://github.com/iSltanX/rasd">github.com/iSltanX/rasd</a> ·
+  <a href="#english">English</a>
+</p>
+
+<p align="center"><img src="Docs/Launch/readme/hero-ar.png" alt="رصد فوق صفحةٍ عربية: لوحة القياس ومكتبة اللقطات" width="100%"></p>
+
+## ما يفعله رصد
+
+| الميزة       | ما تفعله                                                                                                          |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| **الالتقاط** | الجزء الظاهر، أو الصفحة كاملة، أو عنصر، أو منطقة تحدّدها بأبعادها — من النافذة أو قائمة الزر الأيمن أو الاختصارات |
+| **الفحص**    | الأنماط المحسوبة والصندوق والخط واللون والإتاحة لأي عنصر، وتنزيلها CSS أو Tailwind أو JSON                        |
+| **القياس**   | الفجوة بين عنصرين وأبعاد كلٍّ منهما بالبكسل، فوق الصفحة الحيّة                                                    |
+| **الألوان**  | قطّارة تقرأ اللون كما يُرسم ومتغيّر CSS الذي جاء منه، ولوحة الصفحة، والتدرّجات، وتدقيق التباين في الصفحة كاملة    |
+| **المقارنة** | تصميمٌ أو لقطة فوق الصفحة — تقسيم وتراكب وشفافية ووميض — بفرق البكسلات واستثناء المناطق المتغيّرة وتقرير PDF      |
+| **المحرّر**  | ملاحظات مرقّمة وأسهم ونصوص وقصّ، وحجبٌ يُخبز في بكسلات الصورة فلا يُستعاد من الملفّ                               |
+| **المشكلات** | ملاحظة مربوطة بالعنصر وقيمتيه المتوقَّعة والفعلية، يُعاد فحصها لتعرف أهي محلولة                                   |
+| **التسليم**  | PNG وPDF، ودليل خطوات بصيغه الأربع، وحزمة تسليم للمطوّر بـMarkdown وJSON، وصفحة مشاركة تُفتح بلا إنترنت           |
+| **المكتبة**  | مشاريع ووسوم وبحث، وسلّة محذوفات، ونسخة احتياطية، وقفل برمز — كلّها على جهازك                                     |
+
+## لقطات
+
+كل لقطة من الإضافة نفسها كما يرسمها المتصفّح — لا تصميمٌ لها ولا واجهةٌ بديلة.
+
+<table>
+  <tr>
+    <td width="50%"><img src="Docs/Launch/screens/ar-01-inspect.png" alt="فحص العنصر"></td>
+    <td width="50%"><img src="Docs/Launch/screens/ar-02-measure.png" alt="القياس بين عنصرين"></td>
+  </tr>
+  <tr>
+    <td><img src="Docs/Launch/screens/ar-03-compare.png" alt="المقارنة بالمرجع"></td>
+    <td><img src="Docs/Launch/screens/ar-04-editor.png" alt="المحرّر والحجب"></td>
+  </tr>
+  <tr>
+    <td><img src="Docs/Launch/screens/ar-07-colours.png" alt="قراءة اللون"></td>
+    <td><img src="Docs/Launch/screens/ar-08-capture.png" alt="التقاط منطقة"></td>
+  </tr>
+  <tr>
+    <td><img src="Docs/Launch/screens/ar-05-library.png" alt="المكتبة على الجهاز"></td>
+    <td><img src="Docs/Launch/screens/ar-06-local-only.png" alt="الوضع المحلّي فقط"></td>
+  </tr>
+</table>
+
+## الخصوصية
+
+- **محلّيٌّ افتراضيًّا.** «الوضع المحلّي فقط» مفعّل من أوّل تشغيل، وما دام مفعّلًا لا يخرج من رصد طلب شبكة واحد —
+  مقيسًا في متصفّح حقيقي على كل مسار، لا موعودًا.
+- **لا صلاحية دائمة على المواقع.** رصد يعمل على الصفحة التي تطلبه عليها بنقرتك، ولا يعرض التثبيت تحذير «قراءة
+  بياناتك على كل المواقع».
+- **اتّصالان اختياريان فقط**، بعد إطفاء «الوضع المحلّي» وبنقرتك بعد مراجعة ما سيُرسَل: فتح Issue في مستودعك على GitHub،
+  و«أبلغ عن مشكلة» إلى المطوّر — بلا رابط الصفحة ولا محتواها ولا مكتبتك.
+
+التفصيل جملةً جملة بموضعها في الشيفرة: [`Docs/Privacy.md`](Docs/Privacy.md).
+
+## يعمل حيث تعمل أنت
+
+<p><img src="Docs/Launch/readme/browsers-ar.png" alt="المتصفّحات التي جُرّبت فيها حزمة رصد" width="100%"></p>
+
+الحزمة نفسها بلا تعديل، مجرَّبةً في كل متصفّح على macOS: تُحمَّل بلا تحذير، ثمّ تجري رحلات رصد فيه —
+الالتقاط والفحص والقياس والألوان والمقارنة والمحرّر والمكتبة والتصدير وصفر طلب شبكة. التفصيل والأوامر والفروق في
+[`Docs/Launch/browsers.md`](Docs/Launch/browsers.md).
+
+| المتصفّح    | الإصدار المجرَّب           | الحالة                                                                             |
+| ----------- | -------------------------- | ---------------------------------------------------------------------------------- |
+| **Chrome**  | 154.0.8037.93              | ✓ مدعوم                                                                            |
+| **Edge**    | 154.0.4258.53              | ✓ مدعوم                                                                            |
+| **Brave**   | 1.96.59 · Chromium 154     | ✓ مدعوم — قراءة الألوان بالبكسل تنحرف درجةً واحدة بحماية Brave من البصمة           |
+| **Opera**   | 136.0 · Chromium 152       | ✓ مدعوم — يحجز ثلاثة من الاختصارات الأربعة، فتُسند يدويًّا                         |
+| **Vivaldi** | 8.2.4133.80 · Chromium 152 | ✓ مدعوم                                                                            |
+| Arc         | 1.167.0                    | لم يُتحقَّق منه — لا يعمل بملفّ تعريفٍ معزول، والتجربة في ملفّ المستخدم تمسّ حسابه |
+| Firefox     | 157.0                      | غير مدعوم حاليًّا — [الدراسة والخطّة](Docs/Firefox/firefox_rasd.md)                |
+| Safari      | 27.0.1                     | خارج النطاق — يحتاج تحويل الإضافة إلى تطبيق macOS                                  |
+
+## التثبيت
+
+**من المتجر** — يُضاف رابط Chrome Web Store وMicrosoft Edge Add-ons هنا حين تُنشر رصد.
+
+**من الحزمة** (للمطوّر والمختبِر):
+
+1. `pnpm install --frozen-lockfile && pnpm build && pnpm zip` — أو حزمةٌ جاهزة `rasd-<النسخة>.zip`، تُفكّ في مجلّد.
+2. افتح صفحة الإضافات: `chrome://extensions` · `edge://extensions` · `brave://extensions` · `opera://extensions` ·
+   `vivaldi://extensions`.
+3. فعّل **وضع المطوّر**، ثمّ **تحميل غير مضغوطة** واختر المجلّد.
+4. تظهر رصد بأيقونتها **بلا تحذير صلاحيات**. ثبّتها في شريط الأدوات، وافتح أي صفحة واضغط الأيقونة.
+
+الاختصارات الافتراضية: `⇧⌘T` منطقة · `⇧⌘E` عنصر · `⇧⌘V` الجزء الظاهر · `⇧⌘S` الصفحة كاملة (على ويندوز ولينكس
+`Ctrl+Shift` مع `Q` و`E` و`V` و`S`)، وتُعدَّل من صفحة اختصارات الإضافات في المتصفّح.
+
+## للمطوّر
+
+```bash
+nvm use && corepack enable
+pnpm install --frozen-lockfile
+pnpm dev            # تطوير مع إعادة تحميل تلقائية
+pnpm build          # أنواع + بناء + فحص الحزمة
+pnpm gate:a         # البوّابة المحلّية كاملة
+```
+
+Preact وTypeScript وVite فوق Manifest V3، بلا خادم ولا حساب. البنية والأوامر كلّها والحرّاس وطريقة العمل في
+[`Docs/Development.md`](Docs/Development.md)، وقواعد التنفيذ في [`AGENTS.md`](AGENTS.md).
+
+## Firefox
+
+**غير مدعوم حاليًّا.** الحزمة الحالية يرفضها Firefox لأن خلفيتها عامل خدمة. وقِيس أن نسخةً تجريبية بثلاثة مفاتيح
+في البيان وحدها تعمل فيه — الطبقة والقياس والفحص والألوان والالتقاط والمكتبة — والطريق إلى نسخةٍ تُنشر مكتوبٌ بمراحله في
+[`Docs/Firefox/firefox_rasd.md`](Docs/Firefox/firefox_rasd.md).
 
 ---
 
-## المتطلّبات
+<a id="english"></a>
 
-| الأداة | النسخة                       |
-| ------ | ---------------------------- |
-| Node   | `24.x` — مثبَّتة في `.nvmrc` |
-| pnpm   | `11.x`                       |
-| Chrome | `116+`                       |
+## English
 
-```bash
-nvm use && corepack enable
-```
+<p><img src="Docs/Launch/readme/hero-en.png" alt="Rasd over an Arabic page: the measure panel and the capture library" width="100%"></p>
 
-## التشغيل
+**Rasd** is an Arabic-first visual inspection extension for people who build and review web interfaces. Capture,
+measure, inspect, check colour and compare against a reference right on the live page, keep your findings in a library on
+your device, and hand developers what they need — CSS, Tailwind, JSON, Markdown, step guides and comparison reports.
 
-```bash
-pnpm install
-pnpm dev
-```
+- **Local by default** — "Local only" is on from the first run; while it is on, Rasd sends no network request at all.
+- **No permanent site access** — it works only on the page where you invoke it.
+- **Arabic-first** — the interface is Arabic and right-to-left, in dark and light themes.
 
-`pnpm dev` يبني إلى `dist/` ويراقب التغييرات، ويعيد تحميل الإضافة تلقائيًا عبر HMR
-من CRXJS. اتركه يعمل أثناء التطوير.
+<p><img src="Docs/Launch/readme/browsers-en.png" alt="Browsers the Rasd package was tested in" width="100%"></p>
 
-## البناء
+Firefox is not supported yet; the study and plan are in [`Docs/Firefox/firefox_rasd.md`](Docs/Firefox/firefox_rasd.md).
+Store links will be added here once Rasd is published.
 
-```bash
-pnpm build
-```
+---
 
-يشغّل `typecheck` ثم `vite build` ثم **فحص الحزمة** (`verify:dist`) الذي يتأكّد من صحّة
-البيان ووجود كل ملف يشير إليه ومطابقة أبعاد الأيقونات وعدم تسرّب ملفات المصدر.
-فشل الفحص يعني أن صفحة الإضافات سترفض الحزمة.
-
-## التحميل في Chrome
-
-1. افتح `chrome://extensions`.
-2. فعّل **وضع المطوّر** (أعلى اليمين).
-3. اضغط **تحميل غير مضغوطة** واختر مجلّد `dist/`.
-4. يجب أن تظهر الإضافة باسم **رصد** وأيقونتها، **بلا أي تحذير صلاحيات**.
-
-> `--load-extension` من سطر الأوامر **لا يعمل** في Chrome 137+ (يُتجاهل صمتًا).
-> التحميل من الواجهة أعلاه هو الطريق الصحيح. للتحقّق الآلي استخدم `pnpm verify:load`
-> الذي يستعمل `Extensions.loadUnpacked` عبر بروتوكول DevTools.
-
-### الاختصارات الافتراضية
-
-| الاختصار (macOS) | غير macOS      | الوظيفة            |
-| ---------------- | -------------- | ------------------ |
-| `⇧⌘T`            | `Ctrl+Shift+Q` | تصوير منطقة        |
-| `⇧⌘E`            | `Ctrl+Shift+E` | تصوير عنصر         |
-| `⇧⌘V`            | `Ctrl+Shift+V` | تصوير الجزء الظاهر |
-| `⇧⌘S`            | `Ctrl+Shift+S` | تصوير الصفحة كاملة |
-
-> `⇧⌘F` كانت الاختيار الأول لـ«تصوير منطقة» لكن Chrome يحجزها داخليًا
-> ويتجاهلها صمتًا وقت التشغيل (بلا خطأ بناء) على ماك — اكتُشف
-> عبر `pnpm verify:popup`. استُبدلت بـ`T` هناك. وعلى لينكس/ويندوز `Ctrl+Shift+T`
-> محجوزة أيضًا، لأمرٍ مختلف («إعادة فتح التبويب المغلق») — مجموعة المحجوز
-> تفترق بين ماك وغيرها لأن Chrome يبني كلًّا منها من جدول منفصل. اعتُمد
-> `Ctrl+Shift+Q` لغير ماك، مقيسًا على عدّاء Linux حقيقي؛ انظر
-> التعليق أعلى `commands` في `manifest.config.ts` و`Docs/Engineering.md §6` صفّ 99.
-
-تُعدَّل من `chrome://extensions/shortcuts`. بقية خريطة الاختصارات تعمل داخل الصفحة،
-وتُضبط من تبويب الاختصارات في الإعدادات.
-
-## الأوامر
-
-| الأمر                | ماذا يفعل                                  |
-| -------------------- | ------------------------------------------ |
-| `pnpm dev`           | تطوير مع HMR                               |
-| `pnpm build`         | بناء + فحص الحزمة                          |
-| `pnpm typecheck`     | فحص الأنواع (المصدر وملفات الإعداد)        |
-| `pnpm lint`          | ESLint، بلا تسامح مع أي تحذير              |
-| `pnpm format`        | Prettier                                   |
-| `pnpm test`          | اختبارات الوحدة والتكامل                   |
-| `pnpm test:coverage` | مع تقرير التغطية                           |
-| `pnpm check`         | الفحوص الساكنة والاختبارات معًا            |
-| `pnpm zip`           | فحص `dist/` ثمّ حزمة `.zip` حتمية ببصمتها  |
-| `pnpm tokens:sync`   | توليد التوكنز من لقطة Figma                |
-| `pnpm gate:a`        | البوّابة المحلّية، مرّة عند إغلاق المرحلة  |
-| `pnpm stages:sync`   | اشتقاق `STATUS.md` وجدول `ROADMAP.md`      |
-| `pnpm waves:check`   | اتّساق خطّة الموجات مع ترويسات المراحل     |
-| `pnpm waves:board`   | توليد لوحة التشغيل `Docs/Waves/board.html` |
-| `pnpm verify:wave`   | حرّاس كروم لمرحلة أو لبوّابة موجة، بقفل    |
-| `pnpm verify:<اسم>`  | حارس متصفّح حقيقي — 20 حارسًا              |
-| `pnpm test:e2e`      | المسارات الأربعة بالكثافتين 1 و2، بقفل     |
-
-## البنية
-
-```
-src/
-  background/   Service Worker — دورة الحياة وتوجيه الرسائل
-  content/      داخل صفحة الطرف الثالث — Shadow Root ومدير الأوضاع
-  pages/        صفحات الإضافة — popup · editor · library · settings · onboarding
-  modules/      الوحدات الثماني — منطق خالص بلا واجهة
-  ui/           نظام التصميم — مكوّنات Preact على التوكنز الدلالية
-  shared/       الطبقة القاعدية — الأنواع والرسائل وbidi والتوطين
-  tokens/       مولَّد من Figma — لا يُحرَّر يدويًا
-tests/
-  unit/ integration/ e2e/ fixtures/
-```
-
-كل مجلّد في `src/` يحمل `README.md` يشرح دوره وحدوده.
-
-### حدود الاستيراد
-
-ثلاث قواعد **مفروضة آليًا** — خرقها يُسقط `pnpm lint` و`pnpm test`:
-
-- `modules/` لا يستورد من `ui/`
-- `content/` لا يستورد من `pages/`
-- `shared/` لا يستورد من أي طبقة أعلى منه
-
-التفاصيل والسبب في [ADR 0004](Docs/ADR/0004-architecture-boundaries.md).
-
-## استئناف العمل
-
-مدخل أي جلسة جديدة، من أي جهاز أو حساب له صلاحية على المستودع:
-
-1. [`AGENTS.md`](AGENTS.md) — قواعد التنفيذ والتحقّق والالتزام والرفع.
-2. [`STATUS.md`](STATUS.md) — آخر إنجاز مثبت، والمرحلة النشطة، والخطوة التالية.
-3. [`ROADMAP.md`](ROADMAP.md) — المراحل واعتمادياتها، وما بُني فعلًا.
-4. [`STAGES/NN.md`](STAGES/) — مواصفة المرحلة وسجلّ تنفيذها ونقطة استئنافها.
-5. [`Docs/Waves.md`](Docs/Waves.md) — موجات التوازي وأدوارها، ولوحتها
-   [`Docs/Waves/board.html`](Docs/Waves/board.html): تُفتح بـ`open Docs/Waves/board.html`، ومنها
-   يُنسخ أمر كل جلسة (`/stage NN` أو `/wave-merge XX`).
-
-```bash
-git clone https://github.com/iSltanX/rasd.git && cd rasd
-nvm use && corepack enable
-pnpm install --frozen-lockfile
-pnpm gate:a
-```
-
-على نسخة جديدة تُشغَّل `pnpm gate:a` مرّة لإثبات البيئة، ويجب أن تخرج خضراء. بعدها تُشغَّل
-مرّة عند إغلاق كل مرحلة، لا بعد كل تعديل — «اقتصاد الفحوص» في [`AGENTS.md`](AGENTS.md).
-المستودع خاصّ: الوصول من حساب آخر يتطلّب
-منحه صلاحية على المستودع.
-
-## المصادر المرجعية
-
-| المصدر                                       | الدور                                            |
-| -------------------------------------------- | ------------------------------------------------ |
-| [`Docs/Rasd_Ar.md`](Docs/Rasd_Ar.md)         | وثيقة المنتج — الفكرة والأقسام والأولويات        |
-| [`Docs/Engineering.md`](Docs/Engineering.md) | المرجع الهندسي، وسجلّ القرارات والتناقضات (§6)   |
-| [`Docs/ADR/`](Docs/ADR/)                     | القرارات المعمارية وأسبابها                      |
-| [`Docs/EntryPoints.md`](Docs/EntryPoints.md) | جرد نقاط الدخول، محروس بـ`pnpm entrypoints:lint` |
-| ملف Figma `Gr0dOsmjcVBcaX9M1slf5m`           | نظام التصميم — مصدر التوكنز والشاشات             |
-
-عند اختلاف التنفيذ عن الإطار المعتمد في Figma، فالتنفيذ هو الخطأ. والإطارات المعتمدة
-توثّقها `Docs/Design.md` عند إغلاق [`STAGES/02`](STAGES/02.md).
+<p align="center">
+  تصميم وتطوير <b>سلطان — Sultan</b> · <a href="https://bysltan.com">bysltan.com</a> · <a href="https://github.com/iSltanX/rasd">iSltanX/rasd</a><br>
+  © 2026 — جميع الحقوق محفوظة. وتراخيص المكتبات مفتوحة المصدر المضمَّنة في <code>THIRD_PARTY_LICENSES.txt</code> داخل الحزمة.
+</p>

@@ -34,18 +34,30 @@ Rasd is a visual inspection tool for people who build and review web interfaces:
 ## الوصف الطويل — العربية
 
 ```text
-رصد أداة فحص بصري لمن يبني الواجهات ويراجعها: تقيس وتفحص وتقارن وتلتقط فوق الصفحة نفسها، وتحفظ عملك في مكتبة على جهازك وحده — بلا حساب ولا خادم.
+رصد أداة فحص بصري لمن يبني واجهات الويب ويراجعها. تعمل فوق الصفحة نفسها: تلتقط وتقيس وتفحص وتقارن، ثمّ تحفظ ما وجدته في مكتبة على جهازك وتسلّمه للمطوّر بصيغٍ يفهمها — بلا حساب ولا خادم.
+
+لمن:
+• المصمّم الذي يراجع التنفيذ مقابل التصميم.
+• المطوّر الذي يريد القيمة الحقيقية لا التقدير.
+• فريق الجودة الذي يوثّق المشكلة بعنصرها وقيمتيها.
 
 ما تفعله:
-• الالتقاط: الجزء الظاهر، أو الصفحة كاملة، أو عنصر، أو منطقة تحدّدها — من نافذة الإضافة أو قائمة الزر الأيمن أو اختصارات لوحة المفاتيح.
+• الالتقاط: الجزء الظاهر، أو الصفحة كاملة، أو عنصر، أو منطقة تحدّدها بأبعادها — من نافذة الإضافة أو قائمة الزر الأيمن أو اختصارات لوحة المفاتيح.
 • القياس: اختر عنصرين فترى الفجوة بينهما وأبعاد كلٍّ منهما بالبكسل.
-• فحص العنصر: الصندوق والخط واللون والإتاحة، وتنزيل أنماطه CSS أو Tailwind أو JSON.
-• الألوان: قطّارة من أي نقطة، ولوحة ألوان الصفحة، وتدرّجات كل لون، وتدقيق تباين النصوص في الصفحة كاملة مرتّبًا بالخطورة.
+• فحص العنصر: الأنماط المحسوبة والصندوق والخط واللون والإتاحة، وتنزيلها CSS أو Tailwind أو JSON.
+• الألوان: قطّارة تقرأ اللون كما يُرسم بصيغه HEX وRGB وHSL وOKLCH وTailwind ومتغيّر CSS الذي جاء منه، ولوحة ألوان الصفحة، وتدرّجات كل لون، وتدقيق تباين النصوص في الصفحة كاملة مرتّبًا بالخطورة.
 • المقارنة بالمرجع: ضع تصميمًا أو لقطة فوق الصفحة الحيّة — تقسيم وتراكب وشفافية ووميض — مع نسبة فرق البكسلات، واستثناء المناطق المتغيّرة منها، وتقرير مقارنة PDF.
-• المحرّر: أسهم وأشكال ونصوص وتعليقات وقصّ، وحجب بالتغطية أو البكسلة أو الضبابية يُخبز في بكسلات الصورة فلا يُستعاد من الملفّ.
+• المحرّر: ملاحظات مرقّمة وأسهم وأشكال ونصوص وقصّ، وحجب بالتغطية أو البكسلة أو الضبابية يُخبز في بكسلات الصورة فلا يُستعاد من الملفّ.
 • المشكلات: سجّل ملاحظة مربوطة بالعنصر وقيمتيها، وأعد فحصها لاحقًا لتعرف أهي محلولة.
 • التصدير والتسليم: PNG وPDF، ودليل خطوات مرقّم بصيغ PDF وZIP وMarkdown وصفحة ويب واحدة، وحزمة تسليم للمطوّر بـMarkdown وJSON، وصفحة مشاركة في ملفّ واحد يُفتح بلا إنترنت.
 • المكتبة: مشاريع ووسوم ومفضّلة وبحث، وسلّة محذوفات لثلاثين يومًا، وحذف دوري اختياري، ونسخة احتياطية واستعادة، وقفل برمز.
+
+لماذا يختلف عن أدوات الفحص المعتادة:
+• يعمل حيث تُرى المشكلة: فوق الصفحة الحيّة، لا في نافذة أدواتٍ منفصلة عنها.
+• يربط الملاحظة بالعنصر نفسه وبالقيمتين المتوقَّعة والفعلية، ويعيد فحصها حين تطلب.
+• يخرج بما يحتاجه المطوّر: CSS وTailwind وJSON وMarkdown، ودليل خطوات وتقرير مقارنة.
+• عربيٌّ أوّلًا: واجهةٌ من اليمين إلى اليسار، والأرقام الهندية للعدّ والغربية للقياسات.
+• محلّيٌّ افتراضيًّا: لا يخرج شيءٌ من جهازك إلا بنقرتك.
 
 الخصوصية:
 • كل ما تحفظه يبقى على جهازك. «الوضع المحلّي فقط» مفعّل افتراضيًّا، وما دام مفعّلًا لا يخرج من رصد طلب شبكة واحد.
@@ -60,18 +72,30 @@ Rasd is a visual inspection tool for people who build and review web interfaces:
 ## Long description — English
 
 ```text
-Rasd is a visual inspection tool for people who build and review web interfaces. Measure, inspect, compare and capture right on the page, and keep your work in a library that stays on your device — no account, no server.
+Rasd is a visual inspection tool for people who build and review web interfaces. It works on the page itself: capture, measure, inspect and compare, then keep what you found in a library on your device and hand it to developers in formats they can use — no account, no server.
+
+Who it is for:
+• Designers reviewing an implementation against the design.
+• Developers who want the real value, not an estimate.
+• QA teams documenting an issue with its element and both of its values.
 
 What it does:
-• Capture: the visible area, the full page, a single element or a region you draw — from the toolbar popup, the right-click menu or keyboard shortcuts.
+• Capture: the visible area, the full page, a single element or a region you draw with live dimensions — from the toolbar popup, the right-click menu or keyboard shortcuts.
 • Measure: pick two elements to see the gap between them and the size of each, in pixels.
-• Inspect an element: box, type, colour and accessibility, and download its styles as CSS, Tailwind or JSON.
-• Colour: an eyedropper for any point, the page's colour palette, shades for each colour, and a full-page text-contrast audit sorted by severity.
+• Inspect an element: computed styles, box, type, colour and accessibility, downloadable as CSS, Tailwind or JSON.
+• Colour: an eyedropper that reads colour as it is rendered — HEX, RGB, HSL, OKLCH, Tailwind and the CSS variable it came from — plus the page palette, shades for each colour, and a full-page text-contrast audit sorted by severity.
 • Compare with a reference: lay a design or capture over the live page — split, overlay, opacity and blink — with a pixel-difference score, excluded regions for content that changes, and a PDF comparison report.
-• Editor: arrows, shapes, text, comments and crop, plus redaction by cover, pixelate or blur that is baked into the image pixels and cannot be recovered from the file.
+• Editor: numbered notes, arrows, shapes, text and crop, plus redaction by cover, pixelate or blur that is baked into the image pixels and cannot be recovered from the file.
 • Issues: log a finding tied to an element and its two values, then re-check it later to see whether it is resolved.
 • Export and handoff: PNG and PDF; numbered step guides as PDF, ZIP, Markdown or a single web page; a developer handoff package in Markdown and JSON; and a share page in one file that opens offline.
 • Library: projects, tags, favourites and search, a 30-day trash, optional automatic cleanup, backup and restore, and a passcode lock.
+
+How it differs from the usual inspection tools:
+• It works where the problem is visible: on the live page, not in a separate tools panel.
+• It ties a finding to the element itself and to the expected and actual values, and re-checks it when you ask.
+• It produces what developers need: CSS, Tailwind, JSON and Markdown, step guides and comparison reports.
+• Arabic-first: a right-to-left interface, with Arabic-Indic digits for counts and Western digits for measurements.
+• Local by default: nothing leaves your device unless you click to send it.
 
 Privacy:
 • Everything you save stays on your device. "Local only" mode is on by default, and while it is on Rasd sends no network request at all.
@@ -80,7 +104,7 @@ Privacy:
   – GitHub: open an issue in your own repository after connecting your token. The token is stored encrypted on your device and is sent only to GitHub.
   – "Report a problem": sends the developer of Rasd what you wrote, an image if you attach one (after redacting what you choose), and diagnostics — the Rasd version, operating system, browser and interface language. The page address, page content, your library and your settings are never sent. Reports go to a private support repository and are not published.
 
-Language: Rasd's interface is in Arabic, laid out right to left, in dark and light themes. In an English browser the extension name, this description and the keyboard-shortcut names appear in English; the screens themselves are Arabic.
+Language: the interface is in Arabic, laid out right to left, in dark and light themes. In an English browser the extension name, this description and the keyboard-shortcut names appear in English; the screens themselves are Arabic.
 ```
 
 ## ممارسات البيانات (Privacy practices · Data usage)
