@@ -72,8 +72,8 @@ Firefox** — لا حقن ولا حفظ ولا نسخة ثانية من الإض
 حين تُزال رصد يفتح المتصفّح صفحةً في موقع المالك (`https://www.bysltan.com/rasd/uninstall`) تسأل سؤالًا واحدًا
 اختياريًّا — **بالرابط حرفًا، بلا معرّف ولا نسخة ولا استعلام** ([`uninstall-url.ts`](../src/background/uninstall-url.ts)،
 `tests/unit/background/uninstall-url.test.ts`). ليس طلبًا من رصد: يضبطه العامل عند إقلاعه عنوانًا يحفظه المتصفّح، ويفتحه
-المتصفّح بعد أن تزول الإضافة وبياناتها، فلا يحمل منها شيئًا. **ولا يُضبط اليوم:** الصفحة لم تُنشر، والرابط خلف
-`OWNER_PAGES_LIVE` في [`links.ts`](../src/shared/links.ts) حتى تعيد 200 ([`Store/owner-pages.md`](Store/owner-pages.md)).
+المتصفّح بعد أن تزول الإضافة وبياناتها، فلا يحمل منها شيئًا. **ويُضبط منذ 1.0.0:** الصفحة منشورة وتعيد
+200، و`OWNER_PAGES_LIVE` مشتعلٌ في [`links.ts`](../src/shared/links.ts) ([`Store/owner-pages.md`](Store/owner-pages.md)).
 
 ## التصدير والمشاركة
 

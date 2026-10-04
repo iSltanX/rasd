@@ -82,8 +82,8 @@
 
 ## التثبيت
 
-**من المتاجر** — قريبًا في Chrome Web Store وMicrosoft Edge Add-ons وFirefox Add-ons وOpera Add-ons. تُضاف روابطها هنا
-حين تُنشر رصد.
+**من المتجر** — [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) (الإصدار 1.0.0). وMicrosoft Edge Add-ons وFirefox Add-ons
+وOpera Add-ons لم تُنشر بعد؛ تُضاف روابطها هنا حين تُنشر.
 
 **من الحزمة**، للمطوّر والمختبِر:
 
@@ -111,6 +111,12 @@ pnpm gate:a     # البوّابة المحلّية
 
 مدعوم بحزمةٍ خاصّة من المصدر نفسه: `pnpm build:firefox && pnpm zip:firefox`. ولا يعمل في النوافذ الخاصّة.
 
+## الحقوق
+
+رصد برمجية مملوكة لا مفتوحة المصدر (`UNLICENSED`): جميع الحقوق محفوظة، والاطّلاع على هذه الشيفرة لا يمنح ترخيصًا بنسخها
+أو تعديلها أو إعادة توزيعها. استعمال الإضافة وفق [اتفاقية الترخيص](https://www.bysltan.com/rasd/legal)، ومكوّنات الطرف
+الثالث بتراخيصها ([`licenses/`](licenses/) و`THIRD_PARTY_LICENSES.txt` داخل الحزمة).
+
 ---
 
 <a id="english"></a>
@@ -131,7 +137,13 @@ developers what they need.
 - **No permanent site access** — it works only on the page where you invoke it.
 - **Arabic-first** — the interface is Arabic and right-to-left, in dark and light themes.
 
-<p><sub>Store links will be added here once Rasd is published.</sub></p>
+**Install** from the [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) (version 1.0.0). Microsoft Edge Add-ons, Firefox Add-ons and
+Opera Add-ons are not published yet; their links will be added here once they are.
+
+**Rights** — Rasd is proprietary software, not open source (`UNLICENSED`). All rights are reserved; reading this code grants no
+licence to copy, modify or redistribute it. Using the extension is governed by its
+[end-user licence agreement](https://www.bysltan.com/rasd/en/legal), and third-party components keep their own licences
+([`licenses/`](licenses/) and `THIRD_PARTY_LICENSES.txt` inside the package).
 
 ---
 
