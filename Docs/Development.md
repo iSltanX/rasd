@@ -89,7 +89,7 @@ pnpm zip:all                   # الثلاث في dist-zip/ — كلٌّ معه
 pnpm zip:all --tag v1.2.3      # كما في سير الإصدار: الوسم يطابق النسخة، وحزمة المصدر من الالتزام الموسوم
 ```
 
-- `rasd-<v>.zip` (Chrome وEdge وOpera) · `rasd-<v>-firefox.zip` (بعد `web-ext lint`: صفر خطأ، وتحذيرا `innerHTML` لأيقونات SVG
+- `rasd-<v>.zip` (Chrome وEdge) · `rasd-<v>-opera.zip` (Opera — حزمة Chrome وفرقٌ وحيد في `short_name`، تُنتَج يدويًّا: `Docs/Store/opera/listing.md`) · `rasd-<v>-firefox.zip` (بعد `web-ext lint`: صفر خطأ، وتحذيرا `innerHTML` لأيقونات SVG
   ثابتة وحدهما) · `rasd-<v>-source.zip` (`git archive HEAD` وREADME البناء `Docs/Store/source-README.md` — ما يطلبه AMO وOpera).
   ويصلح كلٌّ وحده: `pnpm zip` · `pnpm zip:firefox` · `pnpm zip:source`.
 - `zip:source` يرفض شجرةً غير نظيفة، و`zip:firefox` يرفض بيانًا بلا `gecko.id`. وفي `zip:all` أوّل رفضٍ يمنع كتابة أيٍّ منها.
@@ -183,7 +183,7 @@ tests/
 ## الحالة والمتبقّي
 
 - **المنشور:** Chrome Web Store بالإصدار `1.0.0` (2026-10-03). **غير المنشور:** Microsoft Edge Add-ons وFirefox Add-ons وOpera
-  Add-ons — موادّها وحزمها جاهزة، وتقديمها بأمر المالك وحده. الجدول وبصمات الحزم في [`Docs/Release/channels.md`](Release/channels.md).
+  Add-ons — موادّها وحزمها جاهزة، وتقديمها بأمر المالك وحده. **Opera: قُبل رفع `rasd-1.0.0-opera.zip` والنشر لم يُؤكَّد.** الجدول وبصمات الحزم في [`Docs/Release/channels.md`](Release/channels.md).
 - **مسوَّدة إصدار `v1.0.0` على GitHub** غير منشورة عمدًا؛ فيها الحزم الثلاث ببصماتها.
 - **حزم `1.0.0` تُعاد بايتًا ببايت:** `pnpm build:all && pnpm zip && pnpm zip:firefox` تعطي `rasd-1.0.0.zip` و`rasd-1.0.0-firefox.zip`
   بالبصمتين المدوَّنتين في `channels.md` (قِيس 2026-10-04 بعد تنظيف المستودع). **حزمة المراجعين** `rasd-<v>-source.zip` تُبنى من

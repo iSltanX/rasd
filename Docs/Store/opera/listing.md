@@ -35,10 +35,50 @@ Rasd measures, inspects, compares and captures web pages in the active tab, and 
 
 ## البيان وقبول MV3
 
-حزمة Opera هي حزمة Chromium نفسها بيان MV3. صفحة Opera الرسمية للبيان ما زالت **تصف MV2** (`manifest_version: 2`)
+حزمة Opera هي حزمة Chromium نفسها بيان MV3، **إلا أنّ `short_name` فيها `Rasd` حرفيًّا** (انظر «حزمة Opera» أدناه). صفحة Opera الرسمية للبيان ما زالت **تصف MV2** (`manifest_version: 2`)
 ولا تذكر MV3 (قُرئت 2026-10-02)، وقبول MV3 معلَنٌ في منتدى مطوّري Opera لا في صفحاتها — **يُتحقَّق منه يوم التقديم**
 (بند في [`../checklist.md`](../checklist.md)). رصد لا تحمل `content_scripts` ولا شيفرة بعيدة، فمعيار «لا JavaScript خارجي»
 مستوفى.
+
+## حزمة Opera
+
+حزمة مستقلّة `rasd-<النسخة>-opera.zip` (حالة `1.0.0`: **قُبل الرفع، والنشر لم يُؤكَّد** — إفادة المالك 2026-10-04)، تختلف عن
+`rasd-<النسخة>.zip` بسطرٍ واحد في `manifest.json`:
+
+```diff
+-  "short_name": "__MSG_extShortName__",
++  "short_name": "Rasd",
+```
+
+| الحزمة                 | SHA-256                                                            |
+| ---------------------- | ------------------------------------------------------------------ |
+| `rasd-1.0.0-opera.zip` | `a81fe1f8dd68d924acb63b37fd5e582d30116aca63976a32475115e247122501` |
+
+**الإنتاج** من `dist/` الذي يبنيه `pnpm build` (لا يُمسّ `dist/` ولا حزمة Chrome ولا `scripts/zip.mjs`):
+
+```bash
+pnpm build
+node --input-type=module -e "
+import { writeFileSync } from 'node:fs'
+import { collect, zip, sha256 } from './scripts/lib/release-pack.mjs'
+const { files } = collect('dist')
+const m = files.find((f) => f.path === 'manifest.json')
+const from = '\"short_name\": \"__MSG_extShortName__\"'
+const text = m.data.toString('utf8')
+if (!text.includes(from)) throw new Error('short_name غير موجود في البيان')
+m.data = Buffer.from(text.replace(from, '\"short_name\": \"Rasd\"'), 'utf8')
+const out = zip(files)
+writeFileSync('dist-zip/rasd-1.0.0-opera.zip', out)
+console.log(sha256(out))
+"
+```
+
+**التحقّق:** كل ملفّ في الحزمتين (85) متطابق بـCRC32 عدا `manifest.json`، وسطر `short_name` هو الفرق الوحيد بين البيانين
+(`diff` على `python3 -m json.tool`). وإعادة الإنتاج أعلاه تعطي **المحتوى نفسه لا البايتات نفسها**: الحزمة المرفوعة كُتبت بأداة
+ضغط غير `zip()` في `release-pack.mjs` فحجمها 839838 لا 840748 — فالبصمة المعتمدة بصمة الملفّ المحفوظ (أرشيف التنظيف المحلّي
+وبجوار `dist-zip/`). ولا تُنشر Opera قبل أن يُرى النشر في المتجر ويُدوَّن في [`channels.md`](../../Release/channels.md).
+
+**مراجِع يعيد البناء من حزمة المصدر** يحصل على بيان Chrome (`__MSG_extShortName__`)؛ والفرق وحده هذا السطر.
 
 ## الشيفرة المصغَّرة
 
