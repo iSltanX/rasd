@@ -7,7 +7,7 @@
 > [`Docs/Browsers/Architecture.md`](../Browsers/Architecture.md) — وهي مرجع التنفيذ؛ وما هنا يبقى سجلّ القياس.
 >
 > **تحديث SS7:** الحلول المقيسة هنا صارت نواة `scripts/lib/bidi.mjs` وأربعة عشر حارسًا تحت `scripts/firefox/` (ADR 0059) —
-> و`scripts/firefox-probe.mjs` يبقى مسبار القياس كما قيس به. وما قيس بعد هذه الدراسة في سجلّ [`SS7`](../SS/stages/SS7.md).
+> و`scripts/firefox-probe.mjs` يبقى مسبار القياس كما قيس به. وما قيس بعد هذه الدراسة في سجلّ `SS7`.
 >
 > **كل ادّعاء هنا موسوم بمصدره:**
 >

@@ -45,5 +45,5 @@ blob-report/
 .playwright/
 .playwright-mcp/
 
-# محلّي بحت — مسارات worktrees وإعدادات جلسات الأداة المحلية
-.claude/worktrees/
+# محلّي بحت — أدوات الجلسات المحلّية ووكلاؤها ومسارات worktrees (خارج المستودع العامّ منذ 2026-10-04)
+.claude/

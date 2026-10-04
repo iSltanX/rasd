@@ -6,7 +6,7 @@
 > بأمر المالك.
 >
 > ما تبني عليه: [`Docs/Launch/browsers.md`](../Launch/browsers.md) (مصفوفة Chromium المقيسة) ·
-> [`Docs/Firefox/firefox_rasd.md`](../Firefox/firefox_rasd.md) (دراسة Firefox المقيسة) · [`STAGES/28`](../../STAGES/28.md)
+> [`Docs/Firefox/firefox_rasd.md`](../Firefox/firefox_rasd.md) (دراسة Firefox المقيسة) · `STAGES/28`
 > و[`Docs/Store/`](../Store/README.md) (متطلّبات Chrome وEdge) · [ADR 0050](../ADR/0050-problem-reports.md) (قناة
 > البلاغات) · [ADR 0057](../ADR/0057-release-packaging.md) (الحزمة الحتمية).
 >
@@ -383,7 +383,7 @@ Edge» و«Brave» و«Opera» [وثيقة: علاماتها في `Sec-CH-UA`؛ 
 ## 5. خطة التنفيذ — نظام SS
 
 قرار المالك 2026-10-02: **الإصدار 1.0 يُنشر متعدّد المتصفّحات**، لا Chrome أوّلًا ثمّ البنية بعده. فالتنفيذ في نظام SS
-([`Docs/SS/README.md`](../SS/README.md) ولوحته `Docs/SS/board.html`): عشر مراحل `SS1`–`SS10` في ستّ موجات `A`–`F`،
+(`Docs/SS/README.md` ولوحته `Docs/SS/board.html`): عشر مراحل `SS1`–`SS10` في ستّ موجات `A`–`F`،
 بحالتها واعتمادياتها وأوامرها هناك لا هنا. وما كان في هذه الدراسة مراحل 35–41 ومرحلتا 29 و30 القديمتان استُوعب كلّه:
 
 | ما في الدراسة                                        | المرحلة | الموجة |

@@ -113,10 +113,8 @@ describe('مسار التوثيق في ci.yml وسجلّ الترقية', () => 
     for (const file of [
       'AGENTS.md',
       'README.md',
-      'ROADMAP.md',
-      'STATUS.md',
-      'STAGES/02.md',
       'Docs/Engineering.md',
+      'Docs/Flaky.md',
       'Docs/ADR/0024-x.md',
       'Docs/Brand/png/rasd-icon-idle-16.png',
       'Docs/Brand/svg/rasd-symbol-mono.svg',

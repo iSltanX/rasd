@@ -23,7 +23,6 @@
  *
  *   pnpm gate:a
  *   RASD_GATE_BASE=origin/main pnpm gate:a   ← عند الإغلاق، والدفعات التزامات محلّية
- *   RASD_GATE_BASE=wave-XX/base pnpm gate:a  ← مرحلة ضمن موجة، وبوّابة الموجة (ADR 0026)
  */
 import { execFileSync, execSync } from 'node:child_process'
 import { fileURLToPath, URL } from 'node:url'
@@ -56,25 +55,8 @@ const STEPS = [
         stdio: 'inherit',
       }),
   },
-  {
-    // الحالة تُكتب في ترويسات `STAGES/NN.md` وحدها، و`STATUS.md` وجدول `ROADMAP.md`
-    // مشتقّان منها. الحارس يجعل افتراق الثلاثة مستحيلًا لا مُستبعَدًا.
-    name: 'حارس مزامنة المراحل',
-    run: () =>
-      execFileSync(process.execPath, ['scripts/stages-sync.mjs', '--check'], {
-        cwd: root,
-        stdio: 'inherit',
-      }),
-  },
-  {
-    // نظام SS (Docs/SS/): القواعد والكتلة المشتقّة في README واللوحة — الخطّة النشطة منذ 2026-10-02.
-    name: 'حارس نظام SS',
-    run: () =>
-      execFileSync(process.execPath, ['scripts/ss.mjs', 'check'], {
-        cwd: root,
-        stdio: 'inherit',
-      }),
-  },
+  // حارسا مزامنة المراحل (`stages-sync.mjs --check`) ونظام SS (`ss.mjs check`) خرجا مع ما يحرسانه — ترويسات
+  // `STAGES/` و`Docs/SS/` ومشتقّاتها نُقلت إلى أرشيف التخطيط خارج المستودع العامّ (2026-10-04، `Docs/Engineering.md` §6 الصفّ 477).
   {
     // عمود `blocking` في `ci.yml` كان يُكتَب بيد وقاعدتُه تعليقًا لا يقرؤه شيء.
     // الحارس يجعله مشتقًّا من سجلٍّ مقيس — بلا شبكة، فلا يُدخِل CI في دور.

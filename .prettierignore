@@ -5,8 +5,8 @@ artifacts/
 node_modules/
 pnpm-lock.yaml
 src/tokens/
-# نُسخ عمل معزولة لجلسات خلفية موازية — انظر تعليل eslint.config.js المطابق
-.claude/worktrees/
+# أدوات الجلسات المحلّية ونُسخ العمل المعزولة — خارج Git، انظر تعليل eslint.config.js المطابق
+.claude/
 # أصول مولَّدة: ورقة التوكنز والخطوط
 public/assets/tokens.css
 public/assets/tokens-shadow.css
@@ -23,17 +23,5 @@ Docs/Rasd_Ar.md
 Docs/Engineering.md
 Docs/ADR/
 
-# مشتقّ كاملًا من ترويسات `STAGES/NN.md` — يكتبه `stages-sync.mjs` ويحرسه `--check`
-STATUS.md
-# يحوي جدولًا مشتقًّا بين علامتَي stages:begin و stages:end — التنسيق يُفسد المطابقة
-ROADMAP.md
-
 # سجلّ ترقية الحرّاس — يكتبه `guards-sync.mjs` ويحرسه `--check`
 .github/guards-ledger.json
-
-# لوحة موجات التوازي — يولّدها `waves-board.mjs` من الخطّة والترويسات والوسوم
-Docs/Waves/board.html
-
-# نظام SS: الكتلة المشتقّة في README (يكتبها `ss.mjs`) واللوحة المولَّدة
-Docs/SS/README.md
-Docs/SS/board.html

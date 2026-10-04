@@ -1,7 +1,7 @@
 # مبرّرات الصلاحيات — لحقول «Permission justification» في المتجرين
 
 > صفٌّ لكل صلاحية في البيان، مأخوذةً من [`src/shared/permission-policy.ts`](../../src/shared/permission-policy.ts) بعد
-> [`STAGES/23`](../../STAGES/23.md) ([ADR 0055](../ADR/0055-permission-consumers.md)). العمود الإنجليزي يُلصق في لوحة
+> `STAGES/23` ([ADR 0055](../ADR/0055-permission-consumers.md)). العمود الإنجليزي يُلصق في لوحة
 > المتجر كما هو، والعربي هو النصّ الذي يراه المستخدم في شاشة الصلاحيات (`REQUIRED_PERMISSION_RATIONALE` و
 > `OPTIONAL_PERMISSION_RATIONALE` و`HOST_PERMISSION_RATIONALE` و`NETWORK_SERVICES[].purpose`). والمستهلك يطبعه
 > `pnpm verify:dist` باسم ملفّه، فصلاحيةٌ بلا مستهلك تُسقط البناء قبل أن تصل هنا.
