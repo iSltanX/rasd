@@ -74,4 +74,4 @@ VITE_RASD_REPORT_TEST=1 pnpm build && node scripts/report-proof.mjs
 **الصورة المستلَمة** سوداء مصمتة. **يفتح Issue حقيقيًّا** (بوسم `test`)، فلا يُشغَّل إلا بقصد. والفرق الوحيد عن المستخدم
 أن إذن المضيف ممنوحٌ في بيان نسخة الفحص: نافذة الإذن من المتصفّح نفسه ولا تُنقر من بروتوكول التنقيح.
 
-آخر تشغيل: البلاغ [#4](https://github.com/iSltanX/app-reports/issues/4) — سجلّ [`STAGES/13`](../STAGES/13.md).
+آخر تشغيل: البلاغ [#4](https://github.com/iSltanX/app-reports/issues/4) — سجلّ `STAGES/13`.

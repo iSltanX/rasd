@@ -6,11 +6,11 @@
  * ويعيد الساقط مرّة واحدة (الإعادة محلّيًّا مجّانية)، ثمّ يطبع خلاصة. ولا يمسّ
  * `scripts/verify-*.mjs` — اسمه خارج ذلك النمط عمدًا، فلا يُحسَب حارسًا ولا يُثبَّت في سجلّ الترقية.
  *
- *   pnpm verify:wave --wave 03              بوّابة الموجة: الأساس wave-03/base، والحجم من Docs/Waves.md
- *   pnpm verify:wave --base wave-03/base    فحص مرحلة: مخروط الأثر وحده
- *   pnpm verify:wave --wave 03 --list       يطبع الخطّة ولا يشغّل شيئًا
- *   pnpm verify:wave --base wave-03/base --only colour,measure   حرّاسٌ بأسمائها أثناء الدفعة، بالقفل نفسه
- *   pnpm verify:wave --base ss-C/base --firefox   ثمّ حرّاس Firefox كلّها (`verify:firefox`) بعد حرّاس كروم
+ *   pnpm verify:wave --base origin/main     فحص التغيير: مخروط الأثر وحده
+ *   pnpm verify:wave --base origin/main --size all          كل الحرّاس (قبل إصدار)
+ *   pnpm verify:wave --base origin/main --list              يطبع الخطّة ولا يشغّل شيئًا
+ *   pnpm verify:wave --base origin/main --only colour,measure   حرّاسٌ بأسمائها أثناء الدفعة، بالقفل نفسه
+ *   pnpm verify:wave --base origin/main --firefox   ثمّ حرّاس Firefox كلّها (`verify:firefox`) بعد حرّاس كروم
  *
  * الأحجام: `cone` مخروط الأثر (`impact.mjs`)، وملفٌّ خارج جدوله يرفعه إلى `all` · `blocking` المخروط
  * ومعه الحاجبة في `ci.yml` · `all` كل `verify:*` في `package.json` عدا `dist` و`tokens` و`wave`.
@@ -35,7 +35,6 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { readMatrix } from './guards-sync.mjs'
 import { changedFiles, coneOf } from './impact.mjs'
-import { pad, readPlan } from './waves-plan.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 
@@ -84,7 +83,7 @@ export function planGuards({ size, cone, all, blocking, only = [] }) {
 }
 
 /**
- * حكم الحارس بعد محاولتيه. نجاحٌ عند الإعادة مقبولٌ **لحارسٍ معروف التقطّع وحده** (جدول `STAGES/04`)؛
+ * حكم الحارس بعد محاولتيه. نجاحٌ عند الإعادة مقبولٌ **لحارسٍ معروف التقطّع وحده** (جدول `Docs/Flaky.md`)؛
  * ولغيره عَرَضٌ جديد يُحقَّق فيه قبل الدمج (`AGENTS.md` §4) — فيُسقط البوّابة ولا يمرّ سطرًا.
  */
 export function verdict(first, second, knownFlaky) {
@@ -170,9 +169,9 @@ function argument(name) {
   return value
 }
 
-/** الحرّاس المعروف تقطّعها — عمودها الأوّل في جدول «مرجع الأعطال المتقطّعة المعروفة» في `STAGES/04`. */
+/** الحرّاس المعروف تقطّعها — عمودها الأوّل في جدول «مرجع الأعطال المتقطّعة المعروفة» في `Docs/Flaky.md`. */
 function knownFlaky() {
-  const text = readFileSync(join(root, 'STAGES', '04.md'), 'utf8')
+  const text = readFileSync(join(root, 'Docs', 'Flaky.md'), 'utf8')
   const at = text.indexOf('مرجع الأعطال المتقطّعة المعروفة')
   if (at === -1) return new Map()
   const rows = text
@@ -253,15 +252,10 @@ function runGuard(guard) {
 }
 
 async function main() {
-  const wave = argument('wave')
-  const plan = wave ? readPlan().waves.find((w) => w.wave === Number(wave)) : null
-  if (wave && !plan) {
-    console.error(`✗ لا موجة ${wave} في Docs/Waves.md.`)
-    process.exit(1)
-  }
-  const base = argument('base') ?? (plan ? `wave-${pad(plan.wave)}/base` : null)
+  // `--wave NN` (الأساس والحجم من خطّة الموجات) خرج مع الخطّة نفسها إلى أرشيف التخطيط (2026-10-04)؛ الأساس صريحٌ دائمًا.
+  const base = argument('base')
   if (!base) {
-    console.error('✗ مرّر --wave NN أو --base <مرجع>.')
+    console.error('✗ مرّر --base <مرجع> (مثلًا origin/main).')
     process.exit(1)
   }
   try {
@@ -273,7 +267,7 @@ async function main() {
     console.error(`✗ المرجع «${base}» غير موجود — git fetch origin --tags؟`)
     process.exit(1)
   }
-  const size = argument('size') ?? plan?.check ?? 'cone'
+  const size = argument('size') ?? 'cone'
   if (!['all', 'blocking', 'cone'].includes(size)) {
     console.error(`✗ حجم غير معروف «${size}» — all · blocking · cone.`)
     process.exit(1)
@@ -358,13 +352,13 @@ async function main() {
   )
   for (const r of results.filter((r) => r.outcome === 'flaky')) {
     console.log(
-      `  ≈ ${r.guard}: سقط ثمّ نجح عند الإعادة، ومعروف التقطّع في STAGES/04 — قارن العَرَض أعلاه بالمسجَّل (${flaky.get(r.guard)})، وسطرٌ في سجلّ المرحلة`,
+      `  ≈ ${r.guard}: سقط ثمّ نجح عند الإعادة، ومعروف التقطّع في Docs/Flaky.md — قارن العَرَض أعلاه بالمسجَّل (${flaky.get(r.guard)})، وسطرٌ في سجلّ التغيير`,
     )
   }
   for (const r of failed) {
     if (r.outcome === 'unrecorded') {
       console.error(
-        `\n  ✗ ${r.guard} سقط ثمّ نجح عند الإعادة، وليس في جدول المتقطّعة في STAGES/04 — عَرَضٌ جديد يُحقَّق فيه قبل الدمج:\n${indent(r.firstTail)}`,
+        `\n  ✗ ${r.guard} سقط ثمّ نجح عند الإعادة، وليس في جدول المتقطّعة في Docs/Flaky.md — عَرَضٌ جديد يُحقَّق فيه قبل الدمج:\n${indent(r.firstTail)}`,
       )
       continue
     }

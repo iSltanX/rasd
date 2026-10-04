@@ -1,7 +1,7 @@
 # مرجع التصميم — رصد
 
-> كُتب في [`STAGES/02`](../STAGES/02.md) بتاريخ 2026-09-29. **الإطارات هنا هي المرجع المعتمد
-> للتنفيذ في [`STAGES/03`](../STAGES/03.md).** كل شاشة منفَّذة تُربط بإطارها من هذا الملفّ، وكل
+> كُتب في `STAGES/02` بتاريخ 2026-09-29. **الإطارات هنا هي المرجع المعتمد
+> للتنفيذ في `STAGES/03`.** كل شاشة منفَّذة تُربط بإطارها من هذا الملفّ، وكل
 > اختلاف مقصود يُكتب بسببه. النطاق في [`Scope.md`](Scope.md)، والهوية في
 > [`Brand/README.md`](Brand/README.md).
 
@@ -277,14 +277,14 @@ return {
 
 وتعديلات على القائم:
 
-| المكوّن                                     | التعديل                                                           | السبب                                                                                  |
-| ------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `Chip`                                      | يحتضن نصّه، وأُضيفت الدرجات `Info` و`Compare` و`Colors`           | كان بعرض ثابت 60 فيقصّ النصّ، وثلاث درجات مستعملة في الشاشات بلا متغيّر                |
-| `KeyCap`                                    | يحتضن نصّه، وخاصية `Key`، والنصّ الافتراضي `⇧⌘T`                  | كان بعرض ثابت 40، ويعرض `⌥⌘F` الذي يرفضه Chrome                                        |
-| `Button`                                    | لون الأيقونة مربوط بالحالة والنوع                                 | أيقونة الزرّ الأساسي كانت رمادية على لون العلامة في الوضع الفاتح                       |
-| `Empty State`                               | نصّ الاختصار `⇧⌘T`                                                | كان `⌥⌘F`                                                                              |
-| `Menu` · `Tooltip` · `Banner` · `Tool Card` | نصوص الاختصارات والمشاركة والوضع المحلّي                          | تطابق المنتج المشحون                                                                   |
-| `App Sidebar`                               | بند «المشكلات» آخر «المجموعات» بعدّاده — في [31](../STAGES/31.md) | مدخل مكتبة المشكلات. يسري في كل نسخه، وبُني في الشريط الجانبي مع [32](../STAGES/32.md) |
+| المكوّن                                     | التعديل                                                 | السبب                                                                   |
+| ------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `Chip`                                      | يحتضن نصّه، وأُضيفت الدرجات `Info` و`Compare` و`Colors` | كان بعرض ثابت 60 فيقصّ النصّ، وثلاث درجات مستعملة في الشاشات بلا متغيّر |
+| `KeyCap`                                    | يحتضن نصّه، وخاصية `Key`، والنصّ الافتراضي `⇧⌘T`        | كان بعرض ثابت 40، ويعرض `⌥⌘F` الذي يرفضه Chrome                         |
+| `Button`                                    | لون الأيقونة مربوط بالحالة والنوع                       | أيقونة الزرّ الأساسي كانت رمادية على لون العلامة في الوضع الفاتح        |
+| `Empty State`                               | نصّ الاختصار `⇧⌘T`                                      | كان `⌥⌘F`                                                               |
+| `Menu` · `Tooltip` · `Banner` · `Tool Card` | نصوص الاختصارات والمشاركة والوضع المحلّي                | تطابق المنتج المشحون                                                    |
+| `App Sidebar`                               | بند «المشكلات» آخر «المجموعات» بعدّاده — في 31          | مدخل مكتبة المشكلات. يسري في كل نسخه، وبُني في الشريط الجانبي مع 32     |
 
 ### الشعار
 
@@ -294,7 +294,7 @@ return {
 
 ## 5. الشاشات المعتمدة
 
-216 شاشة، لكلٍّ إطار داكن وإطار فاتح — 190 من [02](../STAGES/02.md) و26 للإضافات الثلاث من [31](../STAGES/31.md). عمود «مطابق» نتيجة مقارنة كل شاشة منفَّذة بإطارها — معناه وطريقته في
+216 شاشة، لكلٍّ إطار داكن وإطار فاتح — 190 من 02 و26 للإضافات الثلاث من 31. عمود «مطابق» نتيجة مقارنة كل شاشة منفَّذة بإطارها — معناه وطريقته في
 §11.
 
 ### النافذة — الصفحة `13 — Extension Popup`
@@ -346,69 +346,69 @@ return {
 
 ### القياس — الصفحة `16 — Measure`
 
-| الإطار                   | الحالة     | الداكن                                                                                | الفاتح                                                                                    | منفَّذ                                                                                           | مطابق                                                                      |
-| ------------------------ | ---------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| `measure / two-elements` | أساسية     | [`64:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=64-2)       | [`310:29105`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29105) | [`overlay-app.tsx`](../src/content/overlay-app.tsx) — `MeasureLayer`                             | ✓ · §11 · لوحة «سجّل مشكلة» [32](../STAGES/32.md) صفّ الفجوة وحده (§6 188) |
-| `measure / idle`         | فراغ       | [`98:251`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=98-251)   | [`310:29166`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29166) | [`MeasureIdle.tsx`](../src/ui/overlay/MeasureIdle.tsx)                                           | ✓ · §11                                                                    |
-| `measure / copied`       | نجاح       | [`303:149`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-149) | [`310:29197`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29197) | — لا محرّك: القياس لا يُنسخ                                                                      | —                                                                          |
-| `measure / cancelled`    | إلغاء      | [`303:222`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-222) | [`310:29259`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29259) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                                                                    |
-| `measure / error`        | خطأ        | [`303:265`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-265) | [`310:29291`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29291) | — لا محرّك: لا كشف لعنصر مخفيّ                                                                   | —                                                                          |
-| `measure / restricted`   | رفض صلاحية | [`303:310`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-310) | [`310:29323`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29323) | [`Restricted.tsx`](../src/pages/popup/views/Restricted.tsx) — في النافذة: لا طبقة في صفحة مقيّدة | في النافذة: `popup / restricted`                                           |
+| الإطار                   | الحالة     | الداكن                                                                                | الفاتح                                                                                    | منفَّذ                                                                                           | مطابق                                                   |
+| ------------------------ | ---------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `measure / two-elements` | أساسية     | [`64:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=64-2)       | [`310:29105`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29105) | [`overlay-app.tsx`](../src/content/overlay-app.tsx) — `MeasureLayer`                             | ✓ · §11 · لوحة «سجّل مشكلة» 32 صفّ الفجوة وحده (§6 188) |
+| `measure / idle`         | فراغ       | [`98:251`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=98-251)   | [`310:29166`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29166) | [`MeasureIdle.tsx`](../src/ui/overlay/MeasureIdle.tsx)                                           | ✓ · §11                                                 |
+| `measure / copied`       | نجاح       | [`303:149`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-149) | [`310:29197`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29197) | — لا محرّك: القياس لا يُنسخ                                                                      | —                                                       |
+| `measure / cancelled`    | إلغاء      | [`303:222`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-222) | [`310:29259`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29259) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                                                 |
+| `measure / error`        | خطأ        | [`303:265`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-265) | [`310:29291`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29291) | — لا محرّك: لا كشف لعنصر مخفيّ                                                                   | —                                                       |
+| `measure / restricted`   | رفض صلاحية | [`303:310`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-310) | [`310:29323`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29323) | [`Restricted.tsx`](../src/pages/popup/views/Restricted.tsx) — في النافذة: لا طبقة في صفحة مقيّدة | في النافذة: `popup / restricted`                        |
 
 ### الفحص وتدقيق التباين — الصفحة `17 — Inspect`
 
-| الإطار                        | الحالة     | الداكن                                                                                    | الفاتح                                                                                    | منفَّذ                                                                                           | مطابق                                                                |
-| ----------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| `inspect / element-selected`  | أساسية     | [`62:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=62-2)           | [`310:29794`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29794) | [`InspectPanel.tsx`](../src/ui/overlay/inspect/InspectPanel.tsx)                                 | ✓ · «سجّل مشكلة» [32](../STAGES/32.md) ✓                             |
-| `inspect / idle`              | فراغ       | [`98:90`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=98-90)         | [`310:29886`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29886) | [`InspectPanel.tsx`](../src/ui/overlay/inspect/InspectPanel.tsx) — `InspectIdle`                 | ✓ · §11 · مدخل تدقيق التباين [14](../STAGES/14.md) — فروق §6 230 (و) |
-| `inspect / copied`            | نجاح       | [`303:20677`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20677) | [`310:29917`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29917) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                                                              |
-| `inspect / cancelled`         | إلغاء      | [`303:20779`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20779) | [`310:30010`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30010) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓                                                                    |
-| `inspect / error`             | خطأ        | [`303:20820`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20820) | [`310:30042`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30042) | [`FrameBlocked.tsx`](../src/ui/overlay/FrameBlocked.tsx)                                         | بلا مشغِّل · §11                                                     |
-| `contrast-audit / idle`       | فراغ       | [`303:20863`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20863) | [`310:30074`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30074) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | فروق §6 230 (و)                                                      |
-| `contrast-audit / scanning`   | تحميل      | [`303:20920`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20920) | [`310:30123`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30123) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | فروق §6 230 (د)                                                      |
-| `contrast-audit / results`    | أساسية     | [`303:20977`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20977) | [`310:30171`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30171) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | فروق §6 230 (أ · ج · ح)                                              |
-| `contrast-audit / all-pass`   | نجاح       | [`303:21094`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-21094) | [`310:30227`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30227) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | ✓                                                                    |
-| `contrast-audit / empty`      | فراغ       | [`303:21147`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-21147) | [`310:30272`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30272) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | فروق §6 230 (ب)                                                      |
-| `contrast-audit / timeout`    | خطأ        | [`303:21200`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-21200) | [`310:30317`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30317) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | ✓ · بلا مشهد في `design:shots`: صفحةٌ يتجاوز مسحها خمس ثوانٍ         |
-| `contrast-audit / cancelled`  | إلغاء      | [`303:21263`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-21263) | [`310:30369`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30369) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | ✓                                                                    |
-| `contrast-audit / error`      | خطأ        | [`303:21315`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-21315) | [`310:30414`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30414) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | فروق §6 230 (هـ)                                                     |
-| `inspect / restricted`        | رفض صلاحية | [`319:53552`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-53552) | [`319:53790`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-53790) | [`Restricted.tsx`](../src/pages/popup/views/Restricted.tsx) — في النافذة: لا طبقة في صفحة مقيّدة | في النافذة: `popup / restricted`                                     |
-| `contrast-audit / restricted` | رفض صلاحية | [`319:53671`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-53671) | [`319:53835`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-53835) | [`Restricted.tsx`](../src/pages/popup/views/Restricted.tsx) — في النافذة: لا طبقة في صفحة مقيّدة | في النافذة: `popup / restricted`                                     |
+| الإطار                        | الحالة     | الداكن                                                                                    | الفاتح                                                                                    | منفَّذ                                                                                           | مطابق                                                        |
+| ----------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| `inspect / element-selected`  | أساسية     | [`62:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=62-2)           | [`310:29794`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29794) | [`InspectPanel.tsx`](../src/ui/overlay/inspect/InspectPanel.tsx)                                 | ✓ · «سجّل مشكلة» 32 ✓                                        |
+| `inspect / idle`              | فراغ       | [`98:90`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=98-90)         | [`310:29886`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29886) | [`InspectPanel.tsx`](../src/ui/overlay/inspect/InspectPanel.tsx) — `InspectIdle`                 | ✓ · §11 · مدخل تدقيق التباين 14 — فروق §6 230 (و)            |
+| `inspect / copied`            | نجاح       | [`303:20677`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20677) | [`310:29917`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-29917) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                                                      |
+| `inspect / cancelled`         | إلغاء      | [`303:20779`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20779) | [`310:30010`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30010) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓                                                            |
+| `inspect / error`             | خطأ        | [`303:20820`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20820) | [`310:30042`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30042) | [`FrameBlocked.tsx`](../src/ui/overlay/FrameBlocked.tsx)                                         | بلا مشغِّل · §11                                             |
+| `contrast-audit / idle`       | فراغ       | [`303:20863`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20863) | [`310:30074`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30074) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | فروق §6 230 (و)                                              |
+| `contrast-audit / scanning`   | تحميل      | [`303:20920`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20920) | [`310:30123`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30123) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | فروق §6 230 (د)                                              |
+| `contrast-audit / results`    | أساسية     | [`303:20977`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-20977) | [`310:30171`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30171) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | فروق §6 230 (أ · ج · ح)                                      |
+| `contrast-audit / all-pass`   | نجاح       | [`303:21094`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-21094) | [`310:30227`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30227) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | ✓                                                            |
+| `contrast-audit / empty`      | فراغ       | [`303:21147`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-21147) | [`310:30272`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30272) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | فروق §6 230 (ب)                                              |
+| `contrast-audit / timeout`    | خطأ        | [`303:21200`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-21200) | [`310:30317`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30317) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | ✓ · بلا مشهد في `design:shots`: صفحةٌ يتجاوز مسحها خمس ثوانٍ |
+| `contrast-audit / cancelled`  | إلغاء      | [`303:21263`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-21263) | [`310:30369`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30369) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | ✓                                                            |
+| `contrast-audit / error`      | خطأ        | [`303:21315`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-21315) | [`310:30414`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-30414) | [`AuditPanel.tsx`](../src/ui/overlay/colour/AuditPanel.tsx)                                      | فروق §6 230 (هـ)                                             |
+| `inspect / restricted`        | رفض صلاحية | [`319:53552`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-53552) | [`319:53790`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-53790) | [`Restricted.tsx`](../src/pages/popup/views/Restricted.tsx) — في النافذة: لا طبقة في صفحة مقيّدة | في النافذة: `popup / restricted`                             |
+| `contrast-audit / restricted` | رفض صلاحية | [`319:53671`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-53671) | [`319:53835`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-53835) | [`Restricted.tsx`](../src/pages/popup/views/Restricted.tsx) — في النافذة: لا طبقة في صفحة مقيّدة | في النافذة: `popup / restricted`                             |
 
 ### الألوان — الصفحة `18 — Colors`
 
-| الإطار                        | الحالة     | الداكن                                                                                    | الفاتح                                                                                    | منفَّذ                                                                                           | مطابق                                    |
-| ----------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------- |
-| `colors / sampling`           | أساسية     | [`65:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=65-2)           | [`310:31472`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31472) | [`ColourPanel.tsx`](../src/ui/overlay/colour/ColourPanel.tsx)                                    | ✓ · «سجّل مشكلة» [32](../STAGES/32.md) ✓ |
-| `colors / idle`               | فراغ       | [`98:424`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=98-424)       | [`310:31548`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31548) | [`ColourPanel.tsx`](../src/ui/overlay/colour/ColourPanel.tsx) — `ColourIdle`                     | ✓                                        |
-| `colors / palette-extract`    | أساسية     | [`122:157`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=122-157)     | [`310:31578`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31578) | [`PalettePanel.tsx`](../src/ui/overlay/colour/PalettePanel.tsx)                                  | ✓ · §11                                  |
-| `colors / replace`            | أساسية     | [`125:227`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=125-227)     | [`310:31685`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31685) | [`ReplacePanel.tsx`](../src/ui/overlay/colour/ReplacePanel.tsx) — بلا مشغِّل: §6 الصفّ 92        | بلا مشغِّل · §11                         |
-| `colors / scale`              | أساسية     | [`125:355`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=125-355)     | [`310:31738`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31738) | [`ScalePanel.tsx`](../src/ui/overlay/colour/ScalePanel.tsx)                                      | ✓                                        |
-| `colors / copied`             | نجاح       | [`303:22111`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22111) | [`310:31831`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31831) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                                  |
-| `colors / palette-saved`      | نجاح       | [`303:22197`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22197) | [`310:31908`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31908) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                                  |
-| `colors / cancelled`          | إلغاء      | [`303:22316`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22316) | [`310:32016`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-32016) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                                  |
-| `colors / error`              | خطأ        | [`303:22356`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22356) | [`310:32047`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-32047) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                                  |
-| `colors / palette-extracting` | تحميل      | [`303:22398`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22398) | [`310:32078`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-32078) | [`PalettePanel.tsx`](../src/ui/overlay/colour/PalettePanel.tsx)                                  | ✓                                        |
-| `colors / palette-empty`      | فراغ       | [`303:22513`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22513) | [`310:32121`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-32121) | [`PalettePanel.tsx`](../src/ui/overlay/colour/PalettePanel.tsx)                                  | ✓ · §11                                  |
-| `colors / restricted`         | رفض صلاحية | [`319:54026`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-54026) | [`319:54144`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-54144) | [`Restricted.tsx`](../src/pages/popup/views/Restricted.tsx) — في النافذة: لا طبقة في صفحة مقيّدة | في النافذة: `popup / restricted`         |
+| الإطار                        | الحالة     | الداكن                                                                                    | الفاتح                                                                                    | منفَّذ                                                                                           | مطابق                            |
+| ----------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------- |
+| `colors / sampling`           | أساسية     | [`65:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=65-2)           | [`310:31472`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31472) | [`ColourPanel.tsx`](../src/ui/overlay/colour/ColourPanel.tsx)                                    | ✓ · «سجّل مشكلة» 32 ✓            |
+| `colors / idle`               | فراغ       | [`98:424`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=98-424)       | [`310:31548`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31548) | [`ColourPanel.tsx`](../src/ui/overlay/colour/ColourPanel.tsx) — `ColourIdle`                     | ✓                                |
+| `colors / palette-extract`    | أساسية     | [`122:157`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=122-157)     | [`310:31578`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31578) | [`PalettePanel.tsx`](../src/ui/overlay/colour/PalettePanel.tsx)                                  | ✓ · §11                          |
+| `colors / replace`            | أساسية     | [`125:227`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=125-227)     | [`310:31685`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31685) | [`ReplacePanel.tsx`](../src/ui/overlay/colour/ReplacePanel.tsx) — بلا مشغِّل: §6 الصفّ 92        | بلا مشغِّل · §11                 |
+| `colors / scale`              | أساسية     | [`125:355`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=125-355)     | [`310:31738`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31738) | [`ScalePanel.tsx`](../src/ui/overlay/colour/ScalePanel.tsx)                                      | ✓                                |
+| `colors / copied`             | نجاح       | [`303:22111`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22111) | [`310:31831`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31831) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                          |
+| `colors / palette-saved`      | نجاح       | [`303:22197`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22197) | [`310:31908`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-31908) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                          |
+| `colors / cancelled`          | إلغاء      | [`303:22316`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22316) | [`310:32016`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-32016) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                          |
+| `colors / error`              | خطأ        | [`303:22356`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22356) | [`310:32047`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-32047) | [`notices.ts`](../src/content/notices.ts)                                                        | ✓ · §11                          |
+| `colors / palette-extracting` | تحميل      | [`303:22398`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22398) | [`310:32078`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-32078) | [`PalettePanel.tsx`](../src/ui/overlay/colour/PalettePanel.tsx)                                  | ✓                                |
+| `colors / palette-empty`      | فراغ       | [`303:22513`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=303-22513) | [`310:32121`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-32121) | [`PalettePanel.tsx`](../src/ui/overlay/colour/PalettePanel.tsx)                                  | ✓ · §11                          |
+| `colors / restricted`         | رفض صلاحية | [`319:54026`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-54026) | [`319:54144`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-54144) | [`Restricted.tsx`](../src/pages/popup/views/Restricted.tsx) — في النافذة: لا طبقة في صفحة مقيّدة | في النافذة: `popup / restricted` |
 
 ### المقارنة وتقريرها — الصفحة `19 — Compare`
 
-| الإطار                      | الحالة     | الداكن                                                                                    | الفاتح                                                                                    | منفَّذ                                                                                           | مطابق                                              |
-| --------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| `compare / split-reference` | أساسية     | [`69:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=69-2)           | [`310:32950`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-32950) | [`ReferenceOverlay.tsx`](../src/ui/overlay/compare/ReferenceOverlay.tsx)                         | ✓ · §11 · «مناطق مستثناة» مع [34](../STAGES/34.md) |
-| `compare / no-reference`    | فراغ       | [`96:560`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=96-560)       | [`310:33023`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33023) | [`ComparePanel.tsx`](../src/ui/overlay/compare/ComparePanel.tsx)                                 | ✓                                                  |
-| `compare / two-captures`    | أساسية     | [`127:196`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=127-196)     | [`310:33040`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33040) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓ · §11                                            |
-| `compare / viewports`       | أساسية     | [`127:315`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=127-315)     | [`310:33110`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33110) | [`ViewportGallery.tsx`](../src/ui/overlay/compare/ViewportGallery.tsx)                           | ✓                                                  |
-| `compare / report`          | أساسية     | [`291:12538`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12538) | [`310:33162`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33162) | [`ReportDialog.tsx`](../src/pages/compare/parts/ReportDialog.tsx)                                | ✓ · §11                                            |
-| `compare / report-done`     | نجاح       | [`291:12691`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12691) | [`310:33283`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33283) | [`ReportDialog.tsx`](../src/pages/compare/parts/ReportDialog.tsx)                                | ✓ · §11                                            |
-| `compare / diff-saved`      | نجاح       | [`291:12790`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12790) | [`310:33371`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33371) | [`DiffSavedDialog.tsx`](../src/pages/compare/parts/DiffSavedDialog.tsx)                          | ✓                                                  |
-| `compare / loading`         | تحميل      | [`291:12887`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12887) | [`310:33457`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33457) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓                                                  |
-| `compare / identical`       | نجاح       | [`291:12984`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12984) | [`310:33545`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33545) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓ · §11                                            |
-| `compare / size-mismatch`   | خطأ        | [`291:13076`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-13076) | [`310:33630`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33630) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓ · §11                                            |
-| `compare / error`           | خطأ        | [`291:13178`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-13178) | [`310:33722`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33722) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓                                                  |
-| `compare / cancelled`       | إلغاء      | [`291:13276`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-13276) | [`310:33803`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33803) | — لا إلغاء في الصفحة: الفرق يُحسب مرّة عند فتحها                                                 | —                                                  |
-| `compare / restricted`      | رفض صلاحية | [`319:54261`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-54261) | [`319:54366`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-54366) | [`Restricted.tsx`](../src/pages/popup/views/Restricted.tsx) — في النافذة: لا طبقة في صفحة مقيّدة | في النافذة: `popup / restricted`                   |
+| الإطار                      | الحالة     | الداكن                                                                                    | الفاتح                                                                                    | منفَّذ                                                                                           | مطابق                            |
+| --------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------- |
+| `compare / split-reference` | أساسية     | [`69:2`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=69-2)           | [`310:32950`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-32950) | [`ReferenceOverlay.tsx`](../src/ui/overlay/compare/ReferenceOverlay.tsx)                         | ✓ · §11 · «مناطق مستثناة» مع 34  |
+| `compare / no-reference`    | فراغ       | [`96:560`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=96-560)       | [`310:33023`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33023) | [`ComparePanel.tsx`](../src/ui/overlay/compare/ComparePanel.tsx)                                 | ✓                                |
+| `compare / two-captures`    | أساسية     | [`127:196`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=127-196)     | [`310:33040`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33040) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓ · §11                          |
+| `compare / viewports`       | أساسية     | [`127:315`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=127-315)     | [`310:33110`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33110) | [`ViewportGallery.tsx`](../src/ui/overlay/compare/ViewportGallery.tsx)                           | ✓                                |
+| `compare / report`          | أساسية     | [`291:12538`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12538) | [`310:33162`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33162) | [`ReportDialog.tsx`](../src/pages/compare/parts/ReportDialog.tsx)                                | ✓ · §11                          |
+| `compare / report-done`     | نجاح       | [`291:12691`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12691) | [`310:33283`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33283) | [`ReportDialog.tsx`](../src/pages/compare/parts/ReportDialog.tsx)                                | ✓ · §11                          |
+| `compare / diff-saved`      | نجاح       | [`291:12790`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12790) | [`310:33371`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33371) | [`DiffSavedDialog.tsx`](../src/pages/compare/parts/DiffSavedDialog.tsx)                          | ✓                                |
+| `compare / loading`         | تحميل      | [`291:12887`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12887) | [`310:33457`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33457) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓                                |
+| `compare / identical`       | نجاح       | [`291:12984`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-12984) | [`310:33545`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33545) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓ · §11                          |
+| `compare / size-mismatch`   | خطأ        | [`291:13076`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-13076) | [`310:33630`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33630) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓ · §11                          |
+| `compare / error`           | خطأ        | [`291:13178`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-13178) | [`310:33722`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33722) | [`ComparePage.tsx`](../src/pages/compare/ComparePage.tsx)                                        | ✓                                |
+| `compare / cancelled`       | إلغاء      | [`291:13276`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=291-13276) | [`310:33803`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=310-33803) | — لا إلغاء في الصفحة: الفرق يُحسب مرّة عند فتحها                                                 | —                                |
+| `compare / restricted`      | رفض صلاحية | [`319:54261`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-54261) | [`319:54366`](https://www.figma.com/design/Gr0dOsmjcVBcaX9M1slf5m/Rasd?node-id=319-54366) | [`Restricted.tsx`](../src/pages/popup/views/Restricted.tsx) — في النافذة: لا طبقة في صفحة مقيّدة | في النافذة: `popup / restricted` |
 
 ### المكتبة والأدلّة — الصفحة `20 — Library`
 
@@ -555,7 +555,7 @@ return {
 
 ### المشكلة — الصفحات 13 و15 و16 و17 و18 و20
 
-رُسمت في [31](../STAGES/31.md) وبُنيت في [32](../STAGES/32.md). مداخلها في إطارات قائمة: زرّ «سجّل مشكلة» في
+رُسمت في 31 وبُنيت في 32. مداخلها في إطارات قائمة: زرّ «سجّل مشكلة» في
 لوحات `inspect / element-selected` و`measure / two-elements` و`colors / sampling` بنظائرها الفاتحة، وبند
 «المشكلات» في `App Sidebar` (§4). وعمود «مطابق» هنا لم يُقَس بطريقة §11 بعد — ما فيه فروقٌ مقصودة مكتوبةٌ
 بسببها في الصفّ 188 من `Docs/Engineering.md §6`: ميزانية `content.js` (الصفّ 187) أخرجت من النموذج المشروعَ
@@ -593,7 +593,7 @@ return {
 
 ### حزمة التسليم — الصفحة 22
 
-رُسمت في [31](../STAGES/31.md) وبُنيت في [33](../STAGES/33.md). النافذة فوق عرض المشكلات بمشكلتين محدَّدتين، وتُفتح كذلك من تفصيل المشكلة (مشكلة واحدة) ومن رأس «الملاحظات» في المحرّر (مشكلات دليلها اللقطة المفتوحة) — النافذة نفسها بلا إطارٍ ثانٍ للمدخلين.
+رُسمت في 31 وبُنيت في 33. النافذة فوق عرض المشكلات بمشكلتين محدَّدتين، وتُفتح كذلك من تفصيل المشكلة (مشكلة واحدة) ومن رأس «الملاحظات» في المحرّر (مشكلات دليلها اللقطة المفتوحة) — النافذة نفسها بلا إطارٍ ثانٍ للمدخلين.
 
 | الإطار               | الحالة | الداكن                                                                                  | الفاتح                                                                                    | منفَّذ                                                        | مطابق       |
 | -------------------- | ------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------- |
@@ -611,7 +611,7 @@ return {
 
 ### استثناء المقارنة — الصفحة 19
 
-رُسمت في [31](../STAGES/31.md) وتُبنى في [34](../STAGES/34.md). مدخلها رأس قسم «مناطق مستثناة» في لوحة
+رُسمت في 31 وتُبنى في 34. مدخلها رأس قسم «مناطق مستثناة» في لوحة
 `compare / split-reference` بنظيرها. والإطارات بترتيب القصّة: فراغ، ثمّ رسم مستطيل، ثمّ اختيار عنصر، ثمّ القائمة،
 ثمّ الفرق المحسوب عليها.
 
@@ -630,7 +630,7 @@ return {
 - **نسبة الفرق تُسمّى «على المناطق المهمّة»** متى وُجدت منطقة، ومعها ما استُثني منها.
 - **مقارنة لقطتين بلا مرجع** مستطيلات وحدها — لا DOM يُختار منه عنصر — ومعلَنة «غير محفوظة» في اللوحة وعلى المنطقة.
 
-**اختلافاتٌ مقصودة في التنفيذ** ([34](../STAGES/34.md)، [ADR 0034](ADR/0034-comparison-exclusions.md)):
+**اختلافاتٌ مقصودة في التنفيذ** (34، [ADR 0034](ADR/0034-comparison-exclusions.md)):
 
 - **القسم مبسوطٌ دائمًا** — القائمة وزرّا الإعداد — لا مطويًّا بعدد و«عدّل» كما في `diff-masked`. حالةٌ ثانية للقسم
   تكلّف `content.js` ما لا يشتريه شيء: التعديل بنقرة في الحالتين، وسقف المرحلة 4KB مضغوطة.
@@ -730,20 +730,20 @@ return {
 - **نصوص تتغيّر**: «الوضع المحلّي فقط»، ورقاقة WebP، والاختصارات في كل موضع.
 - **الشعار** في الشيفرة ما زال v2 حتى تنقله المرحلة 03.
 
-**نُفِّذ في [03](../STAGES/03.md):** كل إطار في §5 عمود «منفَّذ» فيه يربطه بملفّه أو بمرحلته، والاختلافات
+**نُفِّذ في 03:** كل إطار في §5 عمود «منفَّذ» فيه يربطه بملفّه أو بمرحلته، والاختلافات
 المقصودة وأسبابها في §11.
 
 ## 9. ما بقي مفتوحًا
 
-| البند                                                                                          | الحالة                                                                                                           | تملكه                                                                   |
-| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| صفحات التوثيق 02 و04 إلى 11 و32 بالإنجليزية أوّلًا                                             | لم تُمسّ: توثيق داخلي للمصمّم والمطوّر لا واجهة منتج                                                             | قرار مالك إن أراد تعريبها                                               |
-| شريط الأدوات في `editor / crop` و`editor / text` يُبرز أداة السهم                              | الكود يُبرز الأداة النشطة فعلًا (الاقتصاص · النصّ)، والإطاران كما هما                                            | لا مرحلة تملكه: [31](../STAGES/31.md) فتحت الملفّ بقائمة مغلقة لا تشمله |
-| بلاطتا الترويج في الصفحة 30 بعنوان إنجليزي وعربي                                               | قائمة المتجر بلغتين بقرار النطاق                                                                                 | [28](../STAGES/28.md)                                                   |
-| ألوان شريط Chrome الحقيقية                                                                     | قِيست في Chrome 154: `#ffffff` و`#3c3c3c`، والحالتان مقروءتان عليهما — [`Docs/Brand/README.md`](Brand/README.md) | [04](../STAGES/04.md) — منجز                                            |
-| إطارات الإضافات الثلاث: المشكلة، وحزمة التسليم، واستثناء المقارنة                              | رُسمت: ستّ وعشرون شاشة بوضعَيها في §5                                                                            | [31](../STAGES/31.md) — منجز                                            |
-| `Button` بحالة `Loading`: نصّه غير مربوط بخاصية `Label`، ومعتَّم 0.70 فيقيس 3.79 : 1 في الفاتح | في [31](../STAGES/31.md) كُتب النصّ في النسخة وأُعيدت عتمته 1 في إطارَي التحميل الجديدين، والمكوّن كما هو        | مرحلة تملك Figma — تعديل مكوّن خارج قائمة 31                            |
-| فواصل «الدليل» في `compare / two-captures` إطارات فارغة بمقاس 100 × 100 الافتراضي              | تطيل اللوحة نحو 245 بكسل. صُحّحت في نسخة `compare / session-zones` وحدها، والإطار كما هو                         | مرحلة تملك Figma — صقلٌ لإطار قائم خارج قائمة 31                        |
+| البند                                                                                          | الحالة                                                                                                           | تملكه                                                |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| صفحات التوثيق 02 و04 إلى 11 و32 بالإنجليزية أوّلًا                                             | لم تُمسّ: توثيق داخلي للمصمّم والمطوّر لا واجهة منتج                                                             | قرار مالك إن أراد تعريبها                            |
+| شريط الأدوات في `editor / crop` و`editor / text` يُبرز أداة السهم                              | الكود يُبرز الأداة النشطة فعلًا (الاقتصاص · النصّ)، والإطاران كما هما                                            | لا مرحلة تملكه: 31 فتحت الملفّ بقائمة مغلقة لا تشمله |
+| بلاطتا الترويج في الصفحة 30 بعنوان إنجليزي وعربي                                               | قائمة المتجر بلغتين بقرار النطاق                                                                                 | 28                                                   |
+| ألوان شريط Chrome الحقيقية                                                                     | قِيست في Chrome 154: `#ffffff` و`#3c3c3c`، والحالتان مقروءتان عليهما — [`Docs/Brand/README.md`](Brand/README.md) | 04 — منجز                                            |
+| إطارات الإضافات الثلاث: المشكلة، وحزمة التسليم، واستثناء المقارنة                              | رُسمت: ستّ وعشرون شاشة بوضعَيها في §5                                                                            | 31 — منجز                                            |
+| `Button` بحالة `Loading`: نصّه غير مربوط بخاصية `Label`، ومعتَّم 0.70 فيقيس 3.79 : 1 في الفاتح | في 31 كُتب النصّ في النسخة وأُعيدت عتمته 1 في إطارَي التحميل الجديدين، والمكوّن كما هو                           | مرحلة تملك Figma — تعديل مكوّن خارج قائمة 31         |
+| فواصل «الدليل» في `compare / two-captures` إطارات فارغة بمقاس 100 × 100 الافتراضي              | تطيل اللوحة نحو 245 بكسل. صُحّحت في نسخة `compare / session-zones` وحدها، والإطار كما هو                         | مرحلة تملك Figma — صقلٌ لإطار قائم خارج قائمة 31     |
 
 ## 10. عُدّة البناء
 
@@ -770,7 +770,7 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
 
 ## 11. التنفيذ في الكود — الاختلافات المقصودة
 
-كُتب في [`STAGES/03`](../STAGES/03.md) بتاريخ 2026-09-30. عمود «منفَّذ» في §5 يربط كل إطار بملفّه، أو
+كُتب في `STAGES/03` بتاريخ 2026-09-30. عمود «منفَّذ» في §5 يربط كل إطار بملفّه، أو
 بالمرحلة التي تملك محرّكه. وما يلي كل اختلاف مقصود بين الكود وإطاره، بسببه. **قاعدة واحدة تحكمها:**
 النصّ يقول ما يفعله المحرّك، وما لا محرّك له يُعرض معطَّلًا بسببه أو لا يُعرض — لا وعد بلا سلك.
 
@@ -778,14 +778,14 @@ const K = await new AF('figma', 'return await (' + src + ')(figma)')(figma)
 كل صفّ أفقي في الكود بترتيب القراءة، وهذا ما أصلح النافذة كلّها، وصفحة المقارنة، وشريطَي تلميحات
 المنطقة والعنصر.
 
-**المطابقة ([`STAGES/04`](../STAGES/04.md)).** كل شاشة منفَّذة لقطةٌ حيّة من `pnpm design:shots` بمقاس
+**المطابقة (`STAGES/04`).** كل شاشة منفَّذة لقطةٌ حيّة من `pnpm design:shots` بمقاس
 إطارها وبالوضعين، وُضعت فوق إطارها الداكن وأُصلح ما خالفه — وعمود «مطابق» في §5 نتيجتها: `✓` مطابق،
 و`✓ · §11` مطابق وبقي اختلاف مقصود مكتوب هنا بسببه، و«في النافذة» حالةٌ تُرسم في النافذة لا فوق الصفحة
 فمطابقتها مطابقة إطار النافذة، و«بلا مشغِّل» مكوّنٌ مبنيّ لا يبلغه المستخدم، و«—» لا تنفيذ بعد (عمود
 «منفَّذ» يسمّي مرحلته أو سببه). والفاتح قُورن بعيّنة من كل صفحة لا إطارًا إطارًا: قيمه مولَّدة من لقطة
 التوكنز نفسها (`pnpm tokens:check`)، فخطأ فيه خطأ توكن يظهر في كل الشاشات لا في واحدة.
 
-**الانحدار البصري ([`STAGES/26`](../STAGES/26.md)، ADR 0052).** المطابقة أعلاه لحظةٌ؛ ما يُبقيها هو `pnpm
+**الانحدار البصري (`STAGES/26`، ADR 0052).** المطابقة أعلاه لحظةٌ؛ ما يُبقيها هو `pnpm
 verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النافذة · الاقتصاص بالمنطقة · القياس · الفحص · الألوان ·
 المقارنة بتقسيمها ومقاساتها · تدقيق التباين · المحرّر · المكتبة · المشاريع · الإعدادات · الخصوصية · التعريف)
 ويقارنها بصور `tests/visual-baselines/`، ويفحص على النصّ المرسوم ألّا يخلط عدٌّ بشريّ بقياس وألّا يَنقلب
@@ -798,14 +798,14 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
   أوّل نقرة في الصفحة، ونقل البيانات إليها محرّكُ رسائل لا مرحلة تصميم.
 - `capturing`: «المقطع ٤ من ٦» بدل الارتفاع بالبكسل — المهمّة لا تحمل الارتفاع. والسطر الفرعي يصف
   ما يفعله المحرّك (تحييد العناصر الثابتة) لا تحميل الصور المؤجَّلة الذي لا يفعله.
-- `error`: «أبلغ عن المشكلة» تحت «أعد المحاولة» تفتح نافذة البلاغ في الإعدادات بالأداة ورمز الخطأ ([13](../STAGES/13.md)). `first-run`: «جولة سريعة» تفتح جولة
+- `error`: «أبلغ عن المشكلة» تحت «أعد المحاولة» تفتح نافذة البلاغ في الإعدادات بالأداة ورمز الخطأ (13). `first-run`: «جولة سريعة» تفتح جولة
   التعريف في تبويب، و«ابدأ» تُتمّ التشغيل الأوّل. `success`: «مشاركة» تفتح المحرّر
-  ونافذة المشاركة فوقه ([10](../STAGES/10.md)، ADR 0044)، و«نسخ» للقطات PNG وحدها (الحافظة لا تقبل غيرها).
+  ونافذة المشاركة فوقه (10، ADR 0044)، و«نسخ» للقطات PNG وحدها (الحافظة لا تقبل غيرها).
 - `restricted`: «لماذا؟» يعرض سبب التبويب نفسه — كان زرًّا صامتًا.
 - مسافات أصغر بقليل من الإطار (بطاقة الالتقاط، وأداة الفحص، والبطاقة الأخيرة) كي تسع الحالة الافتراضية
   520 بلا تمرير — والإطار نفسه يقصّ جسمه بثلاثة.
-- `offline`: ما يتوقّف دون اتصال بلا GitHub والإبلاغ — لا يُسمّى ما لم يُبنَ قبل [11](../STAGES/11.md)
-  و[13](../STAGES/13.md). والإبلاغ بُني في 13، وسطر `offline` لم يُحدَّث فيها: النافذة لا تعرف حالة الاتّصال، والبلاغ
+- `offline`: ما يتوقّف دون اتصال بلا GitHub والإبلاغ — لا يُسمّى ما لم يُبنَ قبل 11
+  و13. والإبلاغ بُني في 13، وسطر `offline` لم يُحدَّث فيها: النافذة لا تعرف حالة الاتّصال، والبلاغ
   يُحفظ مسودةً حين ينقطع.
 
 ### الأدوات فوق الصفحة
@@ -825,7 +825,7 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
 - **مفاتيح الاختصار** في الإشعار حيّة: من غيّر حرف الأداة من الإعدادات يرى حرفه.
 - `*/restricted` في الصفحات 14 و16–19: لا طبقة تعمل في صفحة مقيّدة، فرسالتها `popup / restricted`.
   و`capture / error` و`capture / permission` في النافذة كذلك.
-- «أبلغ» في إشعارات الخطأ تنتظر [13](../STAGES/13.md). و`colors / replace` مبنيّ بلا مشغِّل (§6 الصفّ 92).
+- «أبلغ» في إشعارات الخطأ تنتظر 13. و`colors / replace` مبنيّ بلا مشغِّل (§6 الصفّ 92).
 - `capture / full-page`: بطاقة صغيرة بـ«المقطع ٢ من ٥» وشريط تقدّم، لا بطاقة الإطار المفصّلة بجوار خريطة
   المقاطع: المهمّة لا تحمل الارتفاع الملتقَط، والمحرّك لا يحمّل الصور المؤجّلة، ولا خريطة مقاطع —
   والبطاقة لا تقول ما لا يعرفه المحرّك.
@@ -840,7 +840,7 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
 
 ### المحرّر
 
-- «مشاركة» تفتح نافذة المشاركة ([10](../STAGES/10.md))، وقسم GitHub لا يُعرض قبل [11](../STAGES/11.md).
+- «مشاركة» تفتح نافذة المشاركة (10)، وقسم GitHub لا يُعرض قبل 11.
 - `saved`: لا إشعار لكل حفظ — الحفظ تلقائي كل 800 مللي ثانية، فحالة الشريط «حُفظ قبل …» بدل إشعار كل
   ثوانٍ. `text`: لا لوحة نصّ منفصلة؛ المقاس من قسم النمط، واللون من السكّة، و«خلفية للنصّ» بلا حقل.
 - السكّة اثنتا عشرة أداة لا تسع (الخطّ والنصّ والاقتصاص في المحرّك)، وسبعة ألوان لا أربعة — لوحة
@@ -856,7 +856,7 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
 
 - **قيد حارس:** `verify:library` حاجب ومثبَّت ببصمته، ويقود الصفحة بأسماء عناصرها — فبقيت: صفّ الأنواع،
   و«عرض المكتبة» (نشطة · الأرشيف · المهملات)، وزرّا لوحتَي المشاريع والوسوم (§6 الصفّ 139). وحوار
-  `library / delete-confirm` بُني في [04](../STAGES/04.md) بدل تأكيد المتصفّح، والحارس يقوده. نصّ ملاحظته
+  `library / delete-confirm` بُني في 04 بدل تأكيد المتصفّح، والحارس يقوده. نصّ ملاحظته
   يقول ما يحذفه المحرّك: «مع تعليقاتها، ولا تُسترجع من المهملات» للّقطات (الحذف النهائي من المهملات)، و«لا
   مهملات لهذا النوع» للألوان واللوحات والمراجع والأدلّة — لا «لا سلّة محذوفات» الذي ينقضه وجود المهملات.
 - لا تبديل قائمة وشبكة (لا عرض قائمة)، ولا «تصدير» جماعي، ولا «مشاركة» في شريط التحديد.
@@ -865,7 +865,7 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
 - `tags`: لوحة وسوم بعدّاتها ترشّح الشبكة، بلا إعادة تسمية ولا حذف ولا وسم جديد — لا محرّك لها.
 - `empty`: بلا «التقط لقطة» — صفحة الإضافة لا تلتقط تبويبًا آخر؛ النصّ يسمّي الاختصار والنافذة.
 - لافتة عدم الاتصال حُذفت بقرار التصميم 10.
-- `library / locked` ([08](../STAGES/08.md)): نافذة الفكّ فوق هيكل البطاقات وحده — بلا شريط الأدوات ولا عدّادات
+- `library / locked` (08): نافذة الفكّ فوق هيكل البطاقات وحده — بلا شريط الأدوات ولا عدّادات
   الشريط الجانبي، فهي بيانات من المكتبة يمنعها الحارس (ADR 0043). والمساحة المستخدمة تُقاس وحدها: ليست من المكتبة،
   و«تعذّر قياس المساحة» كان سيقول عطلًا لم يقع. ولا «×»: لا شيء خلفها يُعاد إليه.
 - **المشاريع:** نظرتها العامّة عرضٌ في المكتبة بمدخل «كل المشاريع»، وبطاقتها بلا حالة ولا موقع ولا
@@ -876,20 +876,20 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
   المرجع بالصفحة الحيّة خارج أداة المقارنة). ولا «لوحة جديدة» ولا «أضف مرجعًا»: اللوحة تُستخرج والمرجع
   يُفلَت من أدوات الصفحة، لا من المكتبة.
 - الشريط الجانبي فيه «الألوان» تحت المجموعات ولا يرسمها الإطار: المكتبة تحفظ اللون المفرد نوعًا قائمًا.
-- **الدليل ([06](../STAGES/06.md)، ADR 0041):** `library / guide` و`guide / editor` صفحةٌ واحدة تُحرَّر في مكانها —
+- **الدليل (06، ADR 0041):** `library / guide` و`guide / editor` صفحةٌ واحدة تُحرَّر في مكانها —
   رقاقات الصيغ من الأوّل اختصارٌ يفتح النافذة على صيغته، والمقبض والحذف و«صدّر الدليل» من الثاني. و«شارك» تفتح نافذة
-  المشاركة ([10](../STAGES/10.md))، ولكل خطوةٍ زرّا «انقل إلى أعلى/أسفل» بجانب المقبض: السحب وحده يُقصي لوحة
+  المشاركة (10)، ولكل خطوةٍ زرّا «انقل إلى أعلى/أسفل» بجانب المقبض: السحب وحده يُقصي لوحة
   المفاتيح. والعنوان الفارغ يُعرض بعنوان صفحة اللقطة بديلًا. والدليل يُنشأ من «أنشئ دليلًا» في شريط التحديد
   (بترتيب الالتقاط)، و«أنشئ دليلًا» في `guide / empty` يأخذ إلى اللقطات بتلميحٍ لأن الإنشاء يحتاج تحديدًا.
 - **نافذة تصدير الدليل:** الأطوار الستّة (`export` · `template-save` · `export-loading` · `export-done` ·
   `export-error` · `export-cancelled`) ورقةٌ واحدة بجسمٍ يتبدّل. «حجم الصفحة» يُعرض مع غير PDF معطَّلًا بسببٍ
   مرئيّ. وMarkdown تحت اسمها «نصٌّ للتوثيق بلا صور» — الملفّ المنفرد بلا صور، والحزمة ZIP هي Markdown بصورها.
-  و«أبلغ عن المشكلة» في `export-error` لا تُعرض (محرّكها في [13](../STAGES/13.md))، و«أعد المحاولة» داخل
+  و«أبلغ عن المشكلة» في `export-error` لا تُعرض (محرّكها في 13)، و«أعد المحاولة» داخل
   التنبيه كما يرسمه. وبجانب قائمة «القالب» زرّ حذف القالب المختار — لا يرسمه الإطار، ولا يُترك قالبٌ بلا مخرج.
 
 ### التصدير
 
-- SVG محذوفة (قرار النطاق)، وPDF تعمل منذ [05](../STAGES/05.md) بإطار `export / pdf` (ADR 0040). «ضمّن
+- SVG محذوفة (قرار النطاق)، وPDF تعمل منذ 05 بإطار `export / pdf` (ADR 0040). «ضمّن
   بيانات الصفحة» و«ضمّن قائمة الملاحظات» يعملان مع PDF، ويُعرضان مع PNG وWebP (كما يرسمهما `73:2`) معطَّلَين
   بسطرٍ يدلّ على PDF: هما صفحةٌ في الوثيقة لا تحملها صورة. و«بيانات الصفحة» معطَّلة بسببها حين يُحذف
   الوصف في الخصوصية. و«خلفية شفافة» محذوف، و«دمج التعليقات» سطر ملخّص (ADR 0015).
@@ -898,14 +898,14 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
 
 ### المشاركة المحلّية
 
-- **[10](../STAGES/10.md)، ADR 0044:** النافذة فوق المحرّر لا فوق المكتبة كما يرسم `73:361` — المحرّر يملك المشهد
+- **10، ADR 0044:** النافذة فوق المحرّر لا فوق المكتبة كما يرسم `73:361` — المحرّر يملك المشهد
   بحجبه، و«مشاركة» في النافذة تفتحه بـ`share=1`. ومسار الملفّ بلا مفاتيح الحذف (الصورة لا تحمل ما تحذفه)،
   و`permission-denied` نتيجةٌ بلافتة رفضٍ صادقة (الملفّ يُحفظ بطريق المرساة)، ولا «انسخ المسار» ولا «أبلغ عن
-  المشكلة» قبل [13](../STAGES/13.md)، والحافظة في الدليل نصّ الخطوات — التفصيل في `Docs/Engineering.md §6` 344.
+  المشكلة» قبل 13، والحافظة في الدليل نصّ الخطوات — التفصيل في `Docs/Engineering.md §6` 344.
 
 ### التكاملات وGitHub
 
-- **[12](../STAGES/12.md)، ADR 0051:** شاشة الاتّصالات قسمٌ في الإعدادات (`?section=integrations`) لا صفحةٌ مستقلّة
+- **12، ADR 0051:** شاشة الاتّصالات قسمٌ في الإعدادات (`?section=integrations`) لا صفحةٌ مستقلّة
   — كما يرسمها `integrations / connections` داخل الشريط الجانبي نفسه. وحالاتها الخمس (غير متّصل · متّصل · خطأ
   مصادقة · صلاحيات ناقصة · الوضع المحلّي) تُقرأ محلّيًّا بلا شبكة، وتزيد عليها ثلاثُ حالاتٍ تمنع الاستعمال قبل أن
   يبدأ: صلاحية مضيفٍ مسحوبة، ورمزٌ محفوظٌ لا يُقرأ، فلكلٍّ لافتةٌ وزرّ فعلٍ يعمل.
@@ -925,7 +925,7 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
 
 ### المقارنة
 
-- «تصدير التقرير» و«التقط الفرق» يعملان منذ [05](../STAGES/05.md)، معطَّلَين حتى يُحسب الفرق. والشريط الجانبي
+- «تصدير التقرير» و«التقط الفرق» يعملان منذ 05، معطَّلَين حتى يُحسب الفرق. والشريط الجانبي
   يسرد المناطق المتغيّرة مرقَّمةً — المحرّك لا يصنّفها «مضاف · محذوف · منقول».
 - `compare / report`: «الصيغة» سطرٌ ثابت PDF لا قائمة — التقرير وثيقة، وصورة الفرق وحدها لها «التقط الفرق».
   و«رابط الصفحة» معطَّل بسطر «محذوف مع البيانات الوصفية» حين يُحذف الوصف في الخصوصية. وفي «النتيجة» سطرٌ
@@ -936,16 +936,16 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
 ### الإعدادات والخصوصية
 
 - «لقطة جديدة» في الشريط الجانبي تفتح ورقة الاختصارات — صفحة الإضافة لا تلتقط تبويبًا آخر.
-- «احفظ نسخة في مجلّد التنزيلات» مفتاحٌ يعمل منذ [05](../STAGES/05.md) (الصفّ 286)، يطلب صلاحية التنزيلات عند
+- «احفظ نسخة في مجلّد التنزيلات» مفتاحٌ يعمل منذ 05 (الصفّ 286)، يطلب صلاحية التنزيلات عند
   تشغيله ويقول تحته ما يحدث إن رُفضت. والجودة قائمة من قيم مقيسة.
-- البيانات ([07](../STAGES/07.md)، [ADR 0039](ADR/0039-data-management.md)): شارة التخزين الدائم ما قرّره المتصفّح —
+- البيانات (07، [ADR 0039](ADR/0039-data-management.md)): شارة التخزين الدائم ما قرّره المتصفّح —
   «لم يمنحه المتصفّح» لا «مفعَّل» المرسومة (Chrome يرفض الطلب لإضافةٍ بـ`unlimitedStorage`، الصفّ 265)؛ وتنبيه
   الامتلاء لافتةٌ تحت مجموعة «المساحة» بعتبة المكتبة (80% و95%) — لا يرسمه الإطار؛ ونصّ النسخة يعدّ المراجع
   والمشكلات أيضًا لأنها في الملفّ.
 - النسخة الاحتياطية: عدّاد التقدّم يعدّ **الصور** لا «اللقطات» (هو ما يُقرأ فعلًا)؛ والمسار في `backup-done` اسم
   الملفّ لا مسار المجلّد (مع الصلاحية يختار المستخدم المكان)؛ و`permission-denied` لا يُفشل النسخة — تُحفظ بمرساة
   ويُكتب ما فُقد تحت «النسخة جاهزة» (الصفّ 268)؛ وسطرٌ تحذيري إن تُرك سجلٌّ تالف (الصفّ 264).
-- `restore-error` و`delete-error`: «أبلغ عن المشكلة» تفتح نافذة البلاغ بالأداة `data` ورمز الفشل ([13](../STAGES/13.md))؛ و«أعد المحاولة»
+- `restore-error` و`delete-error`: «أبلغ عن المشكلة» تفتح نافذة البلاغ بالأداة `data` ورمز الفشل (13)؛ و«أعد المحاولة»
   في الاستعادة لرفض القاعدة وحده؛ والخطأ أربعة نصوص لا واحد: ليس نسخة · من إصدارٍ أحدث · تالف · رفضه التخزين
   (الصفّ 269). ولحالتي الفحص والكتابة نافذتا انتظار بلا إطار («يُفحص الملفّ» · «تُستعاد المكتبة») ولنجاحها
   «استُعيدت المكتبة» بما أُضيف وما بقي — والإطار لا يرسم ما بعد «استعد».
@@ -960,7 +960,7 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
 - الصفحتان الفرعيتان للخصوصية (المواقع المستثناة والصلاحيات) برابط «← الخصوصية» فوق العنوان — طريق
   العودة، والإطار لا يرسم طريقًا غير التنقّل الجانبي.
 - `excluded-sites · invalid` خطأٌ تحت الحقل و`import-error` لافتة، لا إشعار عابر: الخطأ يبقى حيث يُصحَّح.
-- **قفل المكتبة ([08](../STAGES/08.md)، [ADR 0043](ADR/0043-library-lock.md)):** القفل حارس وصول لا تشفير، فجملتا
+- **قفل المكتبة (08، [ADR 0043](ADR/0043-library-lock.md)):** القفل حارس وصول لا تشفير، فجملتا
   الإطار عن التشفير لا تُكتبان — `lock / forgot`: «رصد لا يحفظ الرمز، فلا طريق لاستعادته ولا لفتح المكتبة بدونه»، و
   `lock / disable`: «بعد الإيقاف تُفتح المكتبة في رصد بلا رمز» (§6 الصفّ 330). وسطر الصفّ تحت «قفل المكتبة» يقول حدّه:
   «لا يشفّر ملفّاتها على القرص». وفي الصفّ زرٌّ لا يرسمه الإطار: «اقفل الآن» حين تكون مفتوحة (وإلا لا إقفال إلا
@@ -972,16 +972,16 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
   لخيار واحد.
 - `shortcuts / sheet`: «غيّر اختصارات الالتقاط» لا «غيّر الاختصارات» — صفحة Chrome تغيّر اختصارات الالتقاط
   وحدها، ومفاتيح الأدوات من قسم الاختصارات.
-- **`privacy / incognito` في هدف Firefox** ([SS4](SS/stages/SS4.md)): لا قائمة ثلاثية الخيارات — صفٌّ بعنوان «التصفّح
+- **`privacy / incognito` في هدف Firefox** (SS4): لا قائمة ثلاثية الخيارات — صفٌّ بعنوان «التصفّح
   الخاص» وتحته «لا يعمل رصد في النوافذ الخاصّة في Firefox.» بلا ضابط؛ فالمتصفّح يرفض `incognito: "split"` ولا
   نسخة من الإضافة هناك تُضبط. والقرار بهدف البناء لا بالمتصفّح الفعلي (`privateBrowsingModel()`).
-- **`shortcuts / sheet` وقسم الاختصارات — أمرٌ بلا إسناد** ([SS4](SS/stages/SS4.md)): بدل «بلا اختصار» رابط «أسنده من
+- **`shortcuts / sheet` وقسم الاختصارات — أمرٌ بلا إسناد** (SS4): بدل «بلا اختصار» رابط «أسنده من
   صفحة الاختصارات» يفتح صفحة اختصارات المتصفّح (`openShortcutSettings()`)؛ فإن تعذّر الفتح نصٌّ بلا رابط يقول أين
   يُسنَد. الإطار لا يرسم هذه الحالة. ونافذة الإضافة لا تعرض إسنادًا حيًّا فلا رابط فيها: حروفها محفوظة من البيان.
 - نافذة التراخيص (من «عن رصد ‹ اعرض التراخيص»، بلا إطار مرسوم) تزيد مجموعةً ثالثة «النصوص الكاملة» بزرّ «افتح»
-  يفتح `THIRD_PARTY_LICENSES.txt` المولَّد عند البناء في تبويب ([27](../STAGES/27.md)، [ADR 0057](ADR/0057-release-packaging.md)).
+  يفتح `THIRD_PARTY_LICENSES.txt` المولَّد عند البناء في تبويب (27، [ADR 0057](ADR/0057-release-packaging.md)).
 
-- **«أبلغ عن مشكلة»** (`support / *`، [13](../STAGES/13.md)، [ADR 0050](ADR/0050-problem-reports.md)) — فروقٌ مقصودة:
+- **«أبلغ عن مشكلة»** (`support / *`، 13، [ADR 0050](ADR/0050-problem-reports.md)) — فروقٌ مقصودة:
   - `image` و`image-empty`: «التقط من جديد» و«التقط لقطة» صارتا «اختر صورة أخرى» و«أرفق ملفًّا» مع اللصق — عقد قناة
     البلاغات المشتركة يمنع التقاطًا يجريه التطبيق للبلاغ. والحجب تغطيةٌ مصمتة وحدها، وتحته «تراجع عن آخر حجب» و«ألغِ
     القصّ» — الإطار لا يرسم تراجعًا.
@@ -994,7 +994,7 @@ verify:visual`: يلتقط ستّة عشر سطحًا بالوضعين (النا
 
 ### التأهيل و«ما الجديد»
 
-كُتب في [`STAGES/09`](../STAGES/09.md)، والقرار في [ADR 0028](ADR/0028-onboarding-whats-new.md).
+كُتب في `STAGES/09`، والقرار في [ADR 0028](ADR/0028-onboarding-whats-new.md).
 
 - **البطاقة 420 × 590 لا 560:** خطوة الصلاحيات تسرد أسباب `activeTab` و`scripting` وصلاحية المضيف بنصوص
   [`permission-policy.ts`](../src/shared/permission-policy.ts) نفسها، والبطاقة بارتفاع أطول خطواتها فلا

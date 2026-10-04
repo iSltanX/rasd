@@ -37,9 +37,8 @@ jobs:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           # ملفّات لا تدخل الحزمة ولا يقرؤها اختبار ولا بناء. `Docs/` بامتداداتها لا
-          # بمجلّدها: `Docs/Brand/build.mjs` سكربت يمرّ باللنت فيبقى للمسار الكامل،
-          # و`STAGES/baseline.json` يقرؤه `stages-sync` فلا يطابق `STAGES/NN.md`.
-          DOCS_ONLY: '^(AGENTS\.md|README\.md|ROADMAP\.md|STATUS\.md|STAGES/[0-9]+\.md|Docs/.+\.(md|png|svg))$'
+          # بمجلّدها: `Docs/Brand/build.mjs` سكربت يمرّ باللنت فيبقى للمسار الكامل.
+          DOCS_ONLY: '^(AGENTS\.md|README\.md|Docs/.+\.(md|png|svg))$'
         run: |
           full() { echo "code=true" >> "$GITHUB_OUTPUT"; echo "المسار الكامل — $1"; exit 0; }
           case "$EVENT" in
@@ -59,9 +58,8 @@ jobs:
 
   # ── مسار التوثيق: فحوص الاتّساق وحدها ─────────────────────────────
   #
-  # الفحوص التي يمكن أن يُسقطها تعديل توثيق: ترويسات المراحل ومشتقّاها، وصفوف
-  # سجلّ القرارات، وجرد نقاط الدخول المكتوب في `Docs/EntryPoints.md`، وتنسيق
-  # Markdown. لا بناء ولا اختبارات ولا متصفّح: لا شيء منها يقرأ هذه الملفّات.
+  # الفحوص التي يمكن أن يُسقطها تعديل توثيق: صفوف سجلّ القرارات، وجرد نقاط
+  # الدخول المكتوب في `Docs/EntryPoints.md`، وتنسيق Markdown. لا بناء ولا اختبارات ولا متصفّح: لا شيء منها يقرأ هذه الملفّات.
   # **واسم الوظيفة مرجعٌ في `scripts/guards-sync.mjs`** — به يُعرف أن الجولة لم
   # تطلب حارسًا، فلا تُعدّ ثغرة في سجلّ الترقية. تغييره يُغيَّر هناك معه.
   docs:
@@ -83,12 +81,6 @@ jobs:
 
       - name: Install
         run: pnpm install --frozen-lockfile
-
-      - name: حارس مزامنة المراحل
-        run: pnpm run stages:check
-
-      - name: نظام SS — القواعد والمشتقّ
-        run: pnpm run ss:check
 
       - name: حارس سجلّ القرارات
         run: pnpm run docs:lint
@@ -166,14 +158,6 @@ jobs:
       # سجلّ حرّاس Firefox في ملفّه (ADR 0059) — يطابق خطوات وظيفة `firefox` أدناه والحرّاس المعرَّفة وبصماتها.
       - name: حارس سجلّ حرّاس Firefox
         run: pnpm run guards:firefox-check
-
-      # الحالة تُكتب في ترويسات `STAGES/NN.md` وحدها، و`STATUS.md` وجدول
-      # `ROADMAP.md` مشتقّان. الفحص هنا يحرس الفرع لا جهاز المؤلِّف وحده.
-      - name: حارس مزامنة المراحل
-        run: pnpm run stages:check
-
-      - name: نظام SS — القواعد والمشتقّ
-        run: pnpm run ss:check
 
       - name: حارس سجلّ القرارات
         run: pnpm run docs:lint

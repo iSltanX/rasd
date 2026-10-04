@@ -64,7 +64,7 @@ pnpm verify:firefox                         # كلّها بترتيب القيم
 pnpm verify:firefox --only colour,report    # بأسمائها، بالقفل نفسه
 pnpm firefox:load                           # حارسٌ واحد مباشرةً
 RASD_GUARD_SABOTAGE=content.js pnpm firefox:measure   # السالب: يجب أن يسقط
-pnpm verify:wave --base ss-C/base --firefox            # حرّاس كروم ثمّ Firefox
+pnpm verify:wave --base origin/main --firefox          # حرّاس كروم ثمّ Firefox
 ```
 
 - **Firefox:** `FIREFOX_PATH` أو `/Applications/Firefox.app` أو `/usr/bin/firefox`. بلا نافذة افتراضًا، و`RASD_FIREFOX_HEADFUL=1`
@@ -143,14 +143,8 @@ pnpm zip:all --tag v1.2.3      # كما في سير الإصدار: الوسم �
 | `pnpm zip`                  | فحص `dist/` ثمّ حزمة `.zip` حتمية ببصمتها                                                         |
 | `pnpm zip:firefox`          | `web-ext lint` ثمّ حزمة Firefox · `zip:source` حزمة المصدر · `zip:all` الثلاث                     |
 | `pnpm tokens:sync`          | توليد التوكنز من لقطة Figma                                                                       |
-| `pnpm gate:a`               | البوّابة المحلّية، مرّة عند إغلاق المرحلة                                                         |
-| `pnpm ss:sync`              | نظام SS: الكتلة المشتقّة في `Docs/SS/README.md` واللوحة `Docs/SS/board.html`                      |
-| `pnpm ss:check`             | قواعد SS ومطابقة المشتقّ — في البوّابة A وCI                                                      |
-| `pnpm ss:prompt SS3`        | البرومبت الكامل لمرحلة (أو `wave B` لإغلاق موجة)                                                  |
-| `pnpm stages:sync`          | أرشيف 01–34: اشتقاق `STATUS.md` وجدول `ROADMAP.md`                                                |
-| `pnpm waves:check`          | اتّساق خطّة الموجات مع ترويسات المراحل                                                            |
-| `pnpm waves:board`          | توليد لوحة التشغيل `Docs/Waves/board.html`                                                        |
-| `pnpm verify:wave`          | حرّاس كروم لمرحلة أو لبوّابة موجة، بقفل                                                           |
+| `pnpm gate:a`               | البوّابة المحلّية، مرّة قبل الالتزام النهائي لتغيير                                               |
+| `pnpm verify:wave`          | حرّاس كروم لمخروط أثر التغيير (`--base origin/main`) أو كلّها (`--size all`)، بقفل                |
 | `pnpm verify:<اسم>`         | حارس متصفّح حقيقي — 26 حارسًا                                                                     |
 | `pnpm verify:firefox`       | حرّاس Firefox كلّها بقفلها (`--only load,popup` · `--list`) — أو `verify:wave --firefox` بعد كروم |
 | `pnpm firefox:<اسم>`        | حارس Firefox حقيقي — 14 حارسًا فوق نواة BiDi                                                      |
@@ -186,18 +180,12 @@ tests/
 
 التفاصيل والسبب في [ADR 0004](ADR/0004-architecture-boundaries.md).
 
-## استئناف العمل
+## البدء من نسخة جديدة
 
-مدخل أي جلسة جديدة، من أي جهاز أو حساب له صلاحية على المستودع:
-
-1. [`AGENTS.md`](../AGENTS.md) — قواعد التنفيذ والتحقّق والالتزام والرفع.
-2. [`Docs/SS/README.md`](SS/README.md) — **الخطّة النشطة**: مراحل SS وموجاتها وأدوارها، ولوحتها
-   [`Docs/SS/board.html`](SS/board.html): تُفتح بـ`open Docs/SS/board.html`، ومنها يُنسخ أمر كل جلسة
-   (`/ss SSn` أو `/ss-merge X`) أو البرومبت الكامل.
-3. [`Docs/SS/stages/SSn.md`](SS/stages/) — مواصفة المرحلة وسجلّ تنفيذها ونقطة استئنافها.
+1. [`AGENTS.md`](../AGENTS.md) — قواعد التنفيذ والتحقّق والالتزام.
+2. هذا الملفّ — البيئة والأوامر والبنية.
+3. [`Docs/Engineering.md`](Engineering.md) و[`Docs/ADR/`](ADR/) — المرجع الهندسي والقرارات وأسبابها.
 4. [`Docs/Browsers/Architecture.md`](Browsers/Architecture.md) — «ماذا ولماذا» لدعم المتصفّحات.
-5. الأرشيف (01–34): [`STATUS.md`](../STATUS.md) و[`ROADMAP.md`](../ROADMAP.md) و[`STAGES/`](../STAGES/) و
-   [`Docs/Waves.md`](Waves.md) ولوحته [`Docs/Waves/board.html`](Waves/board.html).
 
 ```bash
 git clone https://github.com/iSltanX/rasd.git && cd rasd
@@ -207,9 +195,15 @@ pnpm gate:a
 ```
 
 على نسخة جديدة تُشغَّل `pnpm gate:a` مرّة لإثبات البيئة، ويجب أن تخرج خضراء. بعدها تُشغَّل
-مرّة عند إغلاق كل مرحلة، لا بعد كل تعديل — «اقتصاد الفحوص» في [`AGENTS.md`](../AGENTS.md).
-المستودع خاصّ: الوصول من حساب آخر يتطلّب
-منحه صلاحية على المستودع.
+مرّة قبل الالتزام النهائي لكل تغيير، لا بعد كل تعديل — «اقتصاد الفحوص» في [`AGENTS.md`](../AGENTS.md).
+وحرّاس المتصفّح الحقيقي بعدها: `pnpm verify:wave --base origin/main` (والأعطال المتقطّعة المعروفة في
+[`Docs/Flaky.md`](Flaky.md)).
+
+### الترقيم التاريخي في الشيفرة والوثائق
+
+تعليقات الشيفرة والـADR وصفوف `Docs/Engineering.md §6` تذكر `STAGES/NN` و`SSn` والموجات و«المرحلة N». هذه إحالاتٌ إلى خطّة
+التنفيذ الداخلية (المراحل 01–34 ثمّ نظام SS) التي بُني بها 1.0، وملفّاتها نُقلت في 2026-10-04 إلى أرشيف التخطيط خارج
+المستودع العامّ — فتُقرأ أسماءً لمصدر القرار لا روابط. والقرار نفسه وسببه في الـADR أو في صفّ §6 المذكور معها.
 
 ## المصادر المرجعية
 
@@ -223,4 +217,4 @@ pnpm gate:a
 | ملف Figma `Gr0dOsmjcVBcaX9M1slf5m`                          | نظام التصميم — مصدر التوكنز والشاشات                                             |
 
 عند اختلاف التنفيذ عن الإطار المعتمد في Figma، فالتنفيذ هو الخطأ. والإطارات المعتمدة
-توثّقها `Docs/Design.md` عند إغلاق [`STAGES/02`](../STAGES/02.md).
+في `Docs/Design.md`.
