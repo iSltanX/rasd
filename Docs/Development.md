@@ -182,8 +182,8 @@ tests/
 
 ## الحالة والمتبقّي
 
-- **المنشور:** Chrome Web Store بالإصدار `1.0.0` (2026-10-03). **غير المنشور:** Microsoft Edge Add-ons وFirefox Add-ons وOpera
-  Add-ons — موادّها وحزمها جاهزة، وتقديمها بأمر المالك وحده. **Opera: قُبل رفع `rasd-1.0.0-opera.zip` والنشر لم يُؤكَّد.** الجدول وبصمات الحزم في [`Docs/Release/channels.md`](Release/channels.md).
+- **المنشور:** Chrome Web Store وFirefox Add-ons بالإصدار `1.0.0` (2026-10-03). **غير المنشور:** Microsoft Edge Add-ons
+  وOpera Add-ons — موادّهما وحزمهما جاهزة، وتقديمهما بأمر المالك وحده. **Opera: قُبل رفع `rasd-1.0.0-opera.zip` والنشر لم يُؤكَّد.** الجدول وبصمات الحزم في [`Docs/Release/channels.md`](Release/channels.md).
 - **مسوَّدة إصدار `v1.0.0` على GitHub** غير منشورة عمدًا؛ فيها الحزم الثلاث ببصماتها.
 - **حزم `1.0.0` تُعاد بايتًا ببايت:** `pnpm build:all && pnpm zip && pnpm zip:firefox` تعطي `rasd-1.0.0.zip` و`rasd-1.0.0-firefox.zip`
   بالبصمتين المدوَّنتين في `channels.md` (قِيس 2026-10-04 بعد تنظيف المستودع). **حزمة المراجعين** `rasd-<v>-source.zip` تُبنى من

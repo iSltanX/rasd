@@ -82,8 +82,8 @@
 
 ## التثبيت
 
-**من المتجر** — [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) (الإصدار 1.0.0). وMicrosoft Edge Add-ons وFirefox Add-ons
-وOpera Add-ons لم تُنشر بعد؛ تُضاف روابطها هنا حين تُنشر.
+**من المتجر** — [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) و[**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/)
+(الإصدار 1.0.0). وMicrosoft Edge Add-ons وOpera Add-ons لم تُنشرا بعد؛ تُضاف روابطهما هنا حين تُنشران.
 
 **من الحزمة**، للمطوّر والمختبِر:
 
@@ -137,8 +137,9 @@ developers what they need.
 - **No permanent site access** — it works only on the page where you invoke it.
 - **Arabic-first** — the interface is Arabic and right-to-left, in dark and light themes.
 
-**Install** from the [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) (version 1.0.0). Microsoft Edge Add-ons, Firefox Add-ons and
-Opera Add-ons are not published yet; their links will be added here once they are.
+**Install** from the [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) or
+[**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/) (version 1.0.0). Microsoft Edge Add-ons and Opera Add-ons are
+not published yet; their links will be added here once they are.
 
 **Rights** — Rasd is proprietary software, not open source (`UNLICENSED`). All rights are reserved; reading this code grants no
 licence to copy, modify or redistribute it. Using the extension is governed by its

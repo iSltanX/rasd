@@ -8,17 +8,22 @@
 | ---------------------- | -------------------------------------------- | ----------------------------- | ---------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
 | Chrome Web Store       | `rasd-<النسخة>.zip`                          | 1.0.0                         | 2026-10-03 | `35ef926a…` ¹    | [صفحة رصد](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) |
 | Microsoft Edge Add-ons | `rasd-<النسخة>.zip`                          | —                             | —          | —                | —                                                                                                        |
-| Firefox Add-ons (AMO)  | `rasd-<النسخة>-firefox.zip` + `…-source.zip` | —                             | —          | —                | —                                                                                                        |
+| Firefox Add-ons (AMO)  | `rasd-<النسخة>-firefox.zip` + `…-source.zip` | 1.0.0                         | 2026-10-03 | `2be3fd25…` ³    | [صفحة رصد](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/)                      |
 | Opera Add-ons          | `rasd-<النسخة>-opera.zip` + `…-source.zip`   | قُبل الرفع، والنشر لم يُؤكَّد | —          | `a81fe1f8…` ²    | —                                                                                                        |
 
-**Chrome Web Store منشورة** بالإصدار 1.0.0، وصفحتها تعيد 200 لزائرٍ غير مسجَّل. والقنوات الثلاث الأخرى لم تُنشر بعد. النشر
-لكل متجر بيد المالك وحده (`AGENTS.md` §7)، ويُملأ السطر بعد النشر لا قبله.
+**Chrome Web Store وFirefox Add-ons منشورتان** بالإصدار 1.0.0، وصفحتاهما تعيدان 200 لزائرٍ غير مسجَّل (Firefox قِيست
+2026-10-06، وحالتها `public` في واجهة AMO البرمجية). وEdge وOpera لم تُنشرا بعد. النشر لكل متجر بيد المالك وحده
+(`AGENTS.md` §7)، ويُملأ السطر بعد النشر لا قبله.
 
 ¹ بصمة `rasd-1.0.0.zip` في مسوَّدة الإصدار — الحزمة التي يُرفع منها بعد مطابقة بصمتها (أعلاه). والتاريخ «Updated» في صفحة المتجر.
 ولا تُقرأ البصمة من المتجر نفسه: Chrome Web Store يعيد تحزيم ما يُرفع ويوقّعه.
 
 ² بصمة `rasd-1.0.0-opera.zip` (إفادة المالك 2026-10-04: **قُبل رفع الحزمة إلى Opera Add-ons، ولم يُؤكَّد النشر** — لا يُعدّ
 منشورًا حتى يُرى في المتجر ويُدوَّن هنا). حزمة Opera **مستقلّة** عن حزمة Chrome، وتفصيلها أدناه.
+
+³ بصمة `rasd-1.0.0-firefox.zip` في مسوَّدة الإصدار — الحزمة المعدّة للرفع؛ ولم يُقَس أنها هي التي رُفعت. وAMO توقّع ما يُرفع،
+فملفّها المنشور `rasd-1.0.0.xpi` (867487 بايت) بصمته `a8ca8027fa906dc7a9943bc41f713c1214a4e88c0fdbc3e42f37749fc2355473` في
+واجهة AMO البرمجية (قُرئت 2026-10-06). والتاريخ «Last updated» في صفحة المتجر.
 
 **حزمة Opera `rasd-1.0.0-opera.zip`** — لا تدخل مسوَّدة إصدار GitHub (`v1.0.0` فيها الحزم الثلاث الأخرى)، وحُفظت نسختها في
 أرشيف التنظيف المحلّي ومعها `.sha256`:
@@ -43,10 +48,10 @@
 | `rasd-1.0.0-firefox.zip` | `2be3fd250b698a19f669e9479b621c7bcd8050bfa05066a292529d000b696b3d` |
 | `rasd-1.0.0-source.zip`  | `73d99efe47ea95eb109569702c39a63c15e11d523a206de70d8813ea37aa4540` |
 
-**مواد القنوات الأربع جاهزة** (SS8)، ومنها Chrome المنشورة: Chrome وEdge في [`Docs/Store/listing.md`](../Store/listing.md)، وFirefox في
+**مواد القنوات الأربع جاهزة** (SS8)، ومنها Chrome وFirefox المنشورتان: Chrome وEdge في [`Docs/Store/listing.md`](../Store/listing.md)، وFirefox في
 [`Docs/Store/firefox/listing.md`](../Store/firefox/listing.md)، وOpera في [`Docs/Store/opera/listing.md`](../Store/opera/listing.md) —
 وقناة Opera **ضمن 1.0 بقرار المالك 2026-10-02** ونصّ EULA في [`Docs/Store/eula.md`](../Store/eula.md)، وقائمتها بنودٌ في
-[`Docs/Store/checklist.md`](../Store/checklist.md) (الصفوف 51–79). وتبقى صفوف Edge وFirefox وOpera بلا نسخة حتى تُنشر.
+[`Docs/Store/checklist.md`](../Store/checklist.md) (الصفوف 51–79). ويبقى صفّا Edge وOpera بلا نسخة حتى تُنشرا.
 
 **قاعدة النسخ:** المتاجر تشترط أن تعلو النسخة على سابقتها **في المتجر نفسه**، لا على سابقتها عندنا — فإصلاحٌ يخصّ Firefox
 (`1.0.1`) يُرفع إلى AMO وحده وتبقى بقيّة القنوات على `1.0.0` حتى `1.1.0`. ولا رقم رابع ولا لاحقة لتمييز هدف.
