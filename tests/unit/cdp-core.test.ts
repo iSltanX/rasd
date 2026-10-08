@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 import { guardDeps } from '../../scripts/guards-sync.mjs'
 import {
   createReport,
+  pageTargetAt,
   sabotageList,
   unpackedExtensionId,
   waitForInstallFlow,
@@ -143,5 +144,56 @@ describe('انتظار مستمع التثبيت قبل تسليم العامل'
     expect(attach).toBeGreaterThan(-1)
     expect(wait).toBeGreaterThan(attach)
     expect(wait).toBeLessThan(core.indexOf('const finish = async'))
+  })
+})
+
+/**
+ * **الارتباط بالصفحة بعنوانها كاملًا لا بجزءٍ منه** (`Docs/Engineering.md §6` الصفّ 479): الترتيب أدناه هو ما
+ * أعاده `Target.getTargets` في Chrome 155 عند الخطوة 15 من `verify:colour` — صفحة `cases.html` المخفيّة قبل التبويب
+ * الجديد — فكان «أوّل تطابق جزئي» يمسك المخفيّة وينتظر إطارًا لا يأتي.
+ */
+describe('الارتباط بالصفحة بعنوانها كاملًا', () => {
+  const BASE = 'http://127.0.0.1:5399'
+  const page = (targetId: string, url: string) => ({ type: 'page', targetId, url })
+  const chrome155 = [
+    page('tour', 'chrome-extension://abc/src/pages/onboarding/index.html'),
+    page('cases', `${BASE}/contrast-5000/cases.html`),
+    page('blank', 'about:blank'),
+    page('big', `${BASE}/contrast-5000/`),
+    page('colour', `${BASE}/colour/`),
+    { type: 'service_worker', targetId: 'sw', url: `${BASE}/contrast-5000/` },
+  ]
+
+  it('يختار الصفحة التي عنوانها هو المطلوب ولو سبقتها صفحةٌ تحتوي النصّ — ويطبّع العنوان لا أكثر', () => {
+    expect(pageTargetAt(chrome155, `${BASE}/contrast-5000/`)?.targetId).toBe('big')
+    expect(pageTargetAt(chrome155, `${BASE}/contrast-5000/cases.html`)?.targetId).toBe('cases')
+    expect(pageTargetAt(chrome155, `${BASE}/colour/`)?.targetId).toBe('colour')
+    // التطبيع: حالة أحرف الأصل ومنفذٌ افتراضي مكتوب — لا أكثر: شرطةٌ ناقصة أو جزءٌ زائد لا يطابقان.
+    expect(pageTargetAt(chrome155, 'HTTP://127.0.0.1:5399/colour/')?.targetId).toBe('colour')
+    expect(pageTargetAt([page('p', 'http://h/')], 'http://h:80/')?.targetId).toBe('p')
+    expect(pageTargetAt(chrome155, `${BASE}/colour`)).toBeNull()
+    expect(pageTargetAt(chrome155, `${BASE}/colour/#x`)).toBeNull()
+  })
+
+  it('المطابقة الجزئية القديمة كانت تمسك المخفيّة — وهو السالب الذي أعاد السقوط', () => {
+    const first = chrome155.find((t) => t.type === 'page' && t.url.includes('/contrast-5000/'))
+    expect(first?.targetId).toBe('cases')
+    expect(pageTargetAt(chrome155, `${BASE}/contrast-5000/`)?.targetId).not.toBe(first?.targetId)
+  })
+
+  it('الاستعلام يميّز الصفحة، وغير الصفحات لا تُطابَق، وما لا يوجد `null`', () => {
+    const withHuge = [...chrome155, page('huge', `${BASE}/contrast-5000/?n=50000`)]
+    expect(pageTargetAt(withHuge, `${BASE}/contrast-5000/?n=50000`)?.targetId).toBe('huge')
+    expect(pageTargetAt(withHuge, `${BASE}/contrast-5000/`)?.targetId).toBe('big')
+    expect(pageTargetAt(chrome155, `${BASE}/contrast-5000/?n=50000`)).toBeNull()
+    expect(
+      pageTargetAt([{ type: 'service_worker', targetId: 'sw', url: `${BASE}/x/` }], `${BASE}/x/`),
+    ).toBeNull()
+  })
+
+  it('`verify-colour.mjs` يرتبط عبر النواة ولا يعود إلى المطابقة الجزئية', () => {
+    const guard = read('scripts/verify-colour.mjs') ?? ''
+    expect(guard).toContain('pageTargetAt(targetInfos, `${BASE}${path}`)')
+    expect(guard).not.toMatch(/\burl\)?\.(includes|startsWith|indexOf)\(/u)
   })
 })

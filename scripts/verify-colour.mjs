@@ -36,7 +36,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { attachTarget, startGuard } from './lib/cdp.mjs'
+import { attachTarget, pageTargetAt, startGuard } from './lib/cdp.mjs'
 
 const PORT = 9341
 const BREAK_AUDIT = process.env.RASD_BREAK_AUDIT === '1'
@@ -182,9 +182,13 @@ const pageRect = (tabId, selector) =>
     }`,
   )
 
-async function attachToPage(urlPart) {
+/**
+ * يرتبط بصفحة العيّنة **بعنوانها كاملًا** (`pageTargetAt` في النواة): مطابقةُ جزءٍ من العنوان أمسكت في الخطوة 15
+ * صفحة `cases.html` المخفيّة قبل التبويب الجديد على Chrome 155 فعلق `settle` إلى الحدّ الأقصى (`§6` الصفّ 479).
+ */
+async function attachToPage(path) {
   const { targetInfos } = await send('Target.getTargets')
-  const t = targetInfos.find((x) => x.type === 'page' && String(x.url).includes(urlPart))
+  const t = pageTargetAt(targetInfos, `${BASE}${path}`)
   if (!t) return null
   return attachTarget(send, t.targetId)
 }

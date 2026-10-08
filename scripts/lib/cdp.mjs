@@ -247,6 +247,35 @@ export async function openTarget(send, url, { enable = ['Page'] } = {}) {
 }
 
 /**
+ * هدف الصفحة الذي **عنوانه هو العنوان المطلوب كاملًا** — لا أوّل هدف يحتوي جزءًا منه.
+ *
+ * **العلّة، مقيسةً (2026-10-08، `Docs/Engineering.md §6` الصفّ 479).** كان `verify-colour.mjs` يرتبط بأوّل صفحة
+ * `url.includes(part)`؛ وفي الخطوة 15 يطابق `'/contrast-5000/'` صفحتين: `cases.html` من الخطوة 13 — وقد صارت
+ * مخفيّة — والتبويب الجديد. وترتيب `Target.getTargets` لا يضمنه البروتوكول ولا يثبت بين التشغيلات: على
+ * Chrome 155 سبقت المخفيّةُ الجديدَ في ثمانية تشغيلات من تسعة وسبقها الجديد في واحد، وChrome 154 أدرج الجديد
+ * أوّلًا في كل ما قِيس، وBrave يدرجه أخيرًا — ومتى سبقت المخفيّة ارتبط بها الحارس وانتظر `requestAnimationFrame`
+ * فيها إلى الحدّ الأقصى. المطابقة بالعنوان كاملًا تجعل الترتيب غير ذي صلة.
+ *
+ * المقارنة كاملةً هي ما يميّز `?n=50000` عن أختها؛ والتطبيع بـ`URL` حين يُقرأ العنوان احتياطٌ لاختلافٍ شكليّ
+ * (حالة الأحرف في الأصل، أو منفذٌ افتراضي مكتوب)، وما لا يُقرأ يُقارَن نصًّا.
+ *
+ * @param {Array<{ type: string, url: string, targetId: string }>} targetInfos كما يعيدها `Target.getTargets`.
+ * @param {string} url العنوان الكامل للصفحة المطلوبة.
+ * @returns {{ type: string, url: string, targetId: string } | null}
+ */
+export function pageTargetAt(targetInfos, url) {
+  const canon = (u) => {
+    try {
+      return new URL(u).href
+    } catch {
+      return String(u)
+    }
+  }
+  const wanted = canon(url)
+  return targetInfos.find((t) => t.type === 'page' && canon(t.url) === wanted) ?? null
+}
+
+/**
  * يلتقط أخطاء الصفحات: الاستثناءات غير الملتقَطة و`console.error` — من كل جلسة فُعِّل فيها `Runtime`.
  * @returns {string[]} مصفوفةٌ حيّة تمتلئ مع الأحداث.
  */
