@@ -50,9 +50,10 @@ Rasd measures, inspects, compares and captures web pages in the active tab, and 
 +  "short_name": "Rasd",
 ```
 
-| الحزمة                 | SHA-256                                                            |
-| ---------------------- | ------------------------------------------------------------------ |
-| `rasd-1.0.0-opera.zip` | `a81fe1f8dd68d924acb63b37fd5e582d30116aca63976a32475115e247122501` |
+| الحزمة                 | SHA-256                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------ |
+| `rasd-1.0.0-opera.zip` | `a81fe1f8dd68d924acb63b37fd5e582d30116aca63976a32475115e247122501`                               |
+| `rasd-1.0.1-opera.zip` | `ecc2f2e4ca3331e7279fe53248302c47c1ef97a23854fa28147156a25ee10646` — مُعدّة 2026-10-08، لم تُرفع |
 
 **الإنتاج** من `dist/` الذي يبنيه `pnpm build` (لا يُمسّ `dist/` ولا حزمة Chrome ولا `scripts/zip.mjs`):
 
@@ -68,7 +69,7 @@ const text = m.data.toString('utf8')
 if (!text.includes(from)) throw new Error('short_name غير موجود في البيان')
 m.data = Buffer.from(text.replace(from, '\"short_name\": \"Rasd\"'), 'utf8')
 const out = zip(files)
-writeFileSync('dist-zip/rasd-1.0.0-opera.zip', out)
+writeFileSync('dist-zip/rasd-<النسخة>-opera.zip', out)
 console.log(sha256(out))
 "
 ```
