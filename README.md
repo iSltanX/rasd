@@ -150,5 +150,6 @@ licence to copy, modify or redistribute it. Using the extension is governed by i
 
 <p align="center"><sub>
   تصميم وتطوير سلطان — Sultan · <a href="https://bysltan.com">bysltan.com</a><br>
+  للتواصل: <a href="mailto:iSultanby@gmail.com">iSultanby@gmail.com</a><br>
   © 2026 — جميع الحقوق محفوظة.
 </sub></p>
