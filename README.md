@@ -83,7 +83,7 @@
 ## التثبيت
 
 **من المتجر** — [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) و[**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/)
-(الإصدار 1.0.0). وMicrosoft Edge Add-ons وOpera Add-ons لم تُنشرا بعد؛ تُضاف روابطهما هنا حين تُنشران.
+(Chrome بالإصدار 1.0.0، وFirefox بالإصدار 1.0.1). وMicrosoft Edge Add-ons وOpera Add-ons لم تُنشرا بعد؛ تُضاف روابطهما هنا حين تُنشران.
 
 **من الحزمة**، للمطوّر والمختبِر:
 
@@ -138,7 +138,7 @@ developers what they need.
 - **Arabic-first** — the interface is Arabic and right-to-left, in dark and light themes.
 
 **Install** from the [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) or
-[**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/) (version 1.0.0). Microsoft Edge Add-ons and Opera Add-ons are
+[**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/) (Chrome version 1.0.0, Firefox version 1.0.1). Microsoft Edge Add-ons and Opera Add-ons are
 not published yet; their links will be added here once they are.
 
 **Rights** — Rasd is proprietary software, not open source (`UNLICENSED`). All rights are reserved; reading this code grants no
