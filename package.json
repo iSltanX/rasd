@@ -96,7 +96,7 @@
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run tokens:check && pnpm run verify:tokens && pnpm run test:coverage"
   },
   "dependencies": {
-    "@preact/signals": "2.11.1",
+    "@preact/signals": "2.11.2",
     "culori": "4.0.2",
     "idb": "8.0.3",
     "pdf-lib": "1.17.1",
