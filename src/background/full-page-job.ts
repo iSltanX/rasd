@@ -265,15 +265,27 @@ async function measure(dataUrl: string): Promise<Result<{ width: number; height:
  * للإضافة لا لكل تبويب — فمهمّتان متوازيتان تتجاعان معًا وتُطيلان كلتيهما.
  * والرفض الصريح أوضح للمستخدم من بطء لا يفهم سببه.
  */
-let active: { tabId: number; controller: AbortController } | null = null
+let active: {
+  tabId: number
+  controller: AbortController
+  /**
+   * بدأ الحفظ — **لحظة الالتزام**. قبلها يُقبَل الإلغاء ويُحترَم، وبعدها يُرفَض صادقًا: إلغاءٌ يُردّ عليه
+   * «أُلغي» ثمّ تُحفظ اللقطة كذبٌ على مستخدمٍ ألغى ربّما لأن محتوًى حسّاسًا ظهر (تدقيق Copilot، D2).
+   */
+  committed: boolean
+} | null = null
 
 export function isFullPageRunning(): boolean {
   return active !== null
 }
 
-/** يُلغي المهمّة الجارية إن وُجدت. الاستعادة تقع في `finally` داخل الحلقة. */
+/**
+ * يُلغي المهمّة الجارية إن وُجدت ولم تبلغ الحفظ. الاستعادة تقع في `finally` داخل الحلقة.
+ *
+ * `true` وعدٌ بألّا تُحفظ لقطة؛ و`false` إن لم تكن مهمّة، أو بدأ حفظها فلا رجعة.
+ */
 export function cancelFullPage(): boolean {
-  if (!active) return false
+  if (!active || active.committed) return false
   active.controller.abort()
   return true
 }
@@ -307,7 +319,8 @@ export function startFullPage(
   if (active) return { started: false, reason: 'ثمّة التقاط كامل جارٍ بالفعل.' }
 
   const controller = new AbortController()
-  active = { tabId, controller }
+  const job = { tabId, controller, committed: false }
+  active = job
 
   /*
    * **حالة المهمّة تُكتَب في الجلسة — وإلا فحالة «جارٍ الالتقاط» غير قابلة
@@ -356,6 +369,16 @@ export function startFullPage(
         deps.broadcast({ kind: 'failed', code: run.error.code, message: run.error.message })
         return
       }
+
+      /*
+       * **آخر فحصٍ للإلغاء، ولحظة الالتزام، في دورةٍ واحدة بلا `await` بينهما.**
+       *
+       * الحلقة لا ترى الإجهاض بعد آخر بلاطة: الترميز (`stitcher.finish`) والاستعادة يجريان بعدها، وقِيس في
+       * كروم أن إلغاءً من النافذة أو بـ`Esc` يصل في هذه النافذة (100–400ms على صفحة طويلة) فيُقبل ثمّ تُحفظ
+       * اللقطة. فإلغاءٌ سبق هذا السطر يُحترَم هنا، وما بعده يجد `committed` فيُرفَض صادقًا.
+       */
+      controller.signal.throwIfAborted()
+      job.committed = true
 
       const saved = await deps.save(run.value)
       if (!saved.ok) {
