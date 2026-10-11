@@ -271,6 +271,8 @@ async function measure(dataUrl: string): Promise<Result<{ width: number; height:
  * والرفض الصريح أوضح للمستخدم من بطء لا يفهم سببه.
  */
 let active: {
+  /** معرّف المهمّة كما كُتب في الجلسة — به تُعرف مهمّة هذا العامل من يتيمة عاملٍ مات. */
+  id: string
   tabId: number
   controller: AbortController
   /**
@@ -292,6 +294,42 @@ export function isFullPageRunning(): boolean {
 export function cancelFullPage(): boolean {
   if (!active || active.committed) return false
   active.controller.abort()
+  return true
+}
+
+/**
+ * يستعيد مهمّةً يتيمة عند إقلاع العامل — تُستدعى مرّة من `registerLifecycle`.
+ *
+ * المهمّة تُكتب في الجلسة، والعلَم `active` في ذاكرة العامل. فعاملٌ يموت أثناء التقاط (انهيار، أو إيقافٌ
+ * من المتصفّح) يترك `session.job` حيّةً بلا حلقة، والصفحةَ مُمرَّرة بعناصرها المخفيّة: قِيس في كروم بإيقاف
+ * العامل عبر CDP أن المهمّة بقيت بعد الاستيقاظ والصفحة عند 3039px بلا استعادة، فتعرض النافذة «يلتقط» حتى
+ * يمسحها الحارس بعد نحو دقيقتين ونصف (تدقيق Copilot، N3). وكل مهمّة في الجلسة ساعةَ الإقلاع لعاملٍ مات —
+ * **إلا مهمّة هذا العامل نفسه**: الحدث الذي أيقظه قد يكون تفعيلًا بدأ التقاطًا قبل أن يأتي دور هذه في
+ * الطابور. ولا تُستعاد صفحةٌ بدأ عليها هذا العامل التقاطًا: الاستعادة تُفسد الجديد.
+ *
+ * `true` إن وُجدت يتيمة فمُسحت.
+ */
+export async function recoverOrphanedJob(
+  broadcast: (message: { kind: 'failed'; code: string; message: string }) => void,
+): Promise<boolean> {
+  let orphan = null as SessionState['job']
+  await updateSession((current) => {
+    if (!current.job || current.job.id === active?.id) return current
+    orphan = current.job
+    return { ...current, job: null }
+  })
+  if (!orphan) return false
+
+  console.warn(`[رصد] مهمّة يتيمة من عاملٍ سابق أُنهيت: ${orphan.kind} (${orphan.id})`)
+  if (orphan.kind === 'full-page' && active?.tabId !== orphan.tabId) {
+    // الصفحة قد تكون أُغلقت أو تنقّلت — لا مستقبِل حينها ولا ما يُستعاد.
+    await askFinish(orphan.tabId).catch(() => null)
+  }
+  broadcast({
+    kind: 'failed',
+    code: 'interrupted',
+    message: 'توقّف الالتقاط قبل اكتماله فلم يُحفظ. أُعيدت الصفحة كما كانت.',
+  })
   return true
 }
 
@@ -324,7 +362,7 @@ export function startFullPage(
   if (active) return { started: false, reason: 'ثمّة التقاط كامل جارٍ بالفعل.' }
 
   const controller = new AbortController()
-  const job = { tabId, controller, committed: false }
+  const job = { id: crypto.randomUUID(), tabId, controller, committed: false }
   active = job
 
   /*
@@ -346,7 +384,7 @@ export function startFullPage(
    * بأن تكون مهمّة الجلسة هذه نفسها**، فلا يُحيي نبضٌ مهمّةً مُسحت، ولا يمسح خروجٌ مهمّةً غيرها.
    */
   const record = {
-    id: crypto.randomUUID(),
+    id: job.id,
     kind: 'full-page',
     tabId,
     startedAt: Date.now(),

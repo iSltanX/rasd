@@ -148,7 +148,12 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
               : {
                   kind: 'error',
                   title: 'لم تُحفظ اللقطة',
-                  message: 'توقّفت الصفحة عن الاستجابة قبل اكتمال الالتقاط. أعد المحاولة.',
+                  // `interrupted`: عاملٌ مات أثناء الالتقاط فاستعاد خلَفُه الصفحة (`recoverOrphanedJob`) —
+                  // الصفحة لم تتوقّف عن الاستجابة، فنصّ الخلفية هو الصادق.
+                  message:
+                    message.code === 'interrupted'
+                      ? message.message
+                      : 'توقّفت الصفحة عن الاستجابة قبل اكتمال الالتقاط. أعد المحاولة.',
                   retry: 'full-page',
                   code: message.code,
                 },

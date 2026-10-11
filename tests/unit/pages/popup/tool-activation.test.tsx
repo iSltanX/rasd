@@ -3,7 +3,7 @@ import { render } from 'preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Popup } from '@/pages/popup/Popup'
-import { resetHandlers } from '@/shared/messaging'
+import { CHANNELS, resetHandlers } from '@/shared/messaging'
 
 import { installFakePorts, type FakePortNetwork } from '../../../helpers/fake-ports'
 
@@ -105,5 +105,28 @@ describe('Popup — تفعيل أداة', () => {
     expect(root.textContent).toContain('لم تبدأ الأداة')
     expect(root.textContent).toContain(message)
     expect(close).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * فشلٌ يصل على قناة المهمّة. `interrupted` يبثّه عاملٌ أقلع فوجد مهمّةً يتيمة من عاملٍ مات (تدقيق Copilot،
+ * N3): النافذة التي أيقظته كانت تعرض «يلتقط» من الجلسة، والصادق «توقّف الالتقاط» لا «توقّفت الصفحة».
+ */
+describe('Popup — فشلٌ على قناة المهمّة', () => {
+  it.each([
+    ['interrupted', 'توقّف الالتقاط قبل اكتماله فلم يُحفظ'],
+    ['handler-failed', 'توقّفت الصفحة عن الاستجابة'],
+  ])('`%s` ⇐ «لم تُحفظ اللقطة» بنصّه', async (code, text) => {
+    const root = await mountPopup()
+    const job = ports!.pairs().find((p) => p.client.name === CHANNELS.job)
+
+    job!.host.postMessage({
+      kind: 'failed',
+      code,
+      message: 'توقّف الالتقاط قبل اكتماله فلم يُحفظ. أُعيدت الصفحة كما كانت.',
+    })
+
+    await vi.waitFor(() => expect(root.textContent).toContain('لم تُحفظ اللقطة'))
+    expect(root.textContent).toContain(text)
   })
 })

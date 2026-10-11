@@ -48,7 +48,7 @@ import {
 
 import { applyModeIcon } from './action-icon'
 import { measureLiveDiff } from './compare-diff-service'
-import { cancelFullPage } from './full-page-job'
+import { cancelFullPage, recoverOrphanedJob } from './full-page-job'
 import { canOperateOnTab } from './gate'
 import { registerInstallFlow } from './install-flow'
 import { registerIssues } from './issues'
@@ -487,6 +487,8 @@ function registerFullPage() {
   // الإلغاء من الصفحة: `Esc` أو زرّ اللوحة. الاستعادة تقع في `finally`
   // داخل الحلقة، فالردّ هنا لا يعني أن الصفحة استُعيدت بعد.
   onMessage('fullpage/cancel', () => ({ cancelled: cancelFullPage() }))
+  // مهمّةٌ في الجلسة ساعةَ الإقلاع لعاملٍ مات قبل أن يُنهيها — تُمسح وتُستعاد صفحتها.
+  void recoverOrphanedJob((message) => broadcastChannel(CHANNELS.job, message))
 }
 
 function registerChannels() {

@@ -12,6 +12,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 type Gate = { entered: () => void; released: Promise<void>; open: () => void }
 
+/** ما طُلب من الصفحات: `[tabId, type]` بالترتيب. */
+const toPage = vi.hoisted(() => [] as Array<[number, string]>)
+
 const gates = vi.hoisted(() => ({
   step: null as null | Gate,
   finish: null as null | Gate,
@@ -36,7 +39,8 @@ async function pass(name: keyof typeof gates) {
 
 vi.mock('@/shared/messaging', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  sendToTab: async (_target: unknown, type: string, payload?: { y?: number }) => {
+  sendToTab: async (target: { tabId: number }, type: string, payload?: { y?: number }) => {
+    toPage.push([target.tabId, type])
     if (type === 'fullpage/prepare') {
       return {
         ok: true,
@@ -84,7 +88,12 @@ vi.mock('@/background/stitch', () => ({
   },
 }))
 
-import { cancelFullPage, isFullPageRunning, startFullPage } from '@/background/full-page-job'
+import {
+  cancelFullPage,
+  isFullPageRunning,
+  recoverOrphanedJob,
+  startFullPage,
+} from '@/background/full-page-job'
 import { JOB_STALL_MS, sweepStalledJobs } from '@/background/lifecycle'
 import { getSession, patchSession, updateSession } from '@/shared/storage/session'
 
@@ -111,6 +120,7 @@ function run(tabId = 7) {
 }
 
 beforeEach(() => {
+  toPage.length = 0
   gates.step = null
   gates.finish = null
   gates.save = null
@@ -258,5 +268,59 @@ describe('الحارس يقيس الركود من آخر تقدّم لا من ا
     await updateSession((current) => current)
 
     expect((await getSession()).job?.id).toBe('أخرى')
+  })
+})
+
+/**
+ * المهمّة اليتيمة (تدقيق Copilot، N3): العامل الذي يملك المهمّة مات، وجلستها نجت. الإقلاع التالي يمسحها
+ * ويستعيد صفحتها — **ولا يمسّ مهمّةً بدأها هذا العامل نفسه**: الحدث الذي أيقظه قد يكون تفعيلًا بدأ التقاطًا.
+ */
+describe('استعادة المهمّة اليتيمة', () => {
+  const orphan = {
+    id: 'يتيمة',
+    kind: 'full-page',
+    tabId: 3,
+    startedAt: 1,
+    updatedAt: 1,
+    done: 0,
+    total: 0,
+  }
+
+  it('يتيمةٌ تُمسح وتُستعاد صفحتها ويُبثّ فشلها', async () => {
+    await patchSession({ job: orphan })
+    const broadcast = vi.fn()
+
+    expect(await recoverOrphanedJob(broadcast)).toBe(true)
+
+    expect((await getSession()).job).toBeNull()
+    expect(toPage).toEqual([[3, 'fullpage/finish']])
+    expect(broadcast).toHaveBeenCalledWith(expect.objectContaining({ kind: 'failed' }))
+  })
+
+  it('ومهمّة هذا العامل الحيّة ليست يتيمة', async () => {
+    const step = gate('step')
+    run(7)
+    await step.reached
+    await updateSession((current) => current)
+    const live = (await getSession()).job
+    expect(live?.tabId).toBe(7)
+
+    expect(await recoverOrphanedJob(vi.fn())).toBe(false)
+    expect((await getSession()).job).toEqual(live)
+    expect(toPage.filter(([, type]) => type === 'fullpage/finish')).toEqual([])
+  })
+
+  it('ويتيمةٌ على تبويبٍ بدأ عليه هذا العامل التقاطًا تُمسح ولا تُستعاد صفحتها — فلا يُفسَد الجديد', async () => {
+    await patchSession({ job: { ...orphan, tabId: 7 } })
+    const step = gate('step')
+    // الاستعادة تُطلَب أوّلًا (الإقلاع) ثمّ يبدأ التفعيل الذي أيقظ العامل قبل أن يأتي دورها في الطابور.
+    const recovered = recoverOrphanedJob(vi.fn())
+    run(7)
+
+    expect(await recovered).toBe(true)
+    await step.reached
+    expect(toPage.filter(([, type]) => type === 'fullpage/finish')).toEqual([])
+    await vi.waitFor(async () => expect((await getSession()).job?.tabId).toBe(7))
+    expect((await getSession()).job?.id).not.toBe('يتيمة')
   })
 })
