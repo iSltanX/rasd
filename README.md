@@ -13,6 +13,11 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce"><b>Chrome Web Store</b></a> · <a href="https://microsoftedge.microsoft.com/addons/detail/rasd/jlkfnipcgpidefhcgcplhicojkejmked"><b>Microsoft Edge Add-ons</b></a> · <a href="https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/"><b>Firefox Add-ons</b></a><br>
+  <sub>الإصدار 1.0.1 · Version 1.0.1</sub>
+</p>
+
+<p align="center">
   <a href="#english">English</a> · <a href="Docs/Privacy.md">الخصوصية</a> · <a href="#developer">للمطوّر</a>
 </p>
 
@@ -82,8 +87,8 @@
 
 ## التثبيت
 
-**من المتجر** — [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) و[**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/)
-(الإصدار 1.0.1). وMicrosoft Edge Add-ons وOpera Add-ons لم تُنشرا بعد؛ تُضاف روابطهما هنا حين تُنشران.
+**من المتجر** — [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) و[**Microsoft Edge Add-ons**](https://microsoftedge.microsoft.com/addons/detail/rasd/jlkfnipcgpidefhcgcplhicojkejmked)
+و[**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/) (الإصدار 1.0.1). وOpera Add-ons لم تُنشر بعد؛ يُضاف رابطها هنا حين تُنشر.
 
 **من الحزمة**، للمطوّر والمختبِر:
 
@@ -137,9 +142,9 @@ developers what they need.
 - **No permanent site access** — it works only on the page where you invoke it.
 - **Arabic-first** — the interface is Arabic and right-to-left, in dark and light themes.
 
-**Install** from the [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) or
-[**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/) (version 1.0.1). Microsoft Edge Add-ons and Opera Add-ons are
-not published yet; their links will be added here once they are.
+**Install** from the [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce),
+[**Microsoft Edge Add-ons**](https://microsoftedge.microsoft.com/addons/detail/rasd/jlkfnipcgpidefhcgcplhicojkejmked) or [**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/) (version 1.0.1).
+Opera Add-ons is not published yet; its link will be added here once it is.
 
 **Rights** — Rasd is proprietary software, not open source (`UNLICENSED`). All rights are reserved; reading this code grants no
 licence to copy, modify or redistribute it. Using the extension is governed by its

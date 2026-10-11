@@ -7,12 +7,13 @@
 | القناة                 | الحزمة                                       | النسخة المنشورة               | التاريخ    | البصمة (SHA-256) | رابط الإصدار                                                                                             |
 | ---------------------- | -------------------------------------------- | ----------------------------- | ---------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
 | Chrome Web Store       | `rasd-<النسخة>.zip`                          | 1.0.1                         | 2026-10-09 | `be9fa7be…` ¹    | [صفحة رصد](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) |
-| Microsoft Edge Add-ons | `rasd-<النسخة>.zip`                          | —                             | —          | —                | —                                                                                                        |
+| Microsoft Edge Add-ons | `rasd-<النسخة>.zip`                          | 1.0.1                         | 2026-10-10 | `be9fa7be…` ⁴    | [صفحة رصد](https://microsoftedge.microsoft.com/addons/detail/rasd/jlkfnipcgpidefhcgcplhicojkejmked)      |
 | Firefox Add-ons (AMO)  | `rasd-<النسخة>-firefox.zip` + `…-source.zip` | 1.0.1                         | 2026-10-09 | `91f6e80a…` ³    | [صفحة رصد](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/)                      |
 | Opera Add-ons          | `rasd-<النسخة>-opera.zip` + `…-source.zip`   | قُبل الرفع، والنشر لم يُؤكَّد | —          | `a81fe1f8…` ²    | —                                                                                                        |
 
 **Chrome Web Store وFirefox Add-ons منشورتان بالإصدار 1.0.1** (2026-10-09)، وصفحتاهما تعيدان 200 لزائرٍ غير مسجَّل وتعرضان «Version 1.0.1»
-(قُرئتا 2026-10-09؛ وFirefox حالتها `public` في واجهة AMO البرمجية، ومعلَنة متاحةً على Firefox for Android لأن البيان يعلن `gecko_android`). وEdge وOpera لم تُنشرا بعد. النشر لكل متجر بيد المالك وحده
+(قُرئتا 2026-10-09؛ وFirefox حالتها `public` في واجهة AMO البرمجية، ومعلَنة متاحةً على Firefox for Android لأن البيان يعلن `gecko_android`). **وMicrosoft Edge Add-ons منشورة بالإصدار 1.0.1** (2026-10-10)، وصفحتها تعيد 200 لزائرٍ غير مسجَّل (قُرئت 2026-10-11).
+وOpera لم تُنشر بعد. النشر لكل متجر بيد المالك وحده
 (`AGENTS.md` §7)، ويُملأ السطر بعد النشر لا قبله.
 
 ¹ **1.0.1** (2026-10-09، إفادة المالك وصفحة المتجر «Updated October 9, 2026»): بصمة `rasd-1.0.1.zip` في جدول حزم `v1.0.1` أدناه.
@@ -28,6 +29,10 @@
 وصار 1.0.0 في «Other versions». **1.0.0:** بصمة `rasd-1.0.0-firefox.zip` في مسوَّدة الإصدار — الحزمة المعدّة للرفع؛ ولم يُقَس أنها هي التي رُفعت. وAMO توقّع ما يُرفع،
 فملفّها المنشور `rasd-1.0.0.xpi` (867487 بايت) بصمته `a8ca8027fa906dc7a9943bc41f713c1214a4e88c0fdbc3e42f37749fc2355473` في
 واجهة AMO البرمجية (قُرئت 2026-10-06). والتاريخ «Last updated» في صفحة المتجر.
+
+⁴ **1.0.1** (2026-10-10): واجهة Edge Add-ons البرمجية (`getproductdetailsbycrxid/jlkfnipcgpidefhcgcplhicojkejmked`) تعرض
+`version: 1.0.1` و`lastUpdateDate` 2026-10-10 22:42 UTC (قُرئت 2026-10-11). والبصمة بصمة `rasd-1.0.1.zip` في جدول حزم `v1.0.1`
+أدناه — الحزمة المعدّة لقنوات Chromium؛ ولم يُقَس أنها هي التي رُفعت، وEdge Add-ons يعيد تحزيم ما يُرفع فلا تُقرأ البصمة منه.
 
 **حزمة Opera `rasd-1.0.0-opera.zip`** — لا تدخل مسوَّدة إصدار GitHub (`v1.0.0` فيها الحزم الثلاث الأخرى)، وحُفظت نسختها في
 أرشيف التنظيف المحلّي ومعها `.sha256`:
