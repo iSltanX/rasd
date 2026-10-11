@@ -612,13 +612,18 @@ function registerWatchdog() {
 export async function sweepStalledJobs(now = Date.now()): Promise<boolean> {
   // الحكم والمسح في دورٍ واحد من طابور الجلسة: نبضٌ يُكتب بين قراءةٍ ومسحٍ منفصلين كان يُمحى.
   let stalled = null as SessionState['job']
-  await updateSession((current) => {
+  const swept = await updateSession((current) => {
     const job = current.job
     if (!job || now - (job.updatedAt ?? job.startedAt) < JOB_STALL_MS) return current
     stalled = job
     return { ...current, job: null }
   })
   if (!stalled) return false
+  // الحكم وقع والكتابة لم تقع: لا يُبلَّغ مسحٌ لم يحدث — الدورة التالية تعيد المحاولة.
+  if (!swept.ok) {
+    console.warn(`[رصد] تعذّر مسح مهمّة معلَّقة: ${swept.error.message}`)
+    return false
+  }
 
   console.warn(`[رصد] مهمة معلَّقة أُنهيت: ${stalled.kind} (${stalled.id})`)
   return true

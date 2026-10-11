@@ -223,6 +223,14 @@ describe('الحارس يقيس الركود من آخر تقدّم لا من ا
     expect((await getSession()).job).toBeNull()
   })
 
+  it('وكتابةٌ فاشلة لا تُبلَّغ مسحًا — المهمّة باقية والنتيجة `false`', async () => {
+    await patchSession({ job: job() })
+    vi.spyOn(chrome.storage.session, 'set').mockRejectedValueOnce(new Error('quota'))
+
+    expect(await sweepStalledJobs(T0 + JOB_STALL_MS + 1)).toBe(false)
+    expect((await getSession()).job?.id).toBe('م')
+  })
+
   it('**مهمّة بدأت قبل أكثر من الحدّ وتقدّمت قبل ثوانٍ تبقى**', async () => {
     await patchSession({ job: job({ updatedAt: T0 + JOB_STALL_MS - 5_000, done: 181 }) })
 
@@ -293,8 +301,56 @@ describe('استعادة المهمّة اليتيمة', () => {
     expect(await recoverOrphanedJob(broadcast)).toBe(true)
 
     expect((await getSession()).job).toBeNull()
-    expect(toPage).toEqual([[3, 'fullpage/finish']])
+    // الطبقة تُظهَر أيضًا: عاملٌ مات بين إخفائها للّقطة وإظهارها يتركها مخفيّة (المراجعة المستقلّة).
+    expect(toPage).toEqual([
+      [3, 'fullpage/finish'],
+      [3, 'capture/show-overlay'],
+    ])
     expect(broadcast).toHaveBeenCalledWith(expect.objectContaining({ kind: 'failed' }))
+  })
+
+  /*
+   * **التصفّح الخاص المنفصل** (`incognito: 'split'`): للتصفّح الخاص عاملٌ ثانٍ، و`chrome.storage.session`
+   * **مشتركةٌ بين العاملين** — قِيس في Chrome 155. فعاملُ أحد السياقين حين يُقلع يرى مهمّة الآخر الحيّة وليست
+   * في ذاكرته؛ وعدُّها يتيمةً يمسحها أثناء عملها. فلا يستعيد عاملٌ إلا مهمّة سياقه.
+   */
+  it.each([
+    ['عامل التصفّح الخاص لا يستعيد مهمّة السياق العادي', true, false],
+    ['والعامل العادي لا يستعيد مهمّة التصفّح الخاص', false, true],
+  ])('%s', async (_name, workerIncognito, jobIncognito) => {
+    Object.assign(globalThis.chrome, { extension: { inIncognitoContext: workerIncognito } })
+    try {
+      await patchSession({ job: { ...orphan, incognito: jobIncognito } })
+
+      expect(await recoverOrphanedJob(vi.fn())).toBe(false)
+      expect((await getSession()).job?.id).toBe('يتيمة')
+      expect(toPage).toEqual([])
+    } finally {
+      Object.assign(globalThis.chrome, { extension: { inIncognitoContext: false } })
+    }
+  })
+
+  it('ومهمّةٌ تُكتب بسياقها — عامل التصفّح الخاص يعلّم مهمّته', async () => {
+    Object.assign(globalThis.chrome, { extension: { inIncognitoContext: true } })
+    try {
+      const step = gate('step')
+      run(7)
+      await step.reached
+      await updateSession((current) => current)
+
+      expect((await getSession()).job?.incognito).toBe(true)
+    } finally {
+      Object.assign(globalThis.chrome, { extension: { inIncognitoContext: false } })
+    }
+  })
+
+  it('وكتابةٌ فاشلة لا تُبلَّغ مسحًا — والصفحة تُستعاد مع ذلك', async () => {
+    await patchSession({ job: orphan })
+    vi.spyOn(chrome.storage.session, 'set').mockRejectedValueOnce(new Error('quota'))
+
+    expect(await recoverOrphanedJob(vi.fn())).toBe(false)
+    expect((await getSession()).job?.id).toBe('يتيمة')
+    expect(toPage.map(([, type]) => type)).toContain('fullpage/finish')
   })
 
   it('ومهمّة هذا العامل الحيّة ليست يتيمة', async () => {

@@ -23,6 +23,7 @@ import {
   stitchHeight,
   tileTop,
 } from '@/modules/capture/full-page/tiles'
+import { isIncognitoContext } from '@/shared/env'
 import { sendToTab } from '@/shared/messaging'
 import { errText, ok, type Result } from '@/shared/result'
 import { patchSession, updateSession, type SessionState } from '@/shared/storage/session'
@@ -305,32 +306,40 @@ export function cancelFullPage(): boolean {
  * العامل عبر CDP أن المهمّة بقيت بعد الاستيقاظ والصفحة عند 3039px بلا استعادة، فتعرض النافذة «يلتقط» حتى
  * يمسحها الحارس بعد نحو دقيقتين ونصف (تدقيق Copilot، N3). وكل مهمّة في الجلسة ساعةَ الإقلاع لعاملٍ مات —
  * **إلا مهمّة هذا العامل نفسه**: الحدث الذي أيقظه قد يكون تفعيلًا بدأ التقاطًا قبل أن يأتي دور هذه في
- * الطابور. ولا تُستعاد صفحةٌ بدأ عليها هذا العامل التقاطًا: الاستعادة تُفسد الجديد.
+ * الطابور. ولا تُستعاد صفحةٌ بدأ عليها هذا العامل التقاطًا: الاستعادة تُفسد الجديد. **ولا مهمّةُ السياق الآخر**:
+ * عاملا التصفّح العادي والخاص يتشاركان الجلسة (`SessionState.job.incognito`)، وأحدهما لا يعرف هل الآخر حيّ.
  *
- * `true` إن وُجدت يتيمة فمُسحت.
+ * `true` إن وُجدت يتيمة فمُسحت؛ وكتابةٌ فاشلة تُعيد `false` — والصفحة تُستعاد مع ذلك.
  */
 export async function recoverOrphanedJob(
   broadcast: (message: { kind: 'failed'; code: string; message: string }) => void,
 ): Promise<boolean> {
+  const incognito = isIncognitoContext()
   let orphan = null as SessionState['job']
-  await updateSession((current) => {
-    if (!current.job || current.job.id === active?.id) return current
-    orphan = current.job
+  const cleared = await updateSession((current) => {
+    const job = current.job
+    if (!job || job.id === active?.id || (job.incognito ?? false) !== incognito) return current
+    orphan = job
     return { ...current, job: null }
   })
   if (!orphan) return false
+  if (!cleared.ok) console.warn(`[رصد] تعذّر مسح مهمّةٍ يتيمة من الجلسة: ${cleared.error.message}`)
+  else console.warn(`[رصد] مهمّة يتيمة من عاملٍ سابق أُنهيت: ${orphan.kind} (${orphan.id})`)
 
-  console.warn(`[رصد] مهمّة يتيمة من عاملٍ سابق أُنهيت: ${orphan.kind} (${orphan.id})`)
   if (orphan.kind === 'full-page' && active?.tabId !== orphan.tabId) {
-    // الصفحة قد تكون أُغلقت أو تنقّلت — لا مستقبِل حينها ولا ما يُستعاد.
+    // الصفحة قد تكون أُغلقت أو تنقّلت — لا مستقبِل حينها ولا ما يُستعاد. والطبقة تُظهَر أيضًا: عاملٌ مات بين
+    // إخفائها للّقطة (`capture/hide-overlay`) وإظهارها يتركها مخفيّةً، و`fullpage/finish` لا يُظهرها.
     await askFinish(orphan.tabId).catch(() => null)
+    await sendToTab({ tabId: orphan.tabId }, 'capture/show-overlay', undefined, {
+      timeoutMs: PAGE_TIMEOUT_MS,
+    }).catch(() => null)
   }
   broadcast({
     kind: 'failed',
     code: 'interrupted',
     message: 'توقّف الالتقاط قبل اكتماله فلم يُحفظ. أُعيدت الصفحة كما كانت.',
   })
-  return true
+  return cleared.ok
 }
 
 export interface StartedJob {
@@ -389,6 +398,7 @@ export function startFullPage(
     tabId,
     startedAt: Date.now(),
     updatedAt: Date.now(),
+    incognito: isIncognitoContext(),
     done: 0,
     total: 0,
   }

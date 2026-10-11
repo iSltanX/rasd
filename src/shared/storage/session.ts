@@ -27,6 +27,11 @@ export interface SessionState {
      * كُتبت قبل وجوده يُقرأ «لا تقدّم منذ البدء».
      */
     updatedAt?: number
+    /**
+     * كتبها عاملُ التصفّح الخاص. الجلسة **مشتركةٌ بين عاملَي الوضع المنفصل** (قِيس في Chrome 155)، فلا يحكم
+     * عاملٌ على مهمّة السياق الآخر بأنها يتيمة (`recoverOrphanedJob`). وغيابه يُقرأ «السياق العادي».
+     */
+    incognito?: boolean
     done: number
     total: number
   } | null
