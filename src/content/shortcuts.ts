@@ -140,6 +140,26 @@ export function deepActiveElement(doc: Document = document): Element | null {
   return el
 }
 
+/** حاويات مستندٍ آخر: التركيز فيها تركيزٌ في مستندها، لا في مستندنا. */
+const FRAME_TAGS = new Set(['IFRAME', 'FRAME', 'OBJECT', 'EMBED'])
+
+/**
+ * يُخرج التركيز من إطارٍ فرعي إلى المستند الأعلى، فتصل المفاتيح إلى مستمعنا على النافذة العليا.
+ *
+ * **ما يكسره:** الأدوات تكبت `pointerdown` على الطبقة كي لا يُحدَّد نصّ الصفحة ولا تبدأ سحبًا أصليًّا،
+ * والكبت يمنع معه انتقال التركيز الطبيعي. فمستخدمٌ نقر زرًّا في إطار (محرّر، تضمين، نموذج دفع) ثمّ رسم
+ * منطقة يبقى تركيزه في الإطار، فيذهب `↵` و`Esc` إليه — لا حفظ ولا إلغاء ولا رسالة. قِيس في كروم:
+ * `activeElement` = `IFRAME` وصفر لقطات، وبعد `blur()` على الإطار صار `BODY` ووصل `↵` (تدقيق Copilot، N2).
+ *
+ * والتركيز في الصفحة الأعلى نفسها لا يُمسّ هنا: حقلٌ مركَّز يحرسه `isTypingTarget` عمدًا.
+ */
+export function releaseFrameFocus(doc: Document = document): boolean {
+  const el = doc.activeElement
+  if (!(el instanceof HTMLElement) || !FRAME_TAGS.has(el.tagName)) return false
+  el.blur()
+  return true
+}
+
 /** هل التركيز داخل موضع كتابة في الصفحة المضيفة؟ */
 export function isTypingTarget(el: Element | null): boolean {
   if (!el) return false

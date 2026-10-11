@@ -218,4 +218,45 @@ describe('ربط الطبقة', () => {
     await settle()
     expect(countdown()).not.toBeNull()
   })
+
+  /**
+   * تدقيق Copilot، N2 — مؤكَّد في كروم: نقرةٌ في إطار فرعي ثمّ تحديد منطقة، فيذهب `↵` إلى الإطار ولا
+   * يُحفظ شيء. الأدوات تكبت `pointerdown` على الطبقة (كي لا يُحدَّد نصّ الصفحة)، فيكبت معه انتقال
+   * التركيز الطبيعي خارج الإطار، ومستمع المفاتيح على النافذة العليا وحدها.
+   */
+  it('**الضغط على الطبقة يُخرج التركيز من إطارٍ فرعي** — فيصل `↵` و`Esc` إلى رصد', async () => {
+    const session = await boot()
+    session.modes.set('area')
+    await settle()
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    frame.focus()
+    expect(document.activeElement, 'التمهيد: التركيز في الإطار').toBe(frame)
+    const blur = vi.spyOn(frame, 'blur')
+
+    session.host.layer.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
+    )
+
+    expect(blur).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).not.toBe(frame)
+    frame.remove()
+  })
+
+  it('ولا يمسّ تركيزًا ليس في إطار — ضابط', async () => {
+    const session = await boot()
+    session.modes.set('area')
+    await settle()
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+    const blur = vi.spyOn(field, 'blur')
+
+    session.host.layer.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
+    )
+
+    expect(blur).not.toHaveBeenCalled()
+    field.remove()
+  })
 })
