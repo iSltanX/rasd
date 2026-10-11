@@ -7,6 +7,7 @@ import {
   getSession,
   patchSession,
   setTabMode,
+  updateSession,
 } from '@/shared/storage/session'
 
 beforeEach(() => {
@@ -113,5 +114,79 @@ describe('القيم الناقصة والأعطال', () => {
 
   it('المسح الناجح يُرجع ok(null)', async () => {
     expect(await clearSession()).toEqual({ ok: true, value: null })
+  })
+})
+
+/**
+ * كتابات متزامنة — تدقيق Copilot، D1 (مؤكَّد في كروم بنقاط الدخول الحقيقية: `tool/activate` إلى أربعة
+ * تبويبات معًا ضيّع وضعًا إلى ثلاثة في كل جولة). كل كتابة كانت قراءةً ثمّ تعديلًا ثمّ كتابة بلا طابور،
+ * فتقرأ الكتابات المتزامنة الحال نفسه ويمحو آخرُها ما كتبه ما قبلها.
+ */
+describe('الكتابات المتزامنة لا يمحو بعضها بعضًا', () => {
+  it('**أربعة أوضاع لأربعة تبويبات معًا تُحفظ كلّها**', async () => {
+    await Promise.all([
+      setTabMode(1, 'area'),
+      setTabMode(2, 'measure'),
+      setTabMode(3, 'colour'),
+      setTabMode(4, 'inspect'),
+    ])
+
+    expect((await getSession()).modes).toEqual({
+      1: 'area',
+      2: 'measure',
+      3: 'colour',
+      4: 'inspect',
+    })
+  })
+
+  it('**ومهمّةٌ تُكتب مع وضعٍ في اللحظة نفسها تبقى معه**', async () => {
+    const job = { id: 'j', kind: 'full-page', tabId: 9, startedAt: 1, done: 0, total: 0 }
+    await Promise.all([setTabMode(5, 'element'), patchSession({ job })])
+
+    expect(await getSession()).toEqual({ modes: { 5: 'element' }, job })
+  })
+
+  it('وكل كاتب يرى ما كتبه من سبقه في الطابور', async () => {
+    const seen: number[] = []
+    await Promise.all(
+      [1, 2, 3].map((n) =>
+        updateSession((current) => {
+          seen.push(Object.keys(current.modes).length)
+          return { ...current, modes: { ...current.modes, [n]: 'area' } }
+        }),
+      ),
+    )
+
+    expect(seen).toEqual([0, 1, 2])
+  })
+
+  it('وتحديثٌ يعيد الحال نفسه لا يكتب شيئًا', async () => {
+    await setTabMode(1, 'area')
+    const set = vi.spyOn(chrome.storage.session, 'set')
+
+    const result = await updateSession((current) => current)
+
+    expect(result.ok).toBe(true)
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('**وقراءةٌ فاشلة لا تكتب الافتراضي فوق الموجود** — فرع D1b', async () => {
+    await setTabMode(1, 'area')
+    vi.spyOn(chrome.storage.session, 'get').mockRejectedValueOnce(new Error('down'))
+
+    const result = await setTabMode(2, 'measure')
+
+    expect(result.ok, 'كتابةٌ بُنيت على قراءة فاشلة').toBe(false)
+    expect((await getSession()).modes).toEqual({ 1: 'area' })
+  })
+
+  it('وكاتبٌ سقط لا يوقف الطابور عمّن بعده', async () => {
+    vi.spyOn(chrome.storage.session, 'set').mockRejectedValueOnce(new Error('quota'))
+
+    const [first, second] = await Promise.all([setTabMode(1, 'area'), setTabMode(2, 'measure')])
+
+    expect(first.ok).toBe(false)
+    expect(second.ok).toBe(true)
+    expect((await getSession()).modes).toEqual({ 2: 'measure' })
   })
 })

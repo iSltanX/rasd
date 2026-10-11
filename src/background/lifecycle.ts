@@ -38,7 +38,13 @@ import { getSettings, patchSettings, watchSettings } from '@/shared/settings'
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
 import { quotaState } from '@/shared/storage/quota'
 import { blobs, captures, colors, palettes } from '@/shared/storage/repository'
-import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
+import {
+  getSession,
+  patchSession,
+  setTabMode,
+  updateSession,
+  type SessionState,
+} from '@/shared/storage/session'
 
 import { applyModeIcon } from './action-icon'
 import { measureLiveDiff } from './compare-diff-service'
@@ -598,13 +604,17 @@ function registerWatchdog() {
  * تُصدَّر للاختبار: منطق الكشف أهمّ من جدولته.
  */
 export async function sweepStalledJobs(now = Date.now()): Promise<boolean> {
-  const session = await getSession()
-  const job = session.job
-  if (!job) return false
-  if (now - (job.updatedAt ?? job.startedAt) < JOB_STALL_MS) return false
+  // الحكم والمسح في دورٍ واحد من طابور الجلسة: نبضٌ يُكتب بين قراءةٍ ومسحٍ منفصلين كان يُمحى.
+  let stalled = null as SessionState['job']
+  await updateSession((current) => {
+    const job = current.job
+    if (!job || now - (job.updatedAt ?? job.startedAt) < JOB_STALL_MS) return current
+    stalled = job
+    return { ...current, job: null }
+  })
+  if (!stalled) return false
 
-  await patchSession({ job: null })
-  console.warn(`[رصد] مهمة معلَّقة أُنهيت: ${job.kind} (${job.id})`)
+  console.warn(`[رصد] مهمة معلَّقة أُنهيت: ${stalled.kind} (${stalled.id})`)
   return true
 }
 

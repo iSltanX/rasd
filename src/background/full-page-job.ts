@@ -25,7 +25,7 @@ import {
 } from '@/modules/capture/full-page/tiles'
 import { sendToTab } from '@/shared/messaging'
 import { errText, ok, type Result } from '@/shared/result'
-import { patchSession } from '@/shared/storage/session'
+import { patchSession, updateSession, type SessionState } from '@/shared/storage/session'
 
 import { captureTile } from './capture-service'
 import { dataUrlToBytes } from './image-ops'
@@ -341,8 +341,9 @@ export function startFullPage(
    * تكتب تقدّمها تُمسَح وهي تعمل (تدقيق Copilot، D3). والنبض أخشن من البلاطة عمدًا: `Popup.tsx` يفضّل
    * `liveProgress` الحيّة على `job.done/total`، فلا داعي لكتابة كل بلاطة.
    *
-   * **وكتابات المهمّة تتسلسل** (`persist`): لا تُنتظَر — النداء يجب أن يعود فورًا (انظر ترويسة الدالّة) —
-   * فنبضٌ أخير لم يُكتب بعد كان سيُكتب **بعد** مسح `finally` فيُحيي مهمّةً انتهت.
+   * **والكتابات لا تُنتظَر** — النداء يجب أن يعود فورًا (انظر ترويسة الدالّة) — فيرتّبها طابور الجلسة
+   * (`updateSession`): نبضٌ أخير لم يُكتب بعد يقع قبل مسح `finally` لا بعده. والنبض والمسح **مشروطان
+   * بأن تكون مهمّة الجلسة هذه نفسها**، فلا يُحيي نبضٌ مهمّةً مُسحت، ولا يمسح خروجٌ مهمّةً غيرها.
    */
   const record = {
     id: crypto.randomUUID(),
@@ -353,11 +354,8 @@ export function startFullPage(
     done: 0,
     total: 0,
   }
-  let writes: Promise<unknown> = Promise.resolve()
-  const persist = (value: typeof record | null) => {
-    writes = writes.then(() => patchSession({ job: value }))
-  }
-  persist(record)
+  const mine = (current: SessionState) => current.job?.id === record.id
+  void patchSession({ job: { ...record } })
 
   void (async () => {
     try {
@@ -368,7 +366,9 @@ export function startFullPage(
           const now = Date.now()
           if (now - record.updatedAt >= PROGRESS_PERSIST_MS) {
             Object.assign(record, { updatedAt: now, done: p.done, total: p.total })
-            persist({ ...record })
+            void updateSession((current) =>
+              mine(current) ? { ...current, job: { ...record } } : current,
+            )
           }
           deps.broadcast({
             kind: 'progress',
@@ -424,7 +424,7 @@ export function startFullPage(
       active = null
       // تُمسَح في `finally` كالحالة الحيّة تمامًا: خروجٌ بنجاح أو فشل أو
       // إلغاء يجب ألّا يترك النافذة عالقة على «جارٍ الالتقاط».
-      persist(null)
+      void updateSession((current) => (mine(current) ? { ...current, job: null } : current))
     }
   })()
 

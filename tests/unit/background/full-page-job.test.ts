@@ -86,7 +86,7 @@ vi.mock('@/background/stitch', () => ({
 
 import { cancelFullPage, isFullPageRunning, startFullPage } from '@/background/full-page-job'
 import { JOB_STALL_MS, sweepStalledJobs } from '@/background/lifecycle'
-import { getSession, patchSession } from '@/shared/storage/session'
+import { getSession, patchSession, updateSession } from '@/shared/storage/session'
 
 type Broadcast = Parameters<typeof startFullPage>[1]['broadcast']
 type Message = Parameters<Broadcast>[0]
@@ -242,5 +242,21 @@ describe('الحارس يقيس الركود من آخر تقدّم لا من ا
     finish.release()
     await live.end
     await vi.waitFor(async () => expect((await getSession()).job).toBeNull())
+  })
+
+  it('وخروج المهمّة يمسح مهمّتها وحدها — لا مهمّةً كُتبت مكانها', async () => {
+    const finish = gate('finish')
+    const live = run()
+    await finish.reached
+    const other = job({ startedAt: Date.now(), updatedAt: Date.now() })
+    await patchSession({ job: { ...other, id: 'أخرى' } })
+
+    finish.release()
+    await live.end
+    await vi.waitFor(() => expect(isFullPageRunning()).toBe(false))
+    // دورٌ فارغ في الطابور: كل ما كتبته المهمّة قبله قد وقع.
+    await updateSession((current) => current)
+
+    expect((await getSession()).job?.id).toBe('أخرى')
   })
 })
