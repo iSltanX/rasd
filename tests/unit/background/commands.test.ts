@@ -234,4 +234,44 @@ describe('activateTool', () => {
     expect(second).toEqual({ started: false, reason: 'busy' })
     await vi.waitFor(() => expect(isFullPageRunning()).toBe(false))
   })
+
+  it('وتفعيلان متزامنان يعبران الفحص المبكر معًا: يبدأ أحدهما ويُرفض الآخر `busy`', async () => {
+    tabsGet.mockResolvedValue({ id: 5, url: 'https://example.com/' })
+    installContentWorld()
+    let release!: () => void
+    const held = new Promise<void>((r) => (release = r))
+    onMessage('fullpage/prepare', async () => {
+      await held
+      throw new Error('أُفلتت التهيئة')
+    })
+
+    const results = await Promise.all([activateTool(5, 'full-page'), activateTool(6, 'full-page')])
+    release()
+
+    expect(results).toContainEqual({ started: true, mode: null })
+    expect(results).toContainEqual({ started: false, reason: 'busy' })
+    await vi.waitFor(() => expect(isFullPageRunning()).toBe(false))
+  })
+
+  it('والرفض يسبق الحقن: تبويبٌ آخر لا تُحقن فيه طبقةٌ لعملٍ لن يبدأ', async () => {
+    tabsGet.mockResolvedValue({ id: 6, url: 'https://example.com/' })
+    installContentWorld()
+    let release!: () => void
+    const held = new Promise<void>((r) => (release = r))
+    onMessage('fullpage/prepare', async () => {
+      await held
+      throw new Error('أُفلتت التهيئة')
+    })
+    await activateTool(5, 'full-page')
+    const injectedBefore = scripting.executeScript.mock.calls.length
+
+    const refused = await activateTool(6, 'full-page')
+    release()
+
+    expect(refused).toEqual({ started: false, reason: 'busy' })
+    expect(scripting.executeScript.mock.calls.length, 'حُقن تبويبٌ لعملٍ مرفوض').toBe(
+      injectedBefore,
+    )
+    await vi.waitFor(() => expect(isFullPageRunning()).toBe(false))
+  })
 })

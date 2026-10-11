@@ -17,7 +17,7 @@ import {
 } from '@/shared/messaging'
 
 import { saveFullPage } from './capture-service'
-import { startFullPage } from './full-page-job'
+import { isFullPageRunning, startFullPage } from './full-page-job'
 import { canOperateOnTab } from './gate'
 
 import type { CaptureKind } from '@/shared/storage/schema'
@@ -93,6 +93,9 @@ async function bootOverlay(tabId: number): Promise<boolean> {
 export async function activateTool(tabId: number, tool: ToolName): Promise<ActivateResult> {
   const gate = await canOperateOnTab(tabId)
   if (!gate.allowed) return { started: false, reason: gate.reason }
+  // التقاطٌ كامل جارٍ يرفض الثاني — **قبل** الحقن: عملٌ لن يبدأ لا تُحقن له طبقة في تبويب آخر، ولا يُعاد
+  // حقنُ التبويب الملتقَط أثناء التقاطه. والرفض في `startFullPage` أدناه يبقى الحارسَ الذرّي.
+  if (tool === 'full-page' && isFullPageRunning()) return { started: false, reason: 'busy' }
 
   await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] })
 

@@ -64,15 +64,28 @@ afterEach(() => {
 const button = (root: HTMLElement, text: string) =>
   [...root.querySelectorAll('button')].find((b) => b.textContent?.includes(text))
 
-async function mountPopup(): Promise<HTMLElement> {
+async function mountPopup(load: PopupLoad = LOAD): Promise<HTMLElement> {
   // قناة المهمّة تُفتح عند التركيب — لا يخصّ هذا الاختبار، لكنه يلزم كي لا ترمي.
   ports = installFakePorts()
   container = document.createElement('div')
   document.body.appendChild(container)
-  render(<Popup initial={Promise.resolve(LOAD)} />, container)
-  await vi.waitFor(() => expect(button(container!, 'صفحة كاملة')).toBeDefined())
+  render(<Popup initial={Promise.resolve(load)} />, container)
+  await vi.waitFor(() => expect(container!.querySelector('[data-popup-state]')).not.toBeNull())
   return container
 }
+
+/** النافذة على تبويبٍ يجري عليه التقاطٌ كامل — حالة «جارٍ الالتقاط» من الجلسة. */
+const CAPTURING: PopupLoad = {
+  ...LOAD,
+  context: { ...LOAD.context, job: { kind: 'full-page', done: 0, total: 0 } },
+}
+
+const INTERRUPTED = {
+  kind: 'failed',
+  code: 'interrupted',
+  message: 'توقّف الالتقاط قبل اكتماله فلم يُحفظ. أُعيدت الصفحة كما كانت.',
+}
+const jobChannel = () => ports!.pairs().find((p) => p.client.name === CHANNELS.job)!
 
 describe('Popup — تفعيل أداة', () => {
   it('البدء يُغلق النافذة', async () => {
@@ -113,20 +126,37 @@ describe('Popup — تفعيل أداة', () => {
  * N3): النافذة التي أيقظته كانت تعرض «يلتقط» من الجلسة، والصادق «توقّف الالتقاط» لا «توقّفت الصفحة».
  */
 describe('Popup — فشلٌ على قناة المهمّة', () => {
-  it.each([
-    ['interrupted', 'توقّف الالتقاط قبل اكتماله فلم يُحفظ'],
-    ['handler-failed', 'توقّفت الصفحة عن الاستجابة'],
-  ])('`%s` ⇐ «لم تُحفظ اللقطة» بنصّه', async (code, text) => {
-    const root = await mountPopup()
-    const job = ports!.pairs().find((p) => p.client.name === CHANNELS.job)
+  it('`interrupted` على نافذةٍ تعرض التقاط تبويبها ⇐ «لم تُحفظ اللقطة» بنصّ الخلفية', async () => {
+    const root = await mountPopup(CAPTURING)
 
-    job!.host.postMessage({
-      kind: 'failed',
-      code,
-      message: 'توقّف الالتقاط قبل اكتماله فلم يُحفظ. أُعيدت الصفحة كما كانت.',
-    })
+    jobChannel().host.postMessage(INTERRUPTED)
 
     await vi.waitFor(() => expect(root.textContent).toContain('لم تُحفظ اللقطة'))
-    expect(root.textContent).toContain(text)
+    expect(root.textContent).toContain('توقّف الالتقاط قبل اكتماله فلم يُحفظ')
+  })
+
+  /*
+   * البثّ إلى كل نافذة، و`interrupted` يخصّ تبويب المهمّة اليتيمة وحده: نافذةُ تبويبٍ آخر أيقظت العامل لا تعرض
+   * فشلًا لالتقاطٍ لم يجرِ فيها — ولا تقدّم «أعد المحاولة» تلتقط تبويبها هي (المراجعة المستقلّة).
+   */
+  it('**و`interrupted` على نافذة تبويبٍ بلا التقاط لا يعرض فشلًا**', async () => {
+    const root = await mountPopup(LOAD)
+
+    jobChannel().host.postMessage(INTERRUPTED)
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(root.querySelector('[data-popup-state]')?.getAttribute('data-popup-state')).toBe(
+      'default',
+    )
+    expect(root.textContent).not.toContain('لم تُحفظ اللقطة')
+  })
+
+  it('وفشلٌ آخر يبقى كما كان: «توقّفت الصفحة عن الاستجابة»', async () => {
+    const root = await mountPopup(CAPTURING)
+
+    jobChannel().host.postMessage({ ...INTERRUPTED, code: 'handler-failed' })
+
+    await vi.waitFor(() => expect(root.textContent).toContain('لم تُحفظ اللقطة'))
+    expect(root.textContent).toContain('توقّفت الصفحة عن الاستجابة')
   })
 })

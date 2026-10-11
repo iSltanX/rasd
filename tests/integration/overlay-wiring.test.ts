@@ -243,6 +243,26 @@ describe('ربط الطبقة', () => {
     frame.remove()
   })
 
+  it('**وإطارٌ داخل جذر ظلّ مفتوح يُخرج منه التركيز كذلك** — `activeElement` يقف عند المضيف', async () => {
+    const session = await boot()
+    session.modes.set('area')
+    await settle()
+    const embed = document.createElement('my-embed')
+    const frame = document.createElement('iframe')
+    embed.attachShadow({ mode: 'open' }).append(frame)
+    document.body.append(embed)
+    frame.focus()
+    expect(document.activeElement, 'التمهيد: المستند يرى المضيف لا الإطار').toBe(embed)
+    const blur = vi.spyOn(frame, 'blur')
+
+    session.host.layer.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
+    )
+
+    expect(blur).toHaveBeenCalledTimes(1)
+    embed.remove()
+  })
+
   it('ولا يمسّ تركيزًا ليس في إطار — ضابط', async () => {
     const session = await boot()
     session.modes.set('area')

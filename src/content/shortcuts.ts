@@ -151,10 +151,13 @@ const FRAME_TAGS = new Set(['IFRAME', 'FRAME', 'OBJECT', 'EMBED'])
  * منطقة يبقى تركيزه في الإطار، فيذهب `↵` و`Esc` إليه — لا حفظ ولا إلغاء ولا رسالة. قِيس في كروم:
  * `activeElement` = `IFRAME` وصفر لقطات، وبعد `blur()` على الإطار صار `BODY` ووصل `↵` (تدقيق Copilot، N2).
  *
+ * والإطار يُطلب **عبر جذور الظلّ المفتوحة** (`deepActiveElement`): إطارٌ داخل مكوّن ويب يجعل `activeElement`
+ * المضيفَ لا الإطار، وقِيس في كروم أن الفحص السطحي لا يرى الإطار فيبقى `↵` فيه. وجذر طبقتنا مغلق فلا يُمسّ.
+ *
  * والتركيز في الصفحة الأعلى نفسها لا يُمسّ هنا: حقلٌ مركَّز يحرسه `isTypingTarget` عمدًا.
  */
 export function releaseFrameFocus(doc: Document = document): boolean {
-  const el = doc.activeElement
+  const el = deepActiveElement(doc)
   if (!(el instanceof HTMLElement) || !FRAME_TAGS.has(el.tagName)) return false
   el.blur()
   return true

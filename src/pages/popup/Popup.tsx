@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { formatHuman } from '@/shared/bidi'
 import {
@@ -102,6 +102,11 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
   /** فشل تفعيل أو التقاط مُبلَّغ عنه — يبقي النافذة مفتوحة ويعرض شاشته. */
   const [failure, setFailure] = useState<Failure | null>(null)
   const [online, setOnline] = useState(navigator.onLine)
+  /**
+   * هل تعرض النافذة التقاطًا جاريًا **لتبويبها** (`session.job` المقروءة عند الفتح)؟ مرجعٌ لا حالة: مستمع القناة
+   * أدناه يُركَّب مرّة واحدة فلا يرى حالةً تُضبط بعده. يحكم `interrupted` وحده — انظر مستمع القناة.
+   */
+  const showsTabJob = useRef(false)
 
   useEffect(() => {
     const onOnline = () => setOnline(true)
@@ -136,6 +141,9 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
             })
           }
         } else if (message.kind === 'failed') {
+          // `interrupted` يبثّه عاملٌ أقلع فوجد مهمّةً يتيمة، إلى كل نافذة: تخصّ تبويب المهمّة وحده، فنافذةُ
+          // تبويبٍ آخر لا تعرض فشلًا لالتقاطٍ لم يجرِ فيها ولا «أعد المحاولة» تلتقط تبويبها هي.
+          if (message.code === 'interrupted' && !showsTabJob.current) return
           setLiveProgress(null)
           setFailure(
             message.code === 'cancelled'
@@ -170,7 +178,10 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
   useLayoutEffect(() => {
     let cancelled = false
     void initial.then((value) => {
-      if (!cancelled && value) setLoaded(value)
+      if (!cancelled && value) {
+        showsTabJob.current = value.context.job !== null
+        setLoaded(value)
+      }
     })
     return () => {
       cancelled = true
