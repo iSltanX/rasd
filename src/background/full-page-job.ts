@@ -73,6 +73,11 @@ export interface FullPageOptions {
 }
 
 /**
+ * فاصل نبض التقدّم في الجلسة — أقصر بكثير من `JOB_STALL_MS` (90 ثانية) الذي يقيس به الحارس الركود.
+ */
+const PROGRESS_PERSIST_MS = 5_000
+
+/**
  * مهلة سخيّة: خطوة التمرير تشمل الاستقرار وقد تشمل تمهيدًا داخل الحاوية.
  * وأقصر منها يُجهض مهمّة سليمة على صفحة بطيئة.
  */
@@ -332,20 +337,27 @@ export function startFullPage(
    * التقدّم تصل رسائلها إلى `liveProgress` **فتُهمَل** لأنها لا تُعرض إلا
    * داخل حالة لا تُختار.
    *
-   * علامةُ وجودٍ خشنة تكفي هنا: `Popup.tsx` يفضّل `liveProgress` الحيّة على
-   * `job.done/total`، فلا داعي لكتابة كل بلاطة على القرص.
-   * ولا تُنتظَر — النداء يجب أن يعود فورًا (انظر ترويسة الدالّة).
+   * **ونبضُ تقدّمٍ كل `PROGRESS_PERSIST_MS` لا كل بلاطة**: الحارس يقيس الركود من `updatedAt`، فمهمّةٌ لا
+   * تكتب تقدّمها تُمسَح وهي تعمل (تدقيق Copilot، D3). والنبض أخشن من البلاطة عمدًا: `Popup.tsx` يفضّل
+   * `liveProgress` الحيّة على `job.done/total`، فلا داعي لكتابة كل بلاطة.
+   *
+   * **وكتابات المهمّة تتسلسل** (`persist`): لا تُنتظَر — النداء يجب أن يعود فورًا (انظر ترويسة الدالّة) —
+   * فنبضٌ أخير لم يُكتب بعد كان سيُكتب **بعد** مسح `finally` فيُحيي مهمّةً انتهت.
    */
-  void patchSession({
-    job: {
-      id: crypto.randomUUID(),
-      kind: 'full-page',
-      tabId,
-      startedAt: Date.now(),
-      done: 0,
-      total: 0,
-    },
-  })
+  const record = {
+    id: crypto.randomUUID(),
+    kind: 'full-page',
+    tabId,
+    startedAt: Date.now(),
+    updatedAt: Date.now(),
+    done: 0,
+    total: 0,
+  }
+  let writes: Promise<unknown> = Promise.resolve()
+  const persist = (value: typeof record | null) => {
+    writes = writes.then(() => patchSession({ job: value }))
+  }
+  persist(record)
 
   void (async () => {
     try {
@@ -353,6 +365,11 @@ export function startFullPage(
         tabId,
         signal: controller.signal,
         onProgress: (p) => {
+          const now = Date.now()
+          if (now - record.updatedAt >= PROGRESS_PERSIST_MS) {
+            Object.assign(record, { updatedAt: now, done: p.done, total: p.total })
+            persist({ ...record })
+          }
           deps.broadcast({
             kind: 'progress',
             done: p.done,
@@ -407,7 +424,7 @@ export function startFullPage(
       active = null
       // تُمسَح في `finally` كالحالة الحيّة تمامًا: خروجٌ بنجاح أو فشل أو
       // إلغاء يجب ألّا يترك النافذة عالقة على «جارٍ الالتقاط».
-      void patchSession({ job: null })
+      persist(null)
     }
   })()
 

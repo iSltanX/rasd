@@ -58,7 +58,8 @@ vi.mock('@/shared/messaging', async (importOriginal) => ({
   },
 }))
 
-vi.mock('@/background/capture-service', () => ({
+vi.mock('@/background/capture-service', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   captureTile: () => Promise.resolve({ ok: true, value: 'data:image/png;base64,AAAA' }),
 }))
 
@@ -84,6 +85,8 @@ vi.mock('@/background/stitch', () => ({
 }))
 
 import { cancelFullPage, isFullPageRunning, startFullPage } from '@/background/full-page-job'
+import { JOB_STALL_MS, sweepStalledJobs } from '@/background/lifecycle'
+import { getSession, patchSession } from '@/shared/storage/session'
 
 type Broadcast = Parameters<typeof startFullPage>[1]['broadcast']
 type Message = Parameters<Broadcast>[0]
@@ -122,6 +125,7 @@ afterEach(async () => {
   cancelFullPage()
   await vi.waitFor(() => expect(isFullPageRunning()).toBe(false))
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 describe('الالتقاط الكامل — الإلغاء ولحظة الالتزام', () => {
@@ -179,5 +183,64 @@ describe('الالتقاط الكامل — الإلغاء ولحظة الالت
   it('ولا إلغاء بلا مهمّة', () => {
     expect(isFullPageRunning()).toBe(false)
     expect(cancelFullPage()).toBe(false)
+  })
+})
+
+/**
+ * الحارس والمهمّة الحيّة (تدقيق Copilot، D3 — مؤكَّد في كروم حقيقي).
+ *
+ * `JOB_STALL_MS` تُعرَّف «مدّة **بلا تقدّم**»، وكان `sweepStalledJobs` يقيسها من `startedAt` وحده: التقاطٌ
+ * لصفحة طويلة على نافذة صغيرة مُسح من الجلسة عند 121 ثانية وعمرُ آخر تقدّمٍ له 41ms، فعرضت النافذة «خاملًا»
+ * وقبلت تفعيلًا ثانيًا على التبويب نفسه.
+ */
+describe('الحارس يقيس الركود من آخر تقدّم لا من البدء', () => {
+  const T0 = 1_800_000_000_000
+  const job = (over: Record<string, number> = {}) => ({
+    id: 'م',
+    kind: 'full-page',
+    tabId: 3,
+    startedAt: T0,
+    updatedAt: T0,
+    done: 0,
+    total: 0,
+    ...over,
+  })
+
+  it('مهمّة بلا تقدّم منذ أكثر من الحدّ تُمسَح — وظيفة الحارس الأصلية', async () => {
+    await patchSession({ job: job() })
+
+    expect(await sweepStalledJobs(T0 + JOB_STALL_MS + 1)).toBe(true)
+    expect((await getSession()).job).toBeNull()
+  })
+
+  it('**مهمّة بدأت قبل أكثر من الحدّ وتقدّمت قبل ثوانٍ تبقى**', async () => {
+    await patchSession({ job: job({ updatedAt: T0 + JOB_STALL_MS - 5_000, done: 181 }) })
+
+    expect(await sweepStalledJobs(T0 + JOB_STALL_MS + 1), 'مُسحت مهمّة تتقدّم').toBe(false)
+    expect((await getSession()).job?.done).toBe(181)
+  })
+
+  it('**والتقاطٌ حيّ يكتب تقدّمه في الجلسة فلا يمسحه الحارس بعد الحدّ من بدئه**', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(T0)
+    const step = gate('step')
+    const finish = gate('finish')
+    const live = run()
+    await step.reached
+    // الخطوات تستغرق 85 ثانية؛ التقدّم يُبثّ بعدها، والمهمّة تبقى حيّةً عند الترميز.
+    vi.setSystemTime(T0 + 85_000)
+    step.release()
+    await finish.reached
+    expect(live.messages.filter((m) => m.kind === 'progress')).toHaveLength(1)
+
+    await vi.waitFor(async () =>
+      expect((await getSession()).job?.updatedAt, 'التقدّم يُكتب في الجلسة').toBe(T0 + 85_000),
+    )
+    expect(await sweepStalledJobs(T0 + JOB_STALL_MS + 1), 'مُسح التقاطٌ حيّ').toBe(false)
+    expect((await getSession()).job).not.toBeNull()
+
+    finish.release()
+    await live.end
+    await vi.waitFor(async () => expect((await getSession()).job).toBeNull())
   })
 })

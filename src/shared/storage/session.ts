@@ -22,6 +22,11 @@ export interface SessionState {
     kind: string
     tabId: number
     startedAt: number
+    /**
+     * آخر تقدّم كُتب — منه يقيس الحارس الركود لا من `startedAt` (`sweepStalledJobs`). وغيابه في مهمّةٍ
+     * كُتبت قبل وجوده يُقرأ «لا تقدّم منذ البدء».
+     */
+    updatedAt?: number
     done: number
     total: number
   } | null

@@ -591,13 +591,17 @@ function registerWatchdog() {
 /**
  * ينهي المهام التي توقّف تقدّمها.
  *
+ * **الركود من آخر تقدّم لا من البدء** (`job.updatedAt`): التقاطٌ لصفحة طويلة على نافذة صغيرة يتجاوز
+ * تسعين ثانية وهو يتقدّم، وقِيس في كروم أن القياس من `startedAt` مسحه عند 121 ثانية وعمرُ آخر تقدّمٍ له
+ * 41ms — فعرضت النافذة «خاملًا» وقبلت التقاطًا ثانيًا على التبويب نفسه (تدقيق Copilot، D3).
+ *
  * تُصدَّر للاختبار: منطق الكشف أهمّ من جدولته.
  */
 export async function sweepStalledJobs(now = Date.now()): Promise<boolean> {
   const session = await getSession()
   const job = session.job
   if (!job) return false
-  if (now - job.startedAt < JOB_STALL_MS) return false
+  if (now - (job.updatedAt ?? job.startedAt) < JOB_STALL_MS) return false
 
   await patchSession({ job: null })
   console.warn(`[رصد] مهمة معلَّقة أُنهيت: ${job.kind} (${job.id})`)
