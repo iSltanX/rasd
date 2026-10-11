@@ -124,8 +124,11 @@ export async function activateTool(tabId: number, tool: ToolName): Promise<Activ
      * واجهاته هي ما يمنع إنهاءه، وقيس أن `Port` مفتوحة وحدها لا تمنعه.
      * فتبدأ المهمّة هنا مباشرةً ولا تُنتظَر: عشرون ثانية لا يجوز أن يعلّق
      * فيها الاختصار.
+     *
+     * **ونتيجة البدء تُعاد لا تُهمَل**: التقاطٌ جارٍ يرفض الثاني، وإهمال الرفض كان يردّ «بدأ» لعملٍ لم
+     * يبدأ — العطل نفسه الذي بُنيت له `deliverTwice` أدناه.
      */
-    startFullPage(tabId, {
+    const job = startFullPage(tabId, {
       broadcast: (message) => void broadcastChannel(CHANNELS.job, message as ChannelDown),
       save: (result) =>
         saveFullPage(
@@ -134,6 +137,7 @@ export async function activateTool(tabId: number, tool: ToolName): Promise<Activ
           result.width / Math.max(1, result.notes.innerWidth),
         ),
     })
+    if (!job.started) return { started: false, reason: 'busy' }
   } else if (isInstant(tool)) {
     // التقاط فوري: يمرّ من الصفحة لا من الخلفية مباشرةً، لأن عدّاد التأجيل
     // يجب أن يُعرَض ويُلغى فيها، وكثافة البكسل الحيّة لا تُقرأ إلا منها.

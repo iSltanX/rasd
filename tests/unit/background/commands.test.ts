@@ -2,6 +2,7 @@ import { fakeBrowser } from '@webext-core/fake-browser'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { activateTool, COMMAND_TOOL } from '@/background/commands'
+import { isFullPageRunning } from '@/background/full-page-job'
 import { onMessage, resetHandlers } from '@/shared/messaging'
 
 /**
@@ -208,5 +209,29 @@ describe('activateTool', () => {
     // نداءان للإقلاع، وجلسةٌ واحدة تُبنى — الحارس في `content/index.ts`.
     expect(world.booted).toBe(2)
     expect(world.modes).toEqual(['area', 'colour'])
+  })
+
+  /**
+   * تدقيق Copilot، N1 — مؤكَّد في كروم: تفعيلان متتاليان أثناء التقاطٍ جارٍ ردّا كلاهما `started: true`
+   * والمهمّة الثانية مرفوضة في `startFullPage`. فتُغلق النافذة على «بدأ» لعملٍ لم يبدأ.
+   */
+  it('**«الصفحة كاملة» أثناء التقاطٍ جارٍ تُرفَض صادقًا `busy`** — لا «بدأ» لعملٍ لم يبدأ', async () => {
+    tabsGet.mockResolvedValue({ id: 5, url: 'https://example.com/' })
+    installContentWorld()
+    // الصفحة تُمسك التهيئة فتبقى المهمّة الأولى جارية، ثمّ تُفلتها بفشلٍ فتنتهي.
+    let release!: () => void
+    const held = new Promise<void>((r) => (release = r))
+    onMessage('fullpage/prepare', async () => {
+      await held
+      throw new Error('أُفلتت التهيئة')
+    })
+
+    const first = await activateTool(5, 'full-page')
+    const second = await activateTool(5, 'full-page')
+    release()
+
+    expect(first).toEqual({ started: true, mode: null })
+    expect(second).toEqual({ started: false, reason: 'busy' })
+    await vi.waitFor(() => expect(isFullPageRunning()).toBe(false))
   })
 })

@@ -1,7 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'preact/hooks'
 
 import { formatHuman } from '@/shared/bidi'
-import { CHANNELS, openChannel, send, sendToTab, type ToolName } from '@/shared/messaging'
+import {
+  CHANNELS,
+  openChannel,
+  send,
+  sendToTab,
+  type ActivationFailure,
+  type ToolName,
+} from '@/shared/messaging'
 import { originPatternFor, requestHostPermission } from '@/shared/permissions'
 import { selectPopupState, type PopupContext, type PopupStateName } from '@/shared/popup-state'
 import { openReport } from '@/shared/report-link'
@@ -59,6 +66,16 @@ const STATUS_BY_STATE: Record<PopupStateName, (l: Loaded) => string> = {
       : '',
   'inspect-active': () => 'مرّر فوق أي عنصر لفحصه',
   colors: () => 'مرّر فوق أي نقطة والتقط لونها',
+}
+
+/**
+ * نصّ شاشة «لم تبدأ الأداة» بسبب الرفض. `busy` يقول ما يقع فعلًا — التقاطٌ كامل جارٍ، ربّما في تبويب
+ * آخر لا تعرضه هذه النافذة — لا «تعذّر تشغيل رصد في هذه الصفحة» التي توحي بأن الصفحة هي العلّة.
+ */
+function activationMessage(reason: ActivationFailure | null): string {
+  if (reason === 'no-receiver') return 'تعذّر بدء الأداة — أعد تحميل الصفحة ثم حاول.'
+  if (reason === 'busy') return 'ثمّة التقاط كامل جارٍ بالفعل. انتظر حتى ينتهي ثم حاول.'
+  return 'تعذّر تشغيل رصد في هذه الصفحة.'
 }
 
 /** فشل عملية يُعرض شاشةً (`popup / error` أو `popup / cancelled`) لا سطرًا في الترويسة. */
@@ -216,10 +233,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
       setFailure({
         kind: 'error',
         title: 'لم تبدأ الأداة',
-        message:
-          reply.ok && !reply.value.started && reply.value.reason === 'no-receiver'
-            ? 'تعذّر بدء الأداة — أعد تحميل الصفحة ثم حاول.'
-            : 'تعذّر تشغيل رصد في هذه الصفحة.',
+        message: activationMessage(reply.ok && !reply.value.started ? reply.value.reason : null),
         retry: tool,
         code: reply.ok ? (reply.value.started ? 'unknown' : reply.value.reason) : reply.error.code,
       })
