@@ -39,7 +39,7 @@ import { setIncognitoWritePolicy } from '@/shared/storage/db'
 import { quotaState } from '@/shared/storage/quota'
 import { blobs, captures, colors, palettes } from '@/shared/storage/repository'
 import {
-  getSession,
+  getSessionInOrder,
   patchSession,
   setTabMode,
   updateSession,
@@ -174,7 +174,11 @@ function registerRequestHandlers() {
     return result.value
   })
 
-  onMessage('session/get', async () => (await getSession()) as unknown as Record<string, unknown>)
+  // بترتيب الطابور: الرسالة التي أيقظت العامل لا تسبق ما طلبه إقلاعه (`recoverOrphanedJob`).
+  onMessage(
+    'session/get',
+    async () => (await getSessionInOrder()) as unknown as Record<string, unknown>,
+  )
 
   onMessage('session/patch', async ({ patch }) => {
     const result = await patchSession(patch)

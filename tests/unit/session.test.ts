@@ -5,6 +5,7 @@ import {
   clearSession,
   defaultSession,
   getSession,
+  getSessionInOrder,
   patchSession,
   setTabMode,
   updateSession,
@@ -178,6 +179,14 @@ describe('الكتابات المتزامنة لا يمحو بعضها بعضً�
 
     expect(result.ok, 'كتابةٌ بُنيت على قراءة فاشلة').toBe(false)
     expect((await getSession()).modes).toEqual({ 1: 'area' })
+  })
+
+  it('والقراءة بترتيب الطابور ترى كتابةً طُلبت قبلها ولم تقع بعد', async () => {
+    const written = setTabMode(1, 'area')
+    const read = getSessionInOrder()
+
+    expect((await read).modes).toEqual({ 1: 'area' })
+    expect((await written).ok).toBe(true)
   })
 
   it('وكاتبٌ سقط لا يوقف الطابور عمّن بعده', async () => {
