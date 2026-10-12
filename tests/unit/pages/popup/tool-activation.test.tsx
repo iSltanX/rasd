@@ -64,9 +64,14 @@ afterEach(() => {
 const button = (root: HTMLElement, text: string) =>
   [...root.querySelectorAll('button')].find((b) => b.textContent?.includes(text))
 
-async function mountPopup(load: PopupLoad = LOAD): Promise<HTMLElement> {
+async function mountPopup(load: PopupLoad = LOAD, { seed = true } = {}): Promise<HTMLElement> {
   // قناة المهمّة تُفتح عند التركيب — لا يخصّ هذا الاختبار، لكنه يلزم كي لا ترمي.
   ports = installFakePorts()
+  // الحمولة تُقرأ من الجلسة نفسها في النافذة الحقيقية، والنافذة تعيد قراءتها بعد اشتراكها — فتُزرع مهمّتها هنا.
+  if (seed && load.context.job) {
+    const job = { id: 'j1', tabId: load.tabId, startedAt: 1, ...load.context.job }
+    await chrome.storage.session.set({ 'rasd:session': { modes: {}, job } })
+  }
   container = document.createElement('div')
   document.body.appendChild(container)
   render(<Popup initial={Promise.resolve(load)} />, container)
@@ -203,6 +208,25 @@ describe('Popup — العامل يموت والنافذة مفتوحة', () => 
 
     await vi.waitFor(() => expect(state(root)).toBe('default'))
     expect(root.textContent).not.toContain('تجميع المقطع')
+  })
+
+  it('ومسحٌ وقع قبل أن تشترك النافذة يُرى — تقرأ الجلسة مرّة بعد الاشتراك (المراجعة المستقلّة)', async () => {
+    // قراءة الفتح رأت المهمّة، ثمّ مُسحت قبل الاشتراك: لا حدث يبلغها بعده.
+    await chrome.storage.session.set({ 'rasd:session': { modes: {}, job: null } })
+    const root = await mountPopup(CAPTURING, { seed: false })
+
+    await vi.waitFor(() => expect(state(root)).toBe('default'))
+  })
+
+  it('و`interrupted` متأخّرٌ بعد نجاحٍ معروض لا يمحوه — الحفظ وقع (المراجعة المستقلّة)', async () => {
+    const root = await mountPopup(CAPTURING)
+
+    jobChannel().host.postMessage({ kind: 'done', result: { id: 'c1', width: 800, height: 4000 } })
+    await vi.waitFor(() => expect(state(root)).toBe('success'))
+    jobChannel().host.postMessage({ ...INTERRUPTED, code: 'interrupted-saving' })
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(state(root)).toBe('success')
   })
 
   it('ومهمّة تبويبٍ آخر في الجلسة لا تقلب نافذة هذا التبويب إلى «جارٍ الالتقاط»', async () => {

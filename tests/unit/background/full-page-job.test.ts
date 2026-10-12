@@ -19,6 +19,7 @@ const gates = vi.hoisted(() => ({
   step: null as null | Gate,
   finish: null as null | Gate,
   save: null as null | Gate,
+  overlay: null as null | Gate,
 }))
 
 /** بوّابة: وعدٌ يُحلّ حين تصلها الحلقة، ومفتاحٌ يُطلقها. */
@@ -58,6 +59,7 @@ vi.mock('@/shared/messaging', async (importOriginal) => ({
       await pass('step')
       return { ok: true, value: { scrollY: payload?.y ?? 0, maxScroll: 700 } }
     }
+    if (type === 'capture/show-overlay') await pass('overlay')
     return { ok: true, value: { restored: true } }
   },
 }))
@@ -124,6 +126,7 @@ beforeEach(() => {
   gates.step = null
   gates.finish = null
   gates.save = null
+  gates.overlay = null
   vi.stubGlobal('createImageBitmap', () =>
     Promise.resolve({ width: 1280, height: 800, close() {} }),
   )
@@ -434,5 +437,39 @@ describe('موت العامل بعد لحظة الالتزام', () => {
         message: expect.stringContaining('فلم يُحفظ'),
       }),
     )
+  })
+})
+
+/** المراجعة المستقلّة على R4-06 وR4-01. */
+describe('لحظة الالتزام والاستعادة — ما وجدته المراجعة', () => {
+  it('**الالتزام يكتب نبضًا حديثًا** — فلا يبدأ الحفظ بما بقي من مهلة الحارس بعد آخر نبض', async () => {
+    const finish = gate('finish')
+    const save = gate('save')
+    const job = run()
+    await finish.reached
+    const later = Date.now() + 60_000
+    vi.spyOn(Date, 'now').mockReturnValue(later)
+    finish.release()
+    await save.reached
+
+    expect((await getSession()).job).toMatchObject({ committed: true, updatedAt: later })
+    vi.mocked(Date.now).mockRestore()
+    save.release()
+    await job.end
+  })
+
+  it('**تفعيلٌ على تبويب يتيمةٍ تُستعاد صفحتها يُرفض** — فلا تقع رسائل الاستعادة داخل التقاطٍ جديد', async () => {
+    await patchSession({
+      job: { id: 'يتيمة', kind: 'full-page', tabId: 7, startedAt: 1, done: 0, total: 0 },
+    })
+    const overlay = gate('overlay')
+    const recovered = recoverOrphanedJob(vi.fn())
+    await overlay.reached
+
+    expect(isFullPageRunning(), 'الاستعادة جارية').toBe(true)
+    expect(run(7).started).toEqual({ started: false, reason: expect.any(String) })
+    overlay.release()
+    expect(await recovered).toBe(true)
+    expect(isFullPageRunning()).toBe(false)
   })
 })

@@ -12,7 +12,7 @@ import {
 import { originPatternFor, requestHostPermission } from '@/shared/permissions'
 import { selectPopupState, type PopupContext, type PopupStateName } from '@/shared/popup-state'
 import { openReport } from '@/shared/report-link'
-import { watchSession } from '@/shared/storage/session'
+import { getSession, watchSession, type SessionState } from '@/shared/storage/session'
 
 import { SHARE_PARAM } from '../share/param'
 
@@ -40,6 +40,13 @@ import { Success, type SuccessAction } from './views/Success'
 import type { JSX } from 'preact'
 
 type Loaded = PopupLoad
+
+/** مهمّتان بالعرض نفسه — فكتابةٌ في الجلسة لا تمسّ المهمّة (وضع تبويبٍ آخر) لا تعيد رسم النافذة. */
+function sameJob(a: PopupContext['job'], b: PopupContext['job']): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return a.kind === b.kind && a.done === b.done && a.total === b.total
+}
 
 /** مضيف التبويب ومساره الأوّل كما يكتبه الإطار: `figma.com / design-systems`. */
 function pageLabel(url: string): string {
@@ -108,6 +115,11 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
    * أدناه يُركَّب مرّة واحدة فلا يرى حالةً تُضبط بعده. يحكم `interrupted` وحده — انظر مستمع القناة.
    */
   const showsTabJob = useRef(false)
+  /**
+   * وصلت النافذةَ نهايةُ المهمّة (`done` أو `failed`). `interrupted` بعدها من خلَفٍ أقلع لا يمحوها: عاملٌ مات بين
+   * بثّ `done` ومسح المهمّة تبقى بعده يتيمةٌ ملتزمة، والنجاح المعروض صادق (المراجعة المستقلّة).
+   */
+  const settled = useRef(false)
 
   useEffect(() => {
     const onOnline = () => setOnline(true)
@@ -135,6 +147,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
           const result = message.result as
             { width?: unknown; height?: unknown; id?: unknown } | undefined
           if (typeof result?.width === 'number' && typeof result.height === 'number') {
+            settled.current = true
             // المعرّف يُقرأ إن وُجد كي يفتح زرّ «تعليق» اللقطة التي التُقطت
             // للتوّ لا محرّرًا فارغًا. وغيابه لا يُسقط حالة النجاح.
             setSuccess({
@@ -148,7 +161,8 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
           // تبويبٍ آخر لا تعرض فشلًا لالتقاطٍ لم يجرِ فيها ولا «أعد المحاولة» تلتقط تبويبها هي.
           const interrupted =
             message.code === 'interrupted' || message.code === 'interrupted-saving'
-          if (interrupted && !showsTabJob.current) return
+          if (interrupted && (!showsTabJob.current || settled.current)) return
+          settled.current = true
           setLiveProgress(null)
           setFailure(
             message.code === 'cancelled'
@@ -196,9 +210,11 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
     }
   }, [initial])
 
+  // علامة أوّل عرضٍ للبيانات مرّةً واحدة — تحديثات الجلسة الحيّة بعده ليست «أوّل عرض».
+  const ready = loaded !== null
   useLayoutEffect(() => {
-    if (loaded) performance.mark(POPUP_MARKS.commit)
-  }, [loaded])
+    if (ready) performance.mark(POPUP_MARKS.commit)
+  }, [ready])
 
   /*
    * مهمّة التبويب من الجلسة **حيّةً** لا كما قُرئت عند الفتح: عاملٌ يموت يمسح خلَفُه المهمّة، وبثّه قد يسبق
@@ -208,11 +224,19 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
   const tabId = loaded?.tabId
   useEffect(() => {
     if (tabId === undefined) return undefined
-    return watchSession((session) => {
+    const apply = (session: SessionState) => {
       const job = session.job && session.job.tabId === tabId ? session.job : null
       if (job) showsTabJob.current = true
-      setLoaded((prev) => (prev ? { ...prev, context: { ...prev.context, job } } : prev))
-    })
+      setLoaded((prev) =>
+        prev && !sameJob(prev.context.job, job)
+          ? { ...prev, context: { ...prev.context, job } }
+          : prev,
+      )
+    }
+    const stop = watchSession(apply)
+    // ومسحٌ وقع بين قراءة الفتح والاشتراك لا يبلغه حدث — فقراءةٌ واحدة بعد الاشتراك (المراجعة المستقلّة).
+    void getSession().then(apply)
+    return stop
   }, [tabId])
 
   // مصغَّرة اللقطة التي حُفظت للتوّ: أحدث سجلّ في المكتبة هو هي.

@@ -283,8 +283,14 @@ let active: {
   committed: boolean
 } | null = null
 
+/**
+ * تبويبٌ يُستعاد الآن من مهمّةٍ يتيمة (`recoverOrphanedJob`). التقاطٌ جديد عليه أثناء الاستعادة تقع فيه رسائلها
+ * (`fullpage/finish` · `capture/show-overlay`) فتُفسده — فيُرفض `busy` حتى تنتهي (المراجعة المستقلّة، R4).
+ */
+let restoringTab: number | null = null
+
 export function isFullPageRunning(): boolean {
-  return active !== null
+  return active !== null || restoringTab !== null
 }
 
 /**
@@ -330,10 +336,15 @@ export async function recoverOrphanedJob(
   if (orphan.kind === 'full-page' && active?.tabId !== orphan.tabId) {
     // الصفحة قد تكون أُغلقت أو تنقّلت — لا مستقبِل حينها ولا ما يُستعاد. والطبقة تُظهَر أيضًا: عاملٌ مات بين
     // إخفائها للّقطة (`capture/hide-overlay`) وإظهارها يتركها مخفيّةً، و`fullpage/finish` لا يُظهرها.
-    await askFinish(orphan.tabId).catch(() => null)
-    await sendToTab({ tabId: orphan.tabId }, 'capture/show-overlay', undefined, {
-      timeoutMs: PAGE_TIMEOUT_MS,
-    }).catch(() => null)
+    restoringTab = orphan.tabId
+    try {
+      await askFinish(orphan.tabId).catch(() => null)
+      await sendToTab({ tabId: orphan.tabId }, 'capture/show-overlay', undefined, {
+        timeoutMs: PAGE_TIMEOUT_MS,
+      }).catch(() => null)
+    } finally {
+      restoringTab = null
+    }
   }
   // يتيمةٌ ملتزمة: بدأ حفظها قبل موت العامل، فربّما حُفظت — لا يُقال «لم يُحفظ» ولا يُعرف غيره (R4-06).
   broadcast(
@@ -378,7 +389,7 @@ export function startFullPage(
     save: (result: FullPageResult) => Promise<Result<{ id: string }>>
   },
 ): StartedJob {
-  if (active) return { started: false, reason: 'ثمّة التقاط كامل جارٍ بالفعل.' }
+  if (isFullPageRunning()) return { started: false, reason: 'ثمّة التقاط كامل جارٍ بالفعل.' }
 
   const controller = new AbortController()
   const job = { id: crypto.randomUUID(), tabId, controller, committed: false }
@@ -462,7 +473,8 @@ export function startFullPage(
        * عمليةٌ واحدة تجمع القاعدة والجلسة، فالصادق أن يعرف الخلَف أن الحفظ ربّما وقع. والكتابة الفاشلة لا تمنع
        * الحفظ: أسوأ أثرها الرسالة القديمة في حالةٍ نادرة.
        */
-      record.committed = true
+      // ونبضٌ حديث معه: الحفظ لا يبدأ بما بقي من مهلة الحارس بعد آخر نبض (المراجعة المستقلّة).
+      Object.assign(record, { committed: true, updatedAt: Date.now() })
       await updateSession((current) =>
         mine(current) ? { ...current, job: { ...record } } : current,
       )
