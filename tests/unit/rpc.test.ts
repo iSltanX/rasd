@@ -395,14 +395,19 @@ describe('المستقبِل — السياق والردّ', () => {
 
   it('ومرسِلٌ بمعرّف رصد نفسه يُخدَم — ضابط', async () => {
     const listener = capture()
+    const realId = chrome.runtime.id
     Object.assign(chrome.runtime, { id: 'rasd-self' })
-    onMessage('session/get', () => ({ a: 1 }))
+    try {
+      onMessage('session/get', () => ({ a: 1 }))
 
-    const sendResponse = vi.fn()
-    listener()(envelope('session/get'), { id: 'rasd-self' }, sendResponse)
-    await settle()
+      const sendResponse = vi.fn()
+      listener()(envelope('session/get'), { id: 'rasd-self' }, sendResponse)
+      await settle()
 
-    expect(sendResponse).toHaveBeenCalledWith({ ok: true, value: { a: 1 } })
+      expect(sendResponse).toHaveBeenCalledWith({ ok: true, value: { a: 1 } })
+    } finally {
+      Object.assign(chrome.runtime, { id: realId })
+    }
   })
 
   it('رمي `RasdThrow` يعبر الحدّ برمزه ورسالته المحدَّدتين لا العامّتين', async () => {

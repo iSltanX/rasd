@@ -334,17 +334,41 @@ describe('ربط الطبقة', () => {
     Object.assign(globalThis.chrome, {
       dom: { openOrClosedShadowRoot: (el: Element) => (el === embed ? root : el.shadowRoot) },
     })
+    try {
+      frame.focus()
+      expect(document.activeElement, 'التمهيد: المستند يرى المضيف').toBe(embed)
+      expect(embed.shadowRoot, 'التمهيد: الجذر مغلق').toBeNull()
+      const blur = vi.spyOn(frame, 'blur')
+
+      session.host.layer.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
+      )
+
+      expect(blur).toHaveBeenCalledTimes(1)
+    } finally {
+      delete (globalThis.chrome as { dom?: unknown }).dom
+      embed.remove()
+    }
+  })
+
+  /**
+   * المراجعة المستقلّة (R4-02): الالتقاط المؤجَّل يمرّ عبر وضع «منطقة»، والتأجيل موجودٌ ليُصوَّر تركيزٌ في حقل —
+   * ولو كان في إطار (نموذج دفع). دخولُه لا يُخرج التركيز من الإطار؛ والكلفة أن `Esc` أثناء هذا العدّ يذهب إلى الإطار.
+   */
+  it('**والتقاط الظاهر المؤجَّل لا يُخرج التركيز من إطار** — حالة التركيز هي ما يُراد تصويره', async () => {
+    await patchSettings({ capture: { delaySeconds: 3 } } as never)
+    const session = await boot()
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
     frame.focus()
-    expect(document.activeElement, 'التمهيد: المستند يرى المضيف').toBe(embed)
-    expect(embed.shadowRoot, 'التمهيد: الجذر مغلق').toBeNull()
     const blur = vi.spyOn(frame, 'blur')
 
-    session.host.layer.dispatchEvent(
-      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
-    )
+    await fromBackground('capture/start', { kind: 'viewport' })
+    await settle()
 
-    expect(blur).toHaveBeenCalledTimes(1)
-    delete (globalThis.chrome as { dom?: unknown }).dom
-    embed.remove()
+    expect(session.modes.mode.peek(), 'التمهيد: العدّ في وضع «منطقة»').toBe('area')
+    expect(blur).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(frame)
+    frame.remove()
   })
 })

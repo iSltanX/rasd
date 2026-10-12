@@ -235,15 +235,6 @@ async function bootOverlay(
   const unsubscribeReport = modes.subscribe((mode) => reportMode(mode))
   reportMode(modes.mode.value)
 
-  /*
-   * **دخول أداةٍ يُخرج التركيز من إطارٍ فرعي** كما تُخرجه الضغطة على الطبقة (`releaseFrameFocus`): مستخدمٌ نقر
-   * في إطار ثمّ فعّل أداة ثمّ ضغط `Esc` قبل أي ضغطة على الطبقة كان `Esc` يذهب إلى الإطار وتبقى الأداة — قِيس
-   * 10/10 في كروم (تدقيق R4، R4-02). وتركيزٌ في الصفحة الأعلى نفسها لا يُمسّ: حالة تركيزٍ قد يُراد تصويرها.
-   */
-  const unsubscribeFrameFocus = modes.subscribe((mode) => {
-    if (mode !== 'idle') releaseFrameFocus(doc)
-  })
-
   // مغادرة المستند تُبلِّغ الخمول، والعودة من ذاكرة الرجوع تعيد الوضع — `page-report.ts`.
   const stopPageReport = reportAcrossPageLifecycle(win, reportMode, () => modes.mode.value)
 
@@ -286,6 +277,17 @@ async function bootOverlay(
 
   /** التقاط ظاهر مؤجَّل ينتظر انتهاء العدّ — لا تحديد له. */
   const pendingViewport = signal(false)
+
+  /*
+   * **دخول أداةٍ يُخرج التركيز من إطارٍ فرعي** كما تُخرجه الضغطة على الطبقة (`releaseFrameFocus`): مستخدمٌ نقر
+   * في إطار ثمّ فعّل أداة ثمّ ضغط `Esc` قبل أي ضغطة على الطبقة كان `Esc` يذهب إلى الإطار وتبقى الأداة — قِيس
+   * 10/10 في كروم (تدقيق R4، R4-02). وتركيزٌ في الصفحة الأعلى نفسها لا يُمسّ: حالة تركيزٍ قد يُراد تصويرها.
+   * **ولا عدُّ الالتقاط المؤجَّل** (`pendingViewport`): يمرّ عبر «منطقة»، والتأجيل موجودٌ ليُصوَّر تركيزٌ في حقل
+   * ولو في إطار — فيبقى، وكلفته أن `Esc` أثناء هذا العدّ يذهب إلى الإطار (المراجعة المستقلّة).
+   */
+  const unsubscribeFrameFocus = modes.subscribe((mode) => {
+    if (mode !== 'idle' && !pendingViewport.peek()) releaseFrameFocus(doc)
+  })
 
   /**
    * تقدّم الالتقاط الكامل — `null` يعني لا مهمّة.

@@ -125,8 +125,8 @@ export async function dataConsentSupported(): Promise<boolean> {
  * جذر ظلّ العنصر **مفتوحًا أو مغلقًا** — لسكربت المحتوى، ولصفحةٍ لا تملكها (تدقيق R4، R4-03).
  *
  * `shadowRoot` في الجذر المغلق `null`، فإطارٌ داخل مكوّن ويب مغلق يجعل التركيز يبدو عند مضيفه وحده: `↵` يذهب إلى
- * الإطار ولا يصل الطبقة. والقدرة يكشفها كل محرّك بواجهةٍ لسكربت المحتوى: `chrome.dom.openOrClosedShadowRoot` في
- * Chromium، و`Element.openOrClosedShadowRoot` في Gecko. وبلاهما — أو إن رمت — يبقى الجذر المفتوح وحده.
+ * الإطار ولا يصل الطبقة. والقدرة يكشفها كل محرّك بواجهةٍ لسكربت المحتوى: الدالّة `chrome.dom.openOrClosedShadowRoot`
+ * في Chromium، والخاصّية `Element.openOrClosedShadowRoot` في Gecko. وبلاهما — أو إن رمت — يبقى الجذر المفتوح وحده.
  */
 export function shadowRootOf(element: Element): ShadowRoot | null {
   try {
@@ -135,9 +135,9 @@ export function shadowRootOf(element: Element): ShadowRoot | null {
     if (typeof dom?.openOrClosedShadowRoot === 'function' && element instanceof HTMLElement) {
       return dom.openOrClosedShadowRoot(element)
     }
-    const own = (element as { openOrClosedShadowRoot?: () => ShadowRoot | null })
-      .openOrClosedShadowRoot
-    if (typeof own === 'function') return own.call(element)
+    // في Gecko **خاصّيةٌ** للقراءة لا دالّة (شيفرة Firefox نفسها تقرؤها `el.openOrClosedShadowRoot`) — المراجعة المستقلّة.
+    const own = (element as { openOrClosedShadowRoot?: unknown }).openOrClosedShadowRoot
+    if (own instanceof ShadowRoot) return own
   } catch {
     // عنصرٌ لا تقبله الواجهة — ما يُرى بلا قدرة خاصّة يبقى صحيحًا.
   }

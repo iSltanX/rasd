@@ -199,9 +199,9 @@ describe('shadowRootOf', () => {
     expect(shadowRootOf(el)).toBe(root)
   })
 
-  it('وغائبة وعلى العنصر `openOrClosedShadowRoot` ⟵ الجذر المغلق منها', () => {
+  it('وغائبة وعلى العنصر **خاصّية** `openOrClosedShadowRoot` ⟵ الجذر المغلق منها (شكلها في Gecko)', () => {
     const { el, root } = host()
-    Object.assign(el, { openOrClosedShadowRoot: () => root })
+    Object.defineProperty(el, 'openOrClosedShadowRoot', { get: () => root, configurable: true })
 
     expect(shadowRootOf(el)).toBe(root)
   })
