@@ -100,7 +100,7 @@
     "culori": "4.0.2",
     "idb": "8.0.3",
     "pdf-lib": "1.17.1",
-    "pixelmatch": "6.0.0",
+    "pixelmatch": "7.2.0",
     "preact": "10.29.8",
     "valibot": "1.4.2"
   },
@@ -111,7 +111,7 @@
     "@types/chrome": "0.2.7",
     "@types/culori": "4.0.1",
     "@types/node": "24.10.1",
-    "@types/pixelmatch": "^5.2.6",
+    "@types/pixelmatch": "^7.1.0",
     "@vitest/coverage-v8": "4.1.11",
     "@webext-core/fake-browser": "2.0.1",
     "axe-core": "^4.13.0",
