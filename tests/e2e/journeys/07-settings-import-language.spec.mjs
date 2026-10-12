@@ -34,16 +34,16 @@ test('ملفّ إعداداتٍ بلغةٍ غير العربية: تُسقط ب�
   await settings.getByRole('button', { name: 'احفظ المقبول' }).click()
   await expect(dialog).toBeHidden()
 
-  // المقبول حُفظ فعلًا — السمة — فالحكم على الاتجاه بعد كتابةٍ وقعت لا قبلها.
-  await expect
-    .poll(async () => (await rasd.send('settings/get')).value?.appearance?.theme)
-    .toBe('dark')
-  const saved = (await rasd.send('settings/get')).value.appearance
-  expect(saved.language, 'اللغة المخزَّنة عربية').toBe('ar')
+  // المقبول حُفظ وطُبّق: السمة على المستند تعني أن `applyTheme` جرى بعد الاستيراد، فالاتجاه بعدها حكمٌ لا
+  // قراءةٌ لـ`dir="rtl"` الثابت في HTML الصفحة (المراجعة المستقلّة).
+  const theme = (page) => page.evaluate(() => document.documentElement.dataset.theme ?? null)
+  await expect.poll(() => theme(settings), { message: 'السمة المقبولة طُبّقت' }).toBe('dark')
+  expect((await rasd.send('settings/get')).value.appearance.language, 'اللغة المخزَّنة').toBe('ar')
   expect(await settings.evaluate(() => document.documentElement.dir)).toBe('rtl')
 
   const library = await rasd.openPage(`${rasd.origin}/src/pages/library/index.html`)
-  await expect.poll(() => library.evaluate(() => document.documentElement.dir)).toBe('rtl')
+  await expect.poll(() => theme(library)).toBe('dark')
+  expect(await library.evaluate(() => document.documentElement.dir)).toBe('rtl')
   expect(rasd.unexpectedErrors()).toEqual([])
   expect(rasd.externalRequests()).toEqual([])
 })

@@ -4,8 +4,8 @@
  * مستخدمٌ بدأ التقاط صفحةٍ طويلة وفتح النافذة الحقيقية (`chrome.action.openPopup`) يتابعه، فمات العامل — إنهاء
  * MV3، أو انهيار، أو تحديث. يُحكم على ما تعرضه النافذة نفسها (`chrome.extension.getViews`):
  *
- * - **R4-07:** في أوّل خمس ثوانٍ، قبل أن تكتب المهمّة نبضها في الجلسة (`PROGRESS_PERSIST_MS`)، ترويسة «تجميع
- *   المقطع» وسطر الجسم بالعدد نفسه. كانت الترويسة تقرأ الجلسة فتعرض «٠ من ٠» فوق «المقطع ٣ من ٥٠».
+ * - **R4-07:** ترويسة «تجميع المقطع» وسطر الجسم بالعدد نفسه. كانت الترويسة تقرأ الجلسة (نبضها كل
+ *   `PROGRESS_PERSIST_MS`) فتعرض «٠ من ٠» فوق «المقطع ٣ من ٥٠».
  * - **R4-01:** بعد إيقاف العامل عبر CDP **بلا إيقاظٍ من خارج النافذة**، تقول «توقّف الالتقاط» ولا تبقى على
  *   «جارٍ الالتقاط»، والمهمّة ممسوحة والصفحة مستعادة. كانت تبقى على «المقطع ٣ من ٥٠ · إلغاء الالتقاط» 10/10.
  *
@@ -13,29 +13,35 @@
  */
 import { expect, test } from '../support/rasd.mjs'
 
-/** إصدارات عامل الإضافة كما يبثّها CDP — منها يُعرف الجاري ويُتحقَّق من توقّفه. */
+/**
+ * إصدارات عامل الإضافة كما يبثّها CDP، و**كل حالةٍ مرّ بها كلٌّ منها** — لا آخرها وحده: النافذة المفتوحة تعيد
+ * قناتها بعد 100ms فتوقظ العامل نفسه (الإصدار نفسه)، فتمرّ «stopped» عابرةً ويفوتها من يقرأ الحالة الأخيرة.
+ */
 async function workerVersions(rasd) {
   const client = await rasd.context.newCDPSession(await rasd.bridge())
   const versions = new Map()
+  const seen = new Map()
   client.on('ServiceWorker.workerVersionUpdated', ({ versions: updated }) => {
-    for (const v of updated) versions.set(v.versionId, v)
+    for (const v of updated) {
+      versions.set(v.versionId, v)
+      seen.set(v.versionId, (seen.get(v.versionId) ?? new Set()).add(v.runningStatus))
+    }
   })
   await client.send('ServiceWorker.enable')
   const mine = () => [...versions.values()].filter((v) => v.scriptURL?.startsWith(rasd.origin))
-  return { client, mine }
+  const passedThrough = (id, status) => seen.get(id)?.has(status) ?? false
+  return { client, mine, passedThrough }
 }
 
-/** يوقف العامل كما يوقفه المتصفّح، وينتظر أن يُبلَّغ متوقّفًا. */
+/** يوقف العامل كما يوقفه المتصفّح، وينتظر أن يُبلَّغ أنه توقّف. */
 async function stopWorker(rasd) {
-  const { client, mine } = await workerVersions(rasd)
+  const { client, mine, passedThrough } = await workerVersions(rasd)
   await expect.poll(() => mine().some((v) => v.runningStatus === 'running')).toBe(true)
   const running = mine().find((v) => v.runningStatus === 'running')
   await client.send('ServiceWorker.stopWorker', { versionId: running.versionId })
   await expect
-    .poll(() => mine().find((v) => v.versionId === running.versionId)?.runningStatus, {
-      timeout: 10_000,
-    })
-    .toBe('stopped')
+    .poll(() => passedThrough(running.versionId, 'stopped'), { timeout: 10_000 })
+    .toBe(true)
   return client
 }
 
@@ -67,11 +73,12 @@ test('النافذة المفتوحة تتبع التقاطًا كاملًا ث�
     (await rasd.send('settings/patch', { patch: { onboarding: { completed: true } } })).ok,
   ).toBe(true)
 
-  const startedAt = Date.now()
   expect((await rasd.send('tool/activate', { tool: 'full-page', tabId })).ok).toBe(true)
   await expect.poll(async () => (await sessionOf(bridge))?.job?.kind ?? null).toBe('full-page')
 
-  // ── R4-07: الترويسة والجسم بالعدد نفسه قبل نبض الجلسة الأوّل ─────────
+  // ── R4-07: الترويسة والجسم بالعدد نفسه ─────────────────────────────
+  // ثابتٌ في كل لحظة لا في أوّل خمس ثوانٍ وحدها: الجلسة متأخّرةٌ عن التقدّم الحيّ دائمًا (نبضها كل 5 s)، فترويسةٌ
+  // تقرؤها تخالف الجسم قبل نبضها الأوّل (٠ من ٠) وبعده (عددٌ متأخّر) — ولا عيّنةَ بزمنٍ تتعلّق بحمل الجهاز.
   const opened = await bridge.evaluate(async (id) => {
     const tab = await chrome.tabs.get(id)
     await chrome.windows.update(tab.windowId, { focused: true })
@@ -84,8 +91,6 @@ test('النافذة المفتوحة تتبع التقاطًا كاملًا ث�
     .poll(async () => tileCounts(await popupText(bridge)).some((c) => !c.startsWith('المقطع ٠ ')))
     .toBe(true)
   const live = await popupText(bridge)
-  const sampledAfterMs = Date.now() - startedAt
-  expect(sampledAfterMs, 'العيّنة قبل نبض الجلسة الأوّل (5 s)، وإلا لا تحكم').toBeLessThan(5_000)
   const counts = tileCounts(live)
   // ناعمان: سقوطهما لا يمنع الحكم على R4-01 أدناه في الجولة نفسها.
   expect.soft(counts.length, `الترويسة والجسم: ${live}`).toBeGreaterThanOrEqual(2)
