@@ -41,19 +41,39 @@ export function defaultSession(): SessionState {
   return { modes: {}, job: null }
 }
 
+/** القيمة المخزَّنة كما تُقرأ: ما ليس كائنًا جلسةٌ افتراضية، والحقل الغائب افتراضيّ. */
+function normalize(stored: unknown): SessionState {
+  if (!stored || typeof stored !== 'object') return defaultSession()
+  const value = stored as Partial<SessionState>
+  return { modes: value.modes ?? {}, job: value.job ?? null }
+}
+
 /** يقرأ الجلسة **ويُبلغ عن تعذّر القراءة** — للكتابة، التي لا تُبنى على افتراضٍ عند الفشل. */
 async function readSession(): Promise<Result<SessionState>> {
   const stored = await attempt(async () => (await chrome.storage.session.get(KEY))[KEY])
   if (!stored.ok) return stored
-  if (!stored.value || typeof stored.value !== 'object') return ok(defaultSession())
-  const value = stored.value as Partial<SessionState>
-  return ok({ modes: value.modes ?? {}, job: value.job ?? null })
+  return ok(normalize(stored.value))
 }
 
 /** القراءة للعرض تتسامح: الجلسة الفارغة افتراضٌ آمن حين تتعذّر. */
 export async function getSession(): Promise<SessionState> {
   const read = await readSession()
   return read.ok ? read.value : defaultSession()
+}
+
+/**
+ * يشترك في تغيّر الجلسة **للعرض** — صفحةُ إضافة مفتوحة (النافذة) ترى ما كتبته الخلفية بعد فتحها.
+ *
+ * النافذة كانت تقرأ الجلسة مرّة عند الفتح، فعاملٌ يموت والنافذة مفتوحة يمسح خلَفُه المهمّة اليتيمة
+ * (`recoverOrphanedJob`) وهي باقية على «جارٍ الالتقاط» (تدقيق R4، R4-01). ومسح المفتاح كلّه جلسةٌ افتراضية.
+ */
+export function watchSession(listener: (session: SessionState) => void): () => void {
+  const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+    if (area !== 'session' || !(KEY in changes)) return
+    listener(normalize(changes[KEY]?.newValue))
+  }
+  chrome.storage.onChanged.addListener(onChanged)
+  return () => chrome.storage.onChanged.removeListener(onChanged)
 }
 
 /**

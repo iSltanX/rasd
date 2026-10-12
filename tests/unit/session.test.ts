@@ -9,6 +9,7 @@ import {
   patchSession,
   setTabMode,
   updateSession,
+  watchSession,
 } from '@/shared/storage/session'
 
 beforeEach(() => {
@@ -197,5 +198,36 @@ describe('الكتابات المتزامنة لا يمحو بعضها بعضً�
     expect(first.ok).toBe(false)
     expect(second.ok).toBe(true)
     expect((await getSession()).modes).toEqual({ 2: 'measure' })
+  })
+})
+
+/** المراقبة للعرض (تدقيق R4، R4-01): النافذة المفتوحة ترى ما كتبته الخلفية بعد فتحها. */
+describe('watchSession', () => {
+  it('تصل كل كتابة بقيمتها، ومسح الجلسة كلّها يصل جلسةً افتراضية، والفكّ يوقفها', async () => {
+    const seen: unknown[] = []
+    const stop = watchSession((s) => seen.push(s))
+
+    await setTabMode(3, 'inspect')
+    await vi.waitFor(() => expect(seen).toEqual([{ modes: { 3: 'inspect' }, job: null }]))
+    await clearSession()
+    await vi.waitFor(() => expect(seen).toHaveLength(2))
+    expect(seen[1]).toEqual(defaultSession())
+
+    stop()
+    await setTabMode(4, 'area')
+    await new Promise((r) => setTimeout(r, 20))
+    expect(seen).toHaveLength(2)
+  })
+
+  it('وتغيّر منطقةٍ أخرى أو مفتاحٍ آخر لا يصلها', async () => {
+    const seen: unknown[] = []
+    const stop = watchSession((s) => seen.push(s))
+
+    await chrome.storage.local.set({ 'rasd:session': { modes: { 1: 'area' }, job: null } })
+    await chrome.storage.session.set({ other: 1 })
+    await new Promise((r) => setTimeout(r, 20))
+
+    expect(seen).toEqual([])
+    stop()
   })
 })

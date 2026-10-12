@@ -12,6 +12,7 @@ import {
 import { originPatternFor, requestHostPermission } from '@/shared/permissions'
 import { selectPopupState, type PopupContext, type PopupStateName } from '@/shared/popup-state'
 import { openReport } from '@/shared/report-link'
+import { watchSession } from '@/shared/storage/session'
 
 import { SHARE_PARAM } from '../share/param'
 
@@ -122,9 +123,11 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
   // اشتراك حيّ في قناة المهمّة: تقدّم فعلي يحرّك شريط `Capturing`، و`done` بأبعاد صالحة
   // هو المسار الوحيد نحو `success`، و`failed` يعرض `popup / error` أو `popup / cancelled`
   // بحسب رمزه — الإلغاء تُرسله الخلفية `failed` برمز `cancelled` (`lifecycle.ts`).
+  //
+  // **وتعود القناة إن انقطعت**: الانقطاع والنافذة مفتوحة موتُ العامل، والعودة توقظ خلَفه فيستعيد المهمّة
+  // اليتيمة ويبثّ `interrupted` إليها هي — وبلا عودة بقيت على «جارٍ الالتقاط» (تدقيق R4، R4-01).
   useEffect(() => {
     const channel = openChannel(CHANNELS.job, {
-      autoReconnect: false,
       onMessage: (message) => {
         if (message.kind === 'progress') {
           setLiveProgress({ done: message.done, total: message.total })
@@ -192,6 +195,21 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
     if (loaded) performance.mark(POPUP_MARKS.commit)
   }, [loaded])
 
+  /*
+   * مهمّة التبويب من الجلسة **حيّةً** لا كما قُرئت عند الفتح: عاملٌ يموت يمسح خلَفُه المهمّة، وبثّه قد يسبق
+   * عودة القناة فلا يصلها — فالجلسة الممسوحة وحدها تُخرج النافذة من «جارٍ الالتقاط» (تدقيق R4، R4-01).
+   * و`showsTabJob` يُرفع حين تظهر مهمّة التبويب ولا يُنزَل حين تُمسح: الاستعادة تمسح ثمّ تبثّ `interrupted`.
+   */
+  const tabId = loaded?.tabId
+  useEffect(() => {
+    if (tabId === undefined) return undefined
+    return watchSession((session) => {
+      const job = session.job && session.job.tabId === tabId ? session.job : null
+      if (job) showsTabJob.current = true
+      setLoaded((prev) => (prev ? { ...prev, context: { ...prev.context, job } } : prev))
+    })
+  }, [tabId])
+
   // مصغَّرة اللقطة التي حُفظت للتوّ: أحدث سجلّ في المكتبة هو هي.
   useEffect(() => {
     if (!success?.id) return
@@ -205,10 +223,19 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
     }
   }, [success?.id])
 
-  const context = useMemo<PopupContext | null>(
-    () => (loaded ? { ...loaded.context, online } : null),
-    [loaded, online],
-  )
+  /*
+   * الترويسة والجسم من مصدرٍ واحد: التقدّم الحيّ من القناة إن وصل، وإلا نبض الجلسة. الجلسة لا تُكتب إلا كل
+   * `PROGRESS_PERSIST_MS`، فقراءتها في الترويسة وحدها عرضت «تجميع المقطع ٠ من ٠» فوق «المقطع ٣ من ٥٠» (R4-07).
+   */
+  const context = useMemo<PopupContext | null>(() => {
+    if (!loaded) return null
+    const { job } = loaded.context
+    return {
+      ...loaded.context,
+      job: job && liveProgress ? { ...job, ...liveProgress } : job,
+      online,
+    }
+  }, [loaded, liveProgress, online])
 
   const originLabel = useMemo(() => {
     if (!loaded?.origin) return ''
@@ -297,9 +324,18 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
    * الحلقة تعيش في الـservice worker ويملكها `AbortController` هناك، فلا يوقفها
    * تبديلُ وضعٍ في الصفحة. `fullpage/cancel` هي التي تصل إليه — وهي رسالة إلى
    * الخلفية (`send`) لا إلى التبويب (`sendToTab`).
+   *
+   * **والرفض يُقرأ**: `cancelled:false` بعد لحظة الالتزام يعني أن الحفظ بدأ فلا رجعة (D2)، فلا تُغلق النافذة على
+   * إلغاءٍ لم يقع — تبقى، ويقول نجاح الحفظ حين يصل إن الإلغاء جاء بعده (تدقيق R4، R4-05).
    */
   const cancelJob = () => {
-    void send('fullpage/cancel', undefined).then(() => window.close())
+    void send('fullpage/cancel', undefined).then((reply) => {
+      if (reply.ok && !reply.value.cancelled) {
+        setNotice('اكتمل الحفظ قبل الإلغاء، فاللقطة محفوظة في المكتبة.')
+        return
+      }
+      window.close()
+    })
   }
 
   const openPage = (page: 'library' | 'settings' | 'onboarding' | 'editor') => {
@@ -447,11 +483,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
 
       case 'capturing':
         body = context.job ? (
-          <Capturing
-            done={liveProgress?.done ?? context.job.done}
-            total={liveProgress?.total ?? context.job.total}
-            onCancel={cancelJob}
-          />
+          <Capturing done={context.job.done} total={context.job.total} onCancel={cancelJob} />
         ) : (
           <div class={styles.body} />
         )

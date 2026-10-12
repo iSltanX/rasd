@@ -160,3 +160,90 @@ describe('Popup — فشلٌ على قناة المهمّة', () => {
     expect(root.textContent).toContain('توقّفت الصفحة عن الاستجابة')
   })
 })
+
+/**
+ * العامل يموت والنافذة مفتوحة على «جارٍ الالتقاط» (تدقيق R4، R4-01). القناة كانت بلا إعادة اتصال، فلا يصلها بثّ
+ * `interrupted` من العامل الذي أقلع بعده، ولا تقرأ الجلسة بعد الفتح — فبقيت على «المقطع ٣ من ٥٠ · إلغاء
+ * الالتقاط» 10/10 في كروم، والمهمّة قد مُسحت والصفحة استُعيدت.
+ */
+describe('Popup — العامل يموت والنافذة مفتوحة', () => {
+  const state = (root: HTMLElement) =>
+    root.querySelector('[data-popup-state]')?.getAttribute('data-popup-state')
+
+  it('القناة تعود بعد موت العامل، فيصلها `interrupted` من خلَفه', async () => {
+    const root = await mountPopup(CAPTURING)
+
+    ports!.dropAll()
+    await vi.waitFor(() => expect(jobChannel()).toBeDefined())
+    jobChannel().host.postMessage(INTERRUPTED)
+
+    await vi.waitFor(() => expect(root.textContent).toContain('توقّف الالتقاط قبل اكتماله'))
+    expect(state(root)).toBe('error')
+  })
+
+  it('ومهمّةٌ تُمسح من الجلسة بلا بثٍّ يصل ⇐ لا تبقى على «جارٍ الالتقاط»', async () => {
+    const root = await mountPopup(CAPTURING)
+    expect(state(root)).toBe('capturing')
+
+    await chrome.storage.session.set({ 'rasd:session': { modes: {}, job: null } })
+
+    await vi.waitFor(() => expect(state(root)).toBe('default'))
+    expect(root.textContent).not.toContain('تجميع المقطع')
+  })
+
+  it('ومهمّة تبويبٍ آخر في الجلسة لا تقلب نافذة هذا التبويب إلى «جارٍ الالتقاط»', async () => {
+    const root = await mountPopup(LOAD)
+    const other = { id: 'x', kind: 'full-page', tabId: 99, startedAt: 1, done: 1, total: 4 }
+
+    await chrome.storage.session.set({ 'rasd:session': { modes: {}, job: other } })
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(state(root)).toBe('default')
+  })
+})
+
+/**
+ * ترويسة «جارٍ الالتقاط» وجسمها من مصدرٍ واحد (تدقيق R4، R4-07): الترويسة كانت تقرأ `job.done/total` من الجلسة،
+ * وهي لا تُكتب إلا كل 5 ثوانٍ، والجسم يقرأ التقدّم الحيّ — فعرضت «تجميع المقطع ٠ من ٠» فوق «المقطع ٣ من ٥٠».
+ */
+describe('Popup — ترويسة الالتقاط الجاري', () => {
+  it('تتبع التقدّم الحيّ الذي يتبعه الجسم', async () => {
+    const root = await mountPopup(CAPTURING)
+
+    jobChannel().host.postMessage({ kind: 'progress', done: 3, total: 50 })
+
+    await vi.waitFor(() => expect(root.textContent).toContain('تجميع المقطع ٣ من ٥٠'))
+  })
+})
+
+/**
+ * إلغاءٌ يُرفض بعد لحظة الالتزام (تدقيق R4، R4-05): `fullpage/cancel` يردّ `{cancelled:false}` صادقًا، والنافذة
+ * كانت تُهمل الردّ وتُغلق — فيظنّ المستخدم أنه ألغى ثمّ يجد اللقطة محفوظة.
+ */
+describe('Popup — إلغاء الالتقاط الكامل', () => {
+  it('رُفض لأن الحفظ بدأ ⇐ تبقى مفتوحة، ونجاح الحفظ يقول «اكتمل الحفظ قبل الإلغاء»', async () => {
+    const close = vi.spyOn(window, 'close').mockImplementation(() => undefined)
+    send.mockResolvedValue({ ok: true, value: { cancelled: false } })
+    const root = await mountPopup(CAPTURING)
+
+    button(root, 'إلغاء الالتقاط')!.click()
+    await vi.waitFor(() => expect(send).toHaveBeenCalledWith('fullpage/cancel', undefined))
+    await new Promise((r) => setTimeout(r, 20))
+    expect(close).not.toHaveBeenCalled()
+
+    jobChannel().host.postMessage({ kind: 'done', result: { id: 'c1', width: 800, height: 4000 } })
+
+    await vi.waitFor(() => expect(root.textContent).toContain('اكتمل الحفظ قبل الإلغاء'))
+    expect(close).not.toHaveBeenCalled()
+  })
+
+  it('وقُبل ⇐ تُغلق كما كانت', async () => {
+    const close = vi.spyOn(window, 'close').mockImplementation(() => undefined)
+    send.mockResolvedValue({ ok: true, value: { cancelled: true } })
+    const root = await mountPopup(CAPTURING)
+
+    button(root, 'إلغاء الالتقاط')!.click()
+
+    await vi.waitFor(() => expect(close).toHaveBeenCalledTimes(1))
+  })
+})
