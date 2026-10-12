@@ -112,8 +112,17 @@ export type Handler<T extends MessageType> = (
 
 type HandlerMap = { [K in MessageType]?: Handler<K> }
 
-const handlers: HandlerMap = {}
+/**
+ * **بلا نموذج أوّلي، ويُقرأ بـ`Object.hasOwn`**: كائنٌ عادي يجعل نوعًا يسمّي خاصّيةً موروثة «معالجًا» ليس له —
+ * `constructor` يعيد الحمولة صدًى و`__proto__` يرمي — بدل `no-receiver` الذي يعد به العقد (تدقيق R4، R4-09).
+ */
+const handlers: HandlerMap = Object.create(null) as HandlerMap
 let listening = false
+
+const handlerFor = (type: string): Handler<MessageType> | undefined =>
+  Object.hasOwn(handlers, type)
+    ? (handlers[type as MessageType] as Handler<MessageType>)
+    : undefined
 
 /**
  * يسجّل مستقبِلًا لنوع رسالة.
@@ -142,8 +151,13 @@ function ensureListener() {
     chrome.runtime.onMessage,
     (message: unknown, sender, sendResponse) => {
       if (!isEnvelope(message)) return false
+      /*
+       * مرسِلٌ من إضافةٍ أخرى ليس منّا. `onMessage` لا يحمل رسالة إضافةٍ أخرى أصلًا (لا `externally_connectable`
+       * ولا `onMessageExternal`)، فهذا دفاعٌ ثانٍ لا حدٌّ وحيد (R4-09). ومرسِلٌ بلا معرّف — بدائل الاختبار — يمرّ.
+       */
+      if (sender.id !== undefined && sender.id !== chrome.runtime.id) return false
 
-      const handler = handlers[message.type] as Handler<MessageType> | undefined
+      const handler = handlerFor(message.type)
       if (!handler) {
         sendResponse({
           ok: false,
