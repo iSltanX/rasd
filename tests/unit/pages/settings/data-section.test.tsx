@@ -171,8 +171,9 @@ describe('DataSection — حذف كل البيانات بتأكيدٍ مزدوج
     expect(text()).toContain('كلّها، ومعها المواقع المستثناة')
     expect(text()).toContain('خذ نسخة احتياطية أوّلًا')
     expect(text()).toContain('آخر نسخة: لم تُؤخذ نسخة بعد')
-    // التركيز على «ألغِ» لا على الفعل.
-    expect(document.activeElement?.textContent?.trim()).toBe('ألغِ')
+    // التركيز على «ألغِ» لا على الفعل. والحوار ينقله في `useEffect` بعد الرسم، فيُنتظر: قراءته فور ظهور النصّ
+    // سقطت تحت حمل الجهاز (19) — وأُعيد إنتاجها بتأخير تأثيرات Preact 300ms.
+    await vi.waitFor(() => expect(document.activeElement?.textContent?.trim()).toBe('ألغِ'))
 
     button('تابع إلى التأكيد').click()
     await vi.waitFor(() => expect(text()).toContain('الخطوة ٢ من ٢'))
