@@ -346,6 +346,8 @@ export function dropReasonText(dropped: DroppedSetting): string {
       return `«${value}» ليس نمط موقعٍ يصلح`
     case 'unknown':
       return 'إعدادٌ لا يعرفه هذا الإصدار من رصد'
+    case 'language':
+      return 'رصد بالعربية وحدها، فلا تُستورد لغةٌ أخرى للواجهة'
   }
 }
 

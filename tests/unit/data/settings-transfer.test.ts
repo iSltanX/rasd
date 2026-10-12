@@ -169,6 +169,39 @@ describe('ما أُسقط ولماذا', () => {
   })
 })
 
+/**
+ * الواجهة عربية فقط (ADR 0022)، و`appearance.language` باقٍ في المخطّط بلا ضابط. فملفٌّ يحمل `en` كان يُقبل فيقلب
+ * الواجهة إلى LTR ونصّها عربي، ولا شيء يعيدها (تدقيق R4، R4-04 — مؤكَّد عبر واجهة الاستيراد الحقيقية).
+ */
+describe('لغة الواجهة في الملفّ', () => {
+  it('**لغةٌ غير العربية تُسقط بسببها** — وبقية القسم تُقبل، والحفظ لا يقلب الاتجاه', async () => {
+    const current = settingsFixture()
+    await fakeBrowser.storage.local.set({ [KEY]: current })
+    const p = plan(fileWith({ appearance: { language: 'en', theme: 'dark' } }), current)
+
+    expect(p.dropped).toEqual([{ path: 'appearance.language', reason: 'language', received: 'en' }])
+    expect(p.accepted).toContain('appearance.theme')
+    expect(p.accepted).not.toContain('appearance.language')
+    expect(p.changes.map((c) => c.path)).not.toContain('appearance.language')
+    expect(p.settings.appearance.language).toBe('ar')
+
+    await applySettingsImport(p)
+    const s = await getSettings()
+    expect(s.appearance.language).toBe('ar')
+    expect(s.appearance.theme).toBe('dark')
+  })
+
+  it('والعربية تُقبل — فملفٌّ بها يعيد واجهةً قلبها استيرادٌ سابق', () => {
+    const current = settingsFixture()
+    const flipped = { ...current, appearance: { ...current.appearance, language: 'en' as const } }
+    const p = plan(fileWith({ appearance: { language: 'ar' } }), flipped)
+
+    expect(p.dropped).toEqual([])
+    expect(p.accepted).toContain('appearance.language')
+    expect(p.settings.appearance.language).toBe('ar')
+  })
+})
+
 describe('ملفٌّ لا يُستورد لا يكتب شيئًا ويبلّغ الخطأ', () => {
   it.each([
     ['ليس JSON', '{ not json', 'not-json'],
