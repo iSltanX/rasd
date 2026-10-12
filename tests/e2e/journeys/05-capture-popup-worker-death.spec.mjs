@@ -87,8 +87,9 @@ test('النافذة المفتوحة تتبع التقاطًا كاملًا ث�
   const sampledAfterMs = Date.now() - startedAt
   expect(sampledAfterMs, 'العيّنة قبل نبض الجلسة الأوّل (5 s)، وإلا لا تحكم').toBeLessThan(5_000)
   const counts = tileCounts(live)
-  expect(counts.length, `الترويسة والجسم: ${live}`).toBeGreaterThanOrEqual(2)
-  expect(new Set(counts).size, `عدّ الترويسة = عدّ الجسم: ${counts.join(' | ')}`).toBe(1)
+  // ناعمان: سقوطهما لا يمنع الحكم على R4-01 أدناه في الجولة نفسها.
+  expect.soft(counts.length, `الترويسة والجسم: ${live}`).toBeGreaterThanOrEqual(2)
+  expect.soft(new Set(counts).size, `عدّ الترويسة = عدّ الجسم: ${counts.join(' | ')}`).toBe(1)
 
   // ── R4-01: العامل يموت والنافذة مفتوحة ──────────────────────────────
   const client = await stopWorker(rasd)
