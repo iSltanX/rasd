@@ -130,11 +130,11 @@ export async function dataConsentSupported(): Promise<boolean> {
  */
 export function shadowRootOf(element: Element): ShadowRoot | null {
   try {
-    const dom = (
-      chrome as { dom?: { openOrClosedShadowRoot?: (el: Element) => ShadowRoot | null } }
-    ).dom
-    if (typeof dom?.openOrClosedShadowRoot === 'function')
+    // أنواع `chrome.dom` تفترضها حاضرة دائمًا، وهي غائبة حيث لا يكشفها المحرّك — فتُقرأ اختيارية.
+    const dom = (chrome as { dom?: Partial<typeof chrome.dom> }).dom
+    if (typeof dom?.openOrClosedShadowRoot === 'function' && element instanceof HTMLElement) {
       return dom.openOrClosedShadowRoot(element)
+    }
     const own = (element as { openOrClosedShadowRoot?: () => ShadowRoot | null })
       .openOrClosedShadowRoot
     if (typeof own === 'function') return own.call(element)
