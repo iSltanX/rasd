@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@preact/signals':
-        specifier: 2.11.1
-        version: 2.11.1(preact@10.29.8)
+        specifier: 2.11.2
+        version: 2.11.2(preact@10.29.8)
       culori:
         specifier: 4.0.2
         version: 4.0.2
@@ -370,8 +370,8 @@ packages:
   '@preact/signals-core@1.14.4':
     resolution: {integrity: sha512-HNB6HYeYKhQbJ1aKl+YRjrS4+QWHLKX6qKoUsfS/m0vqzsVaEBiZiaKbG/e+NKk2ch5ALQr/ihWaMHxiCuuWHA==}
 
-  '@preact/signals@2.11.1':
-    resolution: {integrity: sha512-uYoD+USkacTNU02kfCBkJEV7xabKTmA78W5pnT2GymsuGEC9n/ZO+UT4S96l0dIL6KLDk77VJyUFuOMBvftVHg==}
+  '@preact/signals@2.11.2':
+    resolution: {integrity: sha512-rVTRTt/T0HIRgbugwS5FigbfF/kfdEFYFtiqxa+lbpqTajepqnR0firuAS2iNdHyejWB7Yc9p9QePkVNBtTAwg==}
     peerDependencies:
       preact: '>= 10.25.0 || >=11.0.0-0'
 
@@ -2858,7 +2858,7 @@ snapshots:
 
   '@preact/signals-core@1.14.4': {}
 
-  '@preact/signals@2.11.1(preact@10.29.8)':
+  '@preact/signals@2.11.2(preact@10.29.8)':
     dependencies:
       '@preact/signals-core': 1.14.4
       preact: 10.29.8
