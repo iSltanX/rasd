@@ -309,7 +309,8 @@ export function cancelFullPage(): boolean {
  * الطابور. ولا تُستعاد صفحةٌ بدأ عليها هذا العامل التقاطًا: الاستعادة تُفسد الجديد. **ولا مهمّةُ السياق الآخر**:
  * عاملا التصفّح العادي والخاص يتشاركان الجلسة (`SessionState.job.incognito`)، وأحدهما لا يعرف هل الآخر حيّ.
  *
- * `true` إن وُجدت يتيمة فمُسحت؛ وكتابةٌ فاشلة تُعيد `false` — والصفحة تُستعاد مع ذلك.
+ * `true` إن وُجدت يتيمة فمُسحت؛ وكتابةٌ فاشلة تُعيد `false` — والصفحة تُستعاد مع ذلك. والبثّ `interrupted`، أو
+ * `interrupted-saving` ليتيمةٍ بلغت لحظة الالتزام.
  */
 export async function recoverOrphanedJob(
   broadcast: (message: { kind: 'failed'; code: string; message: string }) => void,
@@ -334,11 +335,20 @@ export async function recoverOrphanedJob(
       timeoutMs: PAGE_TIMEOUT_MS,
     }).catch(() => null)
   }
-  broadcast({
-    kind: 'failed',
-    code: 'interrupted',
-    message: 'توقّف الالتقاط قبل اكتماله فلم يُحفظ. أُعيدت الصفحة كما كانت.',
-  })
+  // يتيمةٌ ملتزمة: بدأ حفظها قبل موت العامل، فربّما حُفظت — لا يُقال «لم يُحفظ» ولا يُعرف غيره (R4-06).
+  broadcast(
+    orphan.committed
+      ? {
+          kind: 'failed',
+          code: 'interrupted-saving',
+          message: 'توقّف رصد أثناء حفظ اللقطة، فقد تكون حُفظت. تحقّق منها في المكتبة.',
+        }
+      : {
+          kind: 'failed',
+          code: 'interrupted',
+          message: 'توقّف الالتقاط قبل اكتماله فلم يُحفظ. أُعيدت الصفحة كما كانت.',
+        },
+  )
   return cleared.ok
 }
 
@@ -399,6 +409,7 @@ export function startFullPage(
     startedAt: Date.now(),
     updatedAt: Date.now(),
     incognito: isIncognitoContext(),
+    committed: false,
     done: 0,
     total: 0,
   }
@@ -444,6 +455,17 @@ export function startFullPage(
        */
       controller.signal.throwIfAborted()
       job.committed = true
+
+      /*
+       * **والالتزام يُكتب في الجلسة قبل الحفظ.** `deps.save` يلتزم في القاعدة ثمّ تُمسح المهمّة في `finally`،
+       * فعاملٌ يموت بينهما كان يترك يتيمةً يبثّ عنها خلَفُه «فلم يُحفظ» واللقطة محفوظة (تدقيق R4، R4-06). لا
+       * عمليةٌ واحدة تجمع القاعدة والجلسة، فالصادق أن يعرف الخلَف أن الحفظ ربّما وقع. والكتابة الفاشلة لا تمنع
+       * الحفظ: أسوأ أثرها الرسالة القديمة في حالةٍ نادرة.
+       */
+      record.committed = true
+      await updateSession((current) =>
+        mine(current) ? { ...current, job: { ...record } } : current,
+      )
 
       const saved = await deps.save(run.value)
       if (!saved.ok) {

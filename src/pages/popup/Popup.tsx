@@ -146,7 +146,9 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
         } else if (message.kind === 'failed') {
           // `interrupted` يبثّه عاملٌ أقلع فوجد مهمّةً يتيمة، إلى كل نافذة: تخصّ تبويب المهمّة وحده، فنافذةُ
           // تبويبٍ آخر لا تعرض فشلًا لالتقاطٍ لم يجرِ فيها ولا «أعد المحاولة» تلتقط تبويبها هي.
-          if (message.code === 'interrupted' && !showsTabJob.current) return
+          const interrupted =
+            message.code === 'interrupted' || message.code === 'interrupted-saving'
+          if (interrupted && !showsTabJob.current) return
           setLiveProgress(null)
           setFailure(
             message.code === 'cancelled'
@@ -158,13 +160,16 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
                 }
               : {
                   kind: 'error',
-                  title: 'لم تُحفظ اللقطة',
+                  // `interrupted-saving`: مات العامل بعد بدء الحفظ، فربّما حُفظت — لا «لم تُحفظ» (R4-06).
+                  title:
+                    message.code === 'interrupted-saving'
+                      ? 'تعذّر التأكّد من الحفظ'
+                      : 'لم تُحفظ اللقطة',
                   // `interrupted`: عاملٌ مات أثناء الالتقاط فاستعاد خلَفُه الصفحة (`recoverOrphanedJob`) —
                   // الصفحة لم تتوقّف عن الاستجابة، فنصّ الخلفية هو الصادق.
-                  message:
-                    message.code === 'interrupted'
-                      ? message.message
-                      : 'توقّفت الصفحة عن الاستجابة قبل اكتمال الالتقاط. أعد المحاولة.',
+                  message: interrupted
+                    ? message.message
+                    : 'توقّفت الصفحة عن الاستجابة قبل اكتمال الالتقاط. أعد المحاولة.',
                   retry: 'full-page',
                   code: message.code,
                 },

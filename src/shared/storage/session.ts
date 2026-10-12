@@ -32,6 +32,11 @@ export interface SessionState {
      * عاملٌ على مهمّة السياق الآخر بأنها يتيمة (`recoverOrphanedJob`). وغيابه يُقرأ «السياق العادي».
      */
     incognito?: boolean
+    /**
+     * بلغت المهمّة لحظة الالتزام وبدأ الحفظ. عاملٌ يموت بعدها ربّما حفظ اللقطة، فلا يقول خلَفُه «لم يُحفظ»
+     * (`recoverOrphanedJob`، تدقيق R4، R4-06). وغيابه يُقرأ «لم تلتزم».
+     */
+    committed?: boolean
     done: number
     total: number
   } | null

@@ -151,6 +151,20 @@ describe('Popup — فشلٌ على قناة المهمّة', () => {
     expect(root.textContent).not.toContain('لم تُحفظ اللقطة')
   })
 
+  it('`interrupted-saving` (مات العامل بعد بدء الحفظ) ⇐ لا عنوان «لم تُحفظ اللقطة»، ونصّ الخلفية (R4-06)', async () => {
+    const root = await mountPopup(CAPTURING)
+
+    jobChannel().host.postMessage({
+      kind: 'failed',
+      code: 'interrupted-saving',
+      message: 'توقّف رصد أثناء حفظ اللقطة، فقد تكون حُفظت. تحقّق منها في المكتبة.',
+    })
+
+    await vi.waitFor(() => expect(root.textContent).toContain('فقد تكون حُفظت'))
+    expect(root.textContent).toContain('تعذّر التأكّد من الحفظ')
+    expect(root.textContent).not.toContain('لم تُحفظ اللقطة')
+  })
+
   it('وفشلٌ آخر يبقى كما كان: «توقّفت الصفحة عن الاستجابة»', async () => {
     const root = await mountPopup(CAPTURING)
 

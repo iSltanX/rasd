@@ -380,3 +380,59 @@ describe('استعادة المهمّة اليتيمة', () => {
     expect((await getSession()).job?.id).not.toBe('يتيمة')
   })
 })
+
+/**
+ * عاملٌ يموت **بعد** لحظة الالتزام (تدقيق R4، R4-06): `deps.save` قد التزم في القاعدة ولم تُمسح المهمّة بعد، فكان
+ * خلَفُه يبثّ «توقّف الالتقاط قبل اكتماله فلم يُحفظ» واللقطة محفوظة. الالتزام يُكتب في الجلسة قبل الحفظ، فالخلَف
+ * يعرف أن الحفظ ربّما وقع ولا يقول ما لا يعرف.
+ */
+describe('موت العامل بعد لحظة الالتزام', () => {
+  const orphan = {
+    id: 'ملتزمة',
+    kind: 'full-page',
+    tabId: 3,
+    startedAt: 1,
+    updatedAt: 1,
+    done: 2,
+    total: 2,
+  }
+
+  it('**الالتزام يُكتب في الجلسة قبل أن يبدأ الحفظ**', async () => {
+    const save = gate('save')
+    const job = run()
+    await save.reached
+
+    expect((await getSession()).job).toMatchObject({ tabId: 7, committed: true })
+    expect(cancelFullPage(), 'وبعد الالتزام لا يُقبَل إلغاء').toBe(false)
+    save.release()
+    await job.end
+    expect(job.messages.at(-1)).toMatchObject({ kind: 'done' })
+  })
+
+  it('**يتيمةٌ ملتزمة لا يُبثّ عنها «لم يُحفظ»** — بل أن الحفظ ربّما وقع وأين يُتحقَّق منه', async () => {
+    await patchSession({ job: { ...orphan, committed: true } })
+    const broadcast = vi.fn()
+
+    expect(await recoverOrphanedJob(broadcast)).toBe(true)
+
+    const message = broadcast.mock.calls[0]?.[0] as { code: string; message: string }
+    expect(message.code).toBe('interrupted-saving')
+    expect(message.message).not.toContain('لم يُحفظ')
+    expect(message.message).toContain('المكتبة')
+    expect((await getSession()).job).toBeNull()
+  })
+
+  it('ويتيمةٌ قبل الالتزام تبقى «فلم يُحفظ» — ضابط', async () => {
+    await patchSession({ job: orphan })
+    const broadcast = vi.fn()
+
+    await recoverOrphanedJob(broadcast)
+
+    expect(broadcast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'interrupted',
+        message: expect.stringContaining('فلم يُحفظ'),
+      }),
+    )
+  })
+})
