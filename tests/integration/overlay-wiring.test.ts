@@ -279,4 +279,72 @@ describe('ربط الطبقة', () => {
     expect(blur).not.toHaveBeenCalled()
     field.remove()
   })
+
+  /**
+   * تدقيق R4، R4-02 — مؤكَّد في كروم 10/10: نقرةٌ في إطار ثمّ تفعيل أداة ثمّ `Esc` **قبل أي ضغطة على الطبقة**،
+   * فيذهب `Esc` إلى الإطار وتبقى الأداة. التفعيل نفسه يُخرج التركيز من الإطار كما تُخرجه الضغطة على الطبقة.
+   */
+  it('**تفعيل أداة والتركيز في إطارٍ فرعي يُخرجه منه** — فيصل `Esc` قبل أي ضغطة على الطبقة', async () => {
+    const session = await boot()
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    frame.focus()
+    expect(document.activeElement, 'التمهيد: التركيز في الإطار').toBe(frame)
+    const blur = vi.spyOn(frame, 'blur')
+
+    session.modes.set('area')
+    await settle()
+
+    expect(blur).toHaveBeenCalled()
+    press('Escape')
+    await settle()
+    expect(session.modes.mode.value).toBe('idle')
+    frame.remove()
+  })
+
+  it('والتفعيل لا يمسّ حقلًا مركَّزًا في الصفحة نفسها — ضابط', async () => {
+    const session = await boot()
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+    const blur = vi.spyOn(field, 'blur')
+
+    session.modes.set('inspect')
+    await settle()
+
+    expect(blur).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(field)
+    field.remove()
+  })
+
+  /**
+   * تدقيق R4، R4-03 — مؤكَّد في كروم 10/10: إطارٌ داخل جذر ظلّ **مغلق** يُسقط `↵`. `shadowRoot` في الجذر المغلق
+   * `null`، فيقف البحث عند المضيف. سكربت المحتوى يملك ما لا تملكه الصفحة: `chrome.dom.openOrClosedShadowRoot`
+   * (كروم) و`Element.openOrClosedShadowRoot` (Firefox) — `shadowRootOf` في `platform/capabilities.ts`.
+   */
+  it('**وإطارٌ داخل جذر ظلّ مغلق يُخرج منه التركيز كذلك**', async () => {
+    const session = await boot()
+    session.modes.set('area')
+    await settle()
+    const embed = document.createElement('my-closed-embed')
+    const root = embed.attachShadow({ mode: 'closed' })
+    const frame = document.createElement('iframe')
+    root.append(frame)
+    document.body.append(embed)
+    Object.assign(globalThis.chrome, {
+      dom: { openOrClosedShadowRoot: (el: Element) => (el === embed ? root : el.shadowRoot) },
+    })
+    frame.focus()
+    expect(document.activeElement, 'التمهيد: المستند يرى المضيف').toBe(embed)
+    expect(embed.shadowRoot, 'التمهيد: الجذر مغلق').toBeNull()
+    const blur = vi.spyOn(frame, 'blur')
+
+    session.host.layer.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
+    )
+
+    expect(blur).toHaveBeenCalledTimes(1)
+    delete (globalThis.chrome as { dom?: unknown }).dom
+    embed.remove()
+  })
 })

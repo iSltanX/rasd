@@ -15,6 +15,7 @@
  */
 
 import { DEFAULT_TOOL_KEYS, type Mode, type ToolShortcutMode } from '@/shared/modes'
+import { shadowRootOf } from '@/shared/platform/capabilities'
 import { watchSettings } from '@/shared/settings'
 
 /** ما يمكن أن يطلبه مفتاح. */
@@ -129,14 +130,21 @@ export function liveBindings(
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
 
 /**
- * أعمق عنصر مركَّز فعلًا، عبر جذور الظلّ المفتوحة.
+ * أعمق عنصر مركَّز فعلًا، عبر جذور الظلّ **المفتوحة والمغلقة**.
  *
  * `document.activeElement` يتوقّف عند **مضيف** الظلّ لا العنصر داخله، فحقل
- * إدخال في مكوّن ويب يبدو للحارس السطحي كأنه ليس حقلًا.
+ * إدخال في مكوّن ويب يبدو للحارس السطحي كأنه ليس حقلًا. والجذر المغلق لا يُرى
+ * بـ`shadowRoot`، وسكربت المحتوى يراه (`shadowRootOf`): إطارٌ داخله كان يُسقط
+ * `↵` (تدقيق R4، R4-03). وجذر طبقتنا مغلقٌ أيضًا، وحقلها المركَّز موضعُ كتابةٍ
+ * كما يقول `isTyping`.
  */
 export function deepActiveElement(doc: Document = document): Element | null {
   let el: Element | null = doc.activeElement
-  while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement
+  while (el) {
+    const inner = shadowRootOf(el)?.activeElement
+    if (!inner) break
+    el = inner
+  }
   return el
 }
 
@@ -151,8 +159,8 @@ const FRAME_TAGS = new Set(['IFRAME', 'FRAME', 'OBJECT', 'EMBED'])
  * منطقة يبقى تركيزه في الإطار، فيذهب `↵` و`Esc` إليه — لا حفظ ولا إلغاء ولا رسالة. قِيس في كروم:
  * `activeElement` = `IFRAME` وصفر لقطات، وبعد `blur()` على الإطار صار `BODY` ووصل `↵` (تدقيق Copilot، N2).
  *
- * والإطار يُطلب **عبر جذور الظلّ المفتوحة** (`deepActiveElement`): إطارٌ داخل مكوّن ويب يجعل `activeElement`
- * المضيفَ لا الإطار، وقِيس في كروم أن الفحص السطحي لا يرى الإطار فيبقى `↵` فيه. وجذر طبقتنا مغلق فلا يُمسّ.
+ * والإطار يُطلب **عبر جذور الظلّ** (`deepActiveElement`): إطارٌ داخل مكوّن ويب يجعل `activeElement` المضيفَ لا
+ * الإطار، وقِيس في كروم أن الفحص السطحي لا يرى الإطار فيبقى `↵` فيه — مفتوحًا كان الجذر أو مغلقًا (R4-03).
  *
  * والتركيز في الصفحة الأعلى نفسها لا يُمسّ هنا: حقلٌ مركَّز يحرسه `isTypingTarget` عمدًا.
  */

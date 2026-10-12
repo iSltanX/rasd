@@ -48,7 +48,7 @@ import { mountOverlayApp, requestCapture } from './overlay-app'
 import { reportAcrossPageLifecycle } from './page-report'
 import { startPersistence, type Persistence } from './persistence'
 import { saveTextFile } from './save-file'
-import { installShortcuts, liveBindings, type ShortcutAction } from './shortcuts'
+import { installShortcuts, liveBindings, releaseFrameFocus, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
 import { createColourPalette } from './tools/colour-palette'
@@ -234,6 +234,15 @@ async function bootOverlay(
   const reportMode = (mode: Mode) => void send('mode/report', { mode })
   const unsubscribeReport = modes.subscribe((mode) => reportMode(mode))
   reportMode(modes.mode.value)
+
+  /*
+   * **دخول أداةٍ يُخرج التركيز من إطارٍ فرعي** كما تُخرجه الضغطة على الطبقة (`releaseFrameFocus`): مستخدمٌ نقر
+   * في إطار ثمّ فعّل أداة ثمّ ضغط `Esc` قبل أي ضغطة على الطبقة كان `Esc` يذهب إلى الإطار وتبقى الأداة — قِيس
+   * 10/10 في كروم (تدقيق R4، R4-02). وتركيزٌ في الصفحة الأعلى نفسها لا يُمسّ: حالة تركيزٍ قد يُراد تصويرها.
+   */
+  const unsubscribeFrameFocus = modes.subscribe((mode) => {
+    if (mode !== 'idle') releaseFrameFocus(doc)
+  })
 
   // مغادرة المستند تُبلِّغ الخمول، والعودة من ذاكرة الرجوع تعيد الوضع — `page-report.ts`.
   const stopPageReport = reportAcrossPageLifecycle(win, reportMode, () => modes.mode.value)
@@ -1419,6 +1428,7 @@ async function bootOverlay(
     persistence.stop()
     sync.stop()
     unsubscribeReport()
+    unsubscribeFrameFocus()
     stopPageReport()
     // النافذة تعتمد على وضع مبلَّغ يعكس الواقع — تفكيك بلا تقرير idle أخير
     // يترك مؤشِّرًا حيًّا كاذبًا لجلسة انتهت فعلًا.
