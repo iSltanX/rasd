@@ -14,7 +14,7 @@
 
 <p align="center">
   <a href="https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce"><b>Chrome Web Store</b></a> · <a href="https://microsoftedge.microsoft.com/addons/detail/rasd/jlkfnipcgpidefhcgcplhicojkejmked"><b>Microsoft Edge Add-ons</b></a> · <a href="https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/"><b>Firefox Add-ons</b></a><br>
-  <sub>الإصدار 1.0.1 · Version 1.0.1</sub>
+  <sub>الإصدار 1.0.2 · Version 1.0.2 — <a href="https://github.com/iSltanX/rasd/releases/tag/v1.0.2">حزم الإصدار · Release packages</a></sub>
 </p>
 
 <p align="center">
@@ -88,11 +88,11 @@
 ## التثبيت
 
 **من المتجر** — [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce) و[**Microsoft Edge Add-ons**](https://microsoftedge.microsoft.com/addons/detail/rasd/jlkfnipcgpidefhcgcplhicojkejmked)
-و[**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/) (الإصدار 1.0.1). وOpera Add-ons لم تُنشر بعد؛ يُضاف رابطها هنا حين تُنشر.
+و[**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/) (المنشور فيها الإصدار 1.0.1، و1.0.2 يصلها بعد مراجعتها). وOpera Add-ons لم تُنشر بعد؛ يُضاف رابطها هنا حين تُنشر.
 
 **من الحزمة**، للمطوّر والمختبِر:
 
-1. ابنِ الحزمة أو نزّل `rasd-<النسخة>.zip` وفكّها في مجلّد.
+1. ابنِ الحزمة أو نزّل `rasd-<النسخة>.zip` من [إصدارات GitHub](https://github.com/iSltanX/rasd/releases/latest) وفكّها في مجلّد.
 2. افتح صفحة الإضافات في متصفّحك، وفعّل «وضع المطوّر».
 3. اختر «تحميل غير مضغوطة» ثمّ المجلّد — تظهر رصد بلا تحذير صلاحيات.
 4. ثبّتها في شريط الأدوات، وافتح أي صفحة واضغط الأيقونة.
@@ -143,7 +143,8 @@ developers what they need.
 - **Arabic-first** — the interface is Arabic and right-to-left, in dark and light themes.
 
 **Install** from the [**Chrome Web Store**](https://chromewebstore.google.com/detail/%D8%B1%D8%B5%D8%AF/kliiljnklheljhabgdefbdmkcmdkddce),
-[**Microsoft Edge Add-ons**](https://microsoftedge.microsoft.com/addons/detail/rasd/jlkfnipcgpidefhcgcplhicojkejmked) or [**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/) (version 1.0.1).
+[**Microsoft Edge Add-ons**](https://microsoftedge.microsoft.com/addons/detail/rasd/jlkfnipcgpidefhcgcplhicojkejmked) or [**Firefox Add-ons**](https://addons.mozilla.org/en-US/firefox/addon/%D8%B1%D8%B5%D8%AF-rasd/) (version 1.0.1; 1.0.2 reaches them after review).
+The 1.0.2 packages are on [GitHub Releases](https://github.com/iSltanX/rasd/releases/tag/v1.0.2).
 Opera Add-ons is not published yet; its link will be added here once it is.
 
 **Rights** — Rasd is proprietary software, not open source (`UNLICENSED`). All rights are reserved; reading this code grants no
