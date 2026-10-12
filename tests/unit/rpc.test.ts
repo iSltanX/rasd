@@ -356,6 +356,60 @@ describe('المستقبِل — السياق والردّ', () => {
     expect(reply.error.code).toBe('no-receiver')
   })
 
+  /**
+   * تقوية (تدقيق R4، R4-09 — H2 في الجولات السابقة): المعالجات كانت في كائنٍ عادي، فنوعٌ يسمّي خاصّيةً موروثة يجد
+   * «معالجًا» ليس له — `constructor` يعيد الحمولة صدًى، و`__proto__` يرمي. لا يبلغه موقع (لا `externally_connectable`)،
+   * لكن العقد يقول: نوعٌ بلا معالجٍ مسجَّل ⇐ `no-receiver`.
+   */
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf'])(
+    'نوعٌ يسمّي خاصّيةً موروثة (`%s`) ⇐ no-receiver لا صدى ولا رمي',
+    async (type) => {
+      const listener = capture()
+      onMessage('session/get', () => ({}))
+
+      const sendResponse = vi.fn()
+      listener()(envelope(type, { probe: 1 }), {}, sendResponse)
+      await settle()
+
+      expect(sendResponse).toHaveBeenCalledTimes(1)
+      expect(sendResponse.mock.calls[0]![0]).toMatchObject({
+        ok: false,
+        error: { code: 'no-receiver' },
+      })
+    },
+  )
+
+  it('ومرسِلٌ بمعرّف إضافةٍ أخرى لا يبلغ المعالج ولا يُردّ عليه', async () => {
+    const listener = capture()
+    const handler = vi.fn(() => ({}))
+    onMessage('session/get', handler)
+
+    const sendResponse = vi.fn()
+    const keepOpen = listener()(envelope('session/get'), { id: 'another-extension' }, sendResponse)
+    await settle()
+
+    expect(keepOpen).toBe(false)
+    expect(handler).not.toHaveBeenCalled()
+    expect(sendResponse).not.toHaveBeenCalled()
+  })
+
+  it('ومرسِلٌ بمعرّف رصد نفسه يُخدَم — ضابط', async () => {
+    const listener = capture()
+    const realId = chrome.runtime.id
+    Object.assign(chrome.runtime, { id: 'rasd-self' })
+    try {
+      onMessage('session/get', () => ({ a: 1 }))
+
+      const sendResponse = vi.fn()
+      listener()(envelope('session/get'), { id: 'rasd-self' }, sendResponse)
+      await settle()
+
+      expect(sendResponse).toHaveBeenCalledWith({ ok: true, value: { a: 1 } })
+    } finally {
+      Object.assign(chrome.runtime, { id: realId })
+    }
+  })
+
   it('رمي `RasdThrow` يعبر الحدّ برمزه ورسالته المحدَّدتين لا العامّتين', async () => {
     const listener = capture()
     onMessage('session/get', () => {

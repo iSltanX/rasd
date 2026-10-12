@@ -63,6 +63,7 @@ import { contrastView, formatRows, variableView } from './colour-view'
 import { buildGroups } from './inspect-view'
 import { colourReadFailed, type NoticeCenter } from './notices'
 import { LOUPE_CELLS } from './sampler'
+import { releaseFrameFocus } from './shortcuts'
 import { measureRootFontSize } from './tools/measure'
 
 import type { AreaSelectTool } from './tools/area-select'
@@ -1669,6 +1670,13 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
     if (onBackground(e)) props.area.handlers.onPointerDown(e)
   }
 
+  /*
+   * الضغط على الطبقة ضغطٌ خارج أي إطار في الصفحة، فيُخرج التركيز منه كما يفعل المتصفّح لو لم تكبت
+   * الأدوات `pointerdown` — وإلا ذهب `↵` و`Esc` إلى الإطار (`releaseFrameFocus`). في طور الالتقاط: قبل
+   * أي معالج أداة، ولكل ضغطة على الطبقة أيًّا كان الوضع.
+   */
+  const onFrameFocus = () => releaseFrameFocus(layer.ownerDocument)
+  layer.addEventListener('pointerdown', onFrameFocus, { capture: true })
   layer.addEventListener('pointerdown', onDown)
   layer.addEventListener('pointermove', onMove)
   layer.addEventListener('pointerup', onUp)
@@ -1766,6 +1774,7 @@ export function mountOverlayApp(layer: HTMLElement, props: OverlayAppProps): Mou
 
   return {
     unmount() {
+      layer.removeEventListener('pointerdown', onFrameFocus, { capture: true })
       layer.removeEventListener('pointerdown', onDown)
       layer.removeEventListener('pointermove', onMove)
       layer.removeEventListener('pointerup', onUp)

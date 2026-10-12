@@ -38,11 +38,17 @@ import { getSettings, patchSettings, watchSettings } from '@/shared/settings'
 import { setIncognitoWritePolicy } from '@/shared/storage/db'
 import { quotaState } from '@/shared/storage/quota'
 import { blobs, captures, colors, palettes } from '@/shared/storage/repository'
-import { getSession, patchSession, setTabMode } from '@/shared/storage/session'
+import {
+  getSessionInOrder,
+  patchSession,
+  setTabMode,
+  updateSession,
+  type SessionState,
+} from '@/shared/storage/session'
 
 import { applyModeIcon } from './action-icon'
 import { measureLiveDiff } from './compare-diff-service'
-import { cancelFullPage } from './full-page-job'
+import { cancelFullPage, recoverOrphanedJob } from './full-page-job'
 import { canOperateOnTab } from './gate'
 import { registerInstallFlow } from './install-flow'
 import { registerIssues } from './issues'
@@ -168,7 +174,11 @@ function registerRequestHandlers() {
     return result.value
   })
 
-  onMessage('session/get', async () => (await getSession()) as unknown as Record<string, unknown>)
+  // بترتيب الطابور: الرسالة التي أيقظت العامل لا تسبق ما طلبه إقلاعه (`recoverOrphanedJob`).
+  onMessage(
+    'session/get',
+    async () => (await getSessionInOrder()) as unknown as Record<string, unknown>,
+  )
 
   onMessage('session/patch', async ({ patch }) => {
     const result = await patchSession(patch)
@@ -481,6 +491,8 @@ function registerFullPage() {
   // الإلغاء من الصفحة: `Esc` أو زرّ اللوحة. الاستعادة تقع في `finally`
   // داخل الحلقة، فالردّ هنا لا يعني أن الصفحة استُعيدت بعد.
   onMessage('fullpage/cancel', () => ({ cancelled: cancelFullPage() }))
+  // مهمّةٌ في الجلسة ساعةَ الإقلاع لعاملٍ مات قبل أن يُنهيها — تُمسح وتُستعاد صفحتها.
+  void recoverOrphanedJob((message) => broadcastChannel(CHANNELS.job, message))
 }
 
 function registerChannels() {
@@ -591,16 +603,29 @@ function registerWatchdog() {
 /**
  * ينهي المهام التي توقّف تقدّمها.
  *
+ * **الركود من آخر تقدّم لا من البدء** (`job.updatedAt`): التقاطٌ لصفحة طويلة على نافذة صغيرة يتجاوز
+ * تسعين ثانية وهو يتقدّم، وقِيس في كروم أن القياس من `startedAt` مسحه عند 121 ثانية وعمرُ آخر تقدّمٍ له
+ * 41ms — فعرضت النافذة «خاملًا» وقبلت التقاطًا ثانيًا على التبويب نفسه (تدقيق Copilot، D3).
+ *
  * تُصدَّر للاختبار: منطق الكشف أهمّ من جدولته.
  */
 export async function sweepStalledJobs(now = Date.now()): Promise<boolean> {
-  const session = await getSession()
-  const job = session.job
-  if (!job) return false
-  if (now - job.startedAt < JOB_STALL_MS) return false
+  // الحكم والمسح في دورٍ واحد من طابور الجلسة: نبضٌ يُكتب بين قراءةٍ ومسحٍ منفصلين كان يُمحى.
+  let stalled = null as SessionState['job']
+  const swept = await updateSession((current) => {
+    const job = current.job
+    if (!job || now - (job.updatedAt ?? job.startedAt) < JOB_STALL_MS) return current
+    stalled = job
+    return { ...current, job: null }
+  })
+  if (!stalled) return false
+  // الحكم وقع والكتابة لم تقع: لا يُبلَّغ مسحٌ لم يحدث — الدورة التالية تعيد المحاولة.
+  if (!swept.ok) {
+    console.warn(`[رصد] تعذّر مسح مهمّة معلَّقة: ${swept.error.message}`)
+    return false
+  }
 
-  await patchSession({ job: null })
-  console.warn(`[رصد] مهمة معلَّقة أُنهيت: ${job.kind} (${job.id})`)
+  console.warn(`[رصد] مهمة معلَّقة أُنهيت: ${stalled.kind} (${stalled.id})`)
   return true
 }
 

@@ -15,6 +15,7 @@
  */
 
 import { DEFAULT_TOOL_KEYS, type Mode, type ToolShortcutMode } from '@/shared/modes'
+import { shadowRootOf } from '@/shared/platform/capabilities'
 import { watchSettings } from '@/shared/settings'
 
 /** ما يمكن أن يطلبه مفتاح. */
@@ -129,15 +130,45 @@ export function liveBindings(
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
 
 /**
- * أعمق عنصر مركَّز فعلًا، عبر جذور الظلّ المفتوحة.
+ * أعمق عنصر مركَّز فعلًا، عبر جذور الظلّ **المفتوحة والمغلقة**.
  *
  * `document.activeElement` يتوقّف عند **مضيف** الظلّ لا العنصر داخله، فحقل
- * إدخال في مكوّن ويب يبدو للحارس السطحي كأنه ليس حقلًا.
+ * إدخال في مكوّن ويب يبدو للحارس السطحي كأنه ليس حقلًا. والجذر المغلق لا يُرى
+ * بـ`shadowRoot`، وسكربت المحتوى يراه (`shadowRootOf`): إطارٌ داخله كان يُسقط
+ * `↵` (تدقيق R4، R4-03). وجذر طبقتنا مغلقٌ أيضًا، وحقلها المركَّز موضعُ كتابةٍ
+ * كما يقول `isTyping`.
  */
 export function deepActiveElement(doc: Document = document): Element | null {
   let el: Element | null = doc.activeElement
-  while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement
+  while (el) {
+    const inner = shadowRootOf(el)?.activeElement
+    if (!inner) break
+    el = inner
+  }
   return el
+}
+
+/** حاويات مستندٍ آخر: التركيز فيها تركيزٌ في مستندها، لا في مستندنا. */
+const FRAME_TAGS = new Set(['IFRAME', 'FRAME', 'OBJECT', 'EMBED'])
+
+/**
+ * يُخرج التركيز من إطارٍ فرعي إلى المستند الأعلى، فتصل المفاتيح إلى مستمعنا على النافذة العليا.
+ *
+ * **ما يكسره:** الأدوات تكبت `pointerdown` على الطبقة كي لا يُحدَّد نصّ الصفحة ولا تبدأ سحبًا أصليًّا،
+ * والكبت يمنع معه انتقال التركيز الطبيعي. فمستخدمٌ نقر زرًّا في إطار (محرّر، تضمين، نموذج دفع) ثمّ رسم
+ * منطقة يبقى تركيزه في الإطار، فيذهب `↵` و`Esc` إليه — لا حفظ ولا إلغاء ولا رسالة. قِيس في كروم:
+ * `activeElement` = `IFRAME` وصفر لقطات، وبعد `blur()` على الإطار صار `BODY` ووصل `↵` (تدقيق Copilot، N2).
+ *
+ * والإطار يُطلب **عبر جذور الظلّ** (`deepActiveElement`): إطارٌ داخل مكوّن ويب يجعل `activeElement` المضيفَ لا
+ * الإطار، وقِيس في كروم أن الفحص السطحي لا يرى الإطار فيبقى `↵` فيه — مفتوحًا كان الجذر أو مغلقًا (R4-03).
+ *
+ * والتركيز في الصفحة الأعلى نفسها لا يُمسّ هنا: حقلٌ مركَّز يحرسه `isTypingTarget` عمدًا.
+ */
+export function releaseFrameFocus(doc: Document = document): boolean {
+  const el = deepActiveElement(doc)
+  if (!(el instanceof HTMLElement) || !FRAME_TAGS.has(el.tagName)) return false
+  el.blur()
+  return true
 }
 
 /** هل التركيز داخل موضع كتابة في الصفحة المضيفة؟ */
@@ -181,8 +212,9 @@ export interface ShortcutOptions {
   /**
    * هل يكتب المستخدم في حقلٍ من حقول الطبقة؟ (ADR 0032)
    *
-   * جذر الظلّ مغلق، فـ`deepActiveElement` يقف عند المضيف ولا يرى الحقل — والطبقة وحدها تعرف أن
-   * التركيز فيها. بلا هذا السؤال تبدّل الحروف الأداةَ والمستخدم يكتب عنوان مشكلة.
+   * جذر الظلّ مغلق، فـ`deepActiveElement` يقف عند المضيف ولا يرى الحقل حيث لا يكشف المحرّك الجذر المغلق لسكربت
+   * المحتوى — والطبقة وحدها تعرف أن التركيز فيها. بلا هذا السؤال تبدّل الحروف الأداةَ والمستخدم يكتب عنوان
+   * مشكلة. وحيث يكشفه (`shadowRootOf`، تدقيق R4) يرى الحارس الحقل نفسه أيضًا، فيبقى هذا السؤال احتياطًا صادقًا.
    */
   isTyping?: () => boolean
 }

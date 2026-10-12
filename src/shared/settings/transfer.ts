@@ -40,6 +40,7 @@ export const TRANSFERABLE = [
 ] as const
 
 const SITES_PATH = 'privacy.excludedSites'
+const LANGUAGE_PATH = 'appearance.language'
 
 type Plain = Record<string, unknown>
 const isPlain = (value: unknown): value is Plain =>
@@ -93,8 +94,9 @@ export function settingsFile(settings: Settings, now: number, app: string): stri
  * لماذا أُسقطت قيمة — تُعرض سطرًا تحت اسمها في `data / import-settings`:
  * - `option` ليست من خيارات رصد · `type` من نوعٍ آخر · `range` خارج المدى · `format` بغير الشكل المطلوب
  * - `site` نمط موقعٍ لا يصلح · `unknown` مفتاحٌ لا يعرفه هذا الإصدار
+ * - `language` لغة واجهةٍ غير العربية — رصد بالعربية وحدها (ADR 0022)
  */
-export type DropReason = 'option' | 'type' | 'range' | 'format' | 'site' | 'unknown'
+export type DropReason = 'option' | 'type' | 'range' | 'format' | 'site' | 'unknown' | 'language'
 
 export interface DroppedSetting {
   /** الورقة التي يتبعها — `privacy.excludedSites` لعنصرٍ منها. */
@@ -279,6 +281,18 @@ export function planSettingsImport(
       else normalized.add(saved)
     }
     incoming.privacy = { ...(incoming.privacy as Plain), excludedSites: [...normalized] }
+  }
+
+  /*
+   * **لغة الواجهة عربية وحدها** (ADR 0022): `appearance.language` باقٍ في المخطّط بلا ضابط، فملفٌّ يحمل `en` كان
+   * يُقبل فيقلب الواجهة إلى LTR ونصّها عربي، بلا ما يعيدها (تدقيق R4، R4-04). يُسقط بسببه، والعربية تُقبل —
+   * فملفٌّ بها يُصلح ما قلبه استيرادٌ سابق. والمخطّط لا يتغيّر.
+   */
+  const language = valueAt(incoming, LANGUAGE_PATH)
+  if (language !== undefined && language !== 'ar' && isPlain(incoming.appearance)) {
+    dropped.push({ path: LANGUAGE_PATH, reason: 'language', received: language })
+    const { language: _language, ...appearance } = incoming.appearance
+    incoming.appearance = appearance
   }
 
   const accepted = leafPaths(incoming).filter((p) => known.has(p) && !fully.has(p))

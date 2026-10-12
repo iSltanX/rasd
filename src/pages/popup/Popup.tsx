@@ -1,10 +1,18 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { formatHuman } from '@/shared/bidi'
-import { CHANNELS, openChannel, send, sendToTab, type ToolName } from '@/shared/messaging'
+import {
+  CHANNELS,
+  openChannel,
+  send,
+  sendToTab,
+  type ActivationFailure,
+  type ToolName,
+} from '@/shared/messaging'
 import { originPatternFor, requestHostPermission } from '@/shared/permissions'
 import { selectPopupState, type PopupContext, type PopupStateName } from '@/shared/popup-state'
 import { openReport } from '@/shared/report-link'
+import { getSession, watchSession, type SessionState } from '@/shared/storage/session'
 
 import { SHARE_PARAM } from '../share/param'
 
@@ -32,6 +40,13 @@ import { Success, type SuccessAction } from './views/Success'
 import type { JSX } from 'preact'
 
 type Loaded = PopupLoad
+
+/** مهمّتان بالعرض نفسه — فكتابةٌ في الجلسة لا تمسّ المهمّة (وضع تبويبٍ آخر) لا تعيد رسم النافذة. */
+function sameJob(a: PopupContext['job'], b: PopupContext['job']): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return a.kind === b.kind && a.done === b.done && a.total === b.total
+}
 
 /** مضيف التبويب ومساره الأوّل كما يكتبه الإطار: `figma.com / design-systems`. */
 function pageLabel(url: string): string {
@@ -61,6 +76,16 @@ const STATUS_BY_STATE: Record<PopupStateName, (l: Loaded) => string> = {
   colors: () => 'مرّر فوق أي نقطة والتقط لونها',
 }
 
+/**
+ * نصّ شاشة «لم تبدأ الأداة» بسبب الرفض. `busy` يقول ما يقع فعلًا — التقاطٌ كامل جارٍ، ربّما في تبويب
+ * آخر لا تعرضه هذه النافذة — لا «تعذّر تشغيل رصد في هذه الصفحة» التي توحي بأن الصفحة هي العلّة.
+ */
+function activationMessage(reason: ActivationFailure | null): string {
+  if (reason === 'no-receiver') return 'تعذّر بدء الأداة — أعد تحميل الصفحة ثم حاول.'
+  if (reason === 'busy') return 'ثمّة التقاط كامل جارٍ بالفعل. انتظر حتى ينتهي ثم حاول.'
+  return 'تعذّر تشغيل رصد في هذه الصفحة.'
+}
+
 /** فشل عملية يُعرض شاشةً (`popup / error` أو `popup / cancelled`) لا سطرًا في الترويسة. */
 interface Failure {
   readonly kind: 'error' | 'cancelled'
@@ -85,6 +110,16 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
   /** فشل تفعيل أو التقاط مُبلَّغ عنه — يبقي النافذة مفتوحة ويعرض شاشته. */
   const [failure, setFailure] = useState<Failure | null>(null)
   const [online, setOnline] = useState(navigator.onLine)
+  /**
+   * هل تعرض النافذة التقاطًا جاريًا **لتبويبها** (`session.job` المقروءة عند الفتح)؟ مرجعٌ لا حالة: مستمع القناة
+   * أدناه يُركَّب مرّة واحدة فلا يرى حالةً تُضبط بعده. يحكم `interrupted` وحده — انظر مستمع القناة.
+   */
+  const showsTabJob = useRef(false)
+  /**
+   * وصلت النافذةَ نهايةُ المهمّة (`done` أو `failed`). `interrupted` بعدها من خلَفٍ أقلع لا يمحوها: عاملٌ مات بين
+   * بثّ `done` ومسح المهمّة تبقى بعده يتيمةٌ ملتزمة، والنجاح المعروض صادق (المراجعة المستقلّة).
+   */
+  const settled = useRef(false)
 
   useEffect(() => {
     const onOnline = () => setOnline(true)
@@ -100,9 +135,11 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
   // اشتراك حيّ في قناة المهمّة: تقدّم فعلي يحرّك شريط `Capturing`، و`done` بأبعاد صالحة
   // هو المسار الوحيد نحو `success`، و`failed` يعرض `popup / error` أو `popup / cancelled`
   // بحسب رمزه — الإلغاء تُرسله الخلفية `failed` برمز `cancelled` (`lifecycle.ts`).
+  //
+  // **وتعود القناة إن انقطعت**: الانقطاع والنافذة مفتوحة موتُ العامل، والعودة توقظ خلَفه فيستعيد المهمّة
+  // اليتيمة ويبثّ `interrupted` إليها هي — وبلا عودة بقيت على «جارٍ الالتقاط» (تدقيق R4، R4-01).
   useEffect(() => {
     const channel = openChannel(CHANNELS.job, {
-      autoReconnect: false,
       onMessage: (message) => {
         if (message.kind === 'progress') {
           setLiveProgress({ done: message.done, total: message.total })
@@ -110,6 +147,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
           const result = message.result as
             { width?: unknown; height?: unknown; id?: unknown } | undefined
           if (typeof result?.width === 'number' && typeof result.height === 'number') {
+            settled.current = true
             // المعرّف يُقرأ إن وُجد كي يفتح زرّ «تعليق» اللقطة التي التُقطت
             // للتوّ لا محرّرًا فارغًا. وغيابه لا يُسقط حالة النجاح.
             setSuccess({
@@ -119,6 +157,12 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
             })
           }
         } else if (message.kind === 'failed') {
+          // `interrupted` يبثّه عاملٌ أقلع فوجد مهمّةً يتيمة، إلى كل نافذة: تخصّ تبويب المهمّة وحده، فنافذةُ
+          // تبويبٍ آخر لا تعرض فشلًا لالتقاطٍ لم يجرِ فيها ولا «أعد المحاولة» تلتقط تبويبها هي.
+          const interrupted =
+            message.code === 'interrupted' || message.code === 'interrupted-saving'
+          if (interrupted && (!showsTabJob.current || settled.current)) return
+          settled.current = true
           setLiveProgress(null)
           setFailure(
             message.code === 'cancelled'
@@ -130,8 +174,16 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
                 }
               : {
                   kind: 'error',
-                  title: 'لم تُحفظ اللقطة',
-                  message: 'توقّفت الصفحة عن الاستجابة قبل اكتمال الالتقاط. أعد المحاولة.',
+                  // `interrupted-saving`: مات العامل بعد بدء الحفظ، فربّما حُفظت — لا «لم تُحفظ» (R4-06).
+                  title:
+                    message.code === 'interrupted-saving'
+                      ? 'تعذّر التأكّد من الحفظ'
+                      : 'لم تُحفظ اللقطة',
+                  // `interrupted`: عاملٌ مات أثناء الالتقاط فاستعاد خلَفُه الصفحة (`recoverOrphanedJob`) —
+                  // الصفحة لم تتوقّف عن الاستجابة، فنصّ الخلفية هو الصادق.
+                  message: interrupted
+                    ? message.message
+                    : 'توقّفت الصفحة عن الاستجابة قبل اكتمال الالتقاط. أعد المحاولة.',
                   retry: 'full-page',
                   code: message.code,
                 },
@@ -148,16 +200,44 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
   useLayoutEffect(() => {
     let cancelled = false
     void initial.then((value) => {
-      if (!cancelled && value) setLoaded(value)
+      if (!cancelled && value) {
+        showsTabJob.current = value.context.job !== null
+        setLoaded(value)
+      }
     })
     return () => {
       cancelled = true
     }
   }, [initial])
 
+  // علامة أوّل عرضٍ للبيانات مرّةً واحدة — تحديثات الجلسة الحيّة بعده ليست «أوّل عرض».
+  const ready = loaded !== null
   useLayoutEffect(() => {
-    if (loaded) performance.mark(POPUP_MARKS.commit)
-  }, [loaded])
+    if (ready) performance.mark(POPUP_MARKS.commit)
+  }, [ready])
+
+  /*
+   * مهمّة التبويب من الجلسة **حيّةً** لا كما قُرئت عند الفتح: عاملٌ يموت يمسح خلَفُه المهمّة، وبثّه قد يسبق
+   * عودة القناة فلا يصلها — فالجلسة الممسوحة وحدها تُخرج النافذة من «جارٍ الالتقاط» (تدقيق R4، R4-01).
+   * و`showsTabJob` يُرفع حين تظهر مهمّة التبويب ولا يُنزَل حين تُمسح: الاستعادة تمسح ثمّ تبثّ `interrupted`.
+   */
+  const tabId = loaded?.tabId
+  useEffect(() => {
+    if (tabId === undefined) return undefined
+    const apply = (session: SessionState) => {
+      const job = session.job && session.job.tabId === tabId ? session.job : null
+      if (job) showsTabJob.current = true
+      setLoaded((prev) =>
+        prev && !sameJob(prev.context.job, job)
+          ? { ...prev, context: { ...prev.context, job } }
+          : prev,
+      )
+    }
+    const stop = watchSession(apply)
+    // ومسحٌ وقع بين قراءة الفتح والاشتراك لا يبلغه حدث — فقراءةٌ واحدة بعد الاشتراك (المراجعة المستقلّة).
+    void getSession().then(apply)
+    return stop
+  }, [tabId])
 
   // مصغَّرة اللقطة التي حُفظت للتوّ: أحدث سجلّ في المكتبة هو هي.
   useEffect(() => {
@@ -172,10 +252,19 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
     }
   }, [success?.id])
 
-  const context = useMemo<PopupContext | null>(
-    () => (loaded ? { ...loaded.context, online } : null),
-    [loaded, online],
-  )
+  /*
+   * الترويسة والجسم من مصدرٍ واحد: التقدّم الحيّ من القناة إن وصل، وإلا نبض الجلسة. الجلسة لا تُكتب إلا كل
+   * `PROGRESS_PERSIST_MS`، فقراءتها في الترويسة وحدها عرضت «تجميع المقطع ٠ من ٠» فوق «المقطع ٣ من ٥٠» (R4-07).
+   */
+  const context = useMemo<PopupContext | null>(() => {
+    if (!loaded) return null
+    const { job } = loaded.context
+    return {
+      ...loaded.context,
+      job: job && liveProgress ? { ...job, ...liveProgress } : job,
+      online,
+    }
+  }, [loaded, liveProgress, online])
 
   const originLabel = useMemo(() => {
     if (!loaded?.origin) return ''
@@ -216,10 +305,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
       setFailure({
         kind: 'error',
         title: 'لم تبدأ الأداة',
-        message:
-          reply.ok && !reply.value.started && reply.value.reason === 'no-receiver'
-            ? 'تعذّر بدء الأداة — أعد تحميل الصفحة ثم حاول.'
-            : 'تعذّر تشغيل رصد في هذه الصفحة.',
+        message: activationMessage(reply.ok && !reply.value.started ? reply.value.reason : null),
         retry: tool,
         code: reply.ok ? (reply.value.started ? 'unknown' : reply.value.reason) : reply.error.code,
       })
@@ -267,9 +353,18 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
    * الحلقة تعيش في الـservice worker ويملكها `AbortController` هناك، فلا يوقفها
    * تبديلُ وضعٍ في الصفحة. `fullpage/cancel` هي التي تصل إليه — وهي رسالة إلى
    * الخلفية (`send`) لا إلى التبويب (`sendToTab`).
+   *
+   * **والرفض يُقرأ**: `cancelled:false` بعد لحظة الالتزام يعني أن الحفظ بدأ فلا رجعة (D2)، فلا تُغلق النافذة على
+   * إلغاءٍ لم يقع — تبقى، ويقول نجاح الحفظ حين يصل إن الإلغاء جاء بعده (تدقيق R4، R4-05).
    */
   const cancelJob = () => {
-    void send('fullpage/cancel', undefined).then(() => window.close())
+    void send('fullpage/cancel', undefined).then((reply) => {
+      if (reply.ok && !reply.value.cancelled) {
+        setNotice('اكتمل الحفظ قبل الإلغاء، فاللقطة محفوظة في المكتبة.')
+        return
+      }
+      window.close()
+    })
   }
 
   const openPage = (page: 'library' | 'settings' | 'onboarding' | 'editor') => {
@@ -417,11 +512,7 @@ export function Popup({ initial }: { initial: Promise<Loaded | null> }): JSX.Ele
 
       case 'capturing':
         body = context.job ? (
-          <Capturing
-            done={liveProgress?.done ?? context.job.done}
-            total={liveProgress?.total ?? context.job.total}
-            onCancel={cancelJob}
-          />
+          <Capturing done={context.job.done} total={context.job.total} onCancel={cancelJob} />
         ) : (
           <div class={styles.body} />
         )

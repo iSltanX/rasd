@@ -5,6 +5,7 @@ import {
   downloadUrl,
   openShortcutSettings,
   privateBrowsingModel,
+  shadowRootOf,
 } from '@/shared/platform/capabilities'
 
 /**
@@ -175,5 +176,54 @@ describe('dataConsentSupported', () => {
       permissions: { getAll: vi.fn().mockRejectedValue(new Error('boom')) },
     })
     await expect(dataConsentSupported()).resolves.toBe(false)
+  })
+})
+
+/**
+ * جذر الظلّ مفتوحًا أو مغلقًا — لسكربت المحتوى وحده (تدقيق R4، R4-03). كروم يكشفه بـ`chrome.dom`، وFirefox بدالّةٍ
+ * على العنصر نفسه، وبلاهما يبقى الجذر المفتوح وحده.
+ */
+describe('shadowRootOf', () => {
+  const host = () => {
+    const el = document.createElement('div')
+    return { el, root: el.attachShadow({ mode: 'closed' }) }
+  }
+  afterEach(() => {
+    delete (globalThis.chrome as { dom?: unknown }).dom
+  })
+
+  it('`chrome.dom.openOrClosedShadowRoot` حاضرة ⟵ الجذر المغلق', () => {
+    const { el, root } = host()
+    Object.assign(globalThis.chrome, { dom: { openOrClosedShadowRoot: () => root } })
+
+    expect(shadowRootOf(el)).toBe(root)
+  })
+
+  it('وغائبة وعلى العنصر **خاصّية** `openOrClosedShadowRoot` ⟵ الجذر المغلق منها (شكلها في Gecko)', () => {
+    const { el, root } = host()
+    Object.defineProperty(el, 'openOrClosedShadowRoot', { get: () => root, configurable: true })
+
+    expect(shadowRootOf(el)).toBe(root)
+  })
+
+  it('وغائبتان ⟵ `shadowRoot`: المفتوح يُرى والمغلق لا', () => {
+    const open = document.createElement('div')
+    const openRoot = open.attachShadow({ mode: 'open' })
+
+    expect(shadowRootOf(open)).toBe(openRoot)
+    expect(shadowRootOf(host().el)).toBeNull()
+  })
+
+  it('وواجهةٌ ترمي ⟵ `shadowRoot` لا رمي', () => {
+    const { el } = host()
+    Object.assign(globalThis.chrome, {
+      dom: {
+        openOrClosedShadowRoot: () => {
+          throw new Error('not an element')
+        },
+      },
+    })
+
+    expect(shadowRootOf(el)).toBeNull()
   })
 })

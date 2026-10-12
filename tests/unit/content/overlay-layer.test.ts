@@ -154,6 +154,29 @@ describe('الاختصارات', () => {
     expect(isTypingTarget(deepActiveElement())).toBe(true)
   })
 
+  it('وحقلٌ داخل جذر ظلّ **مغلق** يُكتشف حيث يكشف المحرّك الجذر لسكربت المحتوى — وجذر طبقتنا منه', () => {
+    const hostEl = document.createElement('div')
+    document.body.appendChild(hostEl)
+    const root = hostEl.attachShadow({ mode: 'closed' })
+    const input = document.createElement('input')
+    input.type = 'number'
+    root.appendChild(input)
+    Object.assign(globalThis.chrome, {
+      dom: { openOrClosedShadowRoot: (el: Element) => (el === hostEl ? root : el.shadowRoot) },
+    })
+    try {
+      input.focus()
+      expect(deepActiveElement()).toBe(input)
+      // حقل العدد في لوحة الألوان: الأسهم تدوّره هو، لا تخطو باللوحة معه (تدقيق R4، المراجعة المستقلّة).
+      const actions: unknown[] = []
+      cleanup = installShortcuts({ onAction: (a) => actions.push(a) })
+      press({ code: 'ArrowUp' })
+      expect(actions).toEqual([])
+    } finally {
+      delete (globalThis.chrome as { dom?: unknown }).dom
+    }
+  })
+
   it('checkbox ليس موضع كتابة', () => {
     const cb = document.createElement('input')
     cb.type = 'checkbox'

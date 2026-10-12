@@ -23,9 +23,10 @@ import {
   stitchHeight,
   tileTop,
 } from '@/modules/capture/full-page/tiles'
+import { isIncognitoContext } from '@/shared/env'
 import { sendToTab } from '@/shared/messaging'
 import { errText, ok, type Result } from '@/shared/result'
-import { patchSession } from '@/shared/storage/session'
+import { patchSession, updateSession, type SessionState } from '@/shared/storage/session'
 
 import { captureTile } from './capture-service'
 import { dataUrlToBytes } from './image-ops'
@@ -71,6 +72,11 @@ export interface FullPageOptions {
   readonly signal?: AbortSignal
   readonly onProgress?: (p: FullPageProgress) => void
 }
+
+/**
+ * فاصل نبض التقدّم في الجلسة — أقصر بكثير من `JOB_STALL_MS` (90 ثانية) الذي يقيس به الحارس الركود.
+ */
+const PROGRESS_PERSIST_MS = 5_000
 
 /**
  * مهلة سخيّة: خطوة التمرير تشمل الاستقرار وقد تشمل تمهيدًا داخل الحاوية.
@@ -265,17 +271,96 @@ async function measure(dataUrl: string): Promise<Result<{ width: number; height:
  * للإضافة لا لكل تبويب — فمهمّتان متوازيتان تتجاعان معًا وتُطيلان كلتيهما.
  * والرفض الصريح أوضح للمستخدم من بطء لا يفهم سببه.
  */
-let active: { tabId: number; controller: AbortController } | null = null
+let active: {
+  /** معرّف المهمّة كما كُتب في الجلسة — به تُعرف مهمّة هذا العامل من يتيمة عاملٍ مات. */
+  id: string
+  tabId: number
+  controller: AbortController
+  /**
+   * بدأ الحفظ — **لحظة الالتزام**. قبلها يُقبَل الإلغاء ويُحترَم، وبعدها يُرفَض صادقًا: إلغاءٌ يُردّ عليه
+   * «أُلغي» ثمّ تُحفظ اللقطة كذبٌ على مستخدمٍ ألغى ربّما لأن محتوًى حسّاسًا ظهر (تدقيق Copilot، D2).
+   */
+  committed: boolean
+} | null = null
+
+/**
+ * تبويبٌ يُستعاد الآن من مهمّةٍ يتيمة (`recoverOrphanedJob`). التقاطٌ جديد عليه أثناء الاستعادة تقع فيه رسائلها
+ * (`fullpage/finish` · `capture/show-overlay`) فتُفسده — فيُرفض `busy` حتى تنتهي (المراجعة المستقلّة، R4).
+ */
+let restoringTab: number | null = null
 
 export function isFullPageRunning(): boolean {
-  return active !== null
+  return active !== null || restoringTab !== null
 }
 
-/** يُلغي المهمّة الجارية إن وُجدت. الاستعادة تقع في `finally` داخل الحلقة. */
+/**
+ * يُلغي المهمّة الجارية إن وُجدت ولم تبلغ الحفظ. الاستعادة تقع في `finally` داخل الحلقة.
+ *
+ * `true` وعدٌ بألّا تُحفظ لقطة؛ و`false` إن لم تكن مهمّة، أو بدأ حفظها فلا رجعة.
+ */
 export function cancelFullPage(): boolean {
-  if (!active) return false
+  if (!active || active.committed) return false
   active.controller.abort()
   return true
+}
+
+/**
+ * يستعيد مهمّةً يتيمة عند إقلاع العامل — تُستدعى مرّة من `registerLifecycle`.
+ *
+ * المهمّة تُكتب في الجلسة، والعلَم `active` في ذاكرة العامل. فعاملٌ يموت أثناء التقاط (انهيار، أو إيقافٌ
+ * من المتصفّح) يترك `session.job` حيّةً بلا حلقة، والصفحةَ مُمرَّرة بعناصرها المخفيّة: قِيس في كروم بإيقاف
+ * العامل عبر CDP أن المهمّة بقيت بعد الاستيقاظ والصفحة عند 3039px بلا استعادة، فتعرض النافذة «يلتقط» حتى
+ * يمسحها الحارس بعد نحو دقيقتين ونصف (تدقيق Copilot، N3). وكل مهمّة في الجلسة ساعةَ الإقلاع لعاملٍ مات —
+ * **إلا مهمّة هذا العامل نفسه**: الحدث الذي أيقظه قد يكون تفعيلًا بدأ التقاطًا قبل أن يأتي دور هذه في
+ * الطابور. ولا تُستعاد صفحةٌ بدأ عليها هذا العامل التقاطًا: الاستعادة تُفسد الجديد. **ولا مهمّةُ السياق الآخر**:
+ * عاملا التصفّح العادي والخاص يتشاركان الجلسة (`SessionState.job.incognito`)، وأحدهما لا يعرف هل الآخر حيّ.
+ *
+ * `true` إن وُجدت يتيمة فمُسحت؛ وكتابةٌ فاشلة تُعيد `false` — والصفحة تُستعاد مع ذلك. والبثّ `interrupted`، أو
+ * `interrupted-saving` ليتيمةٍ بلغت لحظة الالتزام.
+ */
+export async function recoverOrphanedJob(
+  broadcast: (message: { kind: 'failed'; code: string; message: string }) => void,
+): Promise<boolean> {
+  const incognito = isIncognitoContext()
+  let orphan = null as SessionState['job']
+  const cleared = await updateSession((current) => {
+    const job = current.job
+    if (!job || job.id === active?.id || (job.incognito ?? false) !== incognito) return current
+    orphan = job
+    return { ...current, job: null }
+  })
+  if (!orphan) return false
+  if (!cleared.ok) console.warn(`[رصد] تعذّر مسح مهمّةٍ يتيمة من الجلسة: ${cleared.error.message}`)
+  else console.warn(`[رصد] مهمّة يتيمة من عاملٍ سابق أُنهيت: ${orphan.kind} (${orphan.id})`)
+
+  if (orphan.kind === 'full-page' && active?.tabId !== orphan.tabId) {
+    // الصفحة قد تكون أُغلقت أو تنقّلت — لا مستقبِل حينها ولا ما يُستعاد. والطبقة تُظهَر أيضًا: عاملٌ مات بين
+    // إخفائها للّقطة (`capture/hide-overlay`) وإظهارها يتركها مخفيّةً، و`fullpage/finish` لا يُظهرها.
+    restoringTab = orphan.tabId
+    try {
+      await askFinish(orphan.tabId).catch(() => null)
+      await sendToTab({ tabId: orphan.tabId }, 'capture/show-overlay', undefined, {
+        timeoutMs: PAGE_TIMEOUT_MS,
+      }).catch(() => null)
+    } finally {
+      restoringTab = null
+    }
+  }
+  // يتيمةٌ ملتزمة: بدأ حفظها قبل موت العامل، فربّما حُفظت — لا يُقال «لم يُحفظ» ولا يُعرف غيره (R4-06).
+  broadcast(
+    orphan.committed
+      ? {
+          kind: 'failed',
+          code: 'interrupted-saving',
+          message: 'توقّف رصد أثناء حفظ اللقطة، فقد تكون حُفظت. تحقّق منها في المكتبة.',
+        }
+      : {
+          kind: 'failed',
+          code: 'interrupted',
+          message: 'توقّف الالتقاط قبل اكتماله فلم يُحفظ. أُعيدت الصفحة كما كانت.',
+        },
+  )
+  return cleared.ok
 }
 
 export interface StartedJob {
@@ -304,10 +389,11 @@ export function startFullPage(
     save: (result: FullPageResult) => Promise<Result<{ id: string }>>
   },
 ): StartedJob {
-  if (active) return { started: false, reason: 'ثمّة التقاط كامل جارٍ بالفعل.' }
+  if (isFullPageRunning()) return { started: false, reason: 'ثمّة التقاط كامل جارٍ بالفعل.' }
 
   const controller = new AbortController()
-  active = { tabId, controller }
+  const job = { id: crypto.randomUUID(), tabId, controller, committed: false }
+  active = job
 
   /*
    * **حالة المهمّة تُكتَب في الجلسة — وإلا فحالة «جارٍ الالتقاط» غير قابلة
@@ -319,20 +405,27 @@ export function startFullPage(
    * التقدّم تصل رسائلها إلى `liveProgress` **فتُهمَل** لأنها لا تُعرض إلا
    * داخل حالة لا تُختار.
    *
-   * علامةُ وجودٍ خشنة تكفي هنا: `Popup.tsx` يفضّل `liveProgress` الحيّة على
-   * `job.done/total`، فلا داعي لكتابة كل بلاطة على القرص.
-   * ولا تُنتظَر — النداء يجب أن يعود فورًا (انظر ترويسة الدالّة).
+   * **ونبضُ تقدّمٍ كل `PROGRESS_PERSIST_MS` لا كل بلاطة**: الحارس يقيس الركود من `updatedAt`، فمهمّةٌ لا
+   * تكتب تقدّمها تُمسَح وهي تعمل (تدقيق Copilot، D3). والنبض أخشن من البلاطة عمدًا: `Popup.tsx` يفضّل
+   * `liveProgress` الحيّة على `job.done/total`، فلا داعي لكتابة كل بلاطة.
+   *
+   * **والكتابات لا تُنتظَر** — النداء يجب أن يعود فورًا (انظر ترويسة الدالّة) — فيرتّبها طابور الجلسة
+   * (`updateSession`): نبضٌ أخير لم يُكتب بعد يقع قبل مسح `finally` لا بعده. والنبض والمسح **مشروطان
+   * بأن تكون مهمّة الجلسة هذه نفسها**، فلا يُحيي نبضٌ مهمّةً مُسحت، ولا يمسح خروجٌ مهمّةً غيرها.
    */
-  void patchSession({
-    job: {
-      id: crypto.randomUUID(),
-      kind: 'full-page',
-      tabId,
-      startedAt: Date.now(),
-      done: 0,
-      total: 0,
-    },
-  })
+  const record = {
+    id: job.id,
+    kind: 'full-page',
+    tabId,
+    startedAt: Date.now(),
+    updatedAt: Date.now(),
+    incognito: isIncognitoContext(),
+    committed: false,
+    done: 0,
+    total: 0,
+  }
+  const mine = (current: SessionState) => current.job?.id === record.id
+  void patchSession({ job: { ...record } })
 
   void (async () => {
     try {
@@ -340,6 +433,13 @@ export function startFullPage(
         tabId,
         signal: controller.signal,
         onProgress: (p) => {
+          const now = Date.now()
+          if (now - record.updatedAt >= PROGRESS_PERSIST_MS) {
+            Object.assign(record, { updatedAt: now, done: p.done, total: p.total })
+            void updateSession((current) =>
+              mine(current) ? { ...current, job: { ...record } } : current,
+            )
+          }
           deps.broadcast({
             kind: 'progress',
             done: p.done,
@@ -356,6 +456,28 @@ export function startFullPage(
         deps.broadcast({ kind: 'failed', code: run.error.code, message: run.error.message })
         return
       }
+
+      /*
+       * **آخر فحصٍ للإلغاء، ولحظة الالتزام، في دورةٍ واحدة بلا `await` بينهما.**
+       *
+       * الحلقة لا ترى الإجهاض بعد آخر بلاطة: الترميز (`stitcher.finish`) والاستعادة يجريان بعدها، وقِيس في
+       * كروم أن إلغاءً من النافذة أو بـ`Esc` يصل في هذه النافذة (100–400ms على صفحة طويلة) فيُقبل ثمّ تُحفظ
+       * اللقطة. فإلغاءٌ سبق هذا السطر يُحترَم هنا، وما بعده يجد `committed` فيُرفَض صادقًا.
+       */
+      controller.signal.throwIfAborted()
+      job.committed = true
+
+      /*
+       * **والالتزام يُكتب في الجلسة قبل الحفظ.** `deps.save` يلتزم في القاعدة ثمّ تُمسح المهمّة في `finally`،
+       * فعاملٌ يموت بينهما كان يترك يتيمةً يبثّ عنها خلَفُه «فلم يُحفظ» واللقطة محفوظة (تدقيق R4، R4-06). لا
+       * عمليةٌ واحدة تجمع القاعدة والجلسة، فالصادق أن يعرف الخلَف أن الحفظ ربّما وقع. والكتابة الفاشلة لا تمنع
+       * الحفظ: أسوأ أثرها الرسالة القديمة في حالةٍ نادرة.
+       */
+      // ونبضٌ حديث معه: الحفظ لا يبدأ بما بقي من مهلة الحارس بعد آخر نبض (المراجعة المستقلّة).
+      Object.assign(record, { committed: true, updatedAt: Date.now() })
+      await updateSession((current) =>
+        mine(current) ? { ...current, job: { ...record } } : current,
+      )
 
       const saved = await deps.save(run.value)
       if (!saved.ok) {
@@ -384,7 +506,7 @@ export function startFullPage(
       active = null
       // تُمسَح في `finally` كالحالة الحيّة تمامًا: خروجٌ بنجاح أو فشل أو
       // إلغاء يجب ألّا يترك النافذة عالقة على «جارٍ الالتقاط».
-      void patchSession({ job: null })
+      void updateSession((current) => (mine(current) ? { ...current, job: null } : current))
     }
   })()
 

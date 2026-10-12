@@ -48,7 +48,7 @@ import { mountOverlayApp, requestCapture } from './overlay-app'
 import { reportAcrossPageLifecycle } from './page-report'
 import { startPersistence, type Persistence } from './persistence'
 import { saveTextFile } from './save-file'
-import { installShortcuts, liveBindings, type ShortcutAction } from './shortcuts'
+import { installShortcuts, liveBindings, releaseFrameFocus, type ShortcutAction } from './shortcuts'
 import { startSync, type SyncLoop } from './sync'
 import { createAreaSelect } from './tools/area-select'
 import { createColourPalette } from './tools/colour-palette'
@@ -277,6 +277,17 @@ async function bootOverlay(
 
   /** التقاط ظاهر مؤجَّل ينتظر انتهاء العدّ — لا تحديد له. */
   const pendingViewport = signal(false)
+
+  /*
+   * **دخول أداةٍ يُخرج التركيز من إطارٍ فرعي** كما تُخرجه الضغطة على الطبقة (`releaseFrameFocus`): مستخدمٌ نقر
+   * في إطار ثمّ فعّل أداة ثمّ ضغط `Esc` قبل أي ضغطة على الطبقة كان `Esc` يذهب إلى الإطار وتبقى الأداة — قِيس
+   * 10/10 في كروم (تدقيق R4، R4-02). وتركيزٌ في الصفحة الأعلى نفسها لا يُمسّ: حالة تركيزٍ قد يُراد تصويرها.
+   * **ولا عدُّ الالتقاط المؤجَّل** (`pendingViewport`): يمرّ عبر «منطقة»، والتأجيل موجودٌ ليُصوَّر تركيزٌ في حقل
+   * ولو في إطار — فيبقى، وكلفته أن `Esc` أثناء هذا العدّ يذهب إلى الإطار (المراجعة المستقلّة).
+   */
+  const unsubscribeFrameFocus = modes.subscribe((mode) => {
+    if (mode !== 'idle' && !pendingViewport.peek()) releaseFrameFocus(doc)
+  })
 
   /**
    * تقدّم الالتقاط الكامل — `null` يعني لا مهمّة.
@@ -1419,6 +1430,7 @@ async function bootOverlay(
     persistence.stop()
     sync.stop()
     unsubscribeReport()
+    unsubscribeFrameFocus()
     stopPageReport()
     // النافذة تعتمد على وضع مبلَّغ يعكس الواقع — تفكيك بلا تقرير idle أخير
     // يترك مؤشِّرًا حيًّا كاذبًا لجلسة انتهت فعلًا.

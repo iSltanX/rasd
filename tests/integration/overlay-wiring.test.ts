@@ -218,4 +218,157 @@ describe('ربط الطبقة', () => {
     await settle()
     expect(countdown()).not.toBeNull()
   })
+
+  /**
+   * تدقيق Copilot، N2 — مؤكَّد في كروم: نقرةٌ في إطار فرعي ثمّ تحديد منطقة، فيذهب `↵` إلى الإطار ولا
+   * يُحفظ شيء. الأدوات تكبت `pointerdown` على الطبقة (كي لا يُحدَّد نصّ الصفحة)، فيكبت معه انتقال
+   * التركيز الطبيعي خارج الإطار، ومستمع المفاتيح على النافذة العليا وحدها.
+   */
+  it('**الضغط على الطبقة يُخرج التركيز من إطارٍ فرعي** — فيصل `↵` و`Esc` إلى رصد', async () => {
+    const session = await boot()
+    session.modes.set('area')
+    await settle()
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    frame.focus()
+    expect(document.activeElement, 'التمهيد: التركيز في الإطار').toBe(frame)
+    const blur = vi.spyOn(frame, 'blur')
+
+    session.host.layer.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
+    )
+
+    expect(blur).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).not.toBe(frame)
+    frame.remove()
+  })
+
+  it('**وإطارٌ داخل جذر ظلّ مفتوح يُخرج منه التركيز كذلك** — `activeElement` يقف عند المضيف', async () => {
+    const session = await boot()
+    session.modes.set('area')
+    await settle()
+    const embed = document.createElement('my-embed')
+    const frame = document.createElement('iframe')
+    embed.attachShadow({ mode: 'open' }).append(frame)
+    document.body.append(embed)
+    frame.focus()
+    expect(document.activeElement, 'التمهيد: المستند يرى المضيف لا الإطار').toBe(embed)
+    const blur = vi.spyOn(frame, 'blur')
+
+    session.host.layer.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
+    )
+
+    expect(blur).toHaveBeenCalledTimes(1)
+    embed.remove()
+  })
+
+  it('ولا يمسّ تركيزًا ليس في إطار — ضابط', async () => {
+    const session = await boot()
+    session.modes.set('area')
+    await settle()
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+    const blur = vi.spyOn(field, 'blur')
+
+    session.host.layer.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
+    )
+
+    expect(blur).not.toHaveBeenCalled()
+    field.remove()
+  })
+
+  /**
+   * تدقيق R4، R4-02 — مؤكَّد في كروم 10/10: نقرةٌ في إطار ثمّ تفعيل أداة ثمّ `Esc` **قبل أي ضغطة على الطبقة**،
+   * فيذهب `Esc` إلى الإطار وتبقى الأداة. التفعيل نفسه يُخرج التركيز من الإطار كما تُخرجه الضغطة على الطبقة.
+   */
+  it('**تفعيل أداة والتركيز في إطارٍ فرعي يُخرجه منه** — فيصل `Esc` قبل أي ضغطة على الطبقة', async () => {
+    const session = await boot()
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    frame.focus()
+    expect(document.activeElement, 'التمهيد: التركيز في الإطار').toBe(frame)
+    const blur = vi.spyOn(frame, 'blur')
+
+    session.modes.set('area')
+    await settle()
+
+    expect(blur).toHaveBeenCalled()
+    press('Escape')
+    await settle()
+    expect(session.modes.mode.value).toBe('idle')
+    frame.remove()
+  })
+
+  it('والتفعيل لا يمسّ حقلًا مركَّزًا في الصفحة نفسها — ضابط', async () => {
+    const session = await boot()
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+    const blur = vi.spyOn(field, 'blur')
+
+    session.modes.set('inspect')
+    await settle()
+
+    expect(blur).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(field)
+    field.remove()
+  })
+
+  /**
+   * تدقيق R4، R4-03 — مؤكَّد في كروم 10/10: إطارٌ داخل جذر ظلّ **مغلق** يُسقط `↵`. `shadowRoot` في الجذر المغلق
+   * `null`، فيقف البحث عند المضيف. سكربت المحتوى يملك ما لا تملكه الصفحة: `chrome.dom.openOrClosedShadowRoot`
+   * (كروم) و`Element.openOrClosedShadowRoot` (Firefox) — `shadowRootOf` في `platform/capabilities.ts`.
+   */
+  it('**وإطارٌ داخل جذر ظلّ مغلق يُخرج منه التركيز كذلك**', async () => {
+    const session = await boot()
+    session.modes.set('area')
+    await settle()
+    const embed = document.createElement('my-closed-embed')
+    const root = embed.attachShadow({ mode: 'closed' })
+    const frame = document.createElement('iframe')
+    root.append(frame)
+    document.body.append(embed)
+    Object.assign(globalThis.chrome, {
+      dom: { openOrClosedShadowRoot: (el: Element) => (el === embed ? root : el.shadowRoot) },
+    })
+    try {
+      frame.focus()
+      expect(document.activeElement, 'التمهيد: المستند يرى المضيف').toBe(embed)
+      expect(embed.shadowRoot, 'التمهيد: الجذر مغلق').toBeNull()
+      const blur = vi.spyOn(frame, 'blur')
+
+      session.host.layer.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
+      )
+
+      expect(blur).toHaveBeenCalledTimes(1)
+    } finally {
+      delete (globalThis.chrome as { dom?: unknown }).dom
+      embed.remove()
+    }
+  })
+
+  /**
+   * المراجعة المستقلّة (R4-02): الالتقاط المؤجَّل يمرّ عبر وضع «منطقة»، والتأجيل موجودٌ ليُصوَّر تركيزٌ في حقل —
+   * ولو كان في إطار (نموذج دفع). دخولُه لا يُخرج التركيز من الإطار؛ والكلفة أن `Esc` أثناء هذا العدّ يذهب إلى الإطار.
+   */
+  it('**والتقاط الظاهر المؤجَّل لا يُخرج التركيز من إطار** — حالة التركيز هي ما يُراد تصويره', async () => {
+    await patchSettings({ capture: { delaySeconds: 3 } } as never)
+    const session = await boot()
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    frame.focus()
+    const blur = vi.spyOn(frame, 'blur')
+
+    await fromBackground('capture/start', { kind: 'viewport' })
+    await settle()
+
+    expect(session.modes.mode.peek(), 'التمهيد: العدّ في وضع «منطقة»').toBe('area')
+    expect(blur).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(frame)
+    frame.remove()
+  })
 })

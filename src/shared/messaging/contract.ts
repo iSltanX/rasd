@@ -27,8 +27,11 @@ export type ToolName = Exclude<ActiveMode, 'idle'> | 'viewport' | 'full-page'
  * العنوان قابلًا للحقن، فيُبلَّغ المستخدم بنجاحٍ لم يقع. `boot-failed` يعني
  * أن الطبقة لم تُقلِع في الصفحة، و`no-receiver` أن الإقلاع تمّ ولم تصل
  * الرسالة التالية إلى مستقبِل — حالتان مختلفتان في التشخيص فلا تُدمجان.
+ *
+ * و`busy`: التقاطٌ كامل جارٍ رفض الثاني (مهمّة واحدة في كل لحظة — `full-page-job.ts`). كان يُبلَّغ
+ * «بدأ» فتُغلق النافذة على عملٍ لم يبدأ (تدقيق Copilot، N1).
  */
-export type ActivationFailure = GateReason | 'boot-failed' | 'no-receiver'
+export type ActivationFailure = GateReason | 'boot-failed' | 'no-receiver' | 'busy'
 
 /**
  * لونٌ واحد في لوحة مستخرَجة — مُسطَّحًا للسلك.

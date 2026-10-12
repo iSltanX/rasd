@@ -2,8 +2,10 @@ import { fakeBrowser } from '@webext-core/fake-browser'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { registerLifecycle, sweepRetention } from '@/background/lifecycle'
+import { resetHandlers } from '@/shared/messaging'
 import { patchSettings, resetSettingsCache } from '@/shared/settings'
 import * as db from '@/shared/storage/db'
+import { getSession, patchSession } from '@/shared/storage/session'
 
 beforeEach(() => {
   fakeBrowser.reset()
@@ -81,5 +83,75 @@ describe('المنبّهات لا تُعاد جدولتها عند كل إقلا
 
   it('والكنس يخرج فورًا حين تكون المدّة صفرًا — الافتراضي لا يحذف شيئًا', async () => {
     await expect(sweepRetention(1_700_000_000_000)).resolves.toBe(0)
+  })
+})
+
+/**
+ * تدقيق Copilot، N3 — في كروم حقيقي بإيقاف العامل عبر CDP أثناء التقاط كامل: بعد الإيقاف والاستيقاظ
+ * بقيت `session.job` (فتعرض النافذة «يلتقط» حتى يمسحها الحارس بعد دقيقتين ونصف)، وبقيت الصفحة مُمرَّرة
+ * بعناصرها المخفيّة. العلَم `active` في الذاكرة يموت مع العامل، والجلسة تنجو منه.
+ */
+describe('إقلاع العامل يستعيد مهمّةً يتيمة', () => {
+  const orphan = {
+    id: 'يتيمة',
+    kind: 'full-page',
+    tabId: 3,
+    startedAt: 1,
+    updatedAt: 1,
+    done: 0,
+    total: 0,
+  }
+
+  it('**مهمّةُ عاملٍ مات تُمسح من الجلسة عند الإقلاع، وتُستعاد صفحتها**', async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ ok: true, value: { restored: true } })
+    Object.assign(globalThis.chrome.tabs, { sendMessage })
+    await patchSession({ job: orphan, modes: { 3: 'area' } })
+
+    registerLifecycle()
+
+    await vi.waitFor(async () => expect((await getSession()).job).toBeNull())
+    expect((await getSession()).modes, 'الأوضاع تبقى').toEqual({ 3: 'area' })
+    expect(sendMessage).toHaveBeenCalledWith(
+      3,
+      expect.objectContaining({ type: 'fullpage/finish' }),
+      undefined,
+    )
+  })
+
+  /*
+   * الرسالة التي توقظ العامل تُخدَم قبل أن يأتي دور الاستعادة في طابور الجلسة: قِيس في كروم أن `session/get`
+   * بعد الإيقاف ردّ باليتيمة والصفحةُ قد استُعيدت. فالقراءة عبر الرسالة تنتظر دورها كالكتابة.
+   */
+  it('**و`session/get` الذي أيقظ العامل يرى الجلسة بعد الاستعادة لا قبلها**', async () => {
+    Object.assign(globalThis.chrome.tabs, {
+      sendMessage: vi.fn().mockResolvedValue({ ok: true, value: { restored: true } }),
+    })
+    await patchSession({ job: orphan })
+    const replies: { ok: boolean; value?: { job: unknown } }[] = []
+    // `fakeBrowser.reset()` يُسقط مستمع الرسائل والوحدة تظنّه قائمًا — يُعاد تسجيله من الصفر.
+    resetHandlers()
+
+    registerLifecycle()
+    void (await fakeBrowser.runtime.onMessage.trigger(
+      { __rasd: 1, id: 'g', type: 'session/get' },
+      {},
+      (reply: { ok: boolean; value?: { job: unknown } }) => replies.push(reply),
+    ))
+
+    await vi.waitFor(() => expect(replies).toHaveLength(1))
+    expect(replies[0]).toMatchObject({ ok: true, value: { job: null } })
+  })
+
+  it('وإقلاعٌ بلا مهمّة لا يكتب شيئًا ولا يراسل تبويبًا', async () => {
+    const sendMessage = vi.fn()
+    Object.assign(globalThis.chrome.tabs, { sendMessage })
+    await patchSession({ modes: { 3: 'area' } })
+    const set = vi.spyOn(chrome.storage.session, 'set')
+
+    registerLifecycle()
+    await new Promise((r) => setTimeout(r, 30))
+
+    expect(set).not.toHaveBeenCalled()
+    expect(sendMessage).not.toHaveBeenCalled()
   })
 })

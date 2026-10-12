@@ -256,6 +256,9 @@ describe('نصوص قسم البيانات', () => {
     ).toBe('القيمة في الملفّ «svg»، وليست من خيارات رصد')
     expect(dropReasonText({ path: 'x', reason: 'type', received: 7 })).toContain('رقم')
     expect(dropReasonText({ path: 'x', reason: 'unknown', received: true })).toContain('لا يعرفه')
+    expect(
+      dropReasonText({ path: 'appearance.language', reason: 'language', received: 'en' }),
+    ).toBe('رصد بالعربية وحدها، فلا تُستورد لغةٌ أخرى للواجهة')
   })
 
   it('الصفر كلمةٌ لا رقم، والتاريخ بأرقام هندية', () => {
